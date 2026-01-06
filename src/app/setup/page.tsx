@@ -139,9 +139,15 @@ function SetupContent() {
             setFbPageName(data.shop.facebook_page_name || '');
           }
           
-          if (data.shop.setup_completed) {
+          // Only redirect if setup completed AND Facebook is connected
+          if (data.shop.setup_completed && data.shop.facebook_page_id) {
             router.push('/dashboard');
             return;
+          }
+          
+          // If Facebook not connected, go to step 2
+          if (!data.shop.facebook_page_id) {
+            setStep(2);
           }
         }
       } catch (err) {
