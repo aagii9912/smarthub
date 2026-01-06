@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   fbAuthUrl.searchParams.set('redirect_uri', redirectUri);
   fbAuthUrl.searchParams.set('scope', permissions);
   fbAuthUrl.searchParams.set('response_type', 'code');
-  fbAuthUrl.searchParams.set('state', crypto.randomUUID()); // CSRF protection
+  // fbAuthUrl.searchParams.set('state', crypto.randomUUID()); // Түр зуур хасав
   
   return NextResponse.redirect(fbAuthUrl.toString());
 }
