@@ -45,9 +45,20 @@ export async function POST(request: NextRequest) {
                 .eq('facebook_page_id', pageId)
                 .single();
 
+            // Fallback хэрэв shop олдохгүй бол
+            const shopData = shop || {
+                id: 'demo',
+                name: 'Demo Shop',
+                facebook_page_id: pageId,
+                products: [
+                    { id: '1', name: 'iPhone 15 Pro', price: 4500000, stock: 10, description: 'Latest iPhone' },
+                    { id: '2', name: 'MacBook Air M3', price: 3800000, stock: 5, description: 'Powerful laptop' },
+                    { id: '3', name: 'AirPods Pro 2', price: 850000, stock: 20, description: 'Premium earbuds' }
+                ]
+            };
+
             if (!shop) {
-                console.log(`No shop found for page ${pageId}`);
-                continue;
+                console.log(`⚠️ No shop found for page ${pageId}, using demo data`);
             }
 
             // Process messaging events
@@ -62,41 +73,48 @@ export async function POST(request: NextRequest) {
                     const intent = detectIntent(userMessage);
                     console.log(`Intent: ${intent.intent}, Confidence: ${intent.confidence}`);
 
-                    // Get or create customer
-                    let { data: customer } = await supabase
-                        .from('customers')
-                        .select('*')
-                        .eq('facebook_id', senderId)
-                        .eq('shop_id', shop.id)
-                        .single();
-
-                    if (!customer) {
-                        const { data: newCustomer } = await supabase
+                    // Get or create customer (skip if demo shop)
+                    let customer = null;
+                    if (shop) {
+                        const { data: existingCustomer } = await supabase
                             .from('customers')
-                            .insert({
-                                shop_id: shop.id,
-                                facebook_id: senderId,
-                            })
-                            .select()
+                            .select('*')
+                            .eq('facebook_id', senderId)
+                            .eq('shop_id', shop.id)
                             .single();
-                        customer = newCustomer;
+
+                        if (!existingCustomer) {
+                            const { data: newCustomer } = await supabase
+                                .from('customers')
+                                .insert({
+                                    shop_id: shop.id,
+                                    facebook_id: senderId,
+                                })
+                                .select()
+                                .single();
+                            customer = newCustomer;
+                        } else {
+                            customer = existingCustomer;
+                        }
                     }
 
                     // Generate AI response
                     const aiResponse = await generateChatResponse(userMessage, {
-                        shopName: shop.name,
-                        products: shop.products || [],
+                        shopName: shopData.name,
+                        products: shopData.products || [],
                         customerName: customer?.name || undefined,
                         orderHistory: customer?.total_orders || 0,
                     });
 
-                    // Save chat history
-                    await supabase.from('chat_history').insert({
-                        shop_id: shop.id,
-                        customer_id: customer?.id,
-                        message: userMessage,
-                        response: aiResponse,
-                    });
+                    // Save chat history (skip if demo shop)
+                    if (shop && customer) {
+                        await supabase.from('chat_history').insert({
+                            shop_id: shop.id,
+                            customer_id: customer?.id,
+                            message: userMessage,
+                            response: aiResponse,
+                        });
+                    }
 
                     // Send response
                     // Send response

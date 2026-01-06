@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export const geminiModel = genAI.getGenerativeModel({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-1.5-flash',  // ✅ Зөв model нэр
     generationConfig: {
         temperature: 0.7,
         topP: 0.8,
