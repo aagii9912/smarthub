@@ -25,10 +25,10 @@ export default function Home() {
                 Dashboard
               </Link>
               <Link
-                href="/odoo"
+                href="/auth/login"
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
               >
-                Odoo ERP
+                Нэвтрэх
               </Link>
             </div>
           </nav>
@@ -52,18 +52,18 @@ export default function Home() {
 
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                href="/dashboard"
+                href="/auth/register"
                 className="flex items-center gap-2 rounded-lg bg-indigo-600 px-8 py-4 text-lg font-semibold text-white shadow-lg hover:bg-indigo-700 transition-all hover:scale-105"
               >
                 <Zap className="h-5 w-5" />
-                Эхлэх
+                Бүртгүүлэх
               </Link>
               <Link
-                href="/test/ai"
+                href="/auth/login"
                 className="flex items-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-8 py-4 text-lg font-semibold text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
               >
                 <MessageSquare className="h-5 w-5" />
-                AI турших
+                Нэвтрэх
               </Link>
             </div>
           </div>

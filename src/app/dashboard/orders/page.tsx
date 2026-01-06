@@ -1,260 +1,370 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { useEffect, useState, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge, OrderStatusBadge } from '@/components/ui/Badge';
-import { Search, Filter, Eye, Truck, CheckCircle, XCircle, Package } from 'lucide-react';
-import type { OrderStatus } from '@/types/database';
+import { Button } from '@/components/ui/Button';
+import {
+  Package,
+  User,
+  Phone,
+  MapPin,
+  Clock,
+  Check,
+  Truck,
+  X,
+  RefreshCw,
+  MessageSquare,
+} from 'lucide-react';
 
-interface OrderItem {
+interface Order {
+  id: string;
+  total_amount: number;
+  status: string;
+  notes: string | null;
+  delivery_address: string | null;
+  created_at: string;
+  updated_at: string;
+  customers: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    address: string | null;
+    facebook_id: string | null;
+  } | null;
+  order_items: Array<{
     id: string;
     quantity: number;
     unit_price: number;
     products: {
-        id: string;
-        name: string;
+      id: string;
+      name: string;
+      price: number;
     } | null;
+  }>;
 }
 
-interface Order {
-    id: string;
-    total_amount: number;
-    status: OrderStatus;
-    created_at: string;
-    delivery_address: string | null;
-    customers: {
-        id: string;
-        name: string | null;
-        phone: string | null;
-        address: string | null;
-    } | null;
-    order_items: OrderItem[];
-}
-
-const statusFilters = [
-    { label: 'Бүгд', value: 'all' },
-    { label: 'Хүлээгдэж буй', value: 'pending' },
-    { label: 'Баталгаажсан', value: 'confirmed' },
-    { label: 'Илгээсэн', value: 'shipped' },
-    { label: 'Хүргэгдсэн', value: 'delivered' },
+const statusOptions = [
+  { value: 'pending', label: 'Хүлээгдэж буй', icon: Clock, color: 'bg-yellow-500' },
+  { value: 'confirmed', label: 'Баталгаажсан', icon: Check, color: 'bg-blue-500' },
+  { value: 'processing', label: 'Бэлтгэж буй', icon: Package, color: 'bg-purple-500' },
+  { value: 'shipped', label: 'Хүргэлтэд', icon: Truck, color: 'bg-indigo-500' },
+  { value: 'delivered', label: 'Хүргэгдсэн', icon: Check, color: 'bg-green-500' },
+  { value: 'cancelled', label: 'Цуцлагдсан', icon: X, color: 'bg-red-500' },
 ];
 
+function formatDate(date: string) {
+  return new Date(date).toLocaleString('mn-MN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function OrdersPage() {
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>('all');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-    useEffect(() => {
-        fetchOrders();
-    }, []);
+  const fetchOrders = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
+    
+    try {
+      const res = await fetch('/api/orders');
+      const data = await res.json();
+      setOrders(data.orders || []);
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
-    async function fetchOrders() {
-        try {
-            const res = await fetch('/api/dashboard/orders');
-            const data = await res.json();
-            setOrders(data.orders || []);
-        } catch (error) {
-            console.error('Failed to fetch orders:', error);
-        } finally {
-            setLoading(false);
+  useEffect(() => {
+    fetchOrders();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => fetchOrders(), 30000);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
+  const updateStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingId(orderId);
+    
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, status: newStatus }),
+      });
+
+      if (res.ok) {
+        // Update local state
+        setOrders(orders.map(o => 
+          o.id === orderId ? { ...o, status: newStatus } : o
+        ));
+        
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder({ ...selectedOrder, status: newStatus });
         }
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    } finally {
+      setUpdatingId(null);
     }
+  };
 
-    async function updateOrderStatus(orderId: string, status: OrderStatus) {
-        try {
-            await fetch('/api/dashboard/orders', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: orderId, status }),
-            });
-            fetchOrders();
-            if (selectedOrder?.id === orderId) {
-                setSelectedOrder(null);
-            }
-        } catch (error) {
-            console.error('Failed to update order:', error);
-        }
-    }
+  const filteredOrders = filter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === filter);
 
-    if (loading) {
-        return <div className="flex items-center justify-center h-96">
-            <div className="text-lg text-gray-500">Ачааллаж байна...</div>
-        </div>;
-    }
-
-    const filteredOrders = orders.filter(o => {
-        const customerName = o.customers?.name || '';
-        const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            o.id.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
-
+  if (loading) {
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Захиалгууд</h1>
-                    <p className="text-gray-500 mt-1">Нийт {orders.length} захиалга</p>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <Card>
-                <CardContent className="py-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Захиалга хайх..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-                            {statusFilters.map((filter) => (
-                                <button
-                                    key={filter.value}
-                                    onClick={() => setStatusFilter(filter.value)}
-                                    className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${statusFilter === filter.value
-                                            ? 'bg-violet-600 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    {filter.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Orders List */}
-            <div className="space-y-4">
-                {filteredOrders.map((order) => {
-                    const customerName = order.customers?.name || 'Харилцагч';
-                    const customerPhone = order.customers?.phone || '';
-                    const itemsText = order.order_items
-                        .map(i => `${i.products?.name || 'Бүтээгдэхүүн'} x${i.quantity}`)
-                        .join(', ');
-                    const createdAt = new Date(order.created_at).toLocaleString('mn-MN');
-                    
-                    return (
-                        <Card key={order.id} hover className="cursor-pointer" onClick={() => setSelectedOrder(order)}>
-                            <CardContent className="py-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center flex-shrink-0">
-                                            <Package className="w-6 h-6 text-violet-600" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="font-semibold text-gray-900">{order.id.substring(0, 8)}</p>
-                                                <OrderStatusBadge status={order.status} />
-                                            </div>
-                                            <p className="text-sm text-gray-600 mt-1">{customerName} • {customerPhone}</p>
-                                            <p className="text-sm text-gray-500">{itemsText}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4 sm:gap-6">
-                                        <div className="text-right">
-                                            <p className="font-bold text-lg text-gray-900">₮{Number(order.total_amount).toLocaleString()}</p>
-                                            <p className="text-sm text-gray-500">{createdAt}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                            {order.status === 'pending' && (
-                                                <>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost" 
-                                                        className="!text-green-600 !hover:bg-green-50"
-                                                        onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost" 
-                                                        className="!text-red-600 !hover:bg-red-50"
-                                                        onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </Button>
-                                                </>
-                                            )}
-                                            {order.status === 'confirmed' && (
-                                                <Button 
-                                                    size="sm"
-                                                    onClick={() => updateOrderStatus(order.id, 'shipped')}
-                                                >
-                                                    <Truck className="w-4 h-4 mr-1" />
-                                                    Илгээх
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </div>
-
-            {/* Order Detail Modal */}
-            {selectedOrder && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedOrder(null)}>
-                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 m-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">{selectedOrder.id.substring(0, 8)}</h2>
-                                <p className="text-sm text-gray-500">{new Date(selectedOrder.created_at).toLocaleString('mn-MN')}</p>
-                            </div>
-                            <OrderStatusBadge status={selectedOrder.status} />
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="p-4 bg-gray-50 rounded-xl">
-                                <p className="text-sm text-gray-500 mb-1">Харилцагч</p>
-                                <p className="font-medium text-gray-900">{selectedOrder.customers?.name || 'Харилцагч'}</p>
-                                <p className="text-sm text-gray-600">{selectedOrder.customers?.phone || ''}</p>
-                                <p className="text-sm text-gray-600">{selectedOrder.delivery_address || selectedOrder.customers?.address || ''}</p>
-                            </div>
-
-                            <div className="p-4 bg-gray-50 rounded-xl">
-                                <p className="text-sm text-gray-500 mb-2">Бүтээгдэхүүн</p>
-                                {selectedOrder.order_items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between py-2 border-b border-gray-200 last:border-0">
-                                        <span className="text-gray-900">{item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}</span>
-                                        <span className="font-medium text-gray-900">₮{(Number(item.unit_price) * item.quantity).toLocaleString()}</span>
-                                    </div>
-                                ))}
-                                <div className="flex justify-between pt-3 mt-2 border-t border-gray-300">
-                                    <span className="font-semibold text-gray-900">Нийт</span>
-                                    <span className="font-bold text-lg text-violet-600">₮{Number(selectedOrder.total_amount).toLocaleString()}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 mt-6">
-                            <Button variant="secondary" onClick={() => setSelectedOrder(null)}>
-                                Хаах
-                            </Button>
-                            {selectedOrder.status === 'pending' && (
-                                <Button onClick={() => updateOrderStatus(selectedOrder.id, 'confirmed')}>
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Баталгаажуулах
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-lg text-gray-500">Ачааллаж байна...</div>
+      </div>
     );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Захиалгууд 📦</h1>
+          <p className="text-gray-500 mt-1">Нийт {orders.length} захиалга</p>
+        </div>
+        <Button onClick={() => fetchOrders(true)} disabled={refreshing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          Шинэчлэх
+        </Button>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+            filter === 'all'
+              ? 'bg-violet-600 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Бүгд ({orders.length})
+        </button>
+        {statusOptions.map((status) => {
+          const count = orders.filter(o => o.status === status.value).length;
+          return (
+            <button
+              key={status.value}
+              onClick={() => setFilter(status.value)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
+                filter === status.value
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {status.label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Orders List */}
+        <div className="lg:col-span-2 space-y-4">
+          {filteredOrders.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Захиалга байхгүй байна</p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredOrders.map((order) => (
+              <Card 
+                key={order.id}
+                className={`cursor-pointer transition-all hover:shadow-lg ${
+                  selectedOrder?.id === order.id ? 'ring-2 ring-violet-500' : ''
+                }`}
+                onClick={() => setSelectedOrder(order)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <OrderStatusBadge status={order.status} />
+                        <span className="text-sm text-gray-500">
+                          #{order.id.slice(0, 8)}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        {order.order_items.map((item, idx) => (
+                          <p key={idx} className="font-medium text-gray-900">
+                            {item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}
+                          </p>
+                        ))}
+                      </div>
+                      
+                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          {order.customers?.name || 'Харилцагч'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {formatDate(order.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        ₮{Number(order.total_amount).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Order Detail */}
+        <div className="lg:col-span-1">
+          {selectedOrder ? (
+            <Card className="sticky top-6">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Захиалгын дэлгэрэнгүй</span>
+                  <OrderStatusBadge status={selectedOrder.status} />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Customer Info */}
+                <div className="space-y-3">
+                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Харилцагч
+                  </h3>
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <p className="font-medium">{selectedOrder.customers?.name || 'Нэр оруулаагүй'}</p>
+                    {selectedOrder.customers?.phone && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        {selectedOrder.customers.phone}
+                      </p>
+                    )}
+                    {(selectedOrder.delivery_address || selectedOrder.customers?.address) && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        {selectedOrder.delivery_address || selectedOrder.customers?.address}
+                      </p>
+                    )}
+                    {selectedOrder.customers?.facebook_id && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Messenger
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Order Items */}
+                <div className="space-y-3">
+                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Бүтээгдэхүүнүүд
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedOrder.order_items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-gray-50 rounded-lg p-3">
+                        <div>
+                          <p className="font-medium">{item.products?.name}</p>
+                          <p className="text-sm text-gray-500">
+                            ₮{Number(item.unit_price).toLocaleString()} x {item.quantity}
+                          </p>
+                        </div>
+                        <p className="font-semibold">
+                          ₮{(Number(item.unit_price) * item.quantity).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t pt-3 flex justify-between items-center">
+                    <span className="font-medium">Нийт дүн:</span>
+                    <span className="text-xl font-bold text-violet-600">
+                      ₮{Number(selectedOrder.total_amount).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedOrder.notes && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Тэмдэглэл</h3>
+                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                      {selectedOrder.notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Status Update */}
+                <div className="space-y-3">
+                  <h3 className="font-medium text-gray-900">Статус өөрчлөх</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {statusOptions.map((status) => {
+                      const Icon = status.icon;
+                      const isActive = selectedOrder.status === status.value;
+                      const isUpdating = updatingId === selectedOrder.id;
+                      
+                      return (
+                        <button
+                          key={status.value}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateStatus(selectedOrder.id, status.value);
+                          }}
+                          disabled={isActive || isUpdating}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            isActive
+                              ? 'bg-violet-100 text-violet-700 cursor-default'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          } disabled:opacity-50`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {status.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Timestamps */}
+                <div className="text-xs text-gray-400 space-y-1 pt-4 border-t">
+                  <p>Үүсгэсэн: {formatDate(selectedOrder.created_at)}</p>
+                  <p>Шинэчилсэн: {formatDate(selectedOrder.updated_at)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Захиалга сонгоно уу</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
