@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
+import { getUserShop } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
   try {
+    const authShop = await getUserShop();
+    
+    if (!authShop) {
+      return NextResponse.json({ products: [] });
+    }
+
     const supabase = supabaseAdmin();
-    const shopId = '00000000-0000-0000-0000-000000000001';
+    const shopId = authShop.id;
 
     const { data: products, error } = await supabase
       .from('products')
@@ -14,7 +21,7 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ products });
+    return NextResponse.json({ products: products || [] });
   } catch (error) {
     console.error('Products API error:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
@@ -23,8 +30,14 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authShop = await getUserShop();
+    
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = supabaseAdmin();
-    const shopId = '00000000-0000-0000-0000-000000000001';
+    const shopId = authShop.id;
     const body = await request.json();
 
     const { data, error } = await supabase
@@ -51,9 +64,28 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const authShop = await getUserShop();
+    
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = supabaseAdmin();
+    const shopId = authShop.id;
     const body = await request.json();
     const { id, ...updates } = body;
+
+    // Verify product belongs to shop
+    const { data: existingProduct } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', id)
+      .eq('shop_id', shopId)
+      .single();
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
 
     const { data, error } = await supabase
       .from('products')
@@ -73,9 +105,28 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const authShop = await getUserShop();
+    
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = supabaseAdmin();
+    const shopId = authShop.id;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+
+    // Verify product belongs to shop
+    const { data: existingProduct } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', id)
+      .eq('shop_id', shopId)
+      .single();
+
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
 
     const { error } = await supabase
       .from('products')
@@ -90,4 +141,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }
-

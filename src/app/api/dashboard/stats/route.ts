@@ -5,14 +5,25 @@ import { getStartOfToday } from '@/lib/utils/date';
 
 export async function GET() {
   try {
-    const supabase = supabaseAdmin();
-
-    // Get authenticated user's shop
     const authShop = await getUserShop();
     
-    // Fallback to demo shop if not authenticated
-    const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
+    // Require authenticated shop - no demo fallback
+    if (!authShop) {
+      return NextResponse.json({
+        shop: null,
+        stats: {
+          todayOrders: 0,
+          pendingOrders: 0,
+          totalRevenue: 0,
+          totalCustomers: 0,
+        },
+        recentOrders: [],
+        recentChats: [],
+      });
+    }
 
+    const supabase = supabaseAdmin();
+    const shopId = authShop.id;
     const today = getStartOfToday();
 
     // Өнөөдрийн захиалгууд
@@ -76,7 +87,7 @@ export async function GET() {
       .limit(5);
 
     return NextResponse.json({
-      shop: authShop ? { id: authShop.id, name: authShop.name } : null,
+      shop: { id: authShop.id, name: authShop.name },
       stats: {
         todayOrders: todayOrders || 0,
         pendingOrders: pendingOrders || 0,

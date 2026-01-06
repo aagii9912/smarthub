@@ -4,9 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const supabase = supabaseAdmin();
     const authShop = await getUserShop();
-    const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
+    
+    if (!authShop) {
+      return NextResponse.json({ orders: [] });
+    }
+
+    const supabase = supabaseAdmin();
+    const shopId = authShop.id;
 
     const { data: orders, error } = await supabase
       .from('orders')
@@ -20,7 +25,7 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ orders });
+    return NextResponse.json({ orders: orders || [] });
   } catch (error) {
     console.error('Orders API error:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
@@ -29,9 +34,14 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = supabaseAdmin();
     const authShop = await getUserShop();
-    const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
+    
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin();
+    const shopId = authShop.id;
     
     const body = await request.json();
     const { id, status } = body;

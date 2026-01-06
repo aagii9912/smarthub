@@ -5,9 +5,14 @@ import { supabaseAdmin } from '@/lib/supabase';
 // GET all orders
 export async function GET() {
   try {
-    const supabase = supabaseAdmin();
     const authShop = await getUserShop();
-    const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
+    
+    if (!authShop) {
+      return NextResponse.json({ orders: [] });
+    }
+
+    const supabase = supabaseAdmin();
+    const shopId = authShop.id;
 
     const { data: orders } = await supabase
       .from('orders')
@@ -35,6 +40,12 @@ export async function GET() {
 // PATCH - Update order status
 export async function PATCH(request: NextRequest) {
   try {
+    const authShop = await getUserShop();
+    
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { orderId, status } = body;
 
@@ -48,8 +59,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const supabase = supabaseAdmin();
-    const authShop = await getUserShop();
-    const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
+    const shopId = authShop.id;
 
     // Verify order belongs to shop
     const { data: order } = await supabase
