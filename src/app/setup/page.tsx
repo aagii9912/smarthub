@@ -166,6 +166,36 @@ function SetupContent() {
     window.location.href = '/api/auth/facebook';
   };
 
+  const fetchPagesWithToken = async () => {
+    if (!fbAccessToken) {
+      setError('Page Access Token оруулна уу');
+      return;
+    }
+    
+    setFbLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch(`https://graph.facebook.com/v21.0/me/accounts?access_token=${fbAccessToken}&fields=id,name,access_token,category`);
+      const data = await res.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message || 'Facebook-ээс Page татахад алдаа гарлаа');
+      }
+      
+      if (data.data && data.data.length > 0) {
+        setFbPages(data.data);
+      } else {
+        setError('Энэ токенд холбоотой Page олдсонгүй');
+      }
+    } catch (err: any) {
+      console.error('Manual fetch error:', err);
+      setError(err.message || 'Page татахад алдаа гарлаа');
+    } finally {
+      setFbLoading(false);
+    }
+  };
+
   const selectFacebookPage = async (pageId: string) => {
     setSelectedPageId(pageId);
     setSaving(true);
@@ -588,14 +618,28 @@ function SetupContent() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Page Access Token</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">User эсвэл Page Access Token</label>
                         <textarea
                           value={fbAccessToken}
                           onChange={(e) => setFbAccessToken(e.target.value)}
                           placeholder="EAAG..."
                           rows={3}
-                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm font-mono"
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm font-mono mb-3"
                         />
+                        <button
+                          onClick={fetchPagesWithToken}
+                          disabled={fbLoading || !fbAccessToken}
+                          className="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 rounded-lg text-sm transition-all flex items-center justify-center gap-2"
+                        >
+                          {fbLoading ? (
+                            <div className="w-4 h-4 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+                          ) : (
+                            <>
+                              <Package className="w-4 h-4" />
+                              Page жагсаалт татах
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </details>
