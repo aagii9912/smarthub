@@ -217,7 +217,12 @@ function SetupContent() {
     setError('');
     
     try {
-      if (shop) {
+      // First check if shop exists by fetching it
+      const checkRes = await fetch('/api/shop');
+      const checkData = await checkRes.json();
+      const existingShop = checkData.shop;
+      
+      if (existingShop) {
         // Update existing shop
         const res = await fetch('/api/shop', {
           method: 'PATCH',
