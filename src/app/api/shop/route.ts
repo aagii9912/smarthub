@@ -30,7 +30,7 @@ export async function GET() {
   }
 }
 
-// POST - Create shop
+// POST - Create or update shop (upsert)
 export async function POST(request: NextRequest) {
   try {
     const user = await getServerUser();
@@ -51,12 +51,21 @@ export async function POST(request: NextRequest) {
     // Check if shop already exists
     const { data: existingShop } = await supabase
       .from('shops')
-      .select('id')
+      .select('*')
       .eq('user_id', user.id)
       .single();
 
     if (existingShop) {
-      return NextResponse.json({ error: 'Shop already exists', shop: existingShop }, { status: 400 });
+      // Update existing shop instead of returning error
+      const { data: updatedShop, error } = await supabase
+        .from('shops')
+        .update({ name, owner_name, phone })
+        .eq('id', existingShop.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ shop: updatedShop });
     }
 
     // Create new shop
