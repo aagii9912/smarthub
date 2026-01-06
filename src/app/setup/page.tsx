@@ -55,8 +55,18 @@ function SetupContent() {
   ]);
 
   useEffect(() => {
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.log('Setup page loading timeout - setting loading to false');
+        setLoading(false);
+      }
+    }, 8000); // 8 seconds timeout
+    
     checkAuth();
     handleFacebookCallback();
+    
+    return () => clearTimeout(timeout);
   }, [searchParams]);
 
   const handleFacebookCallback = async () => {
@@ -95,43 +105,54 @@ function SetupContent() {
   };
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      router.push('/auth/login');
-      return;
-    }
-    
-    setUser(user);
-    setOwnerName(user.user_metadata?.full_name || '');
-    
-    // Fetch shop from API
     try {
-      const res = await fetch('/api/shop');
-      const data = await res.json();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      if (data.shop) {
-        setShop(data.shop);
-        setShopName(data.shop.name || '');
-        setPhone(data.shop.phone || '');
-        setOwnerName(data.shop.owner_name || user.user_metadata?.full_name || '');
-        
-        if (data.shop.facebook_page_id) {
-          setFbConnected(true);
-          setFbPageId(data.shop.facebook_page_id);
-          setFbPageName(data.shop.facebook_page_name || '');
-        }
-        
-        if (data.shop.setup_completed) {
-          router.push('/dashboard');
-          return;
-        }
+      if (authError) {
+        console.error('Auth error:', authError);
+        setLoading(false);
+        return;
       }
+      
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      setUser(user);
+      setOwnerName(user.user_metadata?.full_name || '');
+      
+      // Fetch shop from API
+      try {
+        const res = await fetch('/api/shop');
+        const data = await res.json();
+        
+        if (data.shop) {
+          setShop(data.shop);
+          setShopName(data.shop.name || '');
+          setPhone(data.shop.phone || '');
+          setOwnerName(data.shop.owner_name || user.user_metadata?.full_name || '');
+          
+          if (data.shop.facebook_page_id) {
+            setFbConnected(true);
+            setFbPageId(data.shop.facebook_page_id);
+            setFbPageName(data.shop.facebook_page_name || '');
+          }
+          
+          if (data.shop.setup_completed) {
+            router.push('/dashboard');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching shop:', err);
+      }
+      
+      setLoading(false);
     } catch (err) {
-      console.error('Error fetching shop:', err);
+      console.error('checkAuth error:', err);
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const connectWithFacebook = () => {
