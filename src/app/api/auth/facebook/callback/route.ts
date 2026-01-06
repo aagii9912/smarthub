@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   
   try {
     // Exchange code for access token
-    const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    const tokenUrl = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
     tokenUrl.searchParams.set('client_id', appId);
     tokenUrl.searchParams.set('client_secret', appSecret);
     tokenUrl.searchParams.set('redirect_uri', redirectUri);
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const userAccessToken = tokenData.access_token;
     
     // Get user's Facebook Pages
-    const pagesUrl = `https://graph.facebook.com/v18.0/me/accounts?access_token=${userAccessToken}&fields=id,name,access_token,category`;
+    const pagesUrl = `https://graph.facebook.com/v21.0/me/accounts?access_token=${userAccessToken}&fields=id,name,access_token,category`;
     const pagesResponse = await fetch(pagesUrl);
     const pagesData = await pagesResponse.json();
     

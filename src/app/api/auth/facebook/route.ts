@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   ].join(',');
   
   // Build Facebook OAuth URL
-  const fbAuthUrl = new URL('https://www.facebook.com/v18.0/dialog/oauth');
+  const fbAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
   fbAuthUrl.searchParams.set('client_id', appId);
   fbAuthUrl.searchParams.set('redirect_uri', redirectUri);
   fbAuthUrl.searchParams.set('scope', permissions);
