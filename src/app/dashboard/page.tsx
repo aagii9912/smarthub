@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge, OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatTimeAgo } from '@/lib/utils/date';
 import {
     ShoppingCart,
     Users,
@@ -21,22 +21,7 @@ import {
     Sparkles,
 } from 'lucide-react';
 
-function formatTimeAgo(date: string) {
-    const now = new Date();
-    const past = new Date(date);
-    const diffMs = now.getTime() - past.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Саяхан';
-    if (diffMins < 60) return `${diffMins} мин өмнө`;
-    if (diffHours < 24) return `${diffHours} цаг өмнө`;
-    return `${diffDays} өдрийн өмнө`;
-}
-
 export default function DashboardPage() {
-    const router = useRouter();
     const { user, shop, loading: authLoading } = useAuth();
     
     const [stats, setStats] = useState({
@@ -70,17 +55,12 @@ export default function DashboardPage() {
     }, []);
 
     useEffect(() => {
-        // Add timeout to prevent infinite loading
         const timeout = setTimeout(() => {
-            if (loading) {
-                setLoading(false);
-            }
-        }, 10000); // 10 seconds timeout
+            if (loading) setLoading(false);
+        }, 10000);
         
         if (!authLoading) {
             fetchDashboardData();
-            
-            // Auto-refresh every 15 seconds
             const interval = setInterval(() => fetchDashboardData(), 15000);
             return () => {
                 clearInterval(interval);
@@ -90,13 +70,6 @@ export default function DashboardPage() {
         
         return () => clearTimeout(timeout);
     }, [authLoading, fetchDashboardData]);
-
-    // Don't redirect - just show dashboard without shop data
-    // useEffect(() => {
-    //     if (!authLoading && user && !shop) {
-    //         router.push('/setup');
-    //     }
-    // }, [authLoading, user, shop, router]);
 
     if (loading || authLoading) {
         return (

@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const cookieStore = await cookies();
     const pagesCookie = cookieStore.get('fb_pages');
-    
+
     if (!pagesCookie) {
       return NextResponse.json({ pages: [], message: 'No Facebook pages found. Please connect again.' });
     }
@@ -29,7 +29,7 @@ export async function GET() {
     }));
     
     return NextResponse.json({ pages: safePagesData });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error fetching FB pages:', err);
     return NextResponse.json({ pages: [], error: 'Failed to parse pages data' });
   }
@@ -73,9 +73,8 @@ export async function POST(request: NextRequest) {
         access_token: selectedPage.access_token,
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error selecting FB page:', err);
     return NextResponse.json({ error: 'Failed to select page' }, { status: 500 });
   }
 }
-

@@ -1,51 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { getUserShop } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getStartOfToday } from '@/lib/utils/date';
 
-async function getAuthenticatedShop() {
-  const cookieStore = await cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-
-  const { data: shop } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-
-  return shop;
-}
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = supabaseAdmin();
 
-    // Try to get authenticated user's shop
-    const authShop = await getAuthenticatedShop();
+    // Get authenticated user's shop
+    const authShop = await getUserShop();
     
     // Fallback to demo shop if not authenticated
     const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
 
-    // Өнөөдрийн захиалгууд
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getStartOfToday();
 
+    // Өнөөдрийн захиалгууд
     const { count: todayOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
@@ -59,7 +29,7 @@ export async function GET(request: NextRequest) {
       .eq('shop_id', shopId)
       .eq('status', 'pending');
 
-    // Нийт орлого (бүх цаг)
+    // Нийт орлого
     const { data: allOrdersData } = await supabase
       .from('orders')
       .select('total_amount')
@@ -83,16 +53,8 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         notes,
-        customers (
-          name,
-          phone
-        ),
-        order_items (
-          quantity,
-          products (
-            name
-          )
-        )
+        customers (name, phone),
+        order_items (quantity, products (name))
       `)
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false })
@@ -107,9 +69,7 @@ export async function GET(request: NextRequest) {
         response,
         intent,
         created_at,
-        customers (
-          name
-        )
+        customers (name)
       `)
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false })

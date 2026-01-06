@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const origin = request.nextUrl.origin;
-  
+
   // Handle error from Facebook
   if (error) {
     const errorReason = searchParams.get('error_reason') || 'Unknown error';
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const appId = process.env.FACEBOOK_APP_ID?.trim();
   const appSecret = process.env.FACEBOOK_APP_SECRET?.trim();
   
-  if (!appId || !appSecret) {
+  if (!appId || !appSecret || appSecret === 'your_facebook_app_secret') {
     return NextResponse.redirect(`${origin}/setup?fb_error=config_missing`);
   }
   
@@ -54,16 +54,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${origin}/setup?fb_error=pages_error`);
     }
     
-    // Store pages data in a cookie (encrypted in production, but for now simple encoding)
-    const pages = pagesData.data || [];
+    // Store pages data in a cookie
+    const pages = (pagesData.data || []).slice(0, 10);
     const pagesJson = JSON.stringify(pages);
+    const encodedPages = Buffer.from(pagesJson).toString('base64');
     
     // Set cookie with pages data
     const cookieStore = await cookies();
-    cookieStore.set('fb_pages', Buffer.from(pagesJson).toString('base64'), {
+    cookieStore.set('fb_pages', encodedPages, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 3600, // 1 hour
+      maxAge: 3600,
       path: '/',
     });
     
@@ -75,4 +76,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/setup?fb_error=exception`);
   }
 }
-

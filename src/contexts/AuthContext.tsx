@@ -7,6 +7,8 @@ import { createClient } from '@/lib/auth/supabase-auth';
 interface Shop {
   id: string;
   name: string;
+  owner_name: string | null;
+  phone: string | null;
   facebook_page_id: string | null;
   facebook_page_name: string | null;
   setup_completed: boolean;

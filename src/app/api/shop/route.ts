@@ -1,33 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getServerUser } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
 
 // GET - Get user's shop
 export async function GET() {
   try {
-    const user = await getAuthUser();
-    
+    const user = await getServerUser();
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -54,7 +33,7 @@ export async function GET() {
 // POST - Create shop
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser();
+    const user = await getServerUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -106,7 +85,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Update shop
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthUser();
+    const user = await getServerUser();
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -134,7 +113,10 @@ export async function PATCH(request: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Update shop DB error:', error);
+      throw error;
+    }
 
     return NextResponse.json({ shop: updatedShop });
   } catch (error: any) {
@@ -142,4 +124,3 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

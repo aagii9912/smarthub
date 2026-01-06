@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge, OrderStatusBadge } from '@/components/ui/Badge';
+import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/utils/date';
 import {
   Package,
   User,
@@ -53,16 +54,6 @@ const statusOptions = [
   { value: 'cancelled', label: 'Цуцлагдсан', icon: X, color: 'bg-red-500' },
 ];
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleString('mn-MN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,8 +79,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-    
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => fetchOrders(), 30000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
@@ -105,7 +94,6 @@ export default function OrdersPage() {
       });
 
       if (res.ok) {
-        // Update local state
         setOrders(orders.map(o => 
           o.id === orderId ? { ...o, status: newStatus } : o
         ));

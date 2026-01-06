@@ -1,42 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getUserShop } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-
-async function getAuthenticatedShop() {
-  const cookieStore = await cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-
-  const { data: shop } = await supabase
-    .from('shops')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-
-  return shop;
-}
 
 // GET all orders
 export async function GET() {
   try {
     const supabase = supabaseAdmin();
-    const authShop = await getAuthenticatedShop();
+    const authShop = await getUserShop();
     const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
 
     const { data: orders } = await supabase
@@ -49,23 +19,8 @@ export async function GET() {
         delivery_address,
         created_at,
         updated_at,
-        customers (
-          id,
-          name,
-          phone,
-          address,
-          facebook_id
-        ),
-        order_items (
-          id,
-          quantity,
-          unit_price,
-          products (
-            id,
-            name,
-            price
-          )
-        )
+        customers (id, name, phone, address, facebook_id),
+        order_items (id, quantity, unit_price, products (id, name, price))
       `)
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false });
@@ -93,7 +48,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const supabase = supabaseAdmin();
-    const authShop = await getAuthenticatedShop();
+    const authShop = await getUserShop();
     const shopId = authShop?.id || '00000000-0000-0000-0000-000000000001';
 
     // Verify order belongs to shop
@@ -136,4 +91,3 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }
-
