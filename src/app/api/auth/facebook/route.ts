@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Facebook OAuth - Start
 export async function GET(request: NextRequest) {
-  const appId = process.env.FACEBOOK_APP_ID;
+  const appId = process.env.FACEBOOK_APP_ID?.trim();
   
   if (!appId) {
     return NextResponse.json({ error: 'Facebook App ID not configured' }, { status: 500 });

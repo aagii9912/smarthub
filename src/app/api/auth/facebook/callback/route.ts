@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/setup?fb_error=no_code`);
   }
   
-  const appId = process.env.FACEBOOK_APP_ID;
-  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  const appId = process.env.FACEBOOK_APP_ID?.trim();
+  const appSecret = process.env.FACEBOOK_APP_SECRET?.trim();
   
   if (!appId || !appSecret) {
     return NextResponse.redirect(`${origin}/setup?fb_error=config_missing`);
