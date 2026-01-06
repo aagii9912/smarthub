@@ -88,10 +88,16 @@ ${productList}
     }
 }
 
+export interface RichChatResponse {
+    text: string;
+    suggestedProducts?: string[];
+    quickReplies?: Array<{ title: string; payload: string }>;
+}
+
 export async function generateChatResponse(
     message: string,
     context: ChatContext
-): Promise<string> {
+): Promise<string | RichChatResponse> {
     try {
         console.log('🔍 generateChatResponse called with:', {
             message,
@@ -137,7 +143,20 @@ ${context.orderHistory ? `Энэ хэрэглэгч өмнө нь ${context.orde
 2. Хэрэглэгч мэндэлсэн үед л хариу мэндчил.
 3. Зөвхөн дээрх жагсаалтад байгаа барааг зарах.
 4. Үнийг ₮ тэмдэгтэй бичих.
-5. Богино, тодорхой хариулах (2-4 өгүүлбэр).`;
+5. Богино, тодорхой хариулах (2-4 өгүүлбэр).
+
+ГАРГАХ ХЭЛБЭР (JSON FORMAT):
+Хариултыг ЗААВАЛ дараах JSON бүтэцтэй гаргана уу:
+{
+  "text": "Таны хэлэх үг (emoji ашигла)",
+  "suggestedProducts": ["Бүтээгдэхүүн 1 нэр", "Бүтээгдэхүүн 2 нэр"], // Хэрэв хэрэглэгч бараа асуусан бол энд нэрсийг нь бич (max 5)
+  "quickReplies": [ // Хэрэв сонголт өгөх бол (max 3)
+     {"title": "Тийм", "payload": "YES"},
+     {"title": "Үгүй", "payload": "NO"}
+  ]
+}
+
+Хэрэглэгч зүгээр мэндэлсэн бол suggestedProducts, quickReplies хоосон байж болно.`;
 
         console.log('📝 System prompt prepared, length:', systemPrompt.length);
 
@@ -149,9 +168,22 @@ ${context.orderHistory ? `Энэ хэрэглэгч өмнө нь ${context.orde
         const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
         
         const responseText = result.response.text();
-        console.log('✅ Gemini response received, length:', responseText.length);
+        console.log('✅ Gemini response received:', responseText);
         
+        // Parse JSON
+        try {
+            // Find JSON object in response (in case Gemini adds markdown blocks)
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]) as RichChatResponse;
+            }
+        } catch (e) {
+            console.error('Failed to parse Gemini JSON, returning text only');
+        }
+
+        // Fallback to plain text if JSON parsing fails
         return responseText;
+
     } catch (error: any) {
         console.error('❌ Gemini API Error:', {
             message: error?.message,
