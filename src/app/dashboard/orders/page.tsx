@@ -1,62 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, OrderStatusBadge } from '@/components/ui/Badge';
 import { Search, Filter, Eye, Truck, CheckCircle, XCircle, Package } from 'lucide-react';
+import type { OrderStatus } from '@/types/database';
 
-// Demo data
-const demoOrders = [
-    {
-        id: 'ORD-001',
-        customer: { name: 'Болд Бат', phone: '99001122' },
-        items: [{ name: 'Хар куртка XL', quantity: 1, price: 185000 }],
-        total: 185000,
-        status: 'pending',
-        createdAt: '2024-01-05 10:30',
-        address: 'БЗД, 3-р хороо'
-    },
-    {
-        id: 'ORD-002',
-        customer: { name: 'Сараа Дорж', phone: '99112233' },
-        items: [
-            { name: 'Цагаан цамц M', quantity: 2, price: 45000 },
-            { name: 'Джинс өмд', quantity: 1, price: 95000 }
-        ],
-        total: 185000,
-        status: 'confirmed',
-        createdAt: '2024-01-05 09:15',
-        address: 'СХД, 15-р хороо'
-    },
-    {
-        id: 'ORD-003',
-        customer: { name: 'Дорж Батсүх', phone: '99223344' },
-        items: [{ name: 'Спорт гутал 42', quantity: 1, price: 120000 }],
-        total: 120000,
-        status: 'shipped',
-        createdAt: '2024-01-04 16:45',
-        address: 'ЧД, Сансар'
-    },
-    {
-        id: 'ORD-004',
-        customer: { name: 'Оюунаа Мөнх', phone: '99334455' },
-        items: [{ name: 'Гоёлын даашинз', quantity: 1, price: 250000 }],
-        total: 250000,
-        status: 'delivered',
-        createdAt: '2024-01-04 11:20',
-        address: 'ХУД, Зайсан'
-    },
-    {
-        id: 'ORD-005',
-        customer: { name: 'Төмөр Эрдэнэ', phone: '99445566' },
-        items: [{ name: 'Хар куртка L', quantity: 1, price: 185000 }],
-        total: 185000,
-        status: 'cancelled',
-        createdAt: '2024-01-03 14:00',
-        address: 'БГД, 5-р хороо'
-    },
-];
+interface OrderItem {
+    id: string;
+    quantity: number;
+    unit_price: number;
+    products: {
+        id: string;
+        name: string;
+    } | null;
+}
+
+interface Order {
+    id: string;
+    total_amount: number;
+    status: OrderStatus;
+    created_at: string;
+    delivery_address: string | null;
+    customers: {
+        id: string;
+        name: string | null;
+        phone: string | null;
+        address: string | null;
+    } | null;
+    order_items: OrderItem[];
+}
 
 const statusFilters = [
     { label: 'Бүгд', value: 'all' },
@@ -67,13 +41,53 @@ const statusFilters = [
 ];
 
 export default function OrdersPage() {
-    const [orders] = useState(demoOrders);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [selectedOrder, setSelectedOrder] = useState<typeof demoOrders[0] | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    async function fetchOrders() {
+        try {
+            const res = await fetch('/api/dashboard/orders');
+            const data = await res.json();
+            setOrders(data.orders || []);
+        } catch (error) {
+            console.error('Failed to fetch orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function updateOrderStatus(orderId: string, status: OrderStatus) {
+        try {
+            await fetch('/api/dashboard/orders', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: orderId, status }),
+            });
+            fetchOrders();
+            if (selectedOrder?.id === orderId) {
+                setSelectedOrder(null);
+            }
+        } catch (error) {
+            console.error('Failed to update order:', error);
+        }
+    }
+
+    if (loading) {
+        return <div className="flex items-center justify-center h-96">
+            <div className="text-lg text-gray-500">Ачааллаж байна...</div>
+        </div>;
+    }
 
     const filteredOrders = orders.filter(o => {
-        const matchesSearch = o.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        const customerName = o.customers?.name || '';
+        const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             o.id.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
         return matchesSearch && matchesStatus;
@@ -123,51 +137,73 @@ export default function OrdersPage() {
 
             {/* Orders List */}
             <div className="space-y-4">
-                {filteredOrders.map((order) => (
-                    <Card key={order.id} hover className="cursor-pointer" onClick={() => setSelectedOrder(order)}>
-                        <CardContent className="py-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center flex-shrink-0">
-                                        <Package className="w-6 h-6 text-violet-600" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <p className="font-semibold text-gray-900">{order.id}</p>
-                                            <OrderStatusBadge status={order.status} />
+                {filteredOrders.map((order) => {
+                    const customerName = order.customers?.name || 'Харилцагч';
+                    const customerPhone = order.customers?.phone || '';
+                    const itemsText = order.order_items
+                        .map(i => `${i.products?.name || 'Бүтээгдэхүүн'} x${i.quantity}`)
+                        .join(', ');
+                    const createdAt = new Date(order.created_at).toLocaleString('mn-MN');
+                    
+                    return (
+                        <Card key={order.id} hover className="cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                            <CardContent className="py-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center flex-shrink-0">
+                                            <Package className="w-6 h-6 text-violet-600" />
                                         </div>
-                                        <p className="text-sm text-gray-600 mt-1">{order.customer.name} • {order.customer.phone}</p>
-                                        <p className="text-sm text-gray-500">{order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}</p>
+                                        <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="font-semibold text-gray-900">{order.id.substring(0, 8)}</p>
+                                                <OrderStatusBadge status={order.status} />
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">{customerName} • {customerPhone}</p>
+                                            <p className="text-sm text-gray-500">{itemsText}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 sm:gap-6">
+                                        <div className="text-right">
+                                            <p className="font-bold text-lg text-gray-900">₮{Number(order.total_amount).toLocaleString()}</p>
+                                            <p className="text-sm text-gray-500">{createdAt}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                            {order.status === 'pending' && (
+                                                <>
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="ghost" 
+                                                        className="!text-green-600 !hover:bg-green-50"
+                                                        onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="ghost" 
+                                                        className="!text-red-600 !hover:bg-red-50"
+                                                        onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                    </Button>
+                                                </>
+                                            )}
+                                            {order.status === 'confirmed' && (
+                                                <Button 
+                                                    size="sm"
+                                                    onClick={() => updateOrderStatus(order.id, 'shipped')}
+                                                >
+                                                    <Truck className="w-4 h-4 mr-1" />
+                                                    Илгээх
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4 sm:gap-6">
-                                    <div className="text-right">
-                                        <p className="font-bold text-lg text-gray-900">₮{order.total.toLocaleString()}</p>
-                                        <p className="text-sm text-gray-500">{order.createdAt}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {order.status === 'pending' && (
-                                            <>
-                                                <Button size="sm" variant="ghost" className="!text-green-600 !hover:bg-green-50">
-                                                    <CheckCircle className="w-4 h-4" />
-                                                </Button>
-                                                <Button size="sm" variant="ghost" className="!text-red-600 !hover:bg-red-50">
-                                                    <XCircle className="w-4 h-4" />
-                                                </Button>
-                                            </>
-                                        )}
-                                        {order.status === 'confirmed' && (
-                                            <Button size="sm">
-                                                <Truck className="w-4 h-4 mr-1" />
-                                                Илгээх
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                            </CardContent>
+                        </Card>
+                    );
+                })}
             </div>
 
             {/* Order Detail Modal */}
@@ -176,8 +212,8 @@ export default function OrdersPage() {
                     <div className="bg-white rounded-2xl w-full max-w-lg p-6 m-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900">{selectedOrder.id}</h2>
-                                <p className="text-sm text-gray-500">{selectedOrder.createdAt}</p>
+                                <h2 className="text-xl font-bold text-gray-900">{selectedOrder.id.substring(0, 8)}</h2>
+                                <p className="text-sm text-gray-500">{new Date(selectedOrder.created_at).toLocaleString('mn-MN')}</p>
                             </div>
                             <OrderStatusBadge status={selectedOrder.status} />
                         </div>
@@ -185,22 +221,22 @@ export default function OrdersPage() {
                         <div className="space-y-4">
                             <div className="p-4 bg-gray-50 rounded-xl">
                                 <p className="text-sm text-gray-500 mb-1">Харилцагч</p>
-                                <p className="font-medium text-gray-900">{selectedOrder.customer.name}</p>
-                                <p className="text-sm text-gray-600">{selectedOrder.customer.phone}</p>
-                                <p className="text-sm text-gray-600">{selectedOrder.address}</p>
+                                <p className="font-medium text-gray-900">{selectedOrder.customers?.name || 'Харилцагч'}</p>
+                                <p className="text-sm text-gray-600">{selectedOrder.customers?.phone || ''}</p>
+                                <p className="text-sm text-gray-600">{selectedOrder.delivery_address || selectedOrder.customers?.address || ''}</p>
                             </div>
 
                             <div className="p-4 bg-gray-50 rounded-xl">
                                 <p className="text-sm text-gray-500 mb-2">Бүтээгдэхүүн</p>
-                                {selectedOrder.items.map((item, idx) => (
+                                {selectedOrder.order_items.map((item, idx) => (
                                     <div key={idx} className="flex justify-between py-2 border-b border-gray-200 last:border-0">
-                                        <span className="text-gray-900">{item.name} x{item.quantity}</span>
-                                        <span className="font-medium text-gray-900">₮{(item.price * item.quantity).toLocaleString()}</span>
+                                        <span className="text-gray-900">{item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}</span>
+                                        <span className="font-medium text-gray-900">₮{(Number(item.unit_price) * item.quantity).toLocaleString()}</span>
                                     </div>
                                 ))}
                                 <div className="flex justify-between pt-3 mt-2 border-t border-gray-300">
                                     <span className="font-semibold text-gray-900">Нийт</span>
-                                    <span className="font-bold text-lg text-violet-600">₮{selectedOrder.total.toLocaleString()}</span>
+                                    <span className="font-bold text-lg text-violet-600">₮{Number(selectedOrder.total_amount).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
@@ -210,7 +246,7 @@ export default function OrdersPage() {
                                 Хаах
                             </Button>
                             {selectedOrder.status === 'pending' && (
-                                <Button>
+                                <Button onClick={() => updateOrderStatus(selectedOrder.id, 'confirmed')}>
                                     <CheckCircle className="w-4 h-4 mr-2" />
                                     Баталгаажуулах
                                 </Button>

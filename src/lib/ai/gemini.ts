@@ -29,7 +29,28 @@ export async function generateChatResponse(
     message: string,
     context: ChatContext
 ): Promise<string> {
-    const systemPrompt = `Та "${context.shopName}" дэлгүүрийн AI туслах юм.
+    try {
+        console.log('🔍 generateChatResponse called with:', {
+            message,
+            contextShopName: context.shopName,
+            productsCount: context.products?.length || 0
+        });
+
+        // Validate context
+        if (!context.shopName) {
+            throw new Error('Shop name is required');
+        }
+
+        if (!Array.isArray(context.products)) {
+            console.warn('⚠️ Products is not an array, converting to empty array');
+            context.products = [];
+        }
+
+        const productsInfo = context.products.length > 0
+            ? context.products.map(p => `- ${p.name}: ${p.price.toLocaleString()}₮ (${p.stock > 0 ? `${p.stock} ширхэг байна` : 'Дууссан'})`).join('\n')
+            : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+
+        const systemPrompt = `Та "${context.shopName}" дэлгүүрийн AI туслах юм.
 
 Таны үүрэг:
 - Хэрэглэгчдэд эелдэг, найрсаг хариулах
@@ -39,7 +60,7 @@ export async function generateChatResponse(
 - Монгол хэлээр харилцах
 
 Боломжит бүтээгдэхүүнүүд:
-${context.products.map(p => `- ${p.name}: ${p.price.toLocaleString()}₮ (${p.stock > 0 ? `${p.stock} ширхэг байна` : 'Дууссан'})`).join('\n')}
+${productsInfo}
 
 ${context.customerName ? `Хэрэглэгчийн нэр: ${context.customerName}` : ''}
 ${context.orderHistory ? `Өмнө ${context.orderHistory} удаа захиалга өгсөн` : ''}
@@ -47,13 +68,29 @@ ${context.orderHistory ? `Өмнө ${context.orderHistory} удаа захиал
 Дүрэм:
 1. Байхгүй бараа зараад болохгүй
 2. Үнийг ₮ тэмдэгтэй бичих
-3. Хэт урт хариу бичихгүй байх
+3. Хэт урт хариу бичихгүй байх (2-3 өгүүлбэр хангалттай)
 4. Cross-sell хийх боломжтой бол санал болгох`;
 
-    const chat = geminiModel.startChat({
-        history: [],
-    });
+        console.log('📝 System prompt prepared, length:', systemPrompt.length);
 
-    const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
-    return result.response.text();
+        const chat = geminiModel.startChat({
+            history: [],
+        });
+
+        console.log('💬 Sending message to Gemini...');
+        const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
+        
+        const responseText = result.response.text();
+        console.log('✅ Gemini response received, length:', responseText.length);
+        
+        return responseText;
+    } catch (error: any) {
+        console.error('❌ Gemini API Error:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            response: error?.response
+        });
+        throw error; // Re-throw to be handled by caller
+    }
 }

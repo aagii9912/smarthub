@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
                 // Handle text messages
                 if (event.message?.text) {
                     const userMessage = event.message.text;
+                    console.log('📩 Received message:', userMessage, 'from:', senderId);
 
                     // Detect intent
                     const intent = detectIntent(userMessage);
@@ -98,13 +99,50 @@ export async function POST(request: NextRequest) {
                         }
                     }
 
-                    // Generate AI response
-                    const aiResponse = await generateChatResponse(userMessage, {
-                        shopName: shopData.name,
-                        products: shopData.products || [],
-                        customerName: customer?.name || undefined,
-                        orderHistory: customer?.total_orders || 0,
-                    });
+                    // Generate AI response with fallback
+                    let aiResponse: string;
+                    try {
+                        console.log('🤖 Generating AI response...');
+                        console.log('📦 Shop data:', {
+                            shopName: shopData.name,
+                            productsCount: shopData.products?.length || 0,
+                            products: shopData.products || []
+                        });
+                        console.log('👤 Customer data:', {
+                            customerName: customer?.name,
+                            orderHistory: customer?.total_orders
+                        });
+
+                        aiResponse = await generateChatResponse(userMessage, {
+                            shopName: shopData.name,
+                            products: shopData.products || [],
+                            customerName: customer?.name || undefined,
+                            orderHistory: customer?.total_orders || 0,
+                        });
+                        console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
+                    } catch (aiError: any) {
+                        console.error('❌ AI Error (Full):', {
+                            message: aiError?.message,
+                            stack: aiError?.stack,
+                            name: aiError?.name,
+                            response: aiError?.response?.data,
+                            error: aiError
+                        });
+                        
+                        // Fallback хариулт (AI ажиллахгүй үед)
+                        const msg = userMessage.toLowerCase();
+                        if (msg.includes('сайн') || msg.includes('hello') || msg.includes('hi')) {
+                            aiResponse = 'Сайн байна уу! 😊 Танд яаж туслах вэ?';
+                        } else if (msg.includes('бараа') || msg.includes('бүтээгдэхүүн') || msg.includes('юу байна')) {
+                            aiResponse = 'Манайд iPhone 15 Pro (4,500,000₮), MacBook Air M3 (3,800,000₮), AirPods Pro 2 (850,000₮) байна! Аль нь сонирхож байна вэ? 😊';
+                        } else if (msg.includes('үнэ') || msg.includes('хэд')) {
+                            aiResponse = 'Үнэ асууж байна уу? Ямар бүтээгдэхүүний үнийг мэдэхийг хүсч байна вэ? iPhone, MacBook эсвэл AirPods?';
+                        } else if (msg.includes('баярлалаа') || msg.includes('thank')) {
+                            aiResponse = 'Баярлалаа! Дахиад ирээрэй 😊';
+                        } else {
+                            aiResponse = `Сайн байна уу! 😊 Танд яаж туслах вэ? Бидэнд ${shopData.name} дэлгүүрийн мэдээлэл байна!`;
+                        }
+                    }
 
                     // Save chat history (skip if demo shop)
                     if (shop && customer) {
@@ -116,18 +154,17 @@ export async function POST(request: NextRequest) {
                         });
                     }
 
-                    // Send response
-                    // Send response
+                    // Send response to Facebook
                     try {
-                        console.log('Sending response to FB:', aiResponse);
+                        console.log('📤 Sending to FB:', aiResponse.substring(0, 50) + '...');
                         await sendTextMessage({
                             recipientId: senderId,
                             message: aiResponse,
                             pageAccessToken: PAGE_ACCESS_TOKEN,
                         });
-                        console.log('Message sent successfully');
+                        console.log('✅ Message sent to FB successfully!');
                     } catch (sendError) {
-                        console.error('Failed to send message to FB:', sendError);
+                        console.error('❌ Failed to send message to FB:', sendError);
                         // Continue execution
                     }
                 }
