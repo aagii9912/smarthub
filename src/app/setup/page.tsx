@@ -69,9 +69,9 @@ function SetupContent() {
   };
 
   const handleShopSave = async (data: any) => {
-    const method = shop ? 'PATCH' : 'POST';
+    // Always use POST - API handles upsert logic
     const res = await fetch('/api/shop', {
-      method,
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });

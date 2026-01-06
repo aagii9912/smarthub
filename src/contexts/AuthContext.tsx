@@ -60,8 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshShop = async () => {
-    if (user) {
-      await fetchShop(user.id);
+    // Use API endpoint for more reliable auth handling
+    try {
+      const res = await fetch('/api/shop');
+      const data = await res.json();
+      if (data.shop) {
+        setShop(data.shop);
+      }
+    } catch (err) {
+      console.error('Refresh shop error:', err);
     }
   };
 
