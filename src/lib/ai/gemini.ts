@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export const geminiModel = genAI.getGenerativeModel({
-    model: 'gemini-pro',  // ✅ Changed to gemini-pro (legacy stable)
+    model: 'gemini-2.5-flash',  // ✅ Updated to latest model
     generationConfig: {
         temperature: 0.7,
         topP: 0.8,
@@ -40,7 +40,7 @@ export async function analyzeProductImage(
 ): Promise<{ matchedProduct: string | null; confidence: number; description: string }> {
     try {
         console.log('🖼️ analyzeProductImage called for:', imageUrl);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' }); // ✅ gemini-pro doesn't support vision, need gemini-pro-vision
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // ✅ Updated
         
         // Fetch image
         const imageResponse = await fetch(imageUrl);
