@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -51,16 +51,15 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
+  const blobUrlsRef = useRef<Set<string>>(new Set());
+
   // Clean up blob URLs when component unmounts
   useEffect(() => {
     return () => {
-      products.forEach(p => {
-        if (p.imageUrl && p.imageUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(p.imageUrl);
-        }
-      });
+      blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      blobUrlsRef.current.clear();
     };
-  }, []); // Run cleanup on unmount
+  }, []);
 
   const addProduct = () => {
     setProducts([...products, { 
@@ -83,7 +82,15 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
 
   const handleImageSelect = (index: number, file: File) => {
     if (file) {
+      const oldUrl = products[index].imageUrl;
+      if (oldUrl && oldUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(oldUrl);
+        blobUrlsRef.current.delete(oldUrl);
+      }
+
       const objectUrl = URL.createObjectURL(file);
+      blobUrlsRef.current.add(objectUrl);
+      
       const updated = [...products];
       updated[index] = { 
         ...updated[index], 
@@ -96,6 +103,11 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
 
   const removeProduct = (index: number) => {
     if (products.length > 1) {
+      const productToRemove = products[index];
+      if (productToRemove.imageUrl && productToRemove.imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(productToRemove.imageUrl);
+        blobUrlsRef.current.delete(productToRemove.imageUrl);
+      }
       setProducts(products.filter((_, i) => i !== index));
     }
   };
