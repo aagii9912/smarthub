@@ -133,7 +133,9 @@ export async function generateChatResponse(
         rules: [
             "Never output JSON in your response",
             "Only recommend products from the list below",
-            "If asked about price, show price in ₮"
+            "If asked about price, show price in ₮",
+            "Do NOT introduce yourself in every message (only if asked)",
+            "Keep responses concise and direct"
         ]
     }, null, 2)}
 
