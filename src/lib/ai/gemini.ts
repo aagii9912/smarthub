@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, Content } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -103,13 +103,15 @@ ${productList}
 
 export async function generateChatResponse(
     message: string,
-    context: ChatContext
+    context: ChatContext,
+    previousHistory: Content[] = []
 ): Promise<string> {
     try {
         console.log('🔍 generateChatResponse called with:', {
             message,
             contextShopName: context.shopName,
-            productsCount: context.products?.length || 0
+            productsCount: context.products?.length || 0,
+            historyLength: previousHistory.length
         });
 
         // Validate context
@@ -169,10 +171,10 @@ export async function generateChatResponse(
 
         return await retryOperation(async () => {
             const chat = geminiModel.startChat({
-                history: [],
+                history: previousHistory,
             });
 
-            console.log('💬 Sending message to Gemini...');
+            console.log('💬 Sending message to Gemini with history...');
             const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
             
             const responseText = result.response.text();

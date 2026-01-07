@@ -3,6 +3,7 @@ import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook
 import { generateChatResponse } from '@/lib/ai/gemini';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { supabaseAdmin } from '@/lib/supabase';
+import { Content } from '@google/generative-ai';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
 
@@ -107,14 +108,45 @@ export async function POST(request: NextRequest) {
                         console.log(`🤖 [${shop.name}] Generating AI response...`);
                         console.log('📦 Products:', shop.products?.length || 0);
 
+                        // 1. Get Chat History
+                        const { data: historyData } = await supabase
+                            .from('chat_history')
+                            .select('message, response')
+                            .eq('shop_id', shop.id)
+                            .eq('customer_id', customer.id)
+                            .order('created_at', { ascending: false })
+                            .limit(5);
+
+                        const previousHistory: Content[] = [];
+                        if (historyData) {
+                            historyData.reverse().forEach(h => {
+                                if (h.message) {
+                                    previousHistory.push({
+                                        role: 'user',
+                                        parts: [{ text: h.message }]
+                                    });
+                                }
+                                if (h.response) {
+                                    previousHistory.push({
+                                        role: 'model',
+                                        parts: [{ text: h.response }]
+                                    });
+                                }
+                            });
+                        }
+
                         // Generate response AND wait for a minimum delay (1.5s) to show "typing..."
                         const [response] = await Promise.all([
-                            generateChatResponse(userMessage, {
-                                shopName: shop.name,
-                                products: shop.products || [],
-                                customerName: customer?.name || undefined,
-                                orderHistory: customer?.total_orders || 0,
-                            }),
+                            generateChatResponse(
+                                userMessage, 
+                                {
+                                    shopName: shop.name,
+                                    products: shop.products || [],
+                                    customerName: customer?.name || undefined,
+                                    orderHistory: customer?.total_orders || 0,
+                                },
+                                previousHistory
+                            ),
                             new Promise(resolve => setTimeout(resolve, 1500))
                         ]);
                         
