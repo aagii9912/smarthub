@@ -49,6 +49,10 @@ export async function POST(request: Request) {
         price: body.price,
         stock: body.stock,
         is_active: true,
+        type: body.type || 'physical',
+        colors: body.colors || [],
+        sizes: body.sizes || [],
+        images: body.images || []
       }])
       .select()
       .single();
