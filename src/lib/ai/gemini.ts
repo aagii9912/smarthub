@@ -172,7 +172,7 @@ export async function generateChatResponse(
                 history: [],
             });
 
-            console.log('💬 Sending message to Gemini...');
+tg            console.log('💬 Sending message to Gemini...');
             const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
             
             const responseText = result.response.text();
