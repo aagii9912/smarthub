@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyWebhook, sendTextMessage } from '@/lib/facebook/messenger';
+import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { generateChatResponse } from '@/lib/ai/gemini';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -68,6 +68,12 @@ export async function POST(request: NextRequest) {
                     const userMessage = event.message.text;
                     console.log(`📩 [${shop.name}] Received:`, userMessage, 'from:', senderId);
 
+                    // 1. Mark Seen (Safe call)
+                    await sendSenderAction(senderId, 'mark_seen', pageAccessToken);
+                    
+                    // 2. Typing On (Safe call)
+                    await sendSenderAction(senderId, 'typing_on', pageAccessToken);
+
                     // Detect intent
                     const intent = detectIntent(userMessage);
                     console.log(`Intent: ${intent.intent}, Confidence: ${intent.confidence}`);
@@ -101,12 +107,18 @@ export async function POST(request: NextRequest) {
                         console.log(`🤖 [${shop.name}] Generating AI response...`);
                         console.log('📦 Products:', shop.products?.length || 0);
 
-                        aiResponse = await generateChatResponse(userMessage, {
-                            shopName: shop.name,
-                            products: shop.products || [],
-                            customerName: customer?.name || undefined,
-                            orderHistory: customer?.total_orders || 0,
-                        });
+                        // Generate response AND wait for a minimum delay (1.5s) to show "typing..."
+                        const [response] = await Promise.all([
+                            generateChatResponse(userMessage, {
+                                shopName: shop.name,
+                                products: shop.products || [],
+                                customerName: customer?.name || undefined,
+                                orderHistory: customer?.total_orders || 0,
+                            }),
+                            new Promise(resolve => setTimeout(resolve, 1500))
+                        ]);
+                        
+                        aiResponse = response;
                         console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
                     } catch (aiError: any) {
                         console.error('❌ AI Error:', aiError?.message);
@@ -139,6 +151,9 @@ export async function POST(request: NextRequest) {
                             aiResponse = `Сайн байна уу! 😊 ${shop.name}-д тавтай морил! Танд яаж туслах вэ?`;
                         }
                     }
+
+                    // 3. Typing Off (Safe call)
+                    await sendSenderAction(senderId, 'typing_off', pageAccessToken);
 
                     // Check for order intent and create order
                     if (intent.intent === 'ORDER_CREATE' && customer) {

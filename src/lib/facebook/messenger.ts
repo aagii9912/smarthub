@@ -12,8 +12,32 @@ interface QuickReply {
     payload: string;
 }
 
+// ... existing code ...
 interface SendMessageWithQuickRepliesOptions extends SendMessageOptions {
     quickReplies: QuickReply[];
+}
+
+export async function sendSenderAction(
+    recipientId: string,
+    action: 'mark_seen' | 'typing_on' | 'typing_off',
+    pageAccessToken: string
+) {
+    try {
+        const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient: { id: recipientId },
+                sender_action: action,
+            }),
+        });
+
+        if (!response.ok) {
+            console.warn(`⚠️ Sender action '${action}' failed but continuing...`);
+        }
+    } catch (error) {
+        console.warn(`⚠️ Sender action '${action}' network error:`, error);
+    }
 }
 
 export async function sendTextMessage({ recipientId, message, pageAccessToken }: SendMessageOptions) {
