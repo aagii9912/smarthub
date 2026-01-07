@@ -12,6 +12,19 @@ export const geminiModel = genAI.getGenerativeModel({
     },
 });
 
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+        return await operation();
+    } catch (error: any) {
+        if (retries > 0 && (error.message?.includes('503') || error.message?.includes('overloaded'))) {
+            console.log(`⚠️ Gemini overloaded, retrying in ${delay}ms... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryOperation(operation, retries - 1, delay * 2); // Exponential backoff
+        }
+        throw error;
+    }
+}
+
 export interface ChatContext {
     shopName: string;
     products: Array<{
@@ -154,17 +167,19 @@ export async function generateChatResponse(
 
         console.log('📝 System prompt prepared, length:', systemPrompt.length);
 
-        const chat = geminiModel.startChat({
-            history: [],
-        });
+        return await retryOperation(async () => {
+            const chat = geminiModel.startChat({
+                history: [],
+            });
 
-        console.log('💬 Sending message to Gemini...');
-        const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
-        
-        const responseText = result.response.text();
-        console.log('✅ Gemini response received, length:', responseText.length);
-        
-        return responseText;
+            console.log('💬 Sending message to Gemini...');
+            const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
+            
+            const responseText = result.response.text();
+            console.log('✅ Gemini response received, length:', responseText.length);
+            
+            return responseText;
+        });
     } catch (error: any) {
         console.error('❌ Gemini API Error:', {
             message: error?.message,

@@ -123,13 +123,6 @@ export async function POST(request: NextRequest) {
                     } catch (aiError: any) {
                         console.error('❌ AI Error:', aiError?.message);
 
-                        // DEBUG MODE: Send error message to user
-                        await sendTextMessage({
-                            recipientId: senderId,
-                            message: `⚠️ AI Error: ${aiError?.message?.substring(0, 200)}`,
-                            pageAccessToken: pageAccessToken,
-                        });
-                        
                         // Fallback хариулт (AI ажиллахгүй үед)
                         const msg = userMessage.toLowerCase();
                         if (msg.includes('сайн') || msg.includes('hello') || msg.includes('hi')) {
