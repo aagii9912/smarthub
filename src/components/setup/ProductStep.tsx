@@ -123,6 +123,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
             finalImageUrl = await uploadImage(p.imageFile);
           } catch (e) {
             console.error("Image upload failed:", e);
+            finalImageUrl = undefined; // Clear blob URL if upload fails
           }
         }
 
