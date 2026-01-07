@@ -60,7 +60,11 @@ export async function POST(request: NextRequest) {
         name: p.name,
         price: parseFloat(p.price) || 0,
         description: p.description || null,
-        stock: 10,
+        type: p.type || 'physical',
+        stock: p.type === 'service' ? null : (p.stock !== undefined && p.stock !== null && p.stock !== '' ? parseInt(p.stock) : 0),
+        colors: p.colors || [],
+        sizes: p.sizes || [],
+        images: p.images || [],
         is_active: true
       }));
 
