@@ -229,9 +229,9 @@ export default function ProductsPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <Badge className={product.type === 'service' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                             {product.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
-                                        </Badge>
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <p className="font-semibold text-gray-900">₮{product.price.toLocaleString()}</p>
