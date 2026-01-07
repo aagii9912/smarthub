@@ -48,8 +48,23 @@ export default function ProductsPage() {
                 setImagePreview(null);
             }
             setImageFile(null);
+        } else {
+            // Clean up blob URL when modal closes
+            if (imagePreview && imagePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(imagePreview);
+            }
+            setImagePreview(null);
         }
     }, [showModal, editingProduct]);
+
+    // Clean up blob URL when component unmounts
+    useEffect(() => {
+        return () => {
+            if (imagePreview && imagePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(imagePreview);
+            }
+        };
+    }, [imagePreview]);
 
     async function fetchProducts() {
         try {
@@ -64,9 +79,12 @@ export default function ProductsPage() {
     }
 
     const uploadImage = async (file: File) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Нэвтрээгүй байна");
+
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
         const { error } = await supabase.storage
             .from('products')
@@ -98,7 +116,15 @@ export default function ProductsPage() {
             let imageUrl = editingProduct?.images?.[0] || null;
 
             if (imageFile) {
-                imageUrl = await uploadImage(imageFile);
+                try {
+                    imageUrl = await uploadImage(imageFile);
+                } catch (e) {
+                    console.error("Image upload failed:", e);
+                    alert('Зураг оруулахад алдаа гарлаа. Зураггүйгээр үргэлжлүүлэх үү?');
+                    // Keep the old image URL if upload fails, or null if no old image
+                    // If we want to proceed without image on error, we keep imageUrl as is (old image)
+                    // If user cancels, they can try again. But here we just log and proceed with old/null.
+                }
             }
 
             const productData = {

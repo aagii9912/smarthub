@@ -51,6 +51,17 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      products.forEach(p => {
+        if (p.imageUrl && p.imageUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(p.imageUrl);
+        }
+      });
+    };
+  }, []); // Run cleanup on unmount
+
   const addProduct = () => {
     setProducts([...products, { 
       name: '', 
@@ -90,9 +101,12 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   };
 
   const uploadImage = async (file: File) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Нэвтрээгүй байна");
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = `${user.id}/${fileName}`;
 
     const { error } = await supabase.storage
       .from('products')
