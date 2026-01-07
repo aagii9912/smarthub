@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { Plus, Search, Edit2, Trash2, Package, X, Upload, Box, Layers } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -246,9 +245,9 @@ export default function ProductsPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <Badge variant={product.is_active ? 'success' : 'default'}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
                                             {product.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
-                                        </Badge>
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-end gap-2">
