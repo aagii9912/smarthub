@@ -77,7 +77,7 @@ ${productList}
                     ]
                 }
             ],
-            max_tokens: 500,
+            max_completion_tokens: 500,
         });
 
         const responseText = response.choices[0]?.message?.content || '';
@@ -158,7 +158,7 @@ ${context.orderHistory ? `ЗАХИАЛГЫН ТҮҮХ: ${context.orderHistory} �
                 model: 'gpt-5-mini',
                 messages: messages,
                 temperature: 0.7,
-                max_tokens: 500,
+                max_completion_tokens: 500,
             });
 
             const responseText = response.choices[0]?.message?.content || '';
