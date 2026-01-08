@@ -16,6 +16,7 @@ import {
     Facebook,
     HelpCircle,
     Bot,
+    Megaphone,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -24,6 +25,7 @@ const menuItems = [
     { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
     { name: 'Захиалга', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Харилцагчид', href: '/dashboard/customers', icon: Users },
+    { name: 'Маркетинг', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'AI Тохируулга', href: '/dashboard/ai-settings', icon: Bot },
 ];
 
@@ -99,8 +101,8 @@ export function Sidebar() {
                                 <Link
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive
-                                            ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25'
-                                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25'
+                                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                         }`}
                                 >
                                     <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
@@ -123,8 +125,8 @@ export function Sidebar() {
                                 <Link
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group ${isActive
-                                            ? 'bg-slate-700 text-white'
-                                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                                        ? 'bg-slate-700 text-white'
+                                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
                                         }`}
                                 >
                                     <item.icon className="w-5 h-5 flex-shrink-0" />
