@@ -6,7 +6,7 @@ import { getStartOfToday } from '@/lib/utils/date';
 export async function GET() {
   try {
     const authShop = await getUserShop();
-    
+
     // Require authenticated shop - no demo fallback
     if (!authShop) {
       return NextResponse.json({
@@ -19,6 +19,9 @@ export async function GET() {
         },
         recentOrders: [],
         recentChats: [],
+        activeConversations: [],
+        lowStockProducts: [],
+        unansweredCount: 0,
       });
     }
 
@@ -71,7 +74,7 @@ export async function GET() {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Сүүлийн чатууд
+    // Сүүлийн чатууд (хуучин format - backward compatibility)
     const { data: recentChats } = await supabase
       .from('chat_history')
       .select(`
@@ -79,11 +82,75 @@ export async function GET() {
         message,
         response,
         intent,
+        role,
         created_at,
+        customer_id,
         customers (name)
       `)
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false })
+      .limit(50);
+
+    // 🆕 Хэрэглэгчээр бүлэглэсэн харилцаанууд
+    const conversationMap = new Map<string, {
+      customerId: string;
+      customerName: string;
+      messageCount: number;
+      lastMessage: string;
+      lastMessageAt: string;
+      lastIntent: string | null;
+      isAnswered: boolean;
+    }>();
+
+    // Group chats by customer
+    recentChats?.forEach(chat => {
+      const customerId = chat.customer_id;
+      if (!customerId) return;
+
+      const existing = conversationMap.get(customerId);
+      const isUserMessage = chat.role === 'user';
+      // Handle customers - Supabase can return object or array depending on relation
+      const customerObj = chat.customers as unknown as { name: string } | null;
+      const customerName = customerObj?.name || 'Харилцагч';
+
+      if (!existing) {
+        conversationMap.set(customerId, {
+          customerId,
+          customerName,
+          messageCount: 1,
+          lastMessage: chat.message || '',
+          lastMessageAt: chat.created_at,
+          lastIntent: chat.intent,
+          isAnswered: !isUserMessage, // answered if last message is from assistant
+        });
+      } else {
+        existing.messageCount++;
+        // Keep the most recent message info
+        if (new Date(chat.created_at) > new Date(existing.lastMessageAt)) {
+          existing.lastMessage = chat.message || '';
+          existing.lastMessageAt = chat.created_at;
+          existing.lastIntent = chat.intent;
+          existing.isAnswered = !isUserMessage;
+        }
+      }
+    });
+
+    const activeConversations = Array.from(conversationMap.values())
+      .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime())
+      .slice(0, 10);
+
+    // Хариулаагүй харилцагчийн тоо
+    const unansweredCount = activeConversations.filter(c => !c.isAnswered).length;
+
+    // 🆕 Low stock products (stock < 5)
+    const { data: lowStockProducts } = await supabase
+      .from('products')
+      .select('id, name, stock, images')
+      .eq('shop_id', shopId)
+      .eq('is_active', true)
+      .eq('type', 'physical')
+      .lt('stock', 5)
+      .order('stock', { ascending: true })
       .limit(5);
 
     return NextResponse.json({
@@ -95,10 +162,14 @@ export async function GET() {
         totalCustomers: totalCustomers || 0,
       },
       recentOrders: recentOrders || [],
-      recentChats: recentChats || [],
+      recentChats: recentChats || [], // backward compatibility
+      activeConversations,
+      lowStockProducts: lowStockProducts || [],
+      unansweredCount,
     });
   } catch (error) {
     console.error('Stats API error:', error);
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
   }
 }
+

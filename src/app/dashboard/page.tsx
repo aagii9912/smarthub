@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import { ActionCenter } from '@/components/dashboard/ActionCenter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge, OrderStatusBadge } from '@/components/ui/Badge';
+import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatTimeAgo } from '@/lib/utils/date';
@@ -15,10 +16,8 @@ import {
     Package,
     Clock,
     ArrowRight,
-    MessageSquare,
     RefreshCw,
     Facebook,
-    Sparkles,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -31,7 +30,9 @@ export default function DashboardPage() {
         totalCustomers: 0,
     });
     const [recentOrders, setRecentOrders] = useState<any[]>([]);
-    const [recentChats, setRecentChats] = useState<any[]>([]);
+    const [activeConversations, setActiveConversations] = useState<any[]>([]);
+    const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+    const [unansweredCount, setUnansweredCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -44,7 +45,9 @@ export default function DashboardPage() {
             const data = await res.json();
             setStats(data.stats);
             setRecentOrders(data.recentOrders);
-            setRecentChats(data.recentChats);
+            setActiveConversations(data.activeConversations || []);
+            setLowStockProducts(data.lowStockProducts || []);
+            setUnansweredCount(data.unansweredCount || 0);
             setLastUpdate(new Date());
         } catch (error) {
             console.error('Failed to fetch dashboard data:', error);
@@ -214,87 +217,14 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                {/* Recent Chats */}
+                {/* Action Center */}
                 <div>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between py-3 md:py-4">
-                            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                                <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                                Чат
-                            </CardTitle>
-                            {recentChats.length > 0 && (
-                                <Badge variant="danger" className="text-[10px] md:text-xs">{recentChats.length} шинэ</Badge>
-                            )}
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-border">
-                                {recentChats.length > 0 ? recentChats.map((chat) => {
-                                    const customerName = chat.customers?.name || 'Харилцагч';
-                                    const isReplied = chat.role === 'assistant';
-
-                                    // Intent to human-readable label
-                                    const getIntentLabel = (intent: string) => {
-                                        const labels: Record<string, { text: string; icon: string; color: string }> = {
-                                            'ORDER_CREATE': { text: 'Захиалга', icon: '🛒', color: 'bg-green-50 text-green-600 border-green-100' },
-                                            'PRODUCT_INQUIRY': { text: 'Бүтээгдэхүүн', icon: '📦', color: 'bg-blue-50 text-blue-600 border-blue-100' },
-                                            'PRICE_INQUIRY': { text: 'Үнэ', icon: '💰', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-                                            'GREETING': { text: 'Мэндчилгээ', icon: '👋', color: 'bg-purple-50 text-purple-600 border-purple-100' },
-                                            'GENERAL_CHAT': { text: 'Асуулт', icon: '💬', color: 'bg-secondary text-muted-foreground border-border' },
-                                        };
-                                        return labels[intent] || { text: intent, icon: '💬', color: 'bg-secondary text-muted-foreground border-border' };
-                                    };
-
-                                    const intentInfo = chat.intent ? getIntentLabel(chat.intent) : null;
-
-                                    return (
-                                        <Link
-                                            key={chat.id}
-                                            href={`/dashboard/customers`}
-                                            className="px-4 md:px-6 py-3 md:py-4 hover:bg-secondary/20 transition-colors block cursor-pointer"
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                {/* Avatar */}
-                                                <div className="relative flex-shrink-0">
-                                                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center bg-secondary text-foreground font-medium text-xs md:text-sm border border-border">
-                                                        {customerName.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    {/* Status dot */}
-                                                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 md:w-3 md:h-3 rounded-full border-2 border-background ${isReplied ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="font-medium text-sm text-foreground truncate max-w-[100px]">{customerName}</p>
-                                                            {!isReplied && (
-                                                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-medium">
-                                                                    ШИНЭ
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-[10px] md:text-xs text-muted-foreground flex-shrink-0">{formatTimeAgo(chat.created_at)}</span>
-                                                    </div>
-                                                    <p className="text-xs md:text-sm text-muted-foreground truncate mt-0.5">{chat.message}</p>
-                                                    <div className="flex items-center gap-2 mt-1.5">
-                                                        {intentInfo && (
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${intentInfo.color} flex items-center gap-1`}>
-                                                                {intentInfo.text}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    );
-                                }) : (
-                                    <div className="px-6 py-12 text-center text-muted-foreground">
-                                        <MessageSquare className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3 text-muted-foreground/50" />
-                                        <p>Чат байхгүй</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ActionCenter
+                        conversations={activeConversations}
+                        lowStockProducts={lowStockProducts}
+                        pendingOrders={recentOrders.filter((o: any) => o.status === 'pending')}
+                        unansweredCount={unansweredCount}
+                    />
                 </div>
             </div>
         </div>
