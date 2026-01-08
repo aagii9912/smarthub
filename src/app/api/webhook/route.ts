@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
-import { generateChatResponse } from '@/lib/ai/gemini';
+import { generateChatResponse } from '@/lib/ai/openai';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { supabaseAdmin } from '@/lib/supabase';
-import { Content } from '@google/generative-ai';
 import { logger } from '@/lib/utils/logger';
+
+interface ChatMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
 
@@ -118,19 +122,19 @@ export async function POST(request: NextRequest) {
                             .order('created_at', { ascending: false })
                             .limit(5);
 
-                        const previousHistory: Content[] = [];
+                        const previousHistory: ChatMessage[] = [];
                         if (historyData) {
                             historyData.reverse().forEach(h => {
                                 if (h.message) {
                                     previousHistory.push({
                                         role: 'user',
-                                        parts: [{ text: h.message }]
+                                        content: h.message
                                     });
                                 }
                                 if (h.response) {
                                     previousHistory.push({
-                                        role: 'model',
-                                        parts: [{ text: h.response }]
+                                        role: 'assistant',
+                                        content: h.response
                                     });
                                 }
                             });
