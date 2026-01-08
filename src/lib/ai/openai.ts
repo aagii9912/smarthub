@@ -18,6 +18,8 @@ export interface ChatContext {
         price: number;
         stock: number;
         description?: string;
+        type?: 'product' | 'service';  // product = бараа, service = үйлчилгээ
+        unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
         variants?: Array<{
             color: string | null;
             size: string | null;
@@ -124,10 +126,31 @@ export async function generateChatResponse(
 
         const productsInfo = context.products.length > 0
             ? context.products.map(p => {
+                const isService = p.type === 'service';
+                const unit = p.unit || (isService ? 'захиалга' : 'ширхэг');
+
+                // Different display for products vs services
+                let stockDisplay: string;
+                if (p.stock > 0) {
+                    if (isService) {
+                        stockDisplay = `${p.stock} ${unit} авах боломжтой`;
+                    } else {
+                        stockDisplay = `${p.stock} ${unit} байна`;
+                    }
+                } else {
+                    if (isService) {
+                        stockDisplay = 'Захиалга дүүрсэн';
+                    } else {
+                        stockDisplay = 'Дууссан';
+                    }
+                }
+
+                const typeLabel = isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
+
                 const variantInfo = p.variants && p.variants.length > 0
-                    ? `\n  Хувилбарууд: ${p.variants.map(v => `${v.color || ''} ${v.size || ''} (${v.stock > 0 ? `${v.stock}ш` : 'Дууссан'})`).join(', ')}`
+                    ? `\n  Хувилбарууд: ${p.variants.map(v => `${v.color || ''} ${v.size || ''} (${v.stock > 0 ? `${v.stock}${unit}` : 'Дууссан'})`).join(', ')}`
                     : '';
-                return `- ${p.name}: ${p.price.toLocaleString()}₮ (${p.stock > 0 ? `${p.stock}ш байна` : 'Дууссан'})${variantInfo}`;
+                return `- ${typeLabel} ${p.name}: ${p.price.toLocaleString()}₮ (${stockDisplay})${variantInfo}`;
             }).join('\n')
             : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
 
@@ -148,13 +171,15 @@ ${shopInfo}${customInstructions}
 3. Бүтээгдэхүүн САНАЛ БОЛГОХГҮЙ (хэрэглэгч асуувал л хариул)
 4. Энгийн ярианы хэл
 5. 1-2 emoji л 😊
+6. [БАРАА] = физик бүтээгдэхүүн (stock = тоо хэмжээ)
+7. [ҮЙЛЧИЛГЭЭ] = үйлчилгээ (stock = боломжит захиалгын тоо)
 
 ЖИШЭЭ:
-- "50,000₮ 👍"
-- "Хар өнгө л үлдсэн"
-- "Тиймээ 🚚"
+- Бараа: "5 ширхэг л үлдсэн 👍"
+- Үйлчилгээ: "3 захиалга авах боломжтой байна"
+- Үйлчилгээ дүүрсэн: "Одоогоор захиалга дүүрсэн байна, дараа долоо хоногт шалгаарай 🙏"
 
-БҮТЭЭГДЭХҮҮН:
+БҮТЭЭГДЭХҮҮН/ҮЙЛЧИЛГЭЭ:
 ${productsInfo}
 
 ${context.customerName ? `Хэрэглэгч: ${context.customerName}` : ''}
