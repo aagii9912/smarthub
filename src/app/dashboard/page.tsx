@@ -23,7 +23,7 @@ import {
 
 export default function DashboardPage() {
     const { user, shop, loading: authLoading } = useAuth();
-    
+
     const [stats, setStats] = useState({
         todayOrders: 0,
         pendingOrders: 0,
@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
     const fetchDashboardData = useCallback(async (showRefresh = false) => {
         if (showRefresh) setRefreshing(true);
-        
+
         try {
             const res = await fetch('/api/dashboard/stats');
             const data = await res.json();
@@ -58,7 +58,7 @@ export default function DashboardPage() {
         const timeout = setTimeout(() => {
             if (loading) setLoading(false);
         }, 10000);
-        
+
         if (!authLoading) {
             fetchDashboardData();
             const interval = setInterval(() => fetchDashboardData(), 15000);
@@ -67,7 +67,7 @@ export default function DashboardPage() {
                 clearTimeout(timeout);
             };
         }
-        
+
         return () => clearTimeout(timeout);
     }, [authLoading, fetchDashboardData]);
 
@@ -145,8 +145,8 @@ export default function DashboardPage() {
                 />
                 <StatsCard
                     title="Нийт орлого"
-                    value={stats.totalRevenue >= 1000000 
-                        ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M` 
+                    value={stats.totalRevenue >= 1000000
+                        ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
                         : `₮${stats.totalRevenue.toLocaleString()}`}
                     icon={TrendingUp}
                     iconColor="from-emerald-500 to-teal-600"
@@ -187,8 +187,8 @@ export default function DashboardPage() {
                                     const customerName = order.customers?.name || 'Харилцагч';
                                     const productName = order.order_items?.[0]?.products?.name || 'Бүтээгдэхүүн';
                                     return (
-                                        <Link 
-                                            key={order.id} 
+                                        <Link
+                                            key={order.id}
                                             href="/dashboard/orders"
                                             className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors block"
                                         >
@@ -233,27 +233,70 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="divide-y divide-gray-100">
-                                {recentChats.length > 0 ? recentChats.map((chat) => (
-                                    <div key={chat.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-start gap-3">
-                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600">
-                                                <MessageSquare className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="font-medium text-gray-900">{chat.customers?.name || 'Харилцагч'}</p>
-                                                    <span className="text-xs text-gray-400">{formatTimeAgo(chat.created_at)}</span>
+                                {recentChats.length > 0 ? recentChats.map((chat) => {
+                                    const customerName = chat.customers?.name || 'Харилцагч';
+                                    const isReplied = chat.role === 'assistant';
+
+                                    // Intent to human-readable label
+                                    const getIntentLabel = (intent: string) => {
+                                        const labels: Record<string, { text: string; icon: string; color: string }> = {
+                                            'ORDER_CREATE': { text: 'Захиалга', icon: '🛒', color: 'bg-green-50 text-green-600' },
+                                            'PRODUCT_INQUIRY': { text: 'Бүтээгдэхүүн', icon: '📦', color: 'bg-blue-50 text-blue-600' },
+                                            'PRICE_INQUIRY': { text: 'Үнэ', icon: '💰', color: 'bg-amber-50 text-amber-600' },
+                                            'GREETING': { text: 'Мэндчилгээ', icon: '👋', color: 'bg-purple-50 text-purple-600' },
+                                            'GENERAL_CHAT': { text: 'Асуулт', icon: '💬', color: 'bg-gray-50 text-gray-600' },
+                                        };
+                                        return labels[intent] || { text: intent, icon: '💬', color: 'bg-gray-50 text-gray-600' };
+                                    };
+
+                                    const intentInfo = chat.intent ? getIntentLabel(chat.intent) : null;
+
+                                    return (
+                                        <Link
+                                            key={chat.id}
+                                            href={`/dashboard/customers`}
+                                            className="px-6 py-4 hover:bg-gray-50 transition-colors block cursor-pointer"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                {/* Avatar with status indicator */}
+                                                <div className="relative">
+                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600 text-white font-medium text-sm">
+                                                        {customerName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    {/* Status dot */}
+                                                    <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isReplied ? 'bg-green-500' : 'bg-red-500'}`}></div>
                                                 </div>
-                                                <p className="text-sm text-gray-600 truncate">{chat.message}</p>
-                                                {chat.intent && (
-                                                    <span className="text-xs text-violet-500 bg-violet-50 px-2 py-0.5 rounded mt-1 inline-block">
-                                                        {chat.intent}
-                                                    </span>
-                                                )}
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-medium text-gray-900">{customerName}</p>
+                                                            {!isReplied && (
+                                                                <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-medium">
+                                                                    ШИНЭ
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-gray-400">{formatTimeAgo(chat.created_at)}</span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 truncate mt-0.5">{chat.message}</p>
+                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                        {intentInfo && (
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${intentInfo.color}`}>
+                                                                {intentInfo.icon} {intentInfo.text}
+                                                            </span>
+                                                        )}
+                                                        {isReplied && (
+                                                            <span className="text-[10px] text-green-600 flex items-center gap-1">
+                                                                ✓ AI хариулсан
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                )) : (
+                                        </Link>
+                                    );
+                                }) : (
                                     <div className="px-6 py-12 text-center text-gray-500">
                                         <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                                         <p>Чат байхгүй байна</p>
