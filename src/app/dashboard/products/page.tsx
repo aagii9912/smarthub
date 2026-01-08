@@ -553,8 +553,9 @@ export default function ProductsPage() {
                                         <thead className="bg-gray-50 sticky top-0">
                                             <tr>
                                                 <th className="text-left px-3 py-2 font-medium text-gray-500">Нэр</th>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Төрөл</th>
                                                 <th className="text-left px-3 py-2 font-medium text-gray-500">Үнэ</th>
-                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Тоо</th>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Тоо/Slot</th>
                                                 <th className="text-left px-3 py-2 font-medium text-gray-500">Тайлбар</th>
                                             </tr>
                                         </thead>
@@ -562,8 +563,13 @@ export default function ProductsPage() {
                                             {importPreview.slice(0, 10).map((p, i) => (
                                                 <tr key={i}>
                                                     <td className="px-3 py-2 text-gray-900">{p.name}</td>
+                                                    <td className="px-3 py-2">
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.type === 'service' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>
+                                                            {p.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
+                                                        </span>
+                                                    </td>
                                                     <td className="px-3 py-2 text-gray-600">₮{p.price?.toLocaleString()}</td>
-                                                    <td className="px-3 py-2 text-gray-600">{p.stock || 0}</td>
+                                                    <td className="px-3 py-2 text-gray-600">{p.stock || 0} {p.unit}</td>
                                                     <td className="px-3 py-2 text-gray-500 truncate max-w-[200px]">{p.description || '-'}</td>
                                                 </tr>
                                             ))}

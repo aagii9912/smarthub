@@ -99,17 +99,55 @@ export async function parseDocx(buffer: Buffer): Promise<ParsedProduct[]> {
 /**
  * Detect file type and parse accordingly
  */
-export async function parseProductFile(buffer: Buffer, fileName: string): Promise<ParsedProduct[]> {
-    const extension = fileName.toLowerCase().split('.').pop();
+/**
+ * Get file content as text for AI processing
+ */
+async function getFileContent(buffer: Buffer, extension: string): Promise<string> {
+    if (['xlsx', 'xls', 'csv'].includes(extension)) {
+        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        // Use CSV format for better token efficiency with LLMs
+        return XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+    } else if (extension === 'docx') {
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value;
+    }
+    throw new Error(`Unsupported file format: ${extension}`);
+}
 
-    switch (extension) {
-        case 'xlsx':
-        case 'xls':
-        case 'csv':
+/**
+ * Parse file using AI (GPT) to extract products and services
+ */
+export async function parseProductFile(buffer: Buffer, fileName: string): Promise<ParsedProduct[]> {
+    const extension = fileName.toLowerCase().split('.').pop() || '';
+
+    try {
+        // 1. Get text content
+        const content = await getFileContent(buffer, extension);
+
+        // 2. Process with AI
+        // We import dynamically to avoid circular dependencies if any
+        const { parseProductDataWithAI } = await import('@/lib/ai/openai');
+        const products = await parseProductDataWithAI(content, fileName);
+
+        // 3. Map to ParsedProduct interface
+        return products.map(p => ({
+            name: p.name,
+            price: p.price,
+            description: p.description,
+            stock: p.stock,
+            type: p.type,
+            colors: p.colors,
+            sizes: p.sizes
+        }));
+    } catch (error) {
+        console.error('AI Parsing failed, falling back to rule-based:', error);
+        // Fallback to old methods if AI fails
+        if (['xlsx', 'xls', 'csv'].includes(extension)) {
             return parseExcel(buffer);
-        case 'docx':
+        } else if (extension === 'docx') {
             return parseDocx(buffer);
-        default:
-            throw new Error(`Unsupported file format: ${extension}. Supported: xlsx, xls, csv, docx`);
+        }
+        throw error;
     }
 }

@@ -496,3 +496,85 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
         throw error;
     }
 }
+
+export async function parseProductDataWithAI(
+    fileContent: string,
+    fileName: string
+): Promise<Array<{
+    name: string;
+    price: number;
+    stock: number;
+    description: string;
+    type: 'physical' | 'service';
+    unit: string;
+    colors: string[];
+    sizes: string[];
+}>> {
+    try {
+        logger.info('Parsing product data with AI...', { fileName, contentLength: fileContent.length });
+
+        const prompt = `
+You are a data extraction assistant. Extract products and services from the provided file content.
+Filename: "${fileName}"
+
+RULES:
+1. Extract ALL items found.
+2. Determine 'type': 'physical' for physical goods (phones, clothes), 'service' for services (repair, editing, consulting).
+3. Determine 'unit': e.g., 'ширхэг' for goods, 'захиалга', 'цаг', 'хүн' for services.
+4. Extract 'stock': For services, this is the Number of Available Slots/Orders. If not specified, default to 0.
+5. Extract 'colors' and 'sizes' if available.
+6. Return a JSON object with a "products" array.
+
+Input Content:
+${fileContent.slice(0, 15000)} -- truncated if too long
+
+Response Format (JSON only):
+{
+  "products": [
+    {
+      "name": "Product Name",
+      "price": 0,
+      "stock": 0,
+      "description": "Description",
+      "type": "physical" | "service",
+      "unit": "ширхэг" | "захиалга" | "цаг",
+      "colors": ["red", "blue"],
+      "sizes": ["S", "M"]
+    }
+  ]
+}`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o', // Use a capable model for extraction
+            messages: [
+                { role: 'system', content: 'You are a helpful data extraction assistant that outputs JSON.' },
+                { role: 'user', content: prompt }
+            ],
+            response_format: { type: 'json_object' }
+        });
+
+        const content = response.choices[0]?.message?.content || '{}';
+        const result = JSON.parse(content);
+
+        if (!Array.isArray(result.products)) {
+            logger.warn('AI returned invalid format', result);
+            return [];
+        }
+
+        return result.products.map((p: any) => ({
+            name: p.name || 'Unnamed',
+            price: Number(p.price) || 0,
+            stock: Number(p.stock) || 0,
+            description: p.description || '',
+            type: p.type === 'service' ? 'service' : 'physical',
+            unit: p.unit || (p.type === 'service' ? 'захиалга' : 'ширхэг'),
+            colors: Array.isArray(p.colors) ? p.colors : [],
+            sizes: Array.isArray(p.sizes) ? p.sizes : []
+        }));
+
+    } catch (error: any) {
+        logger.error('AI Parse Error:', { message: error?.message || error });
+        return [];
+    }
+}
+
