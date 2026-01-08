@@ -3,32 +3,69 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Search, User, Crown, Phone, MapPin, ShoppingBag } from 'lucide-react';
+import {
+    Search, User, Crown, Phone, Mail, ShoppingBag,
+    Tag, X, Plus, MessageSquare, Clock, ChevronDown,
+    Edit2, Save, Loader2
+} from 'lucide-react';
 
 interface Customer {
     id: string;
     name: string | null;
     phone: string | null;
-    address: string | null;
+    email: string | null;
+    tags: string[];
+    notes: string | null;
     total_orders: number;
     total_spent: number;
-    is_vip: boolean;
+    last_contact_at: string | null;
     created_at: string;
+    orders?: Array<{ id: string; status: string; total_amount: number; created_at: string }>;
+    chat_history?: Array<{ message: string; response: string; created_at: string }>;
 }
+
+const PREDEFINED_TAGS = ['VIP', 'New', 'Lead', 'Inactive', 'Problem', 'Regular'];
+
+const TAG_COLORS: Record<string, string> = {
+    'VIP': 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white',
+    'New': 'bg-green-100 text-green-700',
+    'Lead': 'bg-blue-100 text-blue-700',
+    'Inactive': 'bg-gray-100 text-gray-600',
+    'Problem': 'bg-red-100 text-red-700',
+    'Regular': 'bg-violet-100 text-violet-700',
+};
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [showVipOnly, setShowVipOnly] = useState(false);
+    const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [sortBy, setSortBy] = useState('last_contact_at');
     const [loading, setLoading] = useState(true);
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    // Edit form state
+    const [editForm, setEditForm] = useState({
+        name: '',
+        phone: '',
+        email: '',
+        notes: ''
+    });
 
     useEffect(() => {
         fetchCustomers();
-    }, []);
+    }, [selectedTag, sortBy]);
 
     async function fetchCustomers() {
         try {
-            const res = await fetch('/api/dashboard/customers');
+            setLoading(true);
+            const params = new URLSearchParams();
+            if (selectedTag) params.set('tag', selectedTag);
+            params.set('sortBy', sortBy);
+
+            const res = await fetch(`/api/dashboard/customers?${params}`);
             const data = await res.json();
             setCustomers(data.customers || []);
         } catch (error) {
@@ -38,115 +75,426 @@ export default function CustomersPage() {
         }
     }
 
-    if (loading) {
-        return <div className="flex items-center justify-center h-96">
-            <div className="text-lg text-gray-500">Ачааллаж байна...</div>
-        </div>;
+    async function fetchCustomerDetail(id: string) {
+        try {
+            const res = await fetch(`/api/dashboard/customers/${id}`);
+            const data = await res.json();
+            setSelectedCustomer(data.customer);
+            setEditForm({
+                name: data.customer.name || '',
+                phone: data.customer.phone || '',
+                email: data.customer.email || '',
+                notes: data.customer.notes || ''
+            });
+            setIsDetailOpen(true);
+        } catch (error) {
+            console.error('Failed to fetch customer detail:', error);
+        }
+    }
+
+    async function saveCustomer() {
+        if (!selectedCustomer) return;
+        setSaving(true);
+        try {
+            await fetch('/api/dashboard/customers', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedCustomer.id,
+                    ...editForm
+                })
+            });
+            setEditMode(false);
+            fetchCustomers();
+            fetchCustomerDetail(selectedCustomer.id);
+        } catch (error) {
+            console.error('Failed to save customer:', error);
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    async function addTag(customerId: string, tag: string) {
+        try {
+            await fetch(`/api/dashboard/customers/${customerId}/tags`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tag })
+            });
+            fetchCustomers();
+            if (selectedCustomer?.id === customerId) {
+                fetchCustomerDetail(customerId);
+            }
+        } catch (error) {
+            console.error('Failed to add tag:', error);
+        }
+    }
+
+    async function removeTag(customerId: string, tag: string) {
+        try {
+            await fetch(`/api/dashboard/customers/${customerId}/tags`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tag })
+            });
+            fetchCustomers();
+            if (selectedCustomer?.id === customerId) {
+                fetchCustomerDetail(customerId);
+            }
+        } catch (error) {
+            console.error('Failed to remove tag:', error);
+        }
     }
 
     const filteredCustomers = customers.filter(c => {
         const matchesSearch = (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (c.phone || '').includes(searchQuery);
-        const matchesVip = !showVipOnly || c.is_vip;
-        return matchesSearch && matchesVip;
+        return matchesSearch;
     });
+
+    const formatDate = (date: string | null) => {
+        if (!date) return '-';
+        return new Date(date).toLocaleDateString('mn-MN');
+    };
+
+    const formatTime = (date: string | null) => {
+        if (!date) return '';
+        const d = new Date(date);
+        const now = new Date();
+        const diff = now.getTime() - d.getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days === 0) return 'Өнөөдөр';
+        if (days === 1) return 'Өчигдөр';
+        if (days < 7) return `${days} өдрийн өмнө`;
+        return formatDate(date);
+    };
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Харилцагчид</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Харилцагчид (CRM)</h1>
                     <p className="text-gray-500 mt-1">Нийт {customers.length} харилцагч</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">VIP: {customers.filter(c => c.is_vip).length}</span>
-                    <Badge variant="vip">
-                        <Crown className="w-3 h-3 mr-1" />
-                        VIP
-                    </Badge>
                 </div>
             </div>
 
             {/* Filters */}
             <Card>
                 <CardContent className="py-4">
-                    <div className="flex items-center gap-4">
-                        <div className="relative flex-1 max-w-md">
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Search */}
+                        <div className="relative flex-1 min-w-[200px] max-w-md">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Нэр, утас хайх..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                             />
                         </div>
-                        <button
-                            onClick={() => setShowVipOnly(!showVipOnly)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${showVipOnly
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                        >
-                            <Crown className="w-4 h-4" />
-                            VIP only
-                        </button>
+
+                        {/* Tag Filter */}
+                        <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-gray-400" />
+                            <select
+                                value={selectedTag || ''}
+                                onChange={(e) => setSelectedTag(e.target.value || null)}
+                                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            >
+                                <option value="">Бүх Tag</option>
+                                {PREDEFINED_TAGS.map(tag => (
+                                    <option key={tag} value={tag}>{tag}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Sort */}
+                        <div className="flex items-center gap-2">
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            >
+                                <option value="last_contact_at">Сүүлд харьцсан</option>
+                                <option value="total_spent">Зарцуулсан дүн</option>
+                                <option value="created_at">Бүртгэсэн огноо</option>
+                            </select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Customers Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCustomers.map((customer) => {
-                    const lastOrder = new Date(customer.created_at).toLocaleDateString('mn-MN');
-                    return (
-                        <Card key={customer.id} hover className="cursor-pointer">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${customer.is_vip
-                                                ? 'bg-gradient-to-br from-amber-400 to-yellow-500'
-                                                : 'bg-gradient-to-br from-violet-100 to-indigo-100'
-                                            }`}>
-                                            {customer.is_vip
-                                                ? <Crown className="w-6 h-6 text-white" />
-                                                : <User className="w-6 h-6 text-violet-600" />
-                                            }
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-semibold text-gray-900">{customer.name || 'Харилцагч'}</p>
-                                                {customer.is_vip && <Badge variant="vip" size="sm">VIP</Badge>}
+            {loading ? (
+                <div className="flex items-center justify-center h-48">
+                    <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+                </div>
+            ) : (
+                /* Customers Table */
+                <Card>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Харилцагч</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Сүүлд харьцсан</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Захиалга</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Зарцуулсан</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {filteredCustomers.map((customer) => (
+                                    <tr
+                                        key={customer.id}
+                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                        onClick={() => fetchCustomerDetail(customer.id)}
+                                    >
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center">
+                                                    <User className="w-5 h-5 text-violet-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-gray-900">{customer.name || 'Харилцагч'}</p>
+                                                    <p className="text-sm text-gray-500">{customer.phone || '-'}</p>
+                                                </div>
                                             </div>
-                                            <p className="text-sm text-gray-500">Бүртгэсэн: {lastOrder}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-1">
+                                                {(customer.tags || []).map(tag => (
+                                                    <span
+                                                        key={tag}
+                                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${TAG_COLORS[tag] || 'bg-gray-100 text-gray-600'}`}
+                                                    >
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                                                <Clock className="w-4 h-4 text-gray-400" />
+                                                {formatTime(customer.last_contact_at)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-gray-600">{customer.total_orders || 0}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="font-semibold text-violet-600">
+                                                ₮{Number(customer.total_spent || 0).toLocaleString()}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            )}
+
+            {/* Customer Detail Modal */}
+            {isDetailOpen && selectedCustomer && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center">
+                                    <User className="w-6 h-6 text-violet-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">
+                                        {selectedCustomer.name || 'Харилцагч'}
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        Бүртгэсэн: {formatDate(selectedCustomer.created_at)}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {editMode ? (
+                                    <button
+                                        onClick={saveCustomer}
+                                        disabled={saving}
+                                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 disabled:opacity-50"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        Хадгалах
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setEditMode(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                        Засах
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setIsDetailOpen(false); setEditMode(false); }}
+                                    className="p-2 hover:bg-gray-100 rounded-xl"
+                                >
+                                    <X className="w-5 h-5 text-gray-500" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 space-y-6">
+                            {/* Contact Info */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Нэр</label>
+                                    {editMode ? (
+                                        <input
+                                            type="text"
+                                            value={editForm.name}
+                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    ) : (
+                                        <p className="text-gray-900">{selectedCustomer.name || '-'}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Утас</label>
+                                    {editMode ? (
+                                        <input
+                                            type="text"
+                                            value={editForm.phone}
+                                            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    ) : (
+                                        <p className="flex items-center gap-2 text-gray-900">
+                                            <Phone className="w-4 h-4 text-gray-400" />
+                                            {selectedCustomer.phone || '-'}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">И-мэйл</label>
+                                    {editMode ? (
+                                        <input
+                                            type="email"
+                                            value={editForm.email}
+                                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    ) : (
+                                        <p className="flex items-center gap-2 text-gray-900">
+                                            <Mail className="w-4 h-4 text-gray-400" />
+                                            {selectedCustomer.email || '-'}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Tags */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {(selectedCustomer.tags || []).map(tag => (
+                                        <span
+                                            key={tag}
+                                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${TAG_COLORS[tag] || 'bg-gray-100 text-gray-600'}`}
+                                        >
+                                            {tag}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); removeTag(selectedCustomer.id, tag); }}
+                                                className="hover:opacity-70"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {/* Add Tag Dropdown */}
+                                    <div className="relative group">
+                                        <button className="flex items-center gap-1 px-3 py-1 border border-dashed border-gray-300 rounded-full text-sm text-gray-500 hover:border-violet-500 hover:text-violet-500">
+                                            <Plus className="w-3 h-3" />
+                                            Tag нэмэх
+                                        </button>
+                                        <div className="absolute top-full left-0 mt-1 hidden group-hover:block bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-2 min-w-[120px]">
+                                            {PREDEFINED_TAGS.filter(t => !(selectedCustomer.tags || []).includes(t)).map(tag => (
+                                                <button
+                                                    key={tag}
+                                                    onClick={() => addTag(selectedCustomer.id, tag)}
+                                                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 rounded-lg"
+                                                >
+                                                    {tag}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Phone className="w-4 h-4 text-gray-400" />
-                                        {customer.phone || 'Утас байхгүй'}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <MapPin className="w-4 h-4 text-gray-400" />
-                                        {customer.address || 'Хаяг байхгүй'}
+                            {/* Notes */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Тэмдэглэл</label>
+                                {editMode ? (
+                                    <textarea
+                                        value={editForm.notes}
+                                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="Тэмдэглэл бичих..."
+                                    />
+                                ) : (
+                                    <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">
+                                        {selectedCustomer.notes || 'Тэмдэглэл байхгүй'}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-violet-50 p-4 rounded-xl text-center">
+                                    <p className="text-2xl font-bold text-violet-600">
+                                        {selectedCustomer.total_orders || 0}
+                                    </p>
+                                    <p className="text-sm text-gray-600">Захиалга</p>
+                                </div>
+                                <div className="bg-green-50 p-4 rounded-xl text-center">
+                                    <p className="text-2xl font-bold text-green-600">
+                                        ₮{Number(selectedCustomer.total_spent || 0).toLocaleString()}
+                                    </p>
+                                    <p className="text-sm text-gray-600">Зарцуулсан</p>
+                                </div>
+                                <div className="bg-blue-50 p-4 rounded-xl text-center">
+                                    <p className="text-2xl font-bold text-blue-600">
+                                        {formatTime(selectedCustomer.last_contact_at)}
+                                    </p>
+                                    <p className="text-sm text-gray-600">Сүүлд харьцсан</p>
+                                </div>
+                            </div>
+
+                            {/* Recent Chat */}
+                            {selectedCustomer.chat_history && selectedCustomer.chat_history.length > 0 && (
+                                <div>
+                                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                                        <MessageSquare className="w-4 h-4" />
+                                        Сүүлийн харилцаа
+                                    </label>
+                                    <div className="space-y-2 max-h-48 overflow-y-auto bg-gray-50 p-3 rounded-xl">
+                                        {selectedCustomer.chat_history.slice(0, 5).map((chat, i) => (
+                                            <div key={i} className="text-sm">
+                                                <p className="text-gray-600"><span className="font-medium">Хэрэглэгч:</span> {chat.message}</p>
+                                                <p className="text-violet-600"><span className="font-medium">AI:</span> {chat.response}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-
-                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                                    <div className="flex items-center gap-1 text-sm">
-                                        <ShoppingBag className="w-4 h-4 text-gray-400" />
-                                        <span className="text-gray-600">{customer.total_orders} захиалга</span>
-                                    </div>
-                                    <p className="font-bold text-violet-600">₮{Number(customer.total_spent).toLocaleString()}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-            </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
