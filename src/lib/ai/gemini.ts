@@ -171,9 +171,20 @@ export async function generateChatResponse(
         logger.debug('System prompt prepared', { length: systemPrompt.length });
 
         return await retryOperation(async () => {
-            const chat = geminiModel.startChat({
-                history: previousHistory,
+            // Create model with system instruction for this specific request
+            const chatModel = genAI.getGenerativeModel({
+                model: 'gemini-2.5-flash',
                 systemInstruction: systemPrompt,
+                generationConfig: {
+                    temperature: 0.7,
+                    topP: 0.8,
+                    topK: 40,
+                    maxOutputTokens: 1024,
+                },
+            });
+
+            const chat = chatModel.startChat({
+                history: previousHistory,
             });
 
             logger.info('Sending message to Gemini with history...');
