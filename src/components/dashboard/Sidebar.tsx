@@ -31,7 +31,7 @@ const menuItems = [
 
 const bottomMenuItems = [
     { name: 'Тусламж', href: '/help', icon: HelpCircle },
-    { name: 'Тохиргоо', href: '/setup', icon: Settings },
+    { name: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },
 ];
 
 export function Sidebar() {
