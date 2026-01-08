@@ -146,6 +146,8 @@ export async function POST(request: NextRequest) {
                                 userMessage,
                                 {
                                     shopName: shop.name,
+                                    shopDescription: shop.description || undefined,
+                                    aiInstructions: shop.ai_instructions || undefined,
                                     products: shop.products || [],
                                     customerName: customer?.name || undefined,
                                     orderHistory: customer?.total_orders || 0,

@@ -15,6 +15,7 @@ import {
     Sparkles,
     Facebook,
     HelpCircle,
+    Bot,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,6 +24,7 @@ const menuItems = [
     { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
     { name: 'Захиалга', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Харилцагчид', href: '/dashboard/customers', icon: Users },
+    { name: 'AI Тохируулга', href: '/dashboard/ai-settings', icon: Bot },
 ];
 
 const bottomMenuItems = [
@@ -37,9 +39,8 @@ export function Sidebar() {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-50 flex flex-col ${
-                collapsed ? 'w-20' : 'w-64'
-            }`}
+            className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-50 flex flex-col ${collapsed ? 'w-20' : 'w-64'
+                }`}
         >
             {/* Logo */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
@@ -77,7 +78,7 @@ export function Sidebar() {
                         )}
                     </div>
                     {!shop.facebook_page_id && (
-                        <Link 
+                        <Link
                             href="/setup"
                             className="mt-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
                         >
@@ -97,15 +98,13 @@ export function Sidebar() {
                             <li key={item.name}>
                                 <Link
                                     href={item.href}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                                        isActive
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive
                                             ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25'
                                             : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                                    }`}
+                                        }`}
                                 >
-                                    <item.icon className={`w-5 h-5 flex-shrink-0 ${
-                                        isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
-                                    }`} />
+                                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                                        }`} />
                                     {!collapsed && <span className="font-medium">{item.name}</span>}
                                 </Link>
                             </li>
@@ -123,11 +122,10 @@ export function Sidebar() {
                             <li key={item.name}>
                                 <Link
                                     href={item.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group ${
-                                        isActive
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group ${isActive
                                             ? 'bg-slate-700 text-white'
                                             : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     <item.icon className="w-5 h-5 flex-shrink-0" />
                                     {!collapsed && <span className="text-sm">{item.name}</span>}
