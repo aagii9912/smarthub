@@ -41,7 +41,7 @@ export function Sidebar() {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-50 flex flex-col ${collapsed ? 'w-20' : 'w-64'
+            className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-50 hidden md:flex flex-col ${collapsed ? 'w-20' : 'w-64'
                 }`}
         >
             {/* Logo */}

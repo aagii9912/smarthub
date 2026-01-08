@@ -23,75 +23,80 @@ export function Header() {
     const displayEmail = user?.email || '';
 
     return (
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
+        <header className="h-16 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
             {/* Left: Shop name */}
             <div className="flex items-center gap-3">
                 {shop && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 rounded-lg">
-                        <Store className="w-4 h-4 text-violet-600" />
-                        <span className="font-medium text-violet-700">{shop.name}</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg">
+                        <Store className="w-4 h-4 text-foreground" />
+                        <span className="font-medium text-sm text-foreground truncate max-w-[120px] sm:max-w-none">{shop.name}</span>
                         {shop.facebook_page_id && (
-                            <span className="w-2 h-2 bg-green-500 rounded-full" title="Facebook холбогдсон"></span>
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Facebook холбогдсон"></span>
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Center: Search */}
-            <div className="flex-1 max-w-md mx-4">
+            {/* Center: Search (Hidden on mobile) */}
+            <div className="hidden md:block flex-1 max-w-md mx-4">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                         type="text"
                         placeholder="Хайх..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                        className="w-full pl-9 pr-4 py-2 bg-secondary/50 border border-transparent focus:border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all placeholder:text-muted-foreground"
                     />
                 </div>
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+                {/* Search Toggle (Mobile) */}
+                <button className="md:hidden p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors">
+                    <Search className="w-5 h-5" />
+                </button>
+
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
+                <button className="relative p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors">
                     <Bell className="w-5 h-5" />
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full ring-2 ring-background"></span>
                 </button>
 
                 {/* Profile Dropdown */}
                 <div className="relative">
-                    <button 
+                    <button
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg transition-colors pr-2 py-1"
+                        className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-border hover:bg-secondary/50 rounded-lg transition-colors pr-1 sm:pr-2 py-1"
                     >
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-                            <User className="w-5 h-5 text-white" />
+                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-border">
+                            <User className="w-4 h-4 text-foreground" />
                         </div>
                         <div className="hidden sm:block text-left">
-                            <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                            <p className="text-xs text-gray-500">Эзэмшигч</p>
+                            <p className="text-sm font-medium text-foreground">{displayName}</p>
+                            <p className="text-xs text-muted-foreground">Эзэмшигч</p>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
                     </button>
 
                     {/* Dropdown Menu */}
                     {showDropdown && (
                         <>
-                            <div 
+                            <div
                                 className="fixed inset-0 z-40"
                                 onClick={() => setShowDropdown(false)}
                             />
-                            <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                                <div className="p-4 border-b border-gray-100">
-                                    <p className="font-medium text-gray-900">{displayName}</p>
-                                    <p className="text-sm text-gray-500">{displayEmail}</p>
+                            <div className="absolute right-0 top-full mt-2 w-64 bg-popover rounded-xl shadow-lg border border-border z-50 overflow-hidden text-popover-foreground">
+                                <div className="p-4 border-b border-border">
+                                    <p className="font-medium">{displayName}</p>
+                                    <p className="text-sm text-muted-foreground">{displayEmail}</p>
                                 </div>
-                                <div className="p-2">
+                                <div className="p-2 space-y-1">
                                     <button
                                         onClick={() => {
                                             setShowDropdown(false);
                                             router.push('/setup');
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
                                     >
                                         <Settings className="w-4 h-4" />
                                         Дэлгүүр тохиргоо
@@ -99,7 +104,7 @@ export function Header() {
                                     <button
                                         onClick={handleLogout}
                                         disabled={loggingOut}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                     >
                                         <LogOut className="w-4 h-4" />
                                         {loggingOut ? 'Гарч байна...' : 'Гарах'}

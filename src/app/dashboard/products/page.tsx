@@ -265,8 +265,8 @@ export default function ProductsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Бүтээгдэхүүн & Үйлчилгээ</h1>
-                    <p className="text-gray-500 mt-1">Нийт {products.length} бүртгэл</p>
+                    <h1 className="text-2xl font-bold text-foreground">Бүтээгдэхүүн & Үйлчилгээ</h1>
+                    <p className="text-muted-foreground mt-1">Нийт {products.length} бүртгэл</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="secondary" onClick={() => setShowImportModal(true)}>
@@ -285,13 +285,13 @@ export default function ProductsPage() {
                 <CardContent className="py-4">
                     <div className="flex items-center gap-4">
                         <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                             <input
                                 type="text"
                                 placeholder="Хайх..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground"
                             />
                         </div>
                     </div>
@@ -299,58 +299,113 @@ export default function ProductsPage() {
             </Card>
 
             {/* Products Table */}
-            <Card>
+            {/* Products List - Mobile Cards */}
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+                {filteredProducts.map((product) => (
+                    <Card key={product.id}>
+                        <CardContent className="p-4">
+                            <div className="flex items-start gap-4">
+                                <div className="w-20 h-20 rounded-xl bg-secondary flex-shrink-0 overflow-hidden border border-border">
+                                    {product.images?.[0] ? (
+                                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Package className="w-8 h-8 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="font-medium text-foreground truncate">{product.name}</p>
+                                            <p className="text-sm text-muted-foreground mt-0.5">₮{product.price.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(product.id)}
+                                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
+                                            {product.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
+                                        </span>
+                                        {product.type === 'physical' && (
+                                            <span className={`text-xs ${(product.stock || 0) > 0 ? 'text-muted-foreground' : 'text-destructive'}`}>
+                                                {(product.stock || 0) > 0 ? `Үлдэгдэл: ${product.stock}` : 'Дууссан'}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Products Table - Desktop */}
+            <Card className="hidden md:block">
                 <CardContent className="p-0">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-100">
+                        <thead className="bg-secondary/50 border-b border-border">
                             <tr>
-                                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Бүтээгдэхүүн</th>
-                                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Төрөл</th>
-                                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Үнэ</th>
-                                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Үлдэгдэл</th>
-                                <th className="text-left px-6 py-4 text-sm font-medium text-gray-500">Төлөв</th>
-                                <th className="text-right px-6 py-4 text-sm font-medium text-gray-500">Үйлдэл</th>
+                                <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Бүтээгдэхүүн</th>
+                                <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Төрөл</th>
+                                <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Үнэ</th>
+                                <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Үлдэгдэл</th>
+                                <th className="text-left px-6 py-4 text-sm font-medium text-muted-foreground">Төлөв</th>
+                                <th className="text-right px-6 py-4 text-sm font-medium text-muted-foreground">Үйлдэл</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                             {filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={product.id} className="hover:bg-secondary/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-200">
+                                            <div className="w-12 h-12 rounded-xl bg-secondary flex-shrink-0 overflow-hidden border border-border">
                                                 {product.images?.[0] ? (
                                                     <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center">
-                                                        <Package className="w-5 h-5 text-gray-400" />
+                                                        <Package className="w-5 h-5 text-muted-foreground" />
                                                     </div>
                                                 )}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900">{product.name}</p>
-                                                <p className="text-sm text-gray-500 truncate max-w-[200px]">{product.description}</p>
+                                                <p className="font-medium text-foreground">{product.name}</p>
+                                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">{product.description}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
                                             {product.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <p className="font-semibold text-gray-900">₮{product.price.toLocaleString()}</p>
+                                        <p className="font-semibold text-foreground">₮{product.price.toLocaleString()}</p>
                                     </td>
                                     <td className="px-6 py-4">
                                         {product.type === 'physical' ? (
-                                            <p className={`font-medium ${(product.stock || 0) > 0 ? 'text-gray-900' : 'text-red-500'}`}>
+                                            <p className={`font-medium ${(product.stock || 0) > 0 ? 'text-foreground' : 'text-destructive'}`}>
                                                 {(product.stock || 0) > 0 ? `${product.stock} ш` : 'Дууссан'}
                                             </p>
                                         ) : (
-                                            <span className="text-gray-400 text-sm">-</span>
+                                            <span className="text-muted-foreground text-sm">-</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.is_active ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 'bg-secondary text-muted-foreground border-border'}`}>
                                             {product.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
                                         </span>
                                     </td>
@@ -358,13 +413,13 @@ export default function ProductsPage() {
                                         <div className="flex items-center justify-end gap-2">
                                             <button
                                                 onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                                                className="p-2 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                                className="p-2 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors"
                                             >
                                                 <Edit2 className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(product.id)}
-                                                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>

@@ -8,7 +8,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Card({ children, className = '', hover = false, ...props }: CardProps) {
     return (
         <div
-            className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${hover ? 'hover:shadow-lg hover:border-gray-200 transition-all duration-300' : ''} ${className}`}
+            className={`bg-card rounded-2xl border border-border shadow-sm ${hover ? 'hover:shadow-lg hover:border-border/80 transition-all duration-300' : ''} ${className}`}
             {...props}
         >
             {children}
@@ -17,7 +17,7 @@ export function Card({ children, className = '', hover = false, ...props }: Card
 }
 
 export function CardHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-    return <div className={`px-6 py-4 border-b border-gray-100 ${className}`}>{children}</div>;
+    return <div className={`px-6 py-4 border-b border-border ${className}`}>{children}</div>;
 }
 
 export function CardContent({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -25,5 +25,5 @@ export function CardContent({ children, className = '' }: { children: React.Reac
 }
 
 export function CardTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-    return <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>{children}</h3>;
+    return <h3 className={`text-lg font-semibold text-foreground ${className}`}>{children}</h3>;
 }

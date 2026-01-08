@@ -64,7 +64,7 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
-    
+
     try {
       const res = await fetch('/api/orders');
       const data = await res.json();
@@ -85,7 +85,7 @@ export default function OrdersPage() {
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     setUpdatingId(orderId);
-    
+
     try {
       const res = await fetch('/api/orders', {
         method: 'PATCH',
@@ -94,10 +94,10 @@ export default function OrdersPage() {
       });
 
       if (res.ok) {
-        setOrders(orders.map(o => 
+        setOrders(orders.map(o =>
           o.id === orderId ? { ...o, status: newStatus } : o
         ));
-        
+
         if (selectedOrder?.id === orderId) {
           setSelectedOrder({ ...selectedOrder, status: newStatus });
         }
@@ -109,14 +109,14 @@ export default function OrdersPage() {
     }
   };
 
-  const filteredOrders = filter === 'all' 
-    ? orders 
+  const filteredOrders = filter === 'all'
+    ? orders
     : orders.filter(o => o.status === filter);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-lg text-gray-500">Ачааллаж байна...</div>
+        <div className="text-lg text-muted-foreground">Ачааллаж байна...</div>
       </div>
     );
   }
@@ -126,8 +126,8 @@ export default function OrdersPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Захиалгууд 📦</h1>
-          <p className="text-gray-500 mt-1">Нийт {orders.length} захиалга</p>
+          <h1 className="text-2xl font-bold text-foreground">Захиалгууд 📦</h1>
+          <p className="text-muted-foreground mt-1">Нийт {orders.length} захиалга</p>
         </div>
         <Button onClick={() => fetchOrders(true)} disabled={refreshing}>
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -136,14 +136,13 @@ export default function OrdersPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-            filter === 'all'
-              ? 'bg-violet-600 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${filter === 'all'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+            }`}
         >
           Бүгд ({orders.length})
         </button>
@@ -153,11 +152,10 @@ export default function OrdersPage() {
             <button
               key={status.value}
               onClick={() => setFilter(status.value)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-                filter === status.value
-                  ? 'bg-violet-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${filter === status.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                }`}
             >
               {status.label} ({count})
             </button>
@@ -170,18 +168,17 @@ export default function OrdersPage() {
         <div className="lg:col-span-2 space-y-4">
           {filteredOrders.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center text-gray-500">
-                <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                 <p>Захиалга байхгүй байна</p>
               </CardContent>
             </Card>
           ) : (
             filteredOrders.map((order) => (
-              <Card 
+              <Card
                 key={order.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  selectedOrder?.id === order.id ? 'ring-2 ring-violet-500' : ''
-                }`}
+                className={`cursor-pointer transition-all hover:shadow-lg ${selectedOrder?.id === order.id ? 'ring-2 ring-violet-500' : ''
+                  }`}
                 onClick={() => setSelectedOrder(order)}
               >
                 <CardContent className="p-4">
@@ -193,7 +190,7 @@ export default function OrdersPage() {
                           #{order.id.slice(0, 8)}
                         </span>
                       </div>
-                      
+
                       <div className="space-y-1">
                         {order.order_items.map((item, idx) => (
                           <p key={idx} className="font-medium text-gray-900">
@@ -201,7 +198,7 @@ export default function OrdersPage() {
                           </p>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <User className="w-4 h-4" />
@@ -213,7 +210,7 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">
                         ₮{Number(order.total_amount).toLocaleString()}
@@ -313,7 +310,7 @@ export default function OrdersPage() {
                       const Icon = status.icon;
                       const isActive = selectedOrder.status === status.value;
                       const isUpdating = updatingId === selectedOrder.id;
-                      
+
                       return (
                         <button
                           key={status.value}
@@ -322,11 +319,10 @@ export default function OrdersPage() {
                             updateStatus(selectedOrder.id, status.value);
                           }}
                           disabled={isActive || isUpdating}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            isActive
-                              ? 'bg-violet-100 text-violet-700 cursor-default'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          } disabled:opacity-50`}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                            ? 'bg-violet-100 text-violet-700 cursor-default'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            } disabled:opacity-50`}
                         >
                           <Icon className="w-4 h-4" />
                           {status.label}
