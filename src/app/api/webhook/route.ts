@@ -156,6 +156,8 @@ export async function POST(request: NextRequest) {
                             generateChatResponse(
                                 userMessage,
                                 {
+                                    shopId: shop.id,
+                                    customerId: customer?.id,
                                     shopName: shop.name,
                                     shopDescription: shop.description || undefined,
                                     aiInstructions: shop.ai_instructions || undefined,
@@ -215,40 +217,7 @@ export async function POST(request: NextRequest) {
                     // 3. Typing Off (Safe call)
                     await sendSenderAction(senderId, 'typing_off', pageAccessToken);
 
-                    // Check for order intent and create order
-                    if (intent.intent === 'ORDER_CREATE' && customer) {
-                        // Extract product from message if possible
-                        const product = shop.products?.find((p: any) =>
-                            userMessage.toLowerCase().includes(p.name.toLowerCase())
-                        );
-
-                        if (product) {
-                            // Create order
-                            const { data: order } = await supabase
-                                .from('orders')
-                                .insert({
-                                    shop_id: shop.id,
-                                    customer_id: customer.id,
-                                    status: 'pending',
-                                    total_amount: product.price,
-                                    notes: `Messenger-ээр захиалсан: ${userMessage}`
-                                })
-                                .select()
-                                .single();
-
-                            if (order) {
-                                // Add order item
-                                await supabase.from('order_items').insert({
-                                    order_id: order.id,
-                                    product_id: product.id,
-                                    quantity: 1,
-                                    unit_price: product.price
-                                });
-
-                                aiResponse = `🎉 "${product.name}" захиалга амжилттай бүртгэгдлээ!\n\nҮнэ: ${Number(product.price).toLocaleString()}₮\n\nХүргэлтийн хаягаа мессежээр илгээнэ үү! 📦`;
-                            }
-                        }
-                    }
+                    // Note: Order creation is now handled by AI Tools (create_order) in openai.ts
 
                     // Save chat history
                     await supabase.from('chat_history').insert({

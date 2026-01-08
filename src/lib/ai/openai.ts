@@ -1,11 +1,14 @@
 import OpenAI from 'openai';
 import { logger } from '@/lib/utils/logger';
+import { supabaseAdmin } from '@/lib/supabase';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export interface ChatContext {
+    shopId: string;
+    customerId?: string;
     shopName: string;
     shopDescription?: string;
     aiInstructions?: string;
@@ -162,6 +165,39 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 - Урт хариулт
 - Давтан мэндлэх`;
 
+        const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+            {
+                type: 'function',
+                function: {
+                    name: 'create_order',
+                    description: 'Create a new order when customer explicitly says they want to buy something. Do not use for general inquiries.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            product_name: {
+                                type: 'string',
+                                description: 'Name of the product to order (fuzzy match)'
+                            },
+                            quantity: {
+                                type: 'number',
+                                description: 'Quantity to order',
+                                default: 1
+                            },
+                            color: {
+                                type: 'string',
+                                description: 'Selected color variant (optional)'
+                            },
+                            size: {
+                                type: 'string',
+                                description: 'Selected size variant (optional)'
+                            }
+                        },
+                        required: ['product_name', 'quantity']
+                    }
+                }
+            }
+        ];
+
         const messages: ChatMessage[] = [
             { role: 'system', content: systemPrompt },
             ...previousHistory,
@@ -177,12 +213,174 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                 model: 'gpt-5-mini',
                 messages: messages,
                 max_completion_tokens: 800,
+                tools: tools,
+                tool_choice: 'auto',
             });
 
-            const responseText = response.choices[0]?.message?.content || '';
-            logger.success('OpenAI response received', { length: responseText.length });
+            const responseMessage = response.choices[0]?.message;
+            let finalResponseText = responseMessage?.content || '';
 
-            return responseText;
+            // Handle Tool Calls
+            if (responseMessage?.tool_calls) {
+                const toolCalls = responseMessage.tool_calls;
+                logger.info('AI triggered tool calls:', { count: toolCalls.length });
+
+                // Add assistant's tool call message to history
+                messages.push(responseMessage as any);
+
+                for (const toolCall of toolCalls) {
+                    if (toolCall.type === 'function') {
+                        try {
+                            const args = JSON.parse(toolCall.function.arguments);
+                            const { product_name, quantity, color, size } = args;
+
+                            logger.info('Executing create_order tool:', args);
+
+                            // 1. Find Product
+                            const product = context.products.find(p =>
+                                p.name.toLowerCase().includes(product_name.toLowerCase())
+                            );
+
+                            if (!product) {
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: `Product "${product_name}" not found.` })
+                                } as any);
+                                continue;
+                            }
+
+                            // 2. Check Stock
+                            /* 
+                                Note: context.products might be slightly stale compared to DB, 
+                                but for MVP it's okay. Truly we should verify stock from DB here 
+                                but we need supabase access. 
+                                Since we added supabaseAdmin import, let's use it!
+                            */
+
+                            const supabase = supabaseAdmin();
+
+                            // Verify stock from DB
+                            const { data: dbProduct } = await supabase
+                                .from('products')
+                                .select('stock, price, id')
+                                .eq('id', product.id)
+                                .single();
+
+                            if (!dbProduct || dbProduct.stock < quantity) {
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: `Not enough stock. Only ${dbProduct?.stock || 0} left.` })
+                                } as any);
+                                continue;
+                            }
+
+                            // 3. Create Order
+                            if (!context.shopId || !context.customerId) {
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: `Missing shop or customer ID context.` })
+                                } as any);
+                                continue;
+                            }
+
+                            const { data: order, error: orderError } = await supabase
+                                .from('orders')
+                                .insert({
+                                    shop_id: context.shopId,
+                                    customer_id: context.customerId,
+                                    status: 'pending',
+                                    total_amount: dbProduct.price * quantity,
+                                    notes: `AI Order: ${product_name} (${color || ''} ${size || ''})`,
+                                    created_at: new Date().toISOString()
+                                })
+                                .select()
+                                .single();
+
+                            if (orderError) throw orderError;
+
+                            // 4. Create Order Item & Deduct Stock
+                            await supabase.from('order_items').insert({
+                                order_id: order.id,
+                                product_id: product.id,
+                                quantity: quantity,
+                                unit_price: dbProduct.price,
+                                color: color || null,
+                                size: size || null
+                            });
+
+                            // Deduct stock
+                            const { error: rpcError } = await supabase.rpc('decrement_stock', {
+                                p_id: product.id,
+                                qty: quantity
+                            });
+
+                            if (rpcError) {
+                                // Fallback if RPC doesn't exist
+                                await supabase
+                                    .from('products')
+                                    .update({ stock: dbProduct.stock - quantity })
+                                    .eq('id', product.id);
+                            }
+
+                            const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock deducted.`;
+
+                            messages.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                content: JSON.stringify({ success: true, message: successMessage })
+                            } as any);
+
+                        } catch (error: any) {
+                            logger.error('Tool execution error:', error);
+                            messages.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                content: JSON.stringify({ error: error.message })
+                            } as any);
+                        }
+                    } else {
+                        messages.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            content: JSON.stringify({ error: "Unknown tool" })
+                        } as any);
+                    }
+                }
+
+                // Call OpenAI again with tool results
+                const secondResponse = await openai.chat.completions.create({
+                    model: 'gpt-5-mini',
+                    messages: messages,
+                    max_completion_tokens: 800,
+                });
+
+                finalResponseText = secondResponse.choices[0]?.message?.content || '';
+
+                // Monitor second request token usage too
+                if (secondResponse.usage) {
+                    logger.info('Token usage (post-tool):', {
+                        total_tokens: secondResponse.usage.total_tokens
+                    });
+                }
+            }
+
+            // Log token usage (first request)
+            const usage = response.usage;
+            if (usage) {
+                logger.info('Token usage:', {
+                    prompt_tokens: usage.prompt_tokens,
+                    completion_tokens: usage.completion_tokens,
+                    total_tokens: usage.total_tokens,
+                    estimated_cost_usd: ((usage.prompt_tokens * 0.00025 / 1000) + (usage.completion_tokens * 0.002 / 1000)).toFixed(6)
+                });
+            }
+
+            logger.success('OpenAI response received', { length: finalResponseText.length });
+
+            return finalResponseText;
         });
     } catch (error: any) {
         logger.error('OpenAI API Error:', {
