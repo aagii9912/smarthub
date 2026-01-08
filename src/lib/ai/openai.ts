@@ -74,7 +74,7 @@ ${productList}
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-5-mini',
+            model: 'gpt-4o-mini',
             messages: [
                 {
                     role: 'user',
@@ -257,10 +257,10 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
         logger.debug('System prompt prepared', { length: systemPrompt.length });
 
         return await retryOperation(async () => {
-            logger.info('Sending message to OpenAI GPT-5 mini...');
+            logger.info('Sending message to OpenAI GPT-4o mini...');
 
             const response = await openai.chat.completions.create({
-                model: 'gpt-5-mini',
+                model: 'gpt-4o-mini',
                 messages: messages,
                 max_completion_tokens: 800,
                 tools: tools,
@@ -456,7 +456,7 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
                 // Call OpenAI again with tool results
                 const secondResponse = await openai.chat.completions.create({
-                    model: 'gpt-5-mini',
+                    model: 'gpt-4o-mini',
                     messages: messages,
                     max_completion_tokens: 800,
                 });
