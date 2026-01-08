@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, Content } from '@google/generative-ai';
+import { logger } from '@/lib/utils/logger';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -17,7 +18,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay
         return await operation();
     } catch (error: any) {
         if (retries > 0 && (error.message?.includes('503') || error.message?.includes('overloaded'))) {
-            console.log(`⚠️ Gemini overloaded, retrying in ${delay}ms... (${retries} retries left)`);
+            logger.warn(`Gemini overloaded, retrying in ${delay}ms... (${retries} retries left)`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return retryOperation(operation, retries - 1, delay * 2); // Exponential backoff
         }
@@ -52,9 +53,9 @@ export async function analyzeProductImage(
     }>
 ): Promise<{ matchedProduct: string | null; confidence: number; description: string }> {
     try {
-        console.log('🖼️ analyzeProductImage called for:', imageUrl);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // ✅ Updated
-        
+        logger.info('analyzeProductImage called for:', { imageUrl });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
         // Fetch image
         const imageResponse = await fetch(imageUrl);
         const imageBuffer = await imageResponse.arrayBuffer();
@@ -86,17 +87,17 @@ ${productList}
         ]);
 
         const responseText = result.response.text();
-        console.log('✅ Vision response:', responseText);
+        logger.success('Vision response:', { responseText });
 
         // Parse JSON from response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             return JSON.parse(jsonMatch[0]);
         }
-        
+
         return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
     } catch (error) {
-        console.error('❌ Gemini Vision Error:', error);
+        logger.error('Gemini Vision Error:', { error });
         return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
     }
 }
@@ -107,7 +108,7 @@ export async function generateChatResponse(
     previousHistory: Content[] = []
 ): Promise<string> {
     try {
-        console.log('🔍 generateChatResponse called with:', {
+        logger.debug('generateChatResponse called with:', {
             message,
             contextShopName: context.shopName,
             productsCount: context.products?.length || 0,
@@ -120,7 +121,7 @@ export async function generateChatResponse(
         }
 
         if (!Array.isArray(context.products)) {
-            console.warn('⚠️ Products is not an array, converting to empty array');
+            logger.warn('Products is not an array, converting to empty array');
             context.products = [];
         }
 
@@ -138,21 +139,21 @@ export async function generateChatResponse(
     
     INSTRUCTIONS (JSON CONFIG):
     ${JSON.stringify({
-        personality: "Friendly, Professional, Helpful",
-        language: "Mongolian (Cyrillic)",
-        formatting: {
-            use_emojis: true,
-            max_sentences: 3,
-            currency_symbol: "₮"
-        },
-        rules: [
-            "Never output JSON in your response",
-            "Only recommend products from the list below",
-            "If asked about price, show price in ₮",
-            "Do NOT introduce yourself in every message (only if asked)",
-            "Keep responses concise and direct"
-        ]
-    }, null, 2)}
+            personality: "Friendly, Professional, Helpful",
+            language: "Mongolian (Cyrillic)",
+            formatting: {
+                use_emojis: true,
+                max_sentences: 3,
+                currency_symbol: "₮"
+            },
+            rules: [
+                "Never output JSON in your response",
+                "Only recommend products from the list below",
+                "If asked about price, show price in ₮",
+                "Do NOT introduce yourself in every message (only if asked)",
+                "Keep responses concise and direct"
+            ]
+        }, null, 2)}
 
     AVAILABLE PRODUCTS:
     ${productsInfo}
@@ -167,23 +168,23 @@ export async function generateChatResponse(
     - Always answer in Mongolian.
     `;
 
-        console.log('📝 System prompt prepared, length:', systemPrompt.length);
+        logger.debug('System prompt prepared', { length: systemPrompt.length });
 
         return await retryOperation(async () => {
             const chat = geminiModel.startChat({
                 history: previousHistory,
             });
 
-            console.log('💬 Sending message to Gemini with history...');
+            logger.info('Sending message to Gemini with history...');
             const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
-            
+
             const responseText = result.response.text();
-            console.log('✅ Gemini response received, length:', responseText.length);
-            
+            logger.success('Gemini response received', { length: responseText.length });
+
             return responseText;
         });
     } catch (error: any) {
-        console.error('❌ Gemini API Error:', {
+        logger.error('Gemini API Error:', {
             message: error?.message,
             stack: error?.stack,
             name: error?.name,

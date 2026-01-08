@@ -4,6 +4,7 @@ import { generateChatResponse } from '@/lib/ai/gemini';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Content } from '@google/generative-ai';
+import { logger } from '@/lib/utils/logger';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const result = verifyWebhook(mode, token, challenge, VERIFY_TOKEN);
 
     if (result) {
-        console.log('Webhook verified successfully');
+        logger.info('Webhook verified successfully');
         return new NextResponse(result, { status: 200 });
     }
 
@@ -48,15 +49,15 @@ export async function POST(request: NextRequest) {
                 .single();
 
             if (!shop) {
-                console.log(`⚠️ No active shop found for page ${pageId}`);
+                logger.warn(`No active shop found for page ${pageId}`);
                 continue;
             }
 
             // Get page access token from shop
             const pageAccessToken = shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-            
+
             if (!pageAccessToken) {
-                console.log(`⚠️ No access token for shop ${shop.name}`);
+                logger.warn(`No access token for shop ${shop.name}`);
                 continue;
             }
 
@@ -67,17 +68,17 @@ export async function POST(request: NextRequest) {
                 // Handle text messages
                 if (event.message?.text) {
                     const userMessage = event.message.text;
-                    console.log(`📩 [${shop.name}] Received:`, userMessage, 'from:', senderId);
+                    logger.info(`[${shop.name}] Received message`, { userMessage, senderId });
 
                     // 1. Mark Seen (Safe call)
                     await sendSenderAction(senderId, 'mark_seen', pageAccessToken);
-                    
+
                     // 2. Typing On (Safe call)
                     await sendSenderAction(senderId, 'typing_on', pageAccessToken);
 
                     // Detect intent
                     const intent = detectIntent(userMessage);
-                    console.log(`Intent: ${intent.intent}, Confidence: ${intent.confidence}`);
+                    logger.debug('Intent detected', { intent: intent.intent, confidence: intent.confidence });
 
                     // Get or create customer
                     let customer = null;
@@ -105,8 +106,8 @@ export async function POST(request: NextRequest) {
                     // Generate AI response with fallback
                     let aiResponse: string;
                     try {
-                        console.log(`🤖 [${shop.name}] Generating AI response...`);
-                        console.log('📦 Products:', shop.products?.length || 0);
+                        logger.info(`[${shop.name}] Generating AI response...`);
+                        logger.debug('Products count:', { count: shop.products?.length || 0 });
 
                         // 1. Get Chat History
                         const { data: historyData } = await supabase
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
                         // Generate response AND wait for a minimum delay (1.5s) to show "typing..."
                         const [response] = await Promise.all([
                             generateChatResponse(
-                                userMessage, 
+                                userMessage,
                                 {
                                     shopName: shop.name,
                                     products: shop.products || [],
@@ -149,22 +150,22 @@ export async function POST(request: NextRequest) {
                             ),
                             new Promise(resolve => setTimeout(resolve, 1500))
                         ]);
-                        
+
                         aiResponse = response;
-                        console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
+                        logger.success('AI response generated', { preview: aiResponse.substring(0, 100) + '...' });
                     } catch (aiError: any) {
-                        console.error('❌ AI Error:', aiError?.message);
+                        logger.error('AI Error:', { message: aiError?.message });
 
                         // Fallback хариулт (AI ажиллахгүй үед)
                         const msg = userMessage.toLowerCase();
                         if (msg.includes('сайн') || msg.includes('hello') || msg.includes('hi')) {
                             aiResponse = `Сайн байна уу! 😊 ${shop.name}-д тавтай морил! Танд яаж туслах вэ?`;
                         } else if (msg.includes('бараа') || msg.includes('бүтээгдэхүүн') || msg.includes('юу байна')) {
-                            const productList = shop.products?.slice(0, 3).map((p: any) => 
+                            const productList = shop.products?.slice(0, 3).map((p: any) =>
                                 `${p.name} (${Number(p.price).toLocaleString()}₮)`
                             ).join(', ');
-                            aiResponse = productList 
-                                ? `Манайд ${productList} байна! Аль нь сонирхож байна вэ? 😊` 
+                            aiResponse = productList
+                                ? `Манайд ${productList} байна! Аль нь сонирхож байна вэ? 😊`
                                 : 'Бүтээгдэхүүний мэдээлэл удахгүй орно!';
                         } else if (msg.includes('үнэ') || msg.includes('хэд')) {
                             aiResponse = 'Ямар бүтээгдэхүүний үнийг мэдэхийг хүсч байна вэ?';
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
                     // Check for order intent and create order
                     if (intent.intent === 'ORDER_CREATE' && customer) {
                         // Extract product from message if possible
-                        const product = shop.products?.find((p: any) => 
+                        const product = shop.products?.find((p: any) =>
                             userMessage.toLowerCase().includes(p.name.toLowerCase())
                         );
 
@@ -226,15 +227,15 @@ export async function POST(request: NextRequest) {
 
                     // Send response to Facebook
                     try {
-                        console.log(`📤 [${shop.name}] Sending response...`);
+                        logger.info(`[${shop.name}] Sending response...`);
                         await sendTextMessage({
                             recipientId: senderId,
                             message: aiResponse,
                             pageAccessToken: pageAccessToken,
                         });
-                        console.log('✅ Message sent successfully!');
+                        logger.success('Message sent successfully!');
                     } catch (sendError: any) {
-                        console.error('❌ Failed to send message:', sendError?.message);
+                        logger.error('Failed to send message:', { message: sendError?.message });
                     }
                 }
 
@@ -256,7 +257,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ status: 'ok' });
     } catch (error) {
-        console.error('Webhook error:', error);
+        logger.error('Webhook error:', { error });
         return NextResponse.json({
             error: error instanceof Error ? error.message : 'Unknown error',
         }, { status: 500 });
