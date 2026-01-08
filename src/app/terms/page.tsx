@@ -12,8 +12,8 @@ export default function TermsOfServicePage() {
             <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
                 {/* Header */}
                 <div className="mb-12">
-                    <Link 
-                        href="/" 
+                    <Link
+                        href="/"
                         className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
                     >
                         ← Нүүр хуудас руу буцах
@@ -31,8 +31,8 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Үйлчилгээний тухай</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            SmartHub нь Facebook Messenger платформ дээр ажилладаг AI чатбот үйлчилгээ юм. 
-                            Манай үйлчилгээ нь бизнесүүдэд харилцагчидтай автоматаар харилцах, захиалга авах, 
+                            SmartHub нь Facebook Messenger платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
+                            Манай үйлчилгээ нь бизнесүүдэд харилцагчидтай автоматаар харилцах, захиалга авах,
                             борлуулалтаа нэмэгдүүлэх боломжийг олгодог.
                         </p>
                     </section>
@@ -108,7 +108,7 @@ export default function TermsOfServicePage() {
                             <li>Контент, дизайн хулгайлах</li>
                         </ul>
                         <p className="text-gray-700 dark:text-gray-300 mt-4">
-                            Таны оруулсан контент (мессеж, өгөгдөл) нь танд хамаарна, гэхдээ бид үүнийг 
+                            Таны оруулсан контент (мессеж, өгөгдөл) нь танд хамаарна, гэхдээ бид үүнийг
                             үйлчилгээ үзүүлэх зорилгоор ашиглах эрхтэй.
                         </p>
                     </section>
@@ -166,7 +166,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">11. Нөхцөлийн өөрчлөлт</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Бид энэхүү үйлчилгээний нөхцөлийг цаг үетэй өөрчлөх эрхтэй. Томоохон өөрчлөлт 
+                            Бид энэхүү үйлчилгээний нөхцөлийг цаг үетэй өөрчлөх эрхтэй. Томоохон өөрчлөлт
                             гарсан тохиолдолд таныг урьдчилан мэдэгдэнэ.
                         </p>
                     </section>
@@ -177,7 +177,7 @@ export default function TermsOfServicePage() {
                             Асуулт, санал байвал:
                         </p>
                         <ul className="list-none text-gray-700 dark:text-gray-300 space-y-2">
-                            <li><strong>Вэб:</strong> <Link href="/odoo" className="text-indigo-600 hover:text-indigo-500">smarthub-opal.vercel.app</Link></li>
+                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">smarthub.vercel.app</Link></li>
                             <li><strong>Facebook:</strong> Framebrone хуудас</li>
                             <li><strong>Privacy Policy:</strong> <Link href="/privacy" className="text-indigo-600 hover:text-indigo-500">/privacy</Link></li>
                         </ul>
@@ -193,7 +193,7 @@ export default function TermsOfServicePage() {
 
                 {/* Back to Home */}
                 <div className="mt-12 text-center">
-                    <Link 
+                    <Link
                         href="/"
                         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                     >
@@ -201,7 +201,7 @@ export default function TermsOfServicePage() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

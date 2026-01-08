@@ -12,8 +12,8 @@ export default function PrivacyPolicyPage() {
             <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
                 {/* Header */}
                 <div className="mb-12">
-                    <Link 
-                        href="/" 
+                    <Link
+                        href="/"
                         className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
                     >
                         ← Нүүр хуудас руу буцах
@@ -31,8 +31,8 @@ export default function PrivacyPolicyPage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Танилцуулга</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            SmartHub ("бид", "манай") нь таны хувийн мэдээллийн нууцлалыг хамгаалахыг эрхэмлэдэг. 
-                            Энэхүү Нууцлалын бодлого нь манай үйлчилгээг ашиглах явцад бидний цуглуулж, ашиглаж, 
+                            SmartHub ("бид", "манай") нь таны хувийн мэдээллийн нууцлалыг хамгаалахыг эрхэмлэдэг.
+                            Энэхүү Нууцлалын бодлого нь манай үйлчилгээг ашиглах явцад бидний цуглуулж, ашиглаж,
                             хадгалдаг мэдээллийн талаар тайлбарладаг.
                         </p>
                     </section>
@@ -102,7 +102,7 @@ export default function PrivacyPolicyPage() {
                             <li><strong>Vercel:</strong> Веб хостинг</li>
                         </ul>
                         <p className="text-gray-700 dark:text-gray-300 mt-4">
-                            Эдгээр үйлчилгээ бүр өөрийн Privacy Policy-тай бөгөөд бид тэдэнтэй мэдээлэл хуваалцахдаа 
+                            Эдгээр үйлчилгээ бүр өөрийн Privacy Policy-тай бөгөөд бид тэдэнтэй мэдээлэл хуваалцахдаа
                             зөвхөн шаардлагатай хэмжээгээр хязгаарладаг.
                         </p>
                     </section>
@@ -124,7 +124,7 @@ export default function PrivacyPolicyPage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">8. Хүүхдийн мэдээлэл</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Манай үйлчилгээ нь 18 насанд хүрээгүй хүүхдэд зориулагдаагүй. Бид зориуд 18 насанд 
+                            Манай үйлчилгээ нь 18 насанд хүрээгүй хүүхдэд зориулагдаагүй. Бид зориуд 18 насанд
                             хүрээгүй хүүхдээс мэдээлэл цуглуулдаггүй.
                         </p>
                     </section>
@@ -132,7 +132,7 @@ export default function PrivacyPolicyPage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">9. Бодлогын өөрчлөлт</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Бид энэхүү Нууцлалын бодлогоо цаг үетэй хөгжүүлж, шинэчилж болно. Томоохон өөрчлөлт 
+                            Бид энэхүү Нууцлалын бодлогоо цаг үетэй хөгжүүлж, шинэчилж болно. Томоохон өөрчлөлт
                             гарсан тохиолдолд таныг мэдэгдэх болно.
                         </p>
                     </section>
@@ -143,7 +143,7 @@ export default function PrivacyPolicyPage() {
                             Нууцлалын бодлоготой холбоотой асуулт байвал:
                         </p>
                         <ul className="list-none text-gray-700 dark:text-gray-300 space-y-2">
-                            <li><strong>Вэб:</strong> <Link href="/odoo" className="text-indigo-600 hover:text-indigo-500">smarthub-opal.vercel.app</Link></li>
+                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">smarthub.vercel.app</Link></li>
                             <li><strong>Facebook:</strong> Framebrone хуудас</li>
                         </ul>
                     </section>
@@ -157,7 +157,7 @@ export default function PrivacyPolicyPage() {
 
                 {/* Back to Home */}
                 <div className="mt-12 text-center">
-                    <Link 
+                    <Link
                         href="/"
                         className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                     >
@@ -165,7 +165,7 @@ export default function PrivacyPolicyPage() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

@@ -7,7 +7,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:bg-grid-slate-700/25"></div>
-        
+
         <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
           {/* Header/Nav */}
           <nav className="mb-16 flex items-center justify-between">
@@ -39,14 +39,14 @@ export default function Home() {
               <Bot className="h-4 w-4" />
               AI-Powered Business Solutions
             </div>
-            
+
             <h1 className="mb-6 text-5xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl lg:text-7xl">
               Таны бизнест зориулсан
               <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> AI туслах</span>
             </h1>
-            
+
             <p className="mb-10 text-xl leading-8 text-gray-600 dark:text-gray-400">
-              Facebook Messenger дээр ажилладаг AI чатбот. Автоматаар захиалга авч, харилцагчидтай харилцаж, 
+              Facebook Messenger дээр ажилладаг AI чатбот. Автоматаар захиалга авч, харилцагчидтай харилцаж,
               борлуулалтаа нэмэгдүүлээрэй.
             </p>
 
@@ -154,10 +154,10 @@ export default function Home() {
                 <Sparkles className="h-6 w-6 text-pink-600 dark:text-pink-400" />
               </div>
               <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
-                Odoo ERP
+                CRM систем
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Бизнесийн удирдлагын систем нэвтрүүлэх үйлчилгээ
+                Харилцагчийн мэдээлэл автоматаар хадгалж, tag-аар ангилна
               </p>
             </div>
           </div>
@@ -177,16 +177,16 @@ export default function Home() {
               </p>
               <div className="mt-8 flex items-center justify-center gap-4">
                 <Link
-                  href="/dashboard"
+                  href="/auth/register"
                   className="rounded-lg bg-white px-8 py-4 text-lg font-semibold text-indigo-600 shadow-lg hover:bg-gray-50 transition-all"
                 >
-                  Dashboard үзэх
+                  Бүртгүүлэх
                 </Link>
                 <Link
-                  href="/odoo"
+                  href="/dashboard"
                   className="rounded-lg border-2 border-white px-8 py-4 text-lg font-semibold text-white hover:bg-white/10 transition-all"
                 >
-                  Odoo ERP
+                  Dashboard
                 </Link>
               </div>
             </div>
