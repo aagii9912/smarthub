@@ -195,6 +195,31 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                         required: ['product_name', 'quantity']
                     }
                 }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'collect_contact_info',
+                    description: 'Save customer contact information when they provide phone number or delivery address for an order. Use this when customer shares their phone or address.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            phone: {
+                                type: 'string',
+                                description: 'Customer phone number (8 digits for Mongolia)'
+                            },
+                            address: {
+                                type: 'string',
+                                description: 'Delivery address'
+                            },
+                            name: {
+                                type: 'string',
+                                description: 'Customer name if provided'
+                            }
+                        },
+                        required: []
+                    }
+                }
             }
         ];
 
@@ -230,123 +255,177 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
                 for (const toolCall of toolCalls) {
                     if (toolCall.type === 'function') {
-                        try {
-                            const args = JSON.parse(toolCall.function.arguments);
-                            const { product_name, quantity, color, size } = args;
+                        const functionName = toolCall.function.name;
+                        const args = JSON.parse(toolCall.function.arguments);
 
-                            logger.info('Executing create_order tool:', args);
+                        logger.info(`Executing tool: ${functionName}`, args);
 
-                            // 1. Find Product
-                            const product = context.products.find(p =>
-                                p.name.toLowerCase().includes(product_name.toLowerCase())
-                            );
+                        // Handle collect_contact_info
+                        if (functionName === 'collect_contact_info') {
+                            try {
+                                const { phone, address, name } = args;
 
-                            if (!product) {
+                                if (!context.customerId) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: 'No customer context' })
+                                    } as any);
+                                    continue;
+                                }
+
+                                const supabase = supabaseAdmin();
+                                const updateData: Record<string, any> = {};
+
+                                if (phone) updateData.phone = phone;
+                                if (address) updateData.address = address;
+                                if (name) updateData.name = name;
+
+                                if (Object.keys(updateData).length > 0) {
+                                    await supabase
+                                        .from('customers')
+                                        .update(updateData)
+                                        .eq('id', context.customerId);
+
+                                    logger.info('Contact info saved to CRM:', updateData);
+
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({
+                                            success: true,
+                                            message: `Saved: ${phone ? 'phone ' : ''}${address ? 'address ' : ''}${name ? 'name' : ''}`
+                                        })
+                                    } as any);
+                                } else {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ message: 'No info to save' })
+                                    } as any);
+                                }
+                            } catch (error: any) {
+                                logger.error('Contact save error:', error);
                                 messages.push({
                                     role: 'tool',
                                     tool_call_id: toolCall.id,
-                                    content: JSON.stringify({ error: `Product "${product_name}" not found.` })
+                                    content: JSON.stringify({ error: error.message })
                                 } as any);
-                                continue;
                             }
-
-                            // 2. Check Stock
-                            /* 
-                                Note: context.products might be slightly stale compared to DB, 
-                                but for MVP it's okay. Truly we should verify stock from DB here 
-                                but we need supabase access. 
-                                Since we added supabaseAdmin import, let's use it!
-                            */
-
-                            const supabase = supabaseAdmin();
-
-                            // Verify stock from DB
-                            const { data: dbProduct } = await supabase
-                                .from('products')
-                                .select('stock, price, id')
-                                .eq('id', product.id)
-                                .single();
-
-                            if (!dbProduct || dbProduct.stock < quantity) {
-                                messages.push({
-                                    role: 'tool',
-                                    tool_call_id: toolCall.id,
-                                    content: JSON.stringify({ error: `Not enough stock. Only ${dbProduct?.stock || 0} left.` })
-                                } as any);
-                                continue;
-                            }
-
-                            // 3. Create Order
-                            if (!context.shopId || !context.customerId) {
-                                messages.push({
-                                    role: 'tool',
-                                    tool_call_id: toolCall.id,
-                                    content: JSON.stringify({ error: `Missing shop or customer ID context.` })
-                                } as any);
-                                continue;
-                            }
-
-                            const { data: order, error: orderError } = await supabase
-                                .from('orders')
-                                .insert({
-                                    shop_id: context.shopId,
-                                    customer_id: context.customerId,
-                                    status: 'pending',
-                                    total_amount: dbProduct.price * quantity,
-                                    notes: `AI Order: ${product_name} (${color || ''} ${size || ''})`,
-                                    created_at: new Date().toISOString()
-                                })
-                                .select()
-                                .single();
-
-                            if (orderError) throw orderError;
-
-                            // 4. Create Order Item & Deduct Stock
-                            await supabase.from('order_items').insert({
-                                order_id: order.id,
-                                product_id: product.id,
-                                quantity: quantity,
-                                unit_price: dbProduct.price,
-                                color: color || null,
-                                size: size || null
-                            });
-
-                            // Deduct stock
-                            const { error: rpcError } = await supabase.rpc('decrement_stock', {
-                                p_id: product.id,
-                                qty: quantity
-                            });
-
-                            if (rpcError) {
-                                // Fallback if RPC doesn't exist
-                                await supabase
-                                    .from('products')
-                                    .update({ stock: dbProduct.stock - quantity })
-                                    .eq('id', product.id);
-                            }
-
-                            const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock deducted.`;
-
-                            messages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: JSON.stringify({ success: true, message: successMessage })
-                            } as any);
-
-                        } catch (error: any) {
-                            logger.error('Tool execution error:', error);
-                            messages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: JSON.stringify({ error: error.message })
-                            } as any);
+                            continue;
                         }
-                    } else {
-                        messages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            content: JSON.stringify({ error: "Unknown tool" })
-                        } as any);
+
+                        // Handle create_order
+                        if (functionName === 'create_order') {
+                            try {
+                                const { product_name, quantity, color, size } = args;
+
+                                // 1. Find Product
+                                const product = context.products.find(p =>
+                                    p.name.toLowerCase().includes(product_name.toLowerCase())
+                                );
+
+                                if (!product) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: `Product "${product_name}" not found.` })
+                                    } as any);
+                                    continue;
+                                }
+
+                                // 2. Check Stock
+                                /* 
+                                    Note: context.products might be slightly stale compared to DB, 
+                                    but for MVP it's okay. Truly we should verify stock from DB here 
+                                    but we need supabase access. 
+                                    Since we added supabaseAdmin import, let's use it!
+                                */
+
+                                const supabase = supabaseAdmin();
+
+                                // Verify stock from DB
+                                const { data: dbProduct } = await supabase
+                                    .from('products')
+                                    .select('stock, price, id')
+                                    .eq('id', product.id)
+                                    .single();
+
+                                if (!dbProduct || dbProduct.stock < quantity) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: `Not enough stock. Only ${dbProduct?.stock || 0} left.` })
+                                    } as any);
+                                    continue;
+                                }
+
+                                // 3. Create Order
+                                if (!context.shopId || !context.customerId) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: `Missing shop or customer ID context.` })
+                                    } as any);
+                                    continue;
+                                }
+
+                                const { data: order, error: orderError } = await supabase
+                                    .from('orders')
+                                    .insert({
+                                        shop_id: context.shopId,
+                                        customer_id: context.customerId,
+                                        status: 'pending',
+                                        total_amount: dbProduct.price * quantity,
+                                        notes: `AI Order: ${product_name} (${color || ''} ${size || ''})`,
+                                        created_at: new Date().toISOString()
+                                    })
+                                    .select()
+                                    .single();
+
+                                if (orderError) throw orderError;
+
+                                // 4. Create Order Item & Deduct Stock
+                                await supabase.from('order_items').insert({
+                                    order_id: order.id,
+                                    product_id: product.id,
+                                    quantity: quantity,
+                                    unit_price: dbProduct.price,
+                                    color: color || null,
+                                    size: size || null
+                                });
+
+                                // Deduct stock
+                                const { error: rpcError } = await supabase.rpc('decrement_stock', {
+                                    p_id: product.id,
+                                    qty: quantity
+                                });
+
+                                if (rpcError) {
+                                    // Fallback if RPC doesn't exist
+                                    await supabase
+                                        .from('products')
+                                        .update({ stock: dbProduct.stock - quantity })
+                                        .eq('id', product.id);
+                                }
+
+                                const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock deducted.`;
+
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ success: true, message: successMessage })
+                                } as any);
+
+                            } catch (error: any) {
+                                logger.error('Tool execution error:', error);
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: error.message })
+                                } as any);
+                            }
+                        }
                     }
                 }
 
