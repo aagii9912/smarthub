@@ -157,7 +157,6 @@ ${context.orderHistory ? `ЗАХИАЛГЫН ТҮҮХ: ${context.orderHistory} �
             const response = await openai.chat.completions.create({
                 model: 'gpt-5-mini',
                 messages: messages,
-                temperature: 0.7,
                 max_completion_tokens: 500,
             });
 
