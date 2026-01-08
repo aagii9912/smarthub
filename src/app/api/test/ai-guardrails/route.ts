@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
             shopId: 'test-shop-id',
             shopName: 'Test Shop',
             products: [
-                { id: '1', name: 'Test Product', price: 50000, stock: 10, type: 'physical' as const }
+                { id: '1', name: 'Test Product', price: 50000, stock: 10, type: 'product' as const }
             ]
         };
 
