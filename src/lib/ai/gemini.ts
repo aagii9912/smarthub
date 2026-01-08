@@ -173,10 +173,11 @@ export async function generateChatResponse(
         return await retryOperation(async () => {
             const chat = geminiModel.startChat({
                 history: previousHistory,
+                systemInstruction: systemPrompt,
             });
 
             logger.info('Sending message to Gemini with history...');
-            const result = await chat.sendMessage(`${systemPrompt}\n\nХэрэглэгчийн мессеж: ${message}`);
+            const result = await chat.sendMessage(message);
 
             const responseText = result.response.text();
             logger.success('Gemini response received', { length: responseText.length });

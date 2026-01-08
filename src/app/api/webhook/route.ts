@@ -154,27 +154,44 @@ export async function POST(request: NextRequest) {
                         aiResponse = response;
                         logger.success('AI response generated', { preview: aiResponse.substring(0, 100) + '...' });
                     } catch (aiError: any) {
-                        logger.error('AI Error:', { message: aiError?.message });
+                        logger.error('AI Error:', {
+                            message: aiError?.message,
+                            stack: aiError?.stack,
+                            name: aiError?.name
+                        });
 
-                        // Fallback хариулт (AI ажиллахгүй үед)
-                        const msg = userMessage.toLowerCase();
-                        if (msg.includes('сайн') || msg.includes('hello') || msg.includes('hi')) {
-                            aiResponse = `Сайн байна уу! 😊 ${shop.name}-д тавтай морил! Танд яаж туслах вэ?`;
-                        } else if (msg.includes('бараа') || msg.includes('бүтээгдэхүүн') || msg.includes('юу байна')) {
-                            const productList = shop.products?.slice(0, 3).map((p: any) =>
-                                `${p.name} (${Number(p.price).toLocaleString()}₮)`
-                            ).join(', ');
-                            aiResponse = productList
-                                ? `Манайд ${productList} байна! Аль нь сонирхож байна вэ? 😊`
-                                : 'Бүтээгдэхүүний мэдээлэл удахгүй орно!';
-                        } else if (msg.includes('үнэ') || msg.includes('хэд')) {
-                            aiResponse = 'Ямар бүтээгдэхүүний үнийг мэдэхийг хүсч байна вэ?';
-                        } else if (msg.includes('захиал')) {
-                            aiResponse = 'Захиалга өгөхийг хүсвэл утасны дугаар, хаягаа бичнэ үү! 📦';
-                        } else if (msg.includes('баярлалаа') || msg.includes('thank')) {
-                            aiResponse = 'Баярлалаа! Дахиад ирээрэй 😊';
-                        } else {
-                            aiResponse = `Сайн байна уу! 😊 ${shop.name}-д тавтай морил! Танд яаж туслах вэ?`;
+                        // Intent detector ашиглан fallback хариулт үүсгэх
+                        const productList = shop.products?.slice(0, 3).map((p: any) =>
+                            `${p.name} (${Number(p.price).toLocaleString()}₮)`
+                        ).join(', ');
+
+                        switch (intent.intent) {
+                            case 'GREETING':
+                                aiResponse = `Сайн байна уу! 😊 ${shop.name}-д тавтай морил! Танд яаж туслах вэ?`;
+                                break;
+                            case 'PRODUCT_INQUIRY':
+                            case 'STOCK_CHECK':
+                                aiResponse = productList
+                                    ? `Манайд ${productList} зэрэг бүтээгдэхүүн байна! 😊 Аль нь сонирхож байна вэ?`
+                                    : 'Бүтээгдэхүүний мэдээлэл удахгүй орно!';
+                                break;
+                            case 'PRICE_CHECK':
+                                aiResponse = 'Ямар бүтээгдэхүүний үнийг мэдэхийг хүсч байна вэ? 💰';
+                                break;
+                            case 'ORDER_CREATE':
+                                aiResponse = 'Захиалга өгөхийг хүсвэл бүтээгдэхүүний нэр, тоо ширхэг, утасны дугаар, хаягаа бичнэ үү! 📦';
+                                break;
+                            case 'ORDER_STATUS':
+                                aiResponse = 'Захиалгын дугаараа хэлнэ үү, би шалгаад хэлье! 🔍';
+                                break;
+                            case 'THANK_YOU':
+                                aiResponse = 'Баярлалаа! Дахиад ирээрэй 😊';
+                                break;
+                            case 'COMPLAINT':
+                                aiResponse = 'Уучлаарай, танд тохиромжгүй байдал үүссэнд харамсаж байна. Асуудлаа дэлгэрэнгүй хэлнэ үү, бид шийдвэрлэхийг хичээнэ! 🙏';
+                                break;
+                            default:
+                                aiResponse = `Уучлаарай, одоо системд түр алдаа гарлаа. Удахгүй хариулах болно! 🙏`;
                         }
                     }
 
