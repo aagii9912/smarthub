@@ -1,0 +1,115 @@
+import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
+
+export interface ParsedProduct {
+    name: string;
+    price: number;
+    description?: string;
+    stock?: number;
+    type?: 'physical' | 'service';
+    colors?: string[];
+    sizes?: string[];
+}
+
+/**
+ * Parse Excel file (xlsx, xls, csv)
+ */
+export async function parseExcel(buffer: Buffer): Promise<ParsedProduct[]> {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    // Convert to JSON
+    const data = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
+
+    // Try to detect column names
+    const products: ParsedProduct[] = [];
+
+    for (const row of data) {
+        // Try different column name variations
+        const name = row['Нэр'] || row['name'] || row['Name'] || row['Бүтээгдэхүүн'] || row['Product'] || '';
+        const price = parseFloat(row['Үнэ'] || row['price'] || row['Price'] || row['Үнэ (₮)'] || 0);
+        const description = row['Тайлбар'] || row['description'] || row['Description'] || row['Дэлгэрэнгүй'] || '';
+        const stock = parseInt(row['Тоо'] || row['stock'] || row['Stock'] || row['Үлдэгдэл'] || row['Qty'] || 0);
+        const type = row['Төрөл'] || row['type'] || row['Type'] || 'physical';
+
+        // Parse colors and sizes if they exist
+        const colorsRaw = row['Өнгө'] || row['colors'] || row['Colors'] || '';
+        const sizesRaw = row['Хэмжээ'] || row['sizes'] || row['Sizes'] || '';
+
+        const colors = colorsRaw ? String(colorsRaw).split(',').map((c: string) => c.trim()).filter(Boolean) : [];
+        const sizes = sizesRaw ? String(sizesRaw).split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+
+        if (name && price > 0) {
+            products.push({
+                name: String(name).trim(),
+                price,
+                description: String(description).trim() || undefined,
+                stock: isNaN(stock) ? 0 : stock,
+                type: type === 'service' ? 'service' : 'physical',
+                colors: colors.length > 0 ? colors : undefined,
+                sizes: sizes.length > 0 ? sizes : undefined,
+            });
+        }
+    }
+
+    return products;
+}
+
+/**
+ * Parse DOCX file
+ * Expected format: 
+ * - Each product on a new line
+ * - Format: "Нэр - Үнэ₮ - Тайлбар"
+ * - Or table format
+ */
+export async function parseDocx(buffer: Buffer): Promise<ParsedProduct[]> {
+    const result = await mammoth.extractRawText({ buffer });
+    const text = result.value;
+
+    const products: ParsedProduct[] = [];
+    const lines = text.split('\n').filter(line => line.trim());
+
+    for (const line of lines) {
+        // Try to parse "Name - Price - Description" format
+        const parts = line.split(/[-–—]/).map(p => p.trim());
+
+        if (parts.length >= 2) {
+            const name = parts[0];
+            // Extract price from second part (remove ₮, etc)
+            const priceMatch = parts[1].match(/[\d,]+/);
+            const price = priceMatch ? parseFloat(priceMatch[0].replace(/,/g, '')) : 0;
+            const description = parts.slice(2).join(' - ').trim() || undefined;
+
+            if (name && price > 0) {
+                products.push({
+                    name,
+                    price,
+                    description,
+                    stock: 0,
+                    type: 'physical',
+                });
+            }
+        }
+    }
+
+    return products;
+}
+
+/**
+ * Detect file type and parse accordingly
+ */
+export async function parseProductFile(buffer: Buffer, fileName: string): Promise<ParsedProduct[]> {
+    const extension = fileName.toLowerCase().split('.').pop();
+
+    switch (extension) {
+        case 'xlsx':
+        case 'xls':
+        case 'csv':
+            return parseExcel(buffer);
+        case 'docx':
+            return parseDocx(buffer);
+        default:
+            throw new Error(`Unsupported file format: ${extension}. Supported: xlsx, xls, csv, docx`);
+    }
+}

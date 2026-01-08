@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Plus, Search, Edit2, Trash2, Package, X, Upload, Box, Layers } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Product {
@@ -26,12 +26,19 @@ export default function ProductsPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
-    
+
     // Form States
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [productType, setProductType] = useState<'physical' | 'service'>('physical');
+
+    // Import States
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importPreview, setImportPreview] = useState<any[]>([]);
+    const [importing, setImporting] = useState(false);
+    const [importError, setImportError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProducts();
@@ -111,7 +118,7 @@ export default function ProductsPage() {
         e.preventDefault();
         setSaving(true);
         const formData = new FormData(e.currentTarget);
-        
+
         try {
             let imageUrl = editingProduct?.images?.[0] || null;
 
@@ -166,7 +173,7 @@ export default function ProductsPage() {
 
     async function handleDelete(id: string) {
         if (!confirm('Устгахдаа итгэлтэй байна уу?')) return;
-        
+
         try {
             await fetch(`/api/dashboard/products?id=${id}`, {
                 method: 'DELETE',
@@ -174,6 +181,72 @@ export default function ProductsPage() {
             fetchProducts();
         } catch (error) {
             console.error('Failed to delete product:', error);
+        }
+    }
+
+    // Import handlers
+    async function handleImportFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setImportFile(file);
+            setImportError(null);
+            setImportPreview([]);
+
+            // Get preview
+            setImporting(true);
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('preview', 'true');
+
+                const res = await fetch('/api/shop/import', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setImportError(data.error || 'Preview failed');
+                } else {
+                    setImportPreview(data.products || []);
+                }
+            } catch (error: any) {
+                setImportError(error.message || 'Preview failed');
+            } finally {
+                setImporting(false);
+            }
+        }
+    }
+
+    async function handleImportConfirm() {
+        if (!importFile) return;
+
+        setImporting(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', importFile);
+
+            const res = await fetch('/api/shop/import', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setImportError(data.error || 'Import failed');
+            } else {
+                alert(`${data.count} бүтээгдэхүүн импорт хийгдлээ!`);
+                setShowImportModal(false);
+                setImportFile(null);
+                setImportPreview([]);
+                fetchProducts();
+            }
+        } catch (error: any) {
+            setImportError(error.message || 'Import failed');
+        } finally {
+            setImporting(false);
         }
     }
 
@@ -195,10 +268,16 @@ export default function ProductsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Бүтээгдэхүүн & Үйлчилгээ</h1>
                     <p className="text-gray-500 mt-1">Нийт {products.length} бүртгэл</p>
                 </div>
-                <Button onClick={() => { setEditingProduct(null); setShowModal(true); }}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Шинэ нэмэх
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="secondary" onClick={() => setShowImportModal(true)}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Файлаас импорт
+                    </Button>
+                    <Button onClick={() => { setEditingProduct(null); setShowModal(true); }}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Шинэ нэмэх
+                    </Button>
+                </div>
             </div>
 
             {/* Search & Filters */}
@@ -283,7 +362,7 @@ export default function ProductsPage() {
                                             >
                                                 <Edit2 className="w-4 h-4" />
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleDelete(product.id)}
                                                 className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             >
@@ -413,6 +492,108 @@ export default function ProductsPage() {
                                 </Button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Import Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto py-10">
+                    <div className="bg-white rounded-2xl w-full max-w-3xl p-6 m-4 relative">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">
+                                Файлаас импорт
+                            </h2>
+                            <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }} className="p-2 hover:bg-gray-100 rounded-lg">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* File Upload Area */}
+                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-violet-500 transition-colors relative">
+                            {importFile ? (
+                                <div className="flex items-center justify-center gap-3">
+                                    <FileSpreadsheet className="w-8 h-8 text-violet-600" />
+                                    <div className="text-left">
+                                        <p className="font-medium text-gray-900">{importFile.name}</p>
+                                        <p className="text-sm text-gray-500">{(importFile.size / 1024).toFixed(1)} KB</p>
+                                    </div>
+                                    <button onClick={() => { setImportFile(null); setImportPreview([]); }} className="ml-4 text-gray-400 hover:text-red-500">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                    <p className="text-gray-600 mb-1">Excel эсвэл Word файл сонгоно уу</p>
+                                    <p className="text-sm text-gray-400">xlsx, xls, csv, docx</p>
+                                </>
+                            )}
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls,.csv,.docx"
+                                onChange={handleImportFileSelect}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                        </div>
+
+                        {/* Error */}
+                        {importError && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                                {importError}
+                            </div>
+                        )}
+
+                        {/* Preview Table */}
+                        {importPreview.length > 0 && (
+                            <div className="mt-6">
+                                <h3 className="font-medium text-gray-900 mb-3">Урьдчилан харах ({importPreview.length} бүтээгдэхүүн)</h3>
+                                <div className="max-h-64 overflow-auto border border-gray-200 rounded-lg">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Нэр</th>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Үнэ</th>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Тоо</th>
+                                                <th className="text-left px-3 py-2 font-medium text-gray-500">Тайлбар</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {importPreview.slice(0, 10).map((p, i) => (
+                                                <tr key={i}>
+                                                    <td className="px-3 py-2 text-gray-900">{p.name}</td>
+                                                    <td className="px-3 py-2 text-gray-600">₮{p.price?.toLocaleString()}</td>
+                                                    <td className="px-3 py-2 text-gray-600">{p.stock || 0}</td>
+                                                    <td className="px-3 py-2 text-gray-500 truncate max-w-[200px]">{p.description || '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {importPreview.length > 10 && (
+                                    <p className="text-sm text-gray-500 mt-2">... болон {importPreview.length - 10} бусад</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Format Help */}
+                        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                            <h4 className="font-medium text-gray-700 mb-2">Формат заавар:</h4>
+                            <ul className="text-sm text-gray-600 space-y-1">
+                                <li><strong>Excel:</strong> Нэр, Үнэ, Тоо, Тайлбар баганууд</li>
+                                <li><strong>Word:</strong> "Нэр - Үнэ - Тайлбар" (мөр бүрт нэг бүтээгдэхүүн)</li>
+                            </ul>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                            <Button variant="secondary" onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }} disabled={importing}>
+                                Цуцлах
+                            </Button>
+                            <Button onClick={handleImportConfirm} disabled={importing || importPreview.length === 0}>
+                                {importing ? 'Импорт хийж байна...' : `${importPreview.length} бүтээгдэхүүн импортлох`}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
