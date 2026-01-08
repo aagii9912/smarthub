@@ -140,6 +140,17 @@ export async function POST(request: NextRequest) {
                             });
                         }
 
+
+                        // Log AI context for debugging
+                        logger.debug('AI Context:', {
+                            shopName: shop.name,
+                            hasDescription: !!shop.description,
+                            hasAiInstructions: !!shop.ai_instructions,
+                            aiInstructionsPreview: shop.ai_instructions?.substring(0, 50),
+                            productsCount: shop.products?.length || 0,
+                            historyLength: previousHistory.length
+                        });
+
                         // Generate response AND wait for a minimum delay (1.5s) to show "typing..."
                         const [response] = await Promise.all([
                             generateChatResponse(
