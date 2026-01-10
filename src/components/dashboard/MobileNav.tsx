@@ -7,14 +7,14 @@ import {
     LayoutDashboard,
     Package,
     ShoppingCart,
-    Menu, // For "More" tab
+    Users, // Customers icon
 } from 'lucide-react';
 
 const mobileNavItems = [
     { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Products', href: '/dashboard/products', icon: Package },
-    { name: 'Menu', href: '/dashboard/menu', icon: Menu }, // Replaced 'More' with 'Menu' linking to a menu page or triggering a drawer
+    { name: 'Customers', href: '/dashboard/customers', icon: Users },
 ];
 
 export function MobileNav() {
