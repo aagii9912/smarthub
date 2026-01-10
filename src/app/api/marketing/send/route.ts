@@ -23,6 +23,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Message and recipients required' }, { status: 400 });
         }
 
+        // PRODUCTION: Restrict to admin only
+        // In production, this feature should only be available to administrators
+        // to prevent abuse and ensure proper oversight of mass messaging campaigns
+        const isDevelopment = process.env.NODE_ENV === 'development';
+
+        if (!isDevelopment) {
+            // TODO: Implement proper admin check when user roles are added
+            // For now, log a warning that this endpoint is restricted
+            logger.warn('Marketing mass send attempted in production - admin check not yet implemented');
+
+            // Optionally: uncomment the following line to completely block in production
+            // return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+        }
+
         // Get shop with access token
         const { data: shop } = await supabase
             .from('shops')

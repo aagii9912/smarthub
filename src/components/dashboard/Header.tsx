@@ -58,7 +58,9 @@ export function Header() {
                 </button>
 
                 {/* Push Notifications Toggle */}
-                <NotificationButton />
+                {/* Push Notifications - Temporarily disabled
+                <NotificationButton /> 
+                */}
 
                 {/* Profile Dropdown */}
                 <div className="relative">
