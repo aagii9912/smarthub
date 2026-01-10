@@ -24,15 +24,15 @@ export function Header() {
     const displayEmail = user?.email || '';
 
     return (
-        <header className="h-16 bg-background/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
+        <header className="h-14 md:h-16 bg-background/95 backdrop-blur-md border-b border-border flex items-center justify-between px-3 sm:px-6 sticky top-0 z-40">
             {/* Left: Shop name */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                 {shop && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg">
-                        <Store className="w-4 h-4 text-foreground" />
-                        <span className="font-medium text-sm text-foreground truncate max-w-[120px] sm:max-w-none">{shop.name}</span>
+                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 bg-secondary rounded-lg min-w-0">
+                        <Store className="w-3.5 h-3.5 md:w-4 md:h-4 text-foreground flex-shrink-0" />
+                        <span className="font-medium text-xs md:text-sm text-foreground truncate max-w-[100px] sm:max-w-none">{shop.name}</span>
                         {shop.facebook_page_id && (
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full" title="Facebook холбогдсон"></span>
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0" title="Facebook холбогдсон"></span>
                         )}
                     </div>
                 )}
@@ -51,9 +51,9 @@ export function Header() {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-3">
                 {/* Search Toggle (Mobile) */}
-                <button className="md:hidden p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors">
+                <button className="md:hidden p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors touch-target">
                     <Search className="w-5 h-5" />
                 </button>
 
@@ -66,16 +66,16 @@ export function Header() {
                 <div className="relative">
                     <button
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-border hover:bg-secondary/50 rounded-lg transition-colors pr-1 sm:pr-2 py-1"
+                        className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-border hover:bg-secondary/50 rounded-lg transition-colors pr-1 sm:pr-2 py-1 touch-target"
                     >
                         <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-border">
                             <User className="w-4 h-4 text-foreground" />
                         </div>
                         <div className="hidden sm:block text-left">
-                            <p className="text-sm font-medium text-foreground">{displayName}</p>
+                            <p className="text-sm font-medium text-foreground truncate max-w-[120px]">{displayName}</p>
                             <p className="text-xs text-muted-foreground">Эзэмшигч</p>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
                     </button>
 
                     {/* Dropdown Menu */}
@@ -87,8 +87,8 @@ export function Header() {
                             />
                             <div className="absolute right-0 top-full mt-2 w-64 bg-popover rounded-xl shadow-lg border border-border z-50 overflow-hidden text-popover-foreground">
                                 <div className="p-4 border-b border-border">
-                                    <p className="font-medium">{displayName}</p>
-                                    <p className="text-sm text-muted-foreground">{displayEmail}</p>
+                                    <p className="font-medium truncate">{displayName}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{displayEmail}</p>
                                 </div>
                                 <div className="p-2 space-y-1">
                                     <button
@@ -96,7 +96,7 @@ export function Header() {
                                             setShowDropdown(false);
                                             router.push('/setup');
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-secondary rounded-lg transition-colors touch-target"
                                     >
                                         <Settings className="w-4 h-4" />
                                         Дэлгүүр тохиргоо
@@ -104,7 +104,7 @@ export function Header() {
                                     <button
                                         onClick={handleLogout}
                                         disabled={loggingOut}
-                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors touch-target"
                                     >
                                         <LogOut className="w-4 h-4" />
                                         {loggingOut ? 'Гарч байна...' : 'Гарах'}

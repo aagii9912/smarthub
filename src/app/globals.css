@@ -84,17 +84,153 @@ body {
 
 /* Mobile optimizations */
 @layer utilities {
+  /* Safe area handling for notched devices */
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
   }
   .pt-safe {
-    padding-top: env(safe-area-inset-top);
+    padding-top: max(env(safe-area-inset-top), 1rem);
   }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Scrollbar hiding */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  
+  /* Touch target minimum sizes (44x44px for accessibility) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .touch-target-lg {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  /* Mobile-optimized spacing */
+  .mobile-p {
+    padding: 1rem;
+  }
+  
+  .mobile-px {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .mobile-py {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  
+  /* Smooth scrolling with momentum on iOS */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Loading skeleton animation */
+  @keyframes skeleton-loading {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--secondary) 0%,
+      var(--muted) 50%,
+      var(--secondary) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 0.5rem;
+  }
+  
+  /* Touch feedback animation */
+  @keyframes tap-feedback {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(0.96);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  .tap-feedback:active {
+    animation: tap-feedback 0.2s ease-out;
+  }
+  
+  /* Pull to refresh visual feedback */
+  @keyframes pull-refresh-rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .refresh-spinning {
+    animation: pull-refresh-rotate 1s linear infinite;
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    
+    .skeleton {
+      animation: none;
+      background: var(--secondary);
+    }
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .border {
+      border-width: 2px;
+    }
+  }
+}
+
+/* Mobile-specific global styles */
+@media (max-width: 768px) {
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Better tap highlighting */
+  * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Disable pull-to-refresh on body to allow custom implementation */
+  body {
+    overscroll-behavior-y: contain;
   }
 }

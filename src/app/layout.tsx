@@ -15,10 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#3B82F6",
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5, // Allow pinch zoom for accessibility
+  userScalable: true,
+  viewportFit: 'cover', // Safe area support for notched devices
 };
 
 export const metadata: Metadata = {
@@ -27,12 +32,16 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent", // Better for dark mode
     title: "SmartHub",
   },
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",
+  },
+  other: {
+    // Disable auto-zoom on input focus for iOS
+    'mobile-web-app-capable': 'yes',
   },
 };
 
