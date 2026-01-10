@@ -2,6 +2,9 @@
 
 **AI-powered Facebook Messenger Sales Assistant**
 
+> [!IMPORTANT]
+> **Production Ready** - Core features are fully functional. Payment integration and invoice generation recommended before launch.
+
 SmartHub нь жижиг, дунд бизнесүүдэд зориулсан ухаалаг борлуулалтын туслах систем юм. Facebook Messenger-ээр автоматаар захиалга авч, харилцагчтай харилцаж, борлуулалтын статистикийг харуулдаг.
 
 ---
@@ -124,29 +127,29 @@ smarthub/
 
 ## 🎯 Features Roadmap
 
-### ✅ Completed
+### ✅ Production Ready
 - [x] Dashboard UI
-- [x] Database schema
+- [x] Database schema  
 - [x] API routes
 - [x] Products CRUD
 - [x] Orders management
-- [x] Customers list
+- [x] Customers list with CRM
 - [x] VIP auto-detection
 - [x] Real-time stats
+- [x] **Facebook Messenger integration**
+- [x] **AI chatbot (Gemini + OpenAI)**
+- [x] **Webhook handling**
+- [x] **Auto stock management**
 
-### 🚧 In Progress
-- [ ] Facebook Messenger integration
-- [ ] AI chatbot activation
-- [ ] Webhook setup
-- [ ] Order notifications
-
-### 📋 Planned
+### 📋 Recommended Next Steps
+- [ ] **Payment integration** (QPay, SocialPay)
+- [ ] **Invoice generation**
+- [ ] **Email notifications**
 - [ ] Analytics charts
 - [ ] Export to Excel
 - [ ] Multi-shop support
 - [ ] Mobile app
-- [ ] Email notifications
-- [ ] Payment integration
+
 
 ---
 

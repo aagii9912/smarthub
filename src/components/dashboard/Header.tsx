@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Search, User, LogOut, Settings, Store, ChevronDown } from 'lucide-react';
+import { Search, User, LogOut, Settings, Store, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/auth/supabase-auth';
+import { NotificationButton } from '@/components/NotificationButton';
 
 export function Header() {
     const router = useRouter();
@@ -56,11 +57,8 @@ export function Header() {
                     <Search className="w-5 h-5" />
                 </button>
 
-                {/* Notifications */}
-                <button className="relative p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full ring-2 ring-background"></span>
-                </button>
+                {/* Push Notifications Toggle */}
+                <NotificationButton />
 
                 {/* Profile Dropdown */}
                 <div className="relative">

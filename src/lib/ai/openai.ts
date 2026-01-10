@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendOrderNotification, sendPushNotification } from '@/lib/notifications';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
@@ -260,6 +261,23 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                         required: []
                     }
                 }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'request_human_support',
+                    description: 'Call this when customer explicitly asks to speak to a human, operator, administrative staff, or when you cannot help them.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            reason: {
+                                type: 'string',
+                                description: 'Reason for requesting human support'
+                            }
+                        },
+                        required: ['reason']
+                    }
+                }
             }
         ];
 
@@ -329,6 +347,14 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
                                     logger.info('Contact info saved to CRM:', updateData);
 
+                                    // Send notification about contact info
+                                    await sendPushNotification(context.shopId, {
+                                        title: '📍 Хаяг мэдээлэл ирлээ',
+                                        body: `${name || 'Хэрэглэгч'} мэдээллээ үлдээлээ: ${phone || ''} ${address || ''}`,
+                                        url: `/dashboard/customers/${context.customerId}`,
+                                        tag: `contact-${context.customerId}`
+                                    });
+
                                     messages.push({
                                         role: 'tool',
                                         tool_call_id: toolCall.id,
@@ -352,6 +378,26 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                     content: JSON.stringify({ error: error.message })
                                 } as any);
                             }
+                            continue;
+                        }
+
+                        // Handle request_human_support
+                        if (functionName === 'request_human_support') {
+                            const { reason } = args;
+
+                            // Send push notification
+                            await sendPushNotification(context.shopId, {
+                                title: '📞 Холбогдох хүсэлт',
+                                body: `Хэрэглэгч холбогдох хүсэлт илгээлээ. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
+                                url: `/dashboard/chat?customer=${context.customerId}`,
+                                tag: `support-${context.customerId}`
+                            });
+
+                            messages.push({
+                                role: 'tool',
+                                tool_call_id: toolCall.id,
+                                content: JSON.stringify({ success: true, message: 'Support request notified.' })
+                            } as any);
                             continue;
                         }
 
@@ -450,6 +496,17 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                 }
 
                                 const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock deducted.`;
+
+                                // Send push notification to shop owner
+                                try {
+                                    await sendOrderNotification(context.shopId, 'new', {
+                                        orderId: order.id,
+                                        customerName: context.customerName,
+                                        totalAmount: dbProduct.price * quantity,
+                                    });
+                                } catch (notifError: unknown) {
+                                    logger.warn('Failed to send order notification:', { error: String(notifError) });
+                                }
 
                                 messages.push({
                                     role: 'tool',
