@@ -94,17 +94,69 @@ export async function POST(request: NextRequest) {
                         .single();
 
                     if (!existingCustomer) {
+                        // Try to get user profile from Facebook
+                        let userName = null;
+                        try {
+                            const profileResponse = await fetch(
+                                `https://graph.facebook.com/${senderId}?fields=first_name,last_name,name&access_token=${pageAccessToken}`
+                            );
+                            if (profileResponse.ok) {
+                                const profileData = await profileResponse.json();
+                                userName = profileData.name || profileData.first_name || null;
+                                logger.info('Fetched Facebook profile', { userName, senderId });
+                            }
+                        } catch (profileError) {
+                            logger.warn('Could not fetch Facebook profile', { senderId });
+                        }
+
                         const { data: newCustomer } = await supabase
                             .from('customers')
                             .insert({
                                 shop_id: shop.id,
                                 facebook_id: senderId,
+                                name: userName,
                             })
                             .select()
                             .single();
                         customer = newCustomer;
                     } else {
                         customer = existingCustomer;
+
+                        // Try to extract phone number from message if not already saved
+                        if (!customer.phone) {
+                            const phoneMatch = userMessage.match(/(\d{8})/);
+                            if (phoneMatch) {
+                                await supabase
+                                    .from('customers')
+                                    .update({ phone: phoneMatch[1] })
+                                    .eq('id', customer.id);
+                                customer.phone = phoneMatch[1];
+                                logger.info('Phone extracted from message', { phone: phoneMatch[1] });
+                            }
+                        }
+
+                        // Update name from Facebook if still null
+                        if (!customer.name) {
+                            try {
+                                const profileResponse = await fetch(
+                                    `https://graph.facebook.com/${senderId}?fields=first_name,last_name,name&access_token=${pageAccessToken}`
+                                );
+                                if (profileResponse.ok) {
+                                    const profileData = await profileResponse.json();
+                                    const userName = profileData.name || profileData.first_name || null;
+                                    if (userName) {
+                                        await supabase
+                                            .from('customers')
+                                            .update({ name: userName })
+                                            .eq('id', customer.id);
+                                        customer.name = userName;
+                                        logger.info('Updated customer name from Facebook', { userName });
+                                    }
+                                }
+                            } catch (profileError) {
+                                // Ignore profile fetch errors
+                            }
+                        }
                     }
 
                     // Generate AI response with fallback
