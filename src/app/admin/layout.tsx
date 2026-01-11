@@ -1,0 +1,162 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+    LayoutDashboard, Users, CreditCard, Package,
+    FileText, Settings, LogOut, ChevronRight, Menu, X
+} from 'lucide-react';
+
+interface AdminLayoutProps {
+    children: React.ReactNode;
+}
+
+const navItems = [
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/shops', label: 'Shops', icon: Users },
+    { href: '/admin/plans', label: 'Plans', icon: Package },
+    { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { href: '/admin/invoices', label: 'Invoices', icon: FileText },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
+];
+
+export default function AdminLayout({ children }: AdminLayoutProps) {
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [admin, setAdmin] = useState<{ email: string; role: string } | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    useEffect(() => {
+        checkAdmin();
+    }, []);
+
+    async function checkAdmin() {
+        try {
+            const res = await fetch('/api/admin/dashboard');
+            if (res.ok) {
+                const data = await res.json();
+                setAdmin(data.admin);
+            } else {
+                router.push('/dashboard');
+            }
+        } catch (error) {
+            router.push('/dashboard');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full"></div>
+            </div>
+        );
+    }
+
+    if (!admin) {
+        return null;
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-100">
+            {/* Mobile sidebar overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside className={`
+                fixed top-0 left-0 z-50 h-full w-64 bg-gray-900 text-white
+                transform transition-transform duration-200 ease-in-out
+                ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                lg:translate-x-0
+            `}>
+                {/* Logo */}
+                <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
+                    <span className="text-xl font-bold text-violet-400">SmartHub Admin</span>
+                    <button
+                        className="lg:hidden p-2 hover:bg-gray-800 rounded-lg"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Navigation */}
+                <nav className="p-4 space-y-1">
+                    {navItems.map((item) => (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+                            onClick={() => setSidebarOpen(false)}
+                        >
+                            <item.icon className="w-5 h-5" />
+                            <span>{item.label}</span>
+                        </Link>
+                    ))}
+                </nav>
+
+                {/* Admin info */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+                    <div className="flex items-center gap-3 px-4 py-2">
+                        <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-sm font-bold">
+                            {admin.email[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{admin.email}</p>
+                            <p className="text-xs text-gray-400 capitalize">{admin.role.replace('_', ' ')}</p>
+                        </div>
+                    </div>
+                    <Link
+                        href="/dashboard"
+                        className="flex items-center gap-3 px-4 py-2 mt-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                    >
+                        <LogOut className="w-5 h-5" />
+                        <span>Exit Admin</span>
+                    </Link>
+                </div>
+            </aside>
+
+            {/* Main content */}
+            <div className="lg:pl-64">
+                {/* Top bar */}
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
+                    <button
+                        className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                        onClick={() => setSidebarOpen(true)}
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Link href="/admin" className="hover:text-gray-900">Admin</Link>
+                        <ChevronRight className="w-4 h-4" />
+                        <span className="text-gray-900 font-medium">Dashboard</span>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-500">
+                            {new Date().toLocaleDateString('mn-MN', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            })}
+                        </span>
+                    </div>
+                </header>
+
+                {/* Page content */}
+                <main className="p-4 lg:p-8">
+                    {children}
+                </main>
+            </div>
+        </div>
+    );
+}
