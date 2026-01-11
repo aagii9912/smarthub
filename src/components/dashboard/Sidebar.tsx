@@ -17,6 +17,7 @@ import {
     HelpCircle,
     Bot,
     Megaphone,
+    CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,6 +28,7 @@ const menuItems = [
     { name: 'Харилцагчид', href: '/dashboard/customers', icon: Users },
     { name: 'Маркетинг', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'AI Тохируулга', href: '/dashboard/ai-settings', icon: Bot },
+    { name: 'Төлөвлөгөө', href: '/dashboard/subscription', icon: CreditCard },
 ];
 
 const bottomMenuItems = [

@@ -55,11 +55,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* 
-        Push Notifications temporarily disabled
-        Uncomment when ready to enable:
-        <ServiceWorkerRegistration /> 
-      */}
+        <ServiceWorkerRegistration />
         <AuthProvider>
           {children}
         </AuthProvider>
