@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { generateChatResponse } from '@/lib/ai/openai';
 import { detectIntent } from '@/lib/ai/intent-detector';
+import { shouldReplyToComment, generateCommentReply } from '@/lib/ai/comment-detector';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
@@ -63,6 +64,76 @@ export async function POST(request: NextRequest) {
             if (!pageAccessToken) {
                 logger.warn(`No access token for shop ${shop.name}`);
                 continue;
+            }
+
+            // Process Facebook Page feed events (comments)
+            for (const change of entry.changes || []) {
+                if (change.field === 'feed' && change.value?.item === 'comment') {
+                    const commentData = change.value;
+                    const commentMessage = commentData.message;
+                    const commentId = commentData.comment_id;
+                    const postId = commentData.post_id;
+                    const senderId = commentData.from?.id;
+                    const senderName = commentData.from?.name;
+
+                    // Don't reply to own comments (from page)
+                    if (senderId === pageId) continue;
+
+                    logger.info(`[${shop.name}] New comment received`, {
+                        commentMessage,
+                        senderName,
+                        postId
+                    });
+
+                    // Check if comment is product-related
+                    if (shouldReplyToComment(commentMessage)) {
+                        logger.info(`[${shop.name}] Comment is product-related, replying...`);
+
+                        // Generate reply
+                        const replyMessage = generateCommentReply(
+                            shop.name,
+                            shop.facebook_page_username
+                        );
+
+                        // Reply to comment via Facebook Graph API
+                        try {
+                            const response = await fetch(
+                                `https://graph.facebook.com/v18.0/${commentId}/comments`,
+                                {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        message: replyMessage,
+                                        access_token: pageAccessToken,
+                                    }),
+                                }
+                            );
+
+                            if (response.ok) {
+                                logger.success(`[${shop.name}] Comment reply sent successfully!`);
+
+                                // Log the reply
+                                await supabase.from('chat_history').insert({
+                                    shop_id: shop.id,
+                                    message: `[FB Comment] ${commentMessage}`,
+                                    response: replyMessage,
+                                    intent: 'COMMENT_REPLY'
+                                });
+                            } else {
+                                const errorData = await response.json();
+                                logger.error(`[${shop.name}] Failed to reply to comment`, errorData);
+                            }
+                        } catch (replyError: any) {
+                            logger.error(`[${shop.name}] Error replying to comment`, {
+                                error: replyError?.message
+                            });
+                        }
+                    } else {
+                        logger.debug(`[${shop.name}] Comment not product-related, skipping`);
+                    }
+                }
             }
 
             // Process messaging events
