@@ -90,10 +90,10 @@ export default function DashboardPage() {
                 {/* Page Title */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-xl md:text-2xl font-bold text-foreground">
+                        <h1 className="text-xl md:text-2xl font-bold text-[#111111]">
                             Сайн байна уу{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ''}! 👋
                         </h1>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-[#6c757d] mt-1">
                             {shop?.name ? `${shop.name} - ` : ''}Өнөөдрийн борлуулалтын тойм
                         </p>
                     </div>
@@ -114,19 +114,19 @@ export default function DashboardPage() {
 
                 {/* Setup Alert */}
                 {shop && !shop.facebook_page_id && (
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 md:p-6 text-white shadow-lg shadow-blue-500/20">
+                    <div className="bg-[#65c51a] rounded-xl p-4 md:p-5 text-white shadow-md">
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div className="flex items-center gap-4 w-full sm:w-auto">
-                                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                                     <Facebook className="w-5 h-5 md:w-6 md:h-6" />
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-base md:text-lg">Facebook Page холбоогүй</h3>
-                                    <p className="text-sm text-blue-100">Чатбот ажиллуулахын тулд холбоно уу</p>
+                                    <p className="text-sm text-white/80">Чатбот ажиллуулахын тулд холбоно уу</p>
                                 </div>
                             </div>
                             <Link href="/setup" className="w-full sm:w-auto">
-                                <button className="w-full sm:w-auto px-6 py-2.5 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 transition-colors text-sm">
+                                <button className="w-full sm:w-auto px-6 py-2.5 bg-white text-[#111111] font-semibold rounded-lg hover:bg-gray-100 transition-colors text-sm">
                                     Холбох
                                 </button>
                             </Link>
@@ -135,12 +135,12 @@ export default function DashboardPage() {
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     <StatsCard
                         title="Өнөөдөр"
                         value={stats.todayOrders.toString()}
                         icon={ShoppingCart}
-                        iconColor="from-violet-500 to-indigo-600"
+                        iconColor="bg-[#65c51a]"
                     />
                     <StatsCard
                         title="Орлого"
@@ -148,19 +148,19 @@ export default function DashboardPage() {
                             ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
                             : `₮${stats.totalRevenue.toLocaleString()}`}
                         icon={TrendingUp}
-                        iconColor="from-emerald-500 to-teal-600"
+                        iconColor="bg-[#65c51a]"
                     />
                     <StatsCard
                         title="Харилцагч"
                         value={stats.totalCustomers.toString()}
                         icon={Users}
-                        iconColor="from-amber-500 to-orange-600"
+                        iconColor="bg-[#65c51a]"
                     />
                     <StatsCard
                         title="Хүлээгдэж буй"
                         value={stats.pendingOrders.toString()}
                         icon={Clock}
-                        iconColor="from-rose-500 to-pink-600"
+                        iconColor="bg-[#f59e0b]"
                     />
                 </div>
 
@@ -196,12 +196,12 @@ export default function DashboardPage() {
                                                         <Package className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-medium text-sm md:text-base text-foreground truncate">{productName}</p>
-                                                        <p className="text-xs text-muted-foreground truncate">{customerName} • {formatTimeAgo(order.created_at)}</p>
+                                                        <p className="font-medium text-sm md:text-base text-[#111111] truncate">{productName}</p>
+                                                        <p className="text-xs text-[#6c757d] truncate">{customerName} • {formatTimeAgo(order.created_at)}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1 pl-2">
-                                                    <p className="font-semibold text-sm md:text-base text-foreground">₮{Number(order.total_amount).toLocaleString()}</p>
+                                                    <p className="font-semibold text-sm md:text-base text-[#111111]">₮{Number(order.total_amount).toLocaleString()}</p>
                                                     <OrderStatusBadge status={order.status} />
                                                 </div>
                                             </Link>

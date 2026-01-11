@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, User, LogOut, Settings, Store, ChevronDown } from 'lucide-react';
+import { Search, User, LogOut, Settings, Bell, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/auth/supabase-auth';
 import { NotificationButton } from '@/components/NotificationButton';
@@ -20,60 +20,47 @@ export function Header() {
         router.refresh();
     };
 
-    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Хэрэглэгч';
+    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
     const displayEmail = user?.email || '';
 
     return (
-        <header className="h-14 md:h-16 bg-background/95 backdrop-blur-md border-b border-border flex items-center justify-between px-3 sm:px-6 sticky top-0 z-40">
-            {/* Left: Shop name */}
-            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                {shop && (
-                    <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 bg-secondary rounded-lg min-w-0">
-                        <Store className="w-3.5 h-3.5 md:w-4 md:h-4 text-foreground flex-shrink-0" />
-                        <span className="font-medium text-xs md:text-sm text-foreground truncate max-w-[100px] sm:max-w-none">{shop.name}</span>
-                        {shop.facebook_page_id && (
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0" title="Facebook холбогдсон"></span>
-                        )}
-                    </div>
-                )}
+        <header className="h-14 md:h-16 bg-white border-b border-[#dee2e6] flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
+            {/* Left: Page title or breadcrumb space */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* This space is for page-level content */}
             </div>
 
-            {/* Center: Search (Hidden on mobile) */}
-            <div className="hidden md:block flex-1 max-w-md mx-4">
+            {/* Center: Search */}
+            <div className="flex-1 max-w-md mx-4">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6c757d]" />
                     <input
                         type="text"
-                        placeholder="Хайх..."
-                        className="w-full pl-9 pr-4 py-2 bg-secondary/50 border border-transparent focus:border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all placeholder:text-muted-foreground"
+                        placeholder="Search"
+                        className="w-full pl-10 pr-4 py-2.5 bg-[#f1f3f5] border border-transparent focus:border-[#65c51a] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#65c51a]/20 transition-all placeholder:text-[#6c757d] text-[#111111]"
                     />
                 </div>
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-1 sm:gap-3">
-                {/* Search Toggle (Mobile) */}
-                <button className="md:hidden p-2 text-muted-foreground hover:bg-secondary rounded-xl transition-colors touch-target">
-                    <Search className="w-5 h-5" />
-                </button>
-
-                {/* Push Notifications Toggle */}
+            <div className="flex items-center gap-3">
+                {/* Notifications */}
                 <NotificationButton />
 
                 {/* Profile Dropdown */}
                 <div className="relative">
                     <button
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-border hover:bg-secondary/50 rounded-lg transition-colors pr-1 sm:pr-2 py-1 touch-target"
+                        className="flex items-center gap-3 hover:bg-[#f1f3f5] rounded-lg transition-colors px-2 py-1.5"
                     >
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-border">
-                            <User className="w-4 h-4 text-foreground" />
+                        <div className="w-9 h-9 rounded-full bg-[#f1f3f5] flex items-center justify-center overflow-hidden border-2 border-[#dee2e6]">
+                            <User className="w-5 h-5 text-[#6c757d]" />
                         </div>
-                        <div className="hidden sm:block text-left">
-                            <p className="text-sm font-medium text-foreground truncate max-w-[120px]">{displayName}</p>
-                            <p className="text-xs text-muted-foreground">Эзэмшигч</p>
+                        <div className="hidden md:block text-left">
+                            <p className="text-sm font-medium text-[#111111] truncate max-w-[120px]">{displayName}</p>
+                            <p className="text-xs text-[#6c757d]">Sales manager</p>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                        <ChevronDown className="w-4 h-4 text-[#6c757d] hidden md:block" />
                     </button>
 
                     {/* Dropdown Menu */}
@@ -83,29 +70,29 @@ export function Header() {
                                 className="fixed inset-0 z-40"
                                 onClick={() => setShowDropdown(false)}
                             />
-                            <div className="absolute right-0 top-full mt-2 w-64 bg-popover rounded-xl shadow-lg border border-border z-50 overflow-hidden text-popover-foreground">
-                                <div className="p-4 border-b border-border">
-                                    <p className="font-medium truncate">{displayName}</p>
-                                    <p className="text-sm text-muted-foreground truncate">{displayEmail}</p>
+                            <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-[#dee2e6] z-50 overflow-hidden">
+                                <div className="p-4 border-b border-[#dee2e6]">
+                                    <p className="font-medium text-[#111111] truncate">{displayName}</p>
+                                    <p className="text-sm text-[#6c757d] truncate">{displayEmail}</p>
                                 </div>
                                 <div className="p-2 space-y-1">
                                     <button
                                         onClick={() => {
                                             setShowDropdown(false);
-                                            router.push('/setup');
+                                            router.push('/dashboard/settings');
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-secondary rounded-lg transition-colors touch-target"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#111111] hover:bg-[#f1f3f5] rounded-lg transition-colors"
                                     >
-                                        <Settings className="w-4 h-4" />
-                                        Дэлгүүр тохиргоо
+                                        <Settings className="w-4 h-4 text-[#6c757d]" />
+                                        Settings
                                     </button>
                                     <button
                                         onClick={handleLogout}
                                         disabled={loggingOut}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors touch-target"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     >
                                         <LogOut className="w-4 h-4" />
-                                        {loggingOut ? 'Гарч байна...' : 'Гарах'}
+                                        {loggingOut ? 'Logging out...' : 'Log out'}
                                     </button>
                                 </div>
                             </div>

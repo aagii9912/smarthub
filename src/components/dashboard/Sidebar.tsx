@@ -8,32 +8,32 @@ import {
     Package,
     ShoppingCart,
     Users,
-    MessageSquare,
     Settings,
     ChevronLeft,
     ChevronRight,
-    Sparkles,
     Facebook,
     HelpCircle,
     Bot,
     Megaphone,
     CreditCard,
+    BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const menuItems = [
-    { name: 'Хянах самбар', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
-    { name: 'Захиалга', href: '/dashboard/orders', icon: ShoppingCart },
-    { name: 'Харилцагчид', href: '/dashboard/customers', icon: Users },
-    { name: 'Маркетинг', href: '/dashboard/marketing', icon: Megaphone },
-    { name: 'AI Тохируулга', href: '/dashboard/ai-settings', icon: Bot },
-    { name: 'Төлөвлөгөө', href: '/dashboard/subscription', icon: CreditCard },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Products', href: '/dashboard/products', icon: Package },
+    { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users },
+    { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+    { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot },
+    { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard },
+    { name: 'Statistics', href: '/dashboard/stats', icon: BarChart3 },
 ];
 
 const bottomMenuItems = [
-    { name: 'Тусламж', href: '/help', icon: HelpCircle },
-    { name: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },
+    { name: 'Help', href: '/help', icon: HelpCircle },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -43,51 +43,51 @@ export function Sidebar() {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-50 hidden md:flex flex-col ${collapsed ? 'w-20' : 'w-64'
+            className={`fixed left-0 top-0 h-screen bg-[#111111] text-white transition-all duration-300 z-50 hidden md:flex flex-col ${collapsed ? 'w-20' : 'w-64'
                 }`}
         >
             {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-4 border-b border-slate-700">
+            <div className="flex items-center justify-between h-16 px-4 border-b border-[#2a2d2b]">
                 {!collapsed && (
-                    <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                            <Sparkles className="w-6 h-6 text-white" />
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#65c51a] flex items-center justify-center">
+                            <span className="text-white font-bold text-lg">S</span>
                         </div>
-                        <span className="font-bold text-xl bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                        <span className="font-semibold text-lg text-white">
                             SmartHub
                         </span>
                     </div>
                 )}
                 {collapsed && (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg mx-auto">
-                        <Sparkles className="w-6 h-6 text-white" />
+                    <div className="w-9 h-9 rounded-lg bg-[#65c51a] flex items-center justify-center mx-auto">
+                        <span className="text-white font-bold text-lg">S</span>
                     </div>
                 )}
             </div>
 
             {/* Shop Status */}
             {!collapsed && shop && (
-                <div className="mx-3 mt-4 p-3 bg-slate-700/50 rounded-xl">
+                <div className="mx-3 mt-4 p-3 bg-[#2a2d2b] rounded-lg">
                     <div className="flex items-center gap-2 text-sm">
                         {shop.facebook_page_id ? (
                             <>
-                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                <span className="text-green-400">Чатбот идэвхтэй</span>
+                                <div className="w-2 h-2 bg-[#65c51a] rounded-full"></div>
+                                <span className="text-[#65c51a] text-xs">Chatbot active</span>
                             </>
                         ) : (
                             <>
                                 <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                                <span className="text-yellow-400">FB холбоогүй</span>
+                                <span className="text-yellow-400 text-xs">FB not connected</span>
                             </>
                         )}
                     </div>
                     {!shop.facebook_page_id && (
                         <Link
                             href="/setup"
-                            className="mt-2 flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                            className="mt-2 flex items-center gap-1 text-xs text-[#65c51a] hover:text-[#7dd93a]"
                         >
                             <Facebook className="w-3 h-3" />
-                            Холбох
+                            Connect
                         </Link>
                     )}
                 </div>
@@ -102,14 +102,14 @@ export function Sidebar() {
                             <li key={item.name}>
                                 <Link
                                     href={item.href}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive
-                                        ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25'
-                                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
+                                        ? 'bg-[#65c51a] text-white'
+                                        : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'
                                         }`}
                                 >
-                                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#a1a1aa] group-hover:text-white'
                                         }`} />
-                                    {!collapsed && <span className="font-medium">{item.name}</span>}
+                                    {!collapsed && <span className="font-medium text-sm">{item.name}</span>}
                                 </Link>
                             </li>
                         );
@@ -117,8 +117,31 @@ export function Sidebar() {
                 </ul>
             </nav>
 
+            {/* Pro Badge */}
+            {!collapsed && (
+                <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-white font-semibold text-sm">SmartHub</span>
+                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded">Pro</span>
+                    </div>
+                    <ul className="text-xs text-[#a1a1aa] space-y-1">
+                        <li>• Advanced analytics</li>
+                        <li>• AI-assistant</li>
+                        <li>• 24/7 support</li>
+                    </ul>
+                    <div className="mt-3 text-[#65c51a] font-semibold text-sm">
+                        ₮99,000 / month
+                    </div>
+                    <Link href="/dashboard/subscription">
+                        <button className="w-full mt-3 py-2 bg-[#65c51a] text-white font-medium rounded-lg text-sm hover:bg-[#56a816] transition-colors">
+                            Upgrade now
+                        </button>
+                    </Link>
+                </div>
+            )}
+
             {/* Bottom Menu */}
-            <div className="px-3 pb-4 border-t border-slate-700 pt-4 mt-4">
+            <div className="px-3 pb-4 border-t border-[#2a2d2b] pt-4">
                 <ul className="space-y-1">
                     {bottomMenuItems.map((item) => {
                         const isActive = pathname === item.href;
@@ -126,9 +149,9 @@ export function Sidebar() {
                             <li key={item.name}>
                                 <Link
                                     href={item.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group ${isActive
-                                        ? 'bg-slate-700 text-white'
-                                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${isActive
+                                        ? 'bg-[#2a2d2b] text-white'
+                                        : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'
                                         }`}
                                 >
                                     <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -143,9 +166,9 @@ export function Sidebar() {
             {/* Collapse button */}
             <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors"
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#2a2d2b] hover:bg-[#3a3d3b] flex items-center justify-center transition-colors"
             >
-                {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                {collapsed ? <ChevronRight className="w-4 h-4 text-white" /> : <ChevronLeft className="w-4 h-4 text-white" />}
             </button>
         </aside>
     );

@@ -7,7 +7,7 @@ import {
     LayoutDashboard,
     Package,
     ShoppingCart,
-    Users, // Customers icon
+    Users,
 } from 'lucide-react';
 
 const mobileNavItems = [
@@ -21,7 +21,7 @@ export function MobileNav() {
     const pathname = usePathname();
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border pb-safe block md:hidden shadow-lg">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#111111] border-t border-[#2a2d2b] pb-safe block md:hidden">
             <ul className="flex justify-around items-center h-16">
                 {mobileNavItems.map((item) => {
                     const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -29,16 +29,16 @@ export function MobileNav() {
                         <li key={item.name} className="flex-1">
                             <Link
                                 href={item.href}
-                                className={`flex flex-col items-center justify-center w-full h-full gap-1 pt-2 pb-2 transition-all duration-200 tap-feedback touch-target ${isActive
-                                    ? 'text-primary scale-105'
-                                    : 'text-muted-foreground hover:text-foreground active:text-primary'
+                                className={`flex flex-col items-center justify-center w-full h-full gap-1 pt-2 pb-2 transition-all duration-200 ${isActive
+                                    ? 'text-[#65c51a]'
+                                    : 'text-[#a1a1aa]'
                                     }`}
                             >
                                 <item.icon
-                                    className={`w-6 h-6 transition-all duration-200 ${isActive ? 'fill-current scale-110' : 'stroke-current'}`}
-                                    strokeWidth={isActive ? 0 : 2}
+                                    className={`w-6 h-6 transition-all duration-200 ${isActive ? 'text-[#65c51a]' : ''}`}
+                                    strokeWidth={isActive ? 2.5 : 1.5}
                                 />
-                                <span className={`text-[10px] font-medium transition-all duration-200 ${isActive ? 'font-semibold' : ''}`}>
+                                <span className={`text-[10px] font-medium ${isActive ? 'font-semibold text-[#65c51a]' : 'text-[#a1a1aa]'}`}>
                                     {item.name}
                                 </span>
                             </Link>

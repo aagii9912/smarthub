@@ -20,6 +20,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -27,173 +29,168 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* AdminFlux-inspired color scheme */
 :root {
-  --background: #ffffff;
-  --foreground: #09090b; /* Zinc 950 */
+  /* Main colors from AdminFlux: #111111, #2a2d2b, #65c51a, #ffffff */
+  --background: #f8f9fa;
+  --foreground: #111111;
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #18181b; /* Zinc 900 */
-  --primary-foreground: #fafafa; /* Zinc 50 */
-  --secondary: #f4f4f5; /* Zinc 100 */
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a; /* Zinc 500 */
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #e4e4e7; /* Zinc 200 */
-  --input: #e4e4e7;
-  --ring: #18181b;
-  --radius: 0.75rem; /* More rounded for mobile */
+  --popover-foreground: #111111;
+  --primary: #65c51a;
+  /* AdminFlux green */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f3f5;
+  --secondary-foreground: #2a2d2b;
+  --muted: #e9ecef;
+  --muted-foreground: #6c757d;
+  --accent: #65c51a;
+  --accent-foreground: #ffffff;
+  --destructive: #dc3545;
+  --destructive-foreground: #ffffff;
+  --border: #dee2e6;
+  --input: #e9ecef;
+  --ring: #65c51a;
+  --success: #65c51a;
+  --success-foreground: #ffffff;
+  --radius: 0.75rem;
+
+  /* Sidebar colors */
+  --sidebar-bg: #111111;
+  --sidebar-text: #a1a1aa;
+  --sidebar-text-active: #ffffff;
+  --sidebar-accent: #65c51a;
+  --sidebar-hover: #2a2d2b;
 }
 
+/* Dark mode - also AdminFlux dark theme */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b; /* Zinc 950 */
-    --foreground: #fafafa; /* Zinc 50 */
-    --card: #09090b;
-    --card-foreground: #fafafa;
-    --popover: #09090b;
-    --popover-foreground: #fafafa;
-    --primary: #fafafa;
-    --primary-foreground: #18181b;
-    --secondary: #27272a; /* Zinc 800 */
-    --secondary-foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa; /* Zinc 400 */
-    --accent: #27272a;
-    --accent-foreground: #fafafa;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #fafafa;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #d4d4d8;
+    --background: #111111;
+    --foreground: #ffffff;
+    --card: #1a1a1a;
+    --card-foreground: #ffffff;
+    --popover: #1a1a1a;
+    --popover-foreground: #ffffff;
+    --primary: #65c51a;
+    --primary-foreground: #ffffff;
+    --secondary: #2a2d2b;
+    --secondary-foreground: #ffffff;
+    --muted: #2a2d2b;
+    --muted-foreground: #a1a1aa;
+    --accent: #65c51a;
+    --accent-foreground: #ffffff;
+    --destructive: #dc3545;
+    --destructive-foreground: #ffffff;
+    --border: #2a2d2b;
+    --input: #2a2d2b;
+    --ring: #65c51a;
   }
+}
+
+/* Force light mode for dashboard content */
+.dashboard-content {
+  --background: #f8f9fa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --muted-foreground: #6c757d;
+  --border: #dee2e6;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Mobile optimizations */
 @layer utilities {
+
   /* Safe area handling for notched devices */
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 1rem);
   }
+
   .pt-safe {
     padding-top: max(env(safe-area-inset-top), 1rem);
   }
+
   .pl-safe {
     padding-left: env(safe-area-inset-left);
   }
+
   .pr-safe {
     padding-right: env(safe-area-inset-right);
   }
-  
+
   /* Scrollbar hiding */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   /* Touch target minimum sizes (44x44px for accessibility) */
   .touch-target {
     min-width: 44px;
     min-height: 44px;
   }
-  
+
   .touch-target-lg {
     min-width: 48px;
     min-height: 48px;
   }
-  
-  /* Mobile-optimized spacing */
-  .mobile-p {
-    padding: 1rem;
-  }
-  
-  .mobile-px {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-  
-  .mobile-py {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-  }
-  
-  /* Smooth scrolling with momentum on iOS */
-  .smooth-scroll {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-  
+
   /* Loading skeleton animation */
   @keyframes skeleton-loading {
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
   }
-  
+
   .skeleton {
-    background: linear-gradient(
-      90deg,
-      var(--secondary) 0%,
-      var(--muted) 50%,
-      var(--secondary) 100%
-    );
+    background: linear-gradient(90deg,
+        var(--secondary) 0%,
+        var(--muted) 50%,
+        var(--secondary) 100%);
     background-size: 200% 100%;
     animation: skeleton-loading 1.5s ease-in-out infinite;
     border-radius: 0.5rem;
   }
-  
+
   /* Touch feedback animation */
   @keyframes tap-feedback {
     0% {
       transform: scale(1);
     }
+
     50% {
       transform: scale(0.96);
     }
+
     100% {
       transform: scale(1);
     }
   }
-  
+
   .tap-feedback:active {
     animation: tap-feedback 0.2s ease-out;
   }
-  
-  /* Pull to refresh visual feedback */
-  @keyframes pull-refresh-rotate {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .refresh-spinning {
-    animation: pull-refresh-rotate 1s linear infinite;
-  }
-  
+
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -201,36 +198,57 @@ body {
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
-    
+
     .skeleton {
       animation: none;
       background: var(--secondary);
-    }
-  }
-  
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    .border {
-      border-width: 2px;
     }
   }
 }
 
 /* Mobile-specific global styles */
 @media (max-width: 768px) {
-  /* Prevent text size adjustment on orientation change */
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
-  
-  /* Better tap highlighting */
+
   * {
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
   }
-  
-  /* Disable pull-to-refresh on body to allow custom implementation */
+
   body {
     overscroll-behavior-y: contain;
   }
+}
+
+/* Status badge colors */
+.badge-shipping {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.badge-delivered {
+  background-color: #65c51a;
+  color: white;
+}
+
+.badge-pending {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.badge-cancelled {
+  background-color: #ef4444;
+  color: white;
+}
+
+.badge-paid {
+  background-color: #65c51a;
+  color: white;
+}
+
+.badge-pickups {
+  background-color: #8b5cf6;
+  color: white;
 }
