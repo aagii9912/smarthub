@@ -2,13 +2,19 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Eye, EyeOff, Shield, AlertCircle } from 'lucide-react';
+import { createBrowserClient } from '@supabase/ssr';
+import { Lock, User, Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function AdminLoginPage() {
     const router = useRouter();
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -18,24 +24,32 @@ export default function AdminLoginPage() {
         setError('');
 
         try {
-            const res = await fetch('/api/admin/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+            // Handle "admin" shortcut
+            let loginEmail = email.trim();
+            if (loginEmail === 'admin') {
+                loginEmail = 'admin@smarthub.mn';
+            }
+
+            // 1. Sign in with Supabase Auth
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: loginEmail,
+                password
             });
 
-            const data = await res.json();
-
-            if (res.ok) {
-                // Store admin session
-                localStorage.setItem('admin_session', data.token);
-                document.cookie = `admin_token=${data.token}; path=/; max-age=86400`; // 24 hours
-                router.push('/admin/dashboard');
-            } else {
-                setError(data.error || 'Буруу нууц үг');
+            if (authError) {
+                console.error('Auth error:', authError);
+                throw new Error('Нэвтрэх нэр эсвэл нууц үг буруу байна');
             }
-        } catch (err) {
-            setError('Серверийн алдаа');
+
+            // 2. Refresh router to update session state
+            router.refresh();
+
+            // 3. Verify admin role (optional extra check, layout handles strict check)
+            // Redirect to dashboard
+            router.push('/admin/dashboard');
+
+        } catch (err: any) {
+            setError(err.message || 'Серверийн алдаа гарлаа');
         } finally {
             setLoading(false);
         }
@@ -50,7 +64,7 @@ export default function AdminLoginPage() {
                         <Shield className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold text-white">SmartHub Admin</h1>
-                    <p className="text-gray-400 mt-2">Super Admin нэвтрэх</p>
+                    <p className="text-gray-400 mt-2">Нэвтрэх хэсэг</p>
                 </div>
 
                 {/* Login Card */}
@@ -64,34 +78,43 @@ export default function AdminLoginPage() {
                             </div>
                         )}
 
+                        {/* Email/Username Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                Нэвтрэх нэр / Email
+                            </label>
+                            <div className="relative">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                                    <User className="w-5 h-5 text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="admin"
+                                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                    required
+                                />
+                            </div>
+                        </div>
+
                         {/* Password Input */}
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Admin Password
+                                Нууц үг
                             </label>
                             <div className="relative">
                                 <div className="absolute left-3 top-1/2 -translate-y-1/2">
                                     <Lock className="w-5 h-5 text-gray-400" />
                                 </div>
                                 <input
-                                    type={showPassword ? 'text' : 'password'}
+                                    type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full pl-10 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                                     required
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="w-5 h-5" />
-                                    ) : (
-                                        <Eye className="w-5 h-5" />
-                                    )}
-                                </button>
                             </div>
                         </div>
 
@@ -99,11 +122,11 @@ export default function AdminLoginPage() {
                         <Button
                             type="submit"
                             className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-medium"
-                            disabled={loading || !password}
+                            disabled={loading || !email || !password}
                         >
                             {loading ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <Loader2 className="w-5 h-5 animate-spin" />
                                     <span>Нэвтэрч байна...</span>
                                 </div>
                             ) : (
@@ -115,7 +138,7 @@ export default function AdminLoginPage() {
 
                 {/* Footer */}
                 <p className="text-center text-gray-500 text-sm mt-6">
-                    Зөвхөн эрх бүхий админ хандах боломжтой
+                    © 2024 SmartHub AI Platform
                 </p>
             </div>
         </div>

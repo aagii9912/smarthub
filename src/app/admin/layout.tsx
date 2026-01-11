@@ -41,14 +41,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     async function checkAdmin() {
         try {
-            // First check admin token
-            const tokenRes = await fetch('/api/admin/login');
-            if (!tokenRes.ok) {
-                router.push('/admin/login');
-                return;
-            }
-
-            // Then check admin user
+            // Check admin user via API
             const res = await fetch('/api/admin/dashboard');
             if (res.ok) {
                 const data = await res.json();
