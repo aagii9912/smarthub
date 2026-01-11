@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
     LayoutDashboard, Users, CreditCard, Package,
@@ -13,7 +13,7 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/shops', label: 'Shops', icon: Users },
     { href: '/admin/plans', label: 'Plans', icon: Package },
     { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
@@ -23,28 +23,49 @@ const navItems = [
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const [loading, setLoading] = useState(true);
     const [admin, setAdmin] = useState<{ email: string; role: string } | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    // Allow login page to render without auth check
+    const isLoginPage = pathname === '/admin/login';
+
     useEffect(() => {
+        if (isLoginPage) {
+            setLoading(false);
+            return;
+        }
         checkAdmin();
-    }, []);
+    }, [isLoginPage]);
 
     async function checkAdmin() {
         try {
+            // First check admin token
+            const tokenRes = await fetch('/api/admin/login');
+            if (!tokenRes.ok) {
+                router.push('/admin/login');
+                return;
+            }
+
+            // Then check admin user
             const res = await fetch('/api/admin/dashboard');
             if (res.ok) {
                 const data = await res.json();
                 setAdmin(data.admin);
             } else {
-                router.push('/dashboard');
+                router.push('/admin/login');
             }
         } catch (error) {
-            router.push('/dashboard');
+            router.push('/admin/login');
         } finally {
             setLoading(false);
         }
+    }
+
+    // Login page renders without layout
+    if (isLoginPage) {
+        return <>{children}</>;
     }
 
     if (loading) {
