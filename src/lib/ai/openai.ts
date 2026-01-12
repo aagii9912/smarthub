@@ -13,11 +13,14 @@ export interface ChatContext {
     shopName: string;
     shopDescription?: string;
     aiInstructions?: string;
+    aiEmotion?: 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
     products: Array<{
         id: string;
         name: string;
         price: number;
         stock: number;
+        reserved_stock?: number;
+        discount_percent?: number;
         description?: string;
         type?: 'product' | 'service';  // product = бараа, service = үйлчилгээ
         unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
@@ -130,13 +133,16 @@ export async function generateChatResponse(
                 const isService = p.type === 'service';
                 const unit = p.unit || (isService ? 'захиалга' : 'ширхэг');
 
+                // Calculate available stock (total - reserved)
+                const availableStock = p.stock - (p.reserved_stock || 0);
+
                 // Different display for products vs services
                 let stockDisplay: string;
-                if (p.stock > 0) {
+                if (availableStock > 0) {
                     if (isService) {
-                        stockDisplay = `${p.stock} ${unit} авах боломжтой`;
+                        stockDisplay = `${availableStock} ${unit} авах боломжтой`;
                     } else {
-                        stockDisplay = `${p.stock} ${unit} байна`;
+                        stockDisplay = `${availableStock} ${unit} байна`;
                     }
                 } else {
                     if (isService) {
@@ -148,6 +154,16 @@ export async function generateChatResponse(
 
                 const typeLabel = isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
 
+                // Calculate discount
+                const hasDiscount = p.discount_percent && p.discount_percent > 0;
+                const discountedPrice = hasDiscount
+                    ? Math.round(p.price * (1 - p.discount_percent! / 100))
+                    : p.price;
+
+                const priceDisplay = hasDiscount
+                    ? `🔥${discountedPrice.toLocaleString()}₮ (-${p.discount_percent}% ХЯМДРАЛ! Жинхэнэ үнэ: ${p.price.toLocaleString()}₮)`
+                    : `${p.price.toLocaleString()}₮`;
+
                 const variantInfo = p.variants && p.variants.length > 0
                     ? `\n  Хувилбарууд: ${p.variants.map(v => `${v.color || ''} ${v.size || ''} (${v.stock > 0 ? `${v.stock}${unit}` : 'Дууссан'})`).join(', ')}`
                     : '';
@@ -155,7 +171,7 @@ export async function generateChatResponse(
                 // Include description for AI context (vital for comparison and recommendation)
                 const desc = p.description ? `\n  Тайлбар: ${p.description}` : '';
 
-                return `- ${typeLabel} ${p.name}: ${p.price.toLocaleString()}₮ (${stockDisplay})${variantInfo}${desc}`;
+                return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${desc}`;
             }).join('\n')
             : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
 
@@ -168,14 +184,32 @@ export async function generateChatResponse(
             ? `\nДЭЛГҮҮРИЙН ТУХАЙ: ${context.shopDescription}`
             : '';
 
+        // AI Emotion/Personality settings
+        const emotionPrompts: Record<string, string> = {
+            friendly: 'Та маш найрсаг, халуун дотно ярина. Emoji ашиглаж, эерэг сэтгэлтэй байна.',
+            professional: 'Та мэргэжлийн, албан ёсны хэлээр ярина. Тодорхой, товч байна. Emoji баг ашиглана.',
+            enthusiastic: 'Та урам зоригтой, идэвхтэй! Шинэ бүтээгдэхүүнд сэтгэлтэй. "Вау!", "Гайхалтай!" гэх мэт хэллэг ашиглана.',
+            calm: 'Та тайван, эв нямбай ярина. Хэрэглэгчийг ямар ч нөхцөлд тайвшруулна.',
+            playful: 'Та тоглоомтой, хөгжилтэй! Заримдаа хошин шог хэлнэ. Emoji их ашиглана 🎉'
+        };
+
+        const emotionStyle = emotionPrompts[context.aiEmotion || 'friendly'];
+
         const systemPrompt = `Та бол "${context.shopName}" дэлгүүрийн МЭРГЭЖЛИЙН ХУДАЛДААНЫ ЗӨВЛӨХ юм.
 Чиний зорилго зөвхөн бараа зарах биш, хэрэглэгчид хамгийн зөв шийдлийг олоход туслах юм.
+
+ЗАН БАЙДАЛ: ${emotionStyle}
 
 ${shopInfo}${customInstructions}
 
 ЧУХАЛ ДҮРЭМ (Greeting logic):
 1. "Сайн байна уу" БҮҮ ДАВТ (хэрэв өмнө нь хэлсэн бол)
 2. Хэрэглэгчийн асуултад шууд, товч хариул.
+
+ХЯМДРАЛ САНАЛ БОЛГОХ:
+1. Хэрэглэгч бүтээгдэхүүн асуухад хямдралтай бүтээгдэхүүн байвал ЭХЛЭЭД ТҮҮНИЙГ санал болго!
+2. "🔥 Хямдрал!" гэж тод онцол.
+3. Хуучин болон шинэ үнийг ХОЁУЛАНГ нь хэл. Жишээ: "Одоо 185,000₮ биш 148,000₮-өөр авах боломжтой!"
 
 ХУДАЛДААНЫ АРГА БАРИЛ (Consultative Selling):
 1. ХҮЭРЭГЦЭЭ ТОДОРХОЙЛОХ: Хэрэглэгч юу хайж байгааг ойлгохын тулд тодруулах асуулт асуу. 
@@ -276,6 +310,23 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                             }
                         },
                         required: ['reason']
+                    }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'cancel_order',
+                    description: 'Cancel an order when customer explicitly says they want to cancel their order. This will restore the reserved stock.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            reason: {
+                                type: 'string',
+                                description: 'Reason for cancellation'
+                            }
+                        },
+                        required: []
                     }
                 }
             }
@@ -433,15 +484,16 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                 // Verify stock from DB
                                 const { data: dbProduct } = await supabase
                                     .from('products')
-                                    .select('stock, price, id')
+                                    .select('stock, reserved_stock, price, id')
                                     .eq('id', product.id)
                                     .single();
 
-                                if (!dbProduct || dbProduct.stock < quantity) {
+                                const availableStock = (dbProduct?.stock || 0) - (dbProduct?.reserved_stock || 0);
+                                if (!dbProduct || availableStock < quantity) {
                                     messages.push({
                                         role: 'tool',
                                         tool_call_id: toolCall.id,
-                                        content: JSON.stringify({ error: `Not enough stock. Only ${dbProduct?.stock || 0} left.` })
+                                        content: JSON.stringify({ error: `Not enough stock. Only ${availableStock} available.` })
                                     } as any);
                                     continue;
                                 }
@@ -471,7 +523,7 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
                                 if (orderError) throw orderError;
 
-                                // 4. Create Order Item & Deduct Stock
+                                // 4. Create Order Item & Reserve Stock (not deduct yet - pending payment)
                                 await supabase.from('order_items').insert({
                                     order_id: order.id,
                                     product_id: product.id,
@@ -481,21 +533,15 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                     size: size || null
                                 });
 
-                                // Deduct stock
-                                const { error: rpcError } = await supabase.rpc('decrement_stock', {
-                                    p_id: product.id,
-                                    qty: quantity
-                                });
+                                // Reserve stock (will be actually deducted when payment is confirmed)
+                                await supabase
+                                    .from('products')
+                                    .update({
+                                        reserved_stock: (dbProduct.reserved_stock || 0) + quantity
+                                    })
+                                    .eq('id', product.id);
 
-                                if (rpcError) {
-                                    // Fallback if RPC doesn't exist
-                                    await supabase
-                                        .from('products')
-                                        .update({ stock: dbProduct.stock - quantity })
-                                        .eq('id', product.id);
-                                }
-
-                                const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock deducted.`;
+                                const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`;
 
                                 // Send push notification to shop owner
                                 try {
@@ -516,6 +562,101 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
                             } catch (error: any) {
                                 logger.error('Tool execution error:', error);
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: error.message })
+                                } as any);
+                            }
+                        }
+
+                        // Handle cancel_order
+                        if (functionName === 'cancel_order') {
+                            try {
+                                const { reason } = args;
+                                const supabase = supabaseAdmin();
+
+                                if (!context.customerId) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: 'No customer context' })
+                                    } as any);
+                                    continue;
+                                }
+
+                                // Find the most recent pending order for this customer
+                                const { data: pendingOrder } = await supabase
+                                    .from('orders')
+                                    .select(`
+                                        id, status, total_amount,
+                                        order_items (product_id, quantity)
+                                    `)
+                                    .eq('customer_id', context.customerId)
+                                    .eq('shop_id', context.shopId)
+                                    .eq('status', 'pending')
+                                    .order('created_at', { ascending: false })
+                                    .limit(1)
+                                    .single();
+
+                                if (!pendingOrder) {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({ error: 'No pending order found to cancel' })
+                                    } as any);
+                                    continue;
+                                }
+
+                                // Cancel the order
+                                await supabase
+                                    .from('orders')
+                                    .update({
+                                        status: 'cancelled',
+                                        notes: `Cancelled by customer. Reason: ${reason || 'Not specified'}`
+                                    })
+                                    .eq('id', pendingOrder.id);
+
+                                // Restore reserved stock for each order item
+                                for (const item of (pendingOrder.order_items || [])) {
+                                    // Directly update reserved_stock (no RPC needed)
+                                    const { data: product } = await supabase
+                                        .from('products')
+                                        .select('reserved_stock')
+                                        .eq('id', item.product_id)
+                                        .single();
+
+                                    if (product) {
+                                        await supabase
+                                            .from('products')
+                                            .update({
+                                                reserved_stock: Math.max(0, (product.reserved_stock || 0) - item.quantity)
+                                            })
+                                            .eq('id', item.product_id);
+                                    }
+                                }
+
+                                logger.info('Order cancelled and stock restored:', { orderId: pendingOrder.id });
+
+                                // Send notification
+                                await sendPushNotification(context.shopId, {
+                                    title: '❌ Захиалга цуцлагдлаа',
+                                    body: `${context.customerName || 'Хэрэглэгч'} захиалгаа цуцаллаа. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
+                                    url: '/dashboard/orders',
+                                    tag: `cancel-${pendingOrder.id}`
+                                });
+
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({
+                                        success: true,
+                                        message: `Order #${pendingOrder.id.substring(0, 8)} cancelled. Stock restored.`
+                                    })
+                                } as any);
+
+                            } catch (error: any) {
+                                logger.error('Cancel order error:', error);
                                 messages.push({
                                     role: 'tool',
                                     tool_call_id: toolCall.id,

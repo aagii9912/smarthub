@@ -38,12 +38,13 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
 
-    const fetchDashboardData = useCallback(async (showRefresh = false) => {
+    const fetchDashboardData = useCallback(async (showRefresh = false, period = timeFilter) => {
         if (showRefresh) setRefreshing(true);
 
         try {
-            const res = await fetch('/api/dashboard/stats');
+            const res = await fetch(`/api/dashboard/stats?period=${period}`);
             const data = await res.json();
             setStats(data.stats);
             setRecentOrders(data.recentOrders);
@@ -57,7 +58,7 @@ export default function DashboardPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [timeFilter]);
 
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -133,6 +134,29 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Time Filter Tabs */}
+                <div className="flex gap-2">
+                    {[
+                        { value: 'today', label: 'Өнөөдөр' },
+                        { value: 'week', label: '7 хоног' },
+                        { value: 'month', label: 'Сар' },
+                    ].map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => {
+                                setTimeFilter(option.value as 'today' | 'week' | 'month');
+                                fetchDashboardData(true, option.value as 'today' | 'week' | 'month');
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${timeFilter === option.value
+                                    ? 'bg-[#65c51a] text-white'
+                                    : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                                }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">

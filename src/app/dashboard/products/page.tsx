@@ -13,6 +13,8 @@ interface Product {
     description: string | null;
     price: number;
     stock: number | null;
+    reserved_stock: number | null;
+    discount_percent: number | null;
     is_active: boolean;
     type: 'physical' | 'service';
     colors: string[];
@@ -139,6 +141,7 @@ export default function ProductsPage() {
                 description: formData.get('description') as string,
                 price: Number(formData.get('price')),
                 stock: productType === 'service' ? null : Number(formData.get('stock')),
+                discount_percent: Number(formData.get('discount')) || 0,
                 type: productType,
                 colors: (formData.get('colors') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
                 sizes: (formData.get('sizes') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
@@ -269,6 +272,13 @@ export default function ProductsPage() {
                     <p className="text-muted-foreground mt-1">Нийт {products.length} бүртгэл</p>
                 </div>
                 <div className="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => window.open('/api/dashboard/products/export', '_blank')}
+                    >
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Export Excel
+                    </Button>
                     <Button variant="secondary" onClick={() => setShowImportModal(true)}>
                         <FileSpreadsheet className="w-4 h-4 mr-2" />
                         Файлаас импорт
@@ -279,24 +289,6 @@ export default function ProductsPage() {
                     </Button>
                 </div>
             </div>
-
-            {/* Search & Filters */}
-            <Card>
-                <CardContent className="py-4">
-                    <div className="flex items-center gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Хайх..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-secondary/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground placeholder:text-muted-foreground"
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             {/* Products Table */}
             {/* Products List - Mobile Cards */}
@@ -318,7 +310,15 @@ export default function ProductsPage() {
                                     <div className="flex items-start justify-between">
                                         <div>
                                             <p className="font-medium text-foreground truncate">{product.name}</p>
-                                            <p className="text-sm text-muted-foreground mt-0.5">₮{product.price.toLocaleString()}</p>
+                                            {(product.discount_percent || 0) > 0 ? (
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-xs text-muted-foreground line-through">₮{product.price.toLocaleString()}</span>
+                                                    <span className="text-sm font-semibold text-red-600">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</span>
+                                                    <span className="px-1 py-0.5 bg-red-100 text-red-600 text-[10px] font-medium rounded">-{product.discount_percent}%</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground mt-0.5">₮{product.price.toLocaleString()}</p>
+                                            )}
                                         </div>
                                         <div className="flex gap-2">
                                             <button
@@ -393,7 +393,17 @@ export default function ProductsPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <p className="font-semibold text-foreground">₮{product.price.toLocaleString()}</p>
+                                        {(product.discount_percent || 0) > 0 ? (
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-muted-foreground line-through">₮{product.price.toLocaleString()}</span>
+                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-medium rounded">-{product.discount_percent}%</span>
+                                                </div>
+                                                <p className="font-semibold text-red-600">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="font-semibold text-foreground">₮{product.price.toLocaleString()}</p>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4">
                                         {product.type === 'physical' ? (
@@ -493,7 +503,7 @@ export default function ProductsPage() {
                                         defaultValue={editingProduct?.name}
                                         required
                                     />
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className={`grid gap-4 ${productType === 'physical' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                         <Input
                                             name="price"
                                             label="Үнэ (₮)"
@@ -511,6 +521,13 @@ export default function ProductsPage() {
                                                 defaultValue={editingProduct?.stock || ''}
                                             />
                                         )}
+                                        <Input
+                                            name="discount"
+                                            label="Хямдрал (%)"
+                                            type="number"
+                                            placeholder="0"
+                                            defaultValue={editingProduct?.discount_percent || ''}
+                                        />
                                     </div>
                                 </div>
                             </div>

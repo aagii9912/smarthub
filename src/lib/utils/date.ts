@@ -48,3 +48,24 @@ export function getStartOfToday(): Date {
   return today;
 }
 
+/**
+ * Get start of period for filtering
+ * @param period - 'today', 'week', or 'month'
+ */
+export function getStartOfPeriod(period: 'today' | 'week' | 'month'): Date {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+
+  switch (period) {
+    case 'today':
+      return date;
+    case 'week':
+      date.setDate(date.getDate() - 7);
+      return date;
+    case 'month':
+      date.setDate(date.getDate() - 30);
+      return date;
+    default:
+      return date;
+  }
+}

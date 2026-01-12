@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
                                     shopName: shop.name,
                                     shopDescription: shop.description || undefined,
                                     aiInstructions: shop.ai_instructions || undefined,
+                                    aiEmotion: shop.ai_emotion || 'friendly',
                                     products: shop.products || [],
                                     customerName: customer?.name || undefined,
                                     orderHistory: customer?.total_orders || 0,

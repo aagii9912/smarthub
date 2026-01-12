@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getUserShop } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getStartOfToday } from '@/lib/utils/date';
+import { getStartOfToday, getStartOfPeriod } from '@/lib/utils/date';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authShop = await getUserShop();
+
+    // Get period from query params (default: today)
+    const { searchParams } = new URL(request.url);
+    const period = (searchParams.get('period') || 'today') as 'today' | 'week' | 'month';
 
     // Require authenticated shop - no demo fallback
     if (!authShop) {
@@ -27,14 +31,14 @@ export async function GET() {
 
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
-    const today = getStartOfToday();
+    const periodStart = getStartOfPeriod(period);
 
-    // Өнөөдрийн захиалгууд
-    const { count: todayOrders } = await supabase
+    // Захиалгууд (period-д тулгуурласан)
+    const { count: periodOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('shop_id', shopId)
-      .gte('created_at', today.toISOString());
+      .gte('created_at', periodStart.toISOString());
 
     // Хүлээгдэж буй захиалгууд
     const { count: pendingOrders } = await supabase
@@ -156,7 +160,7 @@ export async function GET() {
     return NextResponse.json({
       shop: { id: authShop.id, name: authShop.name },
       stats: {
-        todayOrders: todayOrders || 0,
+        todayOrders: periodOrders || 0,
         pendingOrders: pendingOrders || 0,
         totalRevenue: Math.round(totalRevenue),
         totalCustomers: totalCustomers || 0,

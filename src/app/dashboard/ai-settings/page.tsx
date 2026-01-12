@@ -4,13 +4,24 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
-import { Bot, Save, Upload, FileText, Sparkles, AlertCircle } from 'lucide-react';
+import { Bot, Save, Upload, FileText, Sparkles, AlertCircle, Smile, Briefcase, Zap, Cloud, PartyPopper } from 'lucide-react';
+
+type AiEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
+
+const emotionOptions: Array<{ value: AiEmotion; label: string; desc: string; icon: React.ReactNode }> = [
+    { value: 'friendly', label: 'Найрсаг 😊', desc: 'Халуун дотно, эерэг', icon: <Smile className="w-5 h-5" /> },
+    { value: 'professional', label: 'Мэргэжлийн 👔', desc: 'Албан ёсны, товч', icon: <Briefcase className="w-5 h-5" /> },
+    { value: 'enthusiastic', label: 'Урам зоригтой 🎉', desc: 'Идэвхтэй, сэтгэлтэй', icon: <Zap className="w-5 h-5" /> },
+    { value: 'calm', label: 'Тайван 🧘', desc: 'Эв нямбай, тайвшруулах', icon: <Cloud className="w-5 h-5" /> },
+    { value: 'playful', label: 'Тоглоомтой 🎮', desc: 'Хөгжилтэй, шог', icon: <PartyPopper className="w-5 h-5" /> },
+];
 
 export default function AISettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [shopDescription, setShopDescription] = useState('');
     const [aiInstructions, setAiInstructions] = useState('');
+    const [aiEmotion, setAiEmotion] = useState<AiEmotion>('friendly');
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +36,7 @@ export default function AISettingsPage() {
             if (data.shop) {
                 setShopDescription(data.shop.description || '');
                 setAiInstructions(data.shop.ai_instructions || '');
+                setAiEmotion(data.shop.ai_emotion || 'friendly');
             }
         } catch (error) {
             console.error('Failed to fetch shop:', error);
@@ -45,6 +57,7 @@ export default function AISettingsPage() {
                 body: JSON.stringify({
                     description: shopDescription,
                     ai_instructions: aiInstructions,
+                    ai_emotion: aiEmotion,
                 }),
             });
 
@@ -135,6 +148,37 @@ export default function AISettingsPage() {
                         placeholder="Жишээ: Манай дэлгүүр бол гар урлалын бүтээгдэхүүн борлуулдаг. 100% байгалийн материал ашигладаг..."
                         rows={4}
                     />
+                </CardContent>
+            </Card>
+
+            {/* AI Emotion/Personality */}
+            <Card>
+                <CardContent className="p-6">
+                    <h2 className="font-semibold text-gray-900 mb-2">AI Зан байдал</h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                        AI-н ярианы хэв маягийг сонгоно уу
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                        {emotionOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setAiEmotion(option.value)}
+                                className={`p-4 rounded-xl border-2 transition-all text-left ${aiEmotion === option.value
+                                        ? 'border-violet-500 bg-violet-50'
+                                        : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <div className={`mb-2 ${aiEmotion === option.value ? 'text-violet-600' : 'text-gray-400'}`}>
+                                    {option.icon}
+                                </div>
+                                <p className={`font-medium text-sm ${aiEmotion === option.value ? 'text-violet-900' : 'text-gray-700'}`}>
+                                    {option.label}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">{option.desc}</p>
+                            </button>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
 

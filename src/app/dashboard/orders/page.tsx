@@ -16,6 +16,7 @@ import {
   X,
   RefreshCw,
   MessageSquare,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface Order {
@@ -129,10 +130,19 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold text-foreground">Захиалгууд 📦</h1>
           <p className="text-muted-foreground mt-1">Нийт {orders.length} захиалга</p>
         </div>
-        <Button onClick={() => fetchOrders(true)} disabled={refreshing}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Шинэчлэх
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => window.open('/api/orders/export', '_blank')}
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Export Excel
+          </Button>
+          <Button onClick={() => fetchOrders(true)} disabled={refreshing}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Шинэчлэх
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
