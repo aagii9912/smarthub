@@ -18,6 +18,7 @@ export default function AdminLoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setLoading(true);
@@ -30,6 +31,8 @@ export default function AdminLoginPage() {
                 loginEmail = 'admin@smarthub.mn';
             }
 
+            console.log('Attempting login with:', loginEmail);
+
             // 1. Sign in with Supabase Auth
             const { data, error: authError } = await supabase.auth.signInWithPassword({
                 email: loginEmail,
@@ -41,19 +44,19 @@ export default function AdminLoginPage() {
                 throw new Error('Нэвтрэх нэр эсвэл нууц үг буруу байна');
             }
 
-            // 2. Refresh router to update session state
-            router.refresh();
+            console.log('Login successful, session:', data.session?.user?.email);
 
-            // 3. Verify admin role (optional extra check, layout handles strict check)
-            // Redirect to dashboard
-            router.push('/admin');
+            // 2. Use full page navigation to ensure cookies are properly set
+            // This forces a server-side request which will pick up the new auth state
+            window.location.href = '/admin';
 
         } catch (err: any) {
+            console.error('Login catch error:', err);
             setError(err.message || 'Серверийн алдаа гарлаа');
-        } finally {
             setLoading(false);
         }
     }
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-violet-900 to-gray-900 flex items-center justify-center p-4">
