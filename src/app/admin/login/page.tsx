@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
 
             // 3. Verify admin role (optional extra check, layout handles strict check)
             // Redirect to dashboard
-            router.push('/admin/dashboard');
+            router.push('/admin');
 
         } catch (err: any) {
             setError(err.message || 'Серверийн алдаа гарлаа');

@@ -3,8 +3,7 @@
  * Middleware for Super Admin access
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { createServerSupabase } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export interface AdminUser {
@@ -19,32 +18,15 @@ export interface AdminUser {
  */
 export async function getAdminUser(): Promise<AdminUser | null> {
     try {
-        const cookieStore = await cookies();
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-        // Get access token from cookies
-        const accessToken = cookieStore.get('sb-access-token')?.value;
-        const refreshToken = cookieStore.get('sb-refresh-token')?.value;
-
-        if (!accessToken) {
-            return null;
-        }
-
-        // Create supabase client with session
-        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-            global: {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`
-                }
-            }
-        });
-
+        const supabase = await createServerSupabase();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
+            console.log('Admin auth: No user found');
             return null;
         }
+
+        console.log('Admin auth: User found:', user.id, user.email);
 
         // Check if user is in admins table
         const adminDb = supabaseAdmin();
@@ -55,9 +37,17 @@ export async function getAdminUser(): Promise<AdminUser | null> {
             .eq('is_active', true)
             .single();
 
-        if (error || !admin) {
+        if (error) {
+            console.log('Admin auth: Error checking admins table:', error.message);
             return null;
         }
+
+        if (!admin) {
+            console.log('Admin auth: User not in admins table');
+            return null;
+        }
+
+        console.log('Admin auth: Admin found:', admin.email, admin.role);
 
         return {
             id: admin.id,
