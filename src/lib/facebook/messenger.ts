@@ -145,6 +145,118 @@ export async function sendProductCard({
     return response.json();
 }
 
+// Send a single image
+export async function sendImage({
+    recipientId,
+    imageUrl,
+    pageAccessToken,
+}: {
+    recipientId: string;
+    imageUrl: string;
+    pageAccessToken: string;
+}) {
+    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: {
+                attachment: {
+                    type: 'image',
+                    payload: {
+                        url: imageUrl,
+                        is_reusable: true,
+                    },
+                },
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        console.error('Facebook API error:', error);
+        throw new Error(`Failed to send image: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.json();
+}
+
+// Send multiple products as carousel gallery (max 10)
+export async function sendImageGallery({
+    recipientId,
+    products,
+    pageAccessToken,
+    confirmMode = false,
+}: {
+    recipientId: string;
+    products: Array<{
+        name: string;
+        price: number;
+        imageUrl: string;
+        description?: string;
+    }>;
+    pageAccessToken: string;
+    confirmMode?: boolean; // If true, shows "Энэ үү?" selection mode
+}) {
+    // Facebook allows max 10 elements in carousel
+    const limitedProducts = products.slice(0, 10);
+
+    const elements = limitedProducts.map((product) => ({
+        title: product.name,
+        subtitle: `${product.price.toLocaleString()}₮${product.description ? `\n${product.description}` : ''}`,
+        image_url: product.imageUrl,
+        buttons: confirmMode
+            ? [
+                {
+                    type: 'postback',
+                    title: 'Энэ нь! ✅',
+                    payload: `SELECT_${product.name}`,
+                },
+            ]
+            : [
+                {
+                    type: 'postback',
+                    title: 'Захиалах 🛒',
+                    payload: `ORDER_${product.name}`,
+                },
+                {
+                    type: 'postback',
+                    title: 'Дэлгэрэнгүй',
+                    payload: `DETAILS_${product.name}`,
+                },
+            ],
+    }));
+
+    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: {
+                attachment: {
+                    type: 'template',
+                    payload: {
+                        template_type: 'generic',
+                        elements,
+                    },
+                },
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        console.error('Facebook API error:', error);
+        throw new Error(`Failed to send image gallery: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.json();
+}
+
 export function verifyWebhook(
     mode: string | null,
     token: string | null,

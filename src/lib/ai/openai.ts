@@ -22,6 +22,7 @@ export interface ChatContext {
         reserved_stock?: number;
         discount_percent?: number;
         description?: string;
+        image_url?: string;  // Product image URL for Messenger
         type?: 'product' | 'service';  // product = бараа, service = үйлчилгээ
         unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
         variants?: Array<{
@@ -37,6 +38,23 @@ export interface ChatContext {
 interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
     content: string;
+}
+
+// Image action to send to Messenger
+export interface ImageAction {
+    type: 'single' | 'confirm';
+    products: Array<{
+        name: string;
+        price: number;
+        imageUrl: string;
+        description?: string;
+    }>;
+}
+
+// Response from generateChatResponse
+export interface ChatResponse {
+    text: string;
+    imageAction?: ImageAction;
 }
 
 async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
@@ -110,7 +128,10 @@ export async function generateChatResponse(
     message: string,
     context: ChatContext,
     previousHistory: ChatMessage[] = []
-): Promise<string> {
+): Promise<ChatResponse> {
+    // Track image action from tool calls
+    let imageAction: ImageAction | undefined;
+
     try {
         logger.debug('generateChatResponse called with:', {
             message,
@@ -327,6 +348,29 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                             }
                         },
                         required: []
+                    }
+                }
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'show_product_image',
+                    description: 'Show product image(s) ONLY when customer asks about a SPECIFIC product by name or description (e.g. "харуулаач", "зураг", "юу шиг харагддаг вэ?"). DO NOT use for generic questions like "ямар бараа байна?" - just answer with text. Use "confirm" mode when 2-5 similar products match to ask which one they want.',
+                    parameters: {
+                        type: 'object',
+                        properties: {
+                            product_names: {
+                                type: 'array',
+                                items: { type: 'string' },
+                                description: 'Names of SPECIFIC products to show (1-5 max). Use EXACT names from product list.'
+                            },
+                            mode: {
+                                type: 'string',
+                                enum: ['single', 'confirm'],
+                                description: '"single" for 1 product, "confirm" to ask customer to choose between 2-5 similar products'
+                            }
+                        },
+                        required: ['product_names', 'mode']
                     }
                 }
             }
@@ -664,6 +708,63 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                 } as any);
                             }
                         }
+
+                        // Handle show_product_image
+                        if (functionName === 'show_product_image') {
+                            try {
+                                const { product_names, mode } = args as { product_names: string[]; mode: 'single' | 'confirm' };
+
+                                // Find matching products with images
+                                const matchedProducts = product_names
+                                    .map((name: string) => {
+                                        const product = context.products.find(p =>
+                                            p.name.toLowerCase().includes(name.toLowerCase()) ||
+                                            name.toLowerCase().includes(p.name.toLowerCase())
+                                        );
+                                        if (product && product.image_url) {
+                                            return {
+                                                name: product.name,
+                                                price: product.price,
+                                                imageUrl: product.image_url,
+                                                description: product.description,
+                                            };
+                                        }
+                                        return null;
+                                    })
+                                    .filter((p): p is NonNullable<typeof p> => p !== null);
+
+                                if (matchedProducts.length > 0) {
+                                    imageAction = {
+                                        type: mode,
+                                        products: matchedProducts,
+                                    };
+
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({
+                                            success: true,
+                                            message: `Showing ${matchedProducts.length} product image(s) in ${mode} mode.`
+                                        })
+                                    } as any);
+                                } else {
+                                    messages.push({
+                                        role: 'tool',
+                                        tool_call_id: toolCall.id,
+                                        content: JSON.stringify({
+                                            error: 'No matching products with images found.'
+                                        })
+                                    } as any);
+                                }
+                            } catch (error: any) {
+                                logger.error('Show product image error:', error);
+                                messages.push({
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    content: JSON.stringify({ error: error.message })
+                                } as any);
+                            }
+                        }
                     }
                 }
 
@@ -697,7 +798,7 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 
             logger.success('OpenAI response received', { length: finalResponseText.length });
 
-            return finalResponseText;
+            return { text: finalResponseText, imageAction };
         });
     } catch (error: any) {
         logger.error('OpenAI API Error:', {

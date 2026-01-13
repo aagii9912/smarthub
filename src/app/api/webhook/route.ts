@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
-import { generateChatResponse } from '@/lib/ai/openai';
+import { verifyWebhook, sendTextMessage, sendSenderAction, sendImage, sendImageGallery } from '@/lib/facebook/messenger';
+import { generateChatResponse, ChatResponse, ImageAction } from '@/lib/ai/openai';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment, generateCommentReply } from '@/lib/ai/comment-detector';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -294,8 +294,34 @@ export async function POST(request: NextRequest) {
                             new Promise(resolve => setTimeout(resolve, 1500))
                         ]);
 
-                        aiResponse = response;
-                        logger.success('AI response generated', { preview: aiResponse.substring(0, 100) + '...' });
+                        aiResponse = response.text;
+                        const imageAction = response.imageAction;
+                        logger.success('AI response generated', { preview: aiResponse.substring(0, 100) + '...', hasImage: !!imageAction });
+
+                        // Send product images if AI requested
+                        if (imageAction && imageAction.products.length > 0) {
+                            try {
+                                if (imageAction.products.length === 1 && imageAction.type === 'single') {
+                                    // Send single image
+                                    await sendImage({
+                                        recipientId: senderId,
+                                        imageUrl: imageAction.products[0].imageUrl,
+                                        pageAccessToken: pageAccessToken,
+                                    });
+                                } else {
+                                    // Send gallery carousel
+                                    await sendImageGallery({
+                                        recipientId: senderId,
+                                        products: imageAction.products,
+                                        pageAccessToken: pageAccessToken,
+                                        confirmMode: imageAction.type === 'confirm',
+                                    });
+                                }
+                                logger.success(`Sent ${imageAction.products.length} product image(s) in ${imageAction.type} mode`);
+                            } catch (imgError: any) {
+                                logger.error('Failed to send product images:', { message: imgError?.message });
+                            }
+                        }
                     } catch (aiError: any) {
                         logger.error('AI Error:', {
                             message: aiError?.message,
