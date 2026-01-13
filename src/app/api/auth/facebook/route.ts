@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // 'pages_read_engagement', // Removed due to invalid scope error
     'pages_manage_metadata',
     'public_profile',
-    'email'
+    // 'email' // Removed due to invalid scope error
   ].join(',');
 
   // Build Facebook OAuth URL
