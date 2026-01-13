@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getUserShop } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { getAdminUser } from '@/lib/admin/auth';
 
 // Rate limit: Max 30 messages per minute
 const RATE_LIMIT = 30;
@@ -24,17 +25,19 @@ export async function POST(request: NextRequest) {
         }
 
         // PRODUCTION: Restrict to admin only
-        // In production, this feature should only be available to administrators
-        // to prevent abuse and ensure proper oversight of mass messaging campaigns
+        // Mass messaging requires admin privileges to prevent abuse
         const isDevelopment = process.env.NODE_ENV === 'development';
 
         if (!isDevelopment) {
-            // TODO: Implement proper admin check when user roles are added
-            // For now, log a warning that this endpoint is restricted
-            logger.warn('Marketing mass send attempted in production - admin check not yet implemented');
-
-            // Optionally: uncomment the following line to completely block in production
-            // return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+            // Check if user has admin privileges
+            const admin = await getAdminUser();
+            if (!admin) {
+                logger.warn('Marketing mass send blocked - user is not admin', { shopId: authShop.id });
+                return NextResponse.json({
+                    error: 'Admin хандалт шаардлагатай. Mass messaging зөвхөн admin-д зөвшөөрөгдөнө.'
+                }, { status: 403 });
+            }
+            logger.info('Marketing mass send authorized by admin', { adminEmail: admin.email });
         }
 
         // Get shop with access token

@@ -78,23 +78,19 @@ export default function AISettingsPage() {
         if (!e.target.files?.[0]) return;
 
         const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('type', 'instructions');
+        setError(null);
 
         try {
-            // Use mammoth to extract text from docx
-            const arrayBuffer = await file.arrayBuffer();
-
-            // For now, we'll just read text files directly
-            // DOCX parsing would need server-side processing
             if (file.name.endsWith('.txt')) {
+                // TXT files are read directly
                 const text = await file.text();
-                setAiInstructions(prev => prev + '\n' + text);
+                setAiInstructions(prev => prev ? prev + '\n\n' + text : text);
             } else if (file.name.endsWith('.docx')) {
-                // Will be processed server-side
-                setError('DOCX файл серверт боловсруулагдаж байна...');
-                // TODO: Add API endpoint for DOCX parsing
+                // DOCX parsing requires additional setup
+                // For now, inform user to use TXT format
+                setError('DOCX форматыг дэмжихгүй байна. TXT файл ашиглана уу (Word дээр Save As → Plain Text сонгоно уу)');
+            } else {
+                setError('Зөвхөн .txt файл дэмждэг');
             }
         } catch (error) {
             console.error('File upload error:', error);
@@ -165,8 +161,8 @@ export default function AISettingsPage() {
                                 type="button"
                                 onClick={() => setAiEmotion(option.value)}
                                 className={`p-4 rounded-xl border-2 transition-all text-left ${aiEmotion === option.value
-                                        ? 'border-violet-500 bg-violet-50'
-                                        : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50'
+                                    ? 'border-violet-500 bg-violet-50'
+                                    : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50'
                                     }`}
                             >
                                 <div className={`mb-2 ${aiEmotion === option.value ? 'text-violet-600' : 'text-gray-400'}`}>

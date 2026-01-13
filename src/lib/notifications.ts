@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logger } from '@/lib/utils/logger';
 
 // Lazy VAPID initialization flag
 let vapidConfigured = false;
@@ -22,7 +23,7 @@ function ensureVapidConfigured(): boolean {
             vapidConfigured = true;
             return true;
         } catch (error) {
-            console.error('Failed to configure VAPID:', error);
+            logger.error('Failed to configure VAPID', { error });
             return false;
         }
     }
@@ -47,14 +48,13 @@ export async function sendPushNotification(
 ): Promise<{ success: number; failed: number }> {
     // Ensure VAPID is configured before sending
     if (!ensureVapidConfigured()) {
-        console.warn('Push notification skipped: VAPID not configured');
+        logger.warn('Push notification skipped: VAPID not configured');
         return { success: 0, failed: 0 };
     }
 
     const supabase = supabaseAdmin();
 
-    console.log('🔔 sendPushNotification called for shopId:', shopId);
-    console.log('🔔 Payload:', JSON.stringify(payload));
+    logger.debug('sendPushNotification called', { shopId, payload });
 
     // Get all subscriptions for this shop
     const { data: subscriptions, error } = await supabase
@@ -62,22 +62,22 @@ export async function sendPushNotification(
         .select('*')
         .eq('shop_id', shopId);
 
-    console.log('🔔 Query result - subscriptions:', subscriptions?.length || 0, 'error:', error?.message || 'none');
+    logger.debug('Push subscriptions query result', { count: subscriptions?.length || 0, error: error?.message });
 
     if (error) {
-        console.error('🔔 Database error:', error);
+        logger.error('Push notification database error', { error });
         return { success: 0, failed: 0 };
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-        console.log('🔔 No push subscriptions found for shop:', shopId);
-        // Let's check ALL subscriptions for debugging
+        logger.debug('No push subscriptions found', { shopId });
+        // Debug: check sample subscriptions
         const { data: allSubs } = await supabase.from('push_subscriptions').select('shop_id').limit(5);
-        console.log('🔔 Debug - Sample subscriptions in DB:', JSON.stringify(allSubs));
+        logger.debug('Sample subscriptions in DB', { samples: allSubs });
         return { success: 0, failed: 0 };
     }
 
-    console.log('🔔 Found', subscriptions.length, 'subscription(s)');
+    logger.debug('Found subscriptions', { count: subscriptions.length });
 
     let success = 0;
     let failed = 0;
@@ -98,7 +98,7 @@ export async function sendPushNotification(
             );
             success++;
         } catch (err: any) {
-            console.error('Push notification failed:', err.message);
+            logger.error('Push notification failed', { error: err.message });
             failed++;
 
             // Remove invalid subscriptions (expired or unsubscribed)

@@ -28,7 +28,7 @@ const menuItems = [
     { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard },
-    { name: 'Statistics', href: '/dashboard/stats', icon: BarChart3 },
+    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
 ];
 
 const bottomMenuItems = [

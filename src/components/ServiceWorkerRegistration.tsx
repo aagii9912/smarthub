@@ -2,16 +2,18 @@
 
 import { useEffect } from 'react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export function ServiceWorkerRegistration() {
     useEffect(() => {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker
                 .register('/sw.js')
                 .then((registration) => {
-                    console.log('Service Worker registered:', registration.scope);
+                    if (isDev) console.log('Service Worker registered:', registration.scope);
                 })
                 .catch((error) => {
-                    console.error('Service Worker registration failed:', error);
+                    if (isDev) console.error('Service Worker registration failed:', error);
                 });
         }
     }, []);

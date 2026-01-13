@@ -5,6 +5,7 @@
 
 import { createServerSupabase } from '@/lib/auth/server-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logger } from '@/lib/utils/logger';
 
 export interface AdminUser {
     id: string;
@@ -22,11 +23,11 @@ export async function getAdminUser(): Promise<AdminUser | null> {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            console.log('Admin auth: No user found');
+            logger.debug('Admin auth: No user found');
             return null;
         }
 
-        console.log('Admin auth: User found:', user.id, user.email);
+        logger.debug('Admin auth: User found', { userId: user.id, email: user.email });
 
         // Check if user is in admins table
         const adminDb = supabaseAdmin();
@@ -38,16 +39,16 @@ export async function getAdminUser(): Promise<AdminUser | null> {
             .single();
 
         if (error) {
-            console.log('Admin auth: Error checking admins table:', error.message);
+            logger.debug('Admin auth: Error checking admins table', { error: error.message });
             return null;
         }
 
         if (!admin) {
-            console.log('Admin auth: User not in admins table');
+            logger.debug('Admin auth: User not in admins table');
             return null;
         }
 
-        console.log('Admin auth: Admin found:', admin.email, admin.role);
+        logger.debug('Admin auth: Admin found', { email: admin.email, role: admin.role });
 
         return {
             id: admin.id,
@@ -55,7 +56,7 @@ export async function getAdminUser(): Promise<AdminUser | null> {
             role: admin.role as AdminUser['role']
         };
     } catch (error) {
-        console.error('Admin auth error:', error);
+        logger.error('Admin auth error', { error });
         return null;
     }
 }

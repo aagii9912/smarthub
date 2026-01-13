@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface UsePushNotificationsReturn {
     isSupported: boolean;
     isSubscribed: boolean;
@@ -50,11 +52,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ subscription: subscription.toJSON() }),
-                            }).catch(err => console.error('Subscription sync error:', err));
+                            }).catch(err => { if (isDev) console.error('Subscription sync error:', err); });
                         }
                     }
-                } catch (err) {
-                    console.log('Service worker not ready yet, will register on subscribe');
+                } catch {
+                    // Service worker not ready yet - will register on subscribe
                 }
             }
 
@@ -112,7 +114,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             setIsLoading(false);
             return true;
         } catch (err: any) {
-            console.error('Subscribe error:', err);
+            if (isDev) console.error('Subscribe error:', err);
             alert('Notification error: ' + (err.message || 'Failed to subscribe'));
             setIsLoading(false);
             return false;
@@ -145,7 +147,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             setIsLoading(false);
             return true;
         } catch (err) {
-            console.error('Unsubscribe error:', err);
+            if (isDev) console.error('Unsubscribe error:', err);
             setIsLoading(false);
             return false;
         }

@@ -6,6 +6,8 @@ import { createBrowserClient } from '@supabase/ssr';
 import { Lock, User, Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export default function AdminLoginPage() {
     const router = useRouter();
     const supabase = createBrowserClient(
@@ -31,7 +33,7 @@ export default function AdminLoginPage() {
                 loginEmail = 'admin@smarthub.mn';
             }
 
-            console.log('Attempting login with:', loginEmail);
+            if (isDev) console.log('Attempting login with:', loginEmail);
 
             // 1. Sign in with Supabase Auth
             const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -44,14 +46,14 @@ export default function AdminLoginPage() {
                 throw new Error('Нэвтрэх нэр эсвэл нууц үг буруу байна');
             }
 
-            console.log('Login successful, session:', data.session?.user?.email);
+            if (isDev) console.log('Login successful');
 
             // 2. Use full page navigation to ensure cookies are properly set
             // This forces a server-side request which will pick up the new auth state
             window.location.href = '/admin';
 
         } catch (err: any) {
-            console.error('Login catch error:', err);
+            if (isDev) console.error('Login error:', err);
             setError(err.message || 'Серверийн алдаа гарлаа');
             setLoading(false);
         }

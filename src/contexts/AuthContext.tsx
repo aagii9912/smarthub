@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/auth/supabase-auth';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface Shop {
   id: string;
   name: string;
@@ -28,7 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   shop: null,
   loading: true,
-  refreshShop: async () => {},
+  refreshShop: async () => { },
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -36,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const supabase = createClient();
 
   const fetchShop = async (userId: string) => {
@@ -46,15 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('user_id', userId)
         .single();
-      
+
       if (error) {
-        console.log('Shop fetch error (may be normal if no shop yet):', error.message);
+        // Normal - shop may not exist yet for new users
         setShop(null);
       } else {
         setShop(data);
       }
     } catch (err) {
-      console.error('Shop fetch exception:', err);
+      if (isDev) console.error('Shop fetch exception:', err);
       setShop(null);
     }
   };
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setShop(data.shop);
       }
     } catch (err) {
-      console.error('Refresh shop error:', err);
+      if (isDev) console.error('Refresh shop error:', err);
     }
   };
 
@@ -76,24 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get initial session with timeout protection
     const timeoutId = setTimeout(() => {
       if (loading) {
-        console.log('Auth loading timeout - setting loading to false');
+        if (isDev) console.log('Auth loading timeout');
         setLoading(false);
       }
     }, 5000); // 5 second timeout
-    
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       clearTimeout(timeoutId);
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchShop(session.user.id);
       }
-      
+
       setLoading(false);
     }).catch((err) => {
       clearTimeout(timeoutId);
-      console.error('Auth session error:', err);
+      if (isDev) console.error('Auth session error:', err);
       setLoading(false);
     });
 
@@ -102,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           await fetchShop(session.user.id);
         } else {
           setShop(null);
         }
-        
+
         setLoading(false);
       }
     );

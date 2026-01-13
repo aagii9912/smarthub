@@ -8,6 +8,8 @@ import {
     FileText, Settings, LogOut, ChevronRight, Menu, X
 } from 'lucide-react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 interface AdminLayoutProps {
     children: React.ReactNode;
 }
@@ -39,7 +41,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
         // Set timeout to prevent infinite loading
         const timeout = setTimeout(() => {
-            console.log('Auth loading timeout - setting loading to false');
+            if (isDev) console.log('Admin auth loading timeout');
             setLoading(false);
             router.push('/admin/login');
         }, 10000);
@@ -51,7 +53,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     async function checkAdmin() {
         try {
-            console.log('Checking admin authentication...');
             // Check admin user via API
             const res = await fetch('/api/admin/dashboard', {
                 credentials: 'include',
@@ -59,17 +60,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     'Cache-Control': 'no-cache'
                 }
             });
-            console.log('Admin check response:', res.status);
             if (res.ok) {
                 const data = await res.json();
-                console.log('Admin data:', data.admin);
+                if (isDev) console.log('Admin verified:', data.admin?.email);
                 setAdmin(data.admin);
             } else {
-                console.log('Admin check failed, redirecting to login');
+                if (isDev) console.log('Admin check failed');
                 router.push('/admin/login');
             }
         } catch (error) {
-            console.error('Admin check error:', error);
+            if (isDev) console.error('Admin check error:', error);
             router.push('/admin/login');
         } finally {
             setLoading(false);
