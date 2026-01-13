@@ -10,10 +10,11 @@ const isDev = process.env.NODE_ENV === 'development';
 
 export default function AdminLoginPage() {
     const router = useRouter();
-    const supabase = createBrowserClient(
+    // Stable supabase client instance
+    const [supabase] = useState(() => createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    ));
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,11 +36,18 @@ export default function AdminLoginPage() {
 
             if (isDev) console.log('Attempting login with:', loginEmail);
 
+            // Timeout race
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Login request timed out')), 15000)
+            );
+
             // 1. Sign in with Supabase Auth
-            const { data, error: authError } = await supabase.auth.signInWithPassword({
+            const loginPromise = supabase.auth.signInWithPassword({
                 email: loginEmail,
                 password
             });
+
+            const { data, error: authError } = await Promise.race([loginPromise, timeoutPromise]) as any;
 
             if (authError) {
                 console.error('Auth error:', authError);
@@ -48,8 +56,7 @@ export default function AdminLoginPage() {
 
             if (isDev) console.log('Login successful');
 
-            // 2. Use full page navigation to ensure cookies are properly set
-            // This forces a server-side request which will pick up the new auth state
+            // 2. Use full page navigation
             window.location.href = '/admin';
 
         } catch (err: any) {
