@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- SHOPS (Дэлгүүрүүд)
 -- ============================================
 CREATE TABLE shops (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   facebook_page_id TEXT UNIQUE,
   owner_name TEXT,
@@ -20,7 +20,7 @@ CREATE TABLE shops (
 -- PRODUCTS (Бүтээгдэхүүнүүд)
 -- ============================================
 CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
@@ -39,7 +39,7 @@ CREATE INDEX idx_products_active ON products(is_active) WHERE is_active = true;
 -- CUSTOMERS (Хэрэглэгчид)
 -- ============================================
 CREATE TABLE customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   facebook_id TEXT,
   name TEXT,
@@ -68,7 +68,7 @@ CREATE TYPE order_status AS ENUM (
 );
 
 CREATE TABLE orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   status order_status DEFAULT 'pending',
@@ -87,7 +87,7 @@ CREATE INDEX idx_orders_customer ON orders(customer_id);
 -- ORDER ITEMS (Захиалгын бараа)
 -- ============================================
 CREATE TABLE order_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   quantity INTEGER NOT NULL DEFAULT 1,
@@ -100,7 +100,7 @@ CREATE INDEX idx_order_items_order ON order_items(order_id);
 -- CHAT HISTORY (Чат түүх)
 -- ============================================
 CREATE TABLE chat_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   message TEXT,

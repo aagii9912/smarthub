@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- SHOPS (Дэлгүүрүүд)
 -- ============================================
 CREATE TABLE IF NOT EXISTS shops (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   facebook_page_id TEXT UNIQUE,
   owner_name TEXT,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS shops (
 -- PRODUCTS (Бүтээгдэхүүнүүд)
 -- ============================================
 CREATE TABLE IF NOT EXISTS products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active) WHERE is_a
 -- CUSTOMERS (Хэрэглэгчид)
 -- ============================================
 CREATE TABLE IF NOT EXISTS customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   facebook_id TEXT,
   name TEXT,
@@ -73,7 +73,7 @@ EXCEPTION
 END $$;
 
 CREATE TABLE IF NOT EXISTS orders (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   status order_status DEFAULT 'pending',
@@ -92,7 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
 -- ORDER ITEMS (Захиалгын бараа)
 -- ============================================
 CREATE TABLE IF NOT EXISTS order_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   quantity INTEGER NOT NULL DEFAULT 1,
@@ -105,7 +105,7 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 -- CHAT HISTORY (Чат түүх)
 -- ============================================
 CREATE TABLE IF NOT EXISTS chat_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID REFERENCES shops(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   message TEXT,
