@@ -57,7 +57,8 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
             onChange={(e) => setName(e.target.value)}
             placeholder="Жишээ: Миний дэлгүүр"
             required
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            style={{ colorScheme: 'dark' }}
           />
         </div>
 
@@ -68,7 +69,8 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
             value={ownerName}
             onChange={(e) => setOwnerName(e.target.value)}
             placeholder="Таны нэр"
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            style={{ colorScheme: 'dark' }}
           />
         </div>
 
@@ -79,7 +81,8 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="99001122"
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            style={{ colorScheme: 'dark' }}
           />
         </div>
       </div>

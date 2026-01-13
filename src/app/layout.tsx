@@ -43,6 +43,8 @@ export const metadata: Metadata = {
   other: {
     // Disable auto-zoom on input focus for iOS
     'mobile-web-app-capable': 'yes',
+    // Disable Android Chrome auto dark mode override
+    'color-scheme': 'light dark',
   },
 };
 
