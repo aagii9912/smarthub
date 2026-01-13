@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
                 is_active,
                 created_at,
                 user_id,
-                subscriptions (
+                subscriptions:subscription_id (
                     id,
                     status,
                     billing_cycle,
