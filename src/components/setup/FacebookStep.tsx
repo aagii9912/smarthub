@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Facebook, CheckCircle, ArrowLeft, ArrowRight, 
-  MessageSquare, ExternalLink, Package 
+import {
+  Facebook, CheckCircle, ArrowLeft, ArrowRight,
+  MessageSquare, ExternalLink, Package
 } from 'lucide-react';
 
 interface FacebookPage {
@@ -26,14 +26,14 @@ interface FacebookStepProps {
   onNext: () => void;
 }
 
-export function FacebookStep({ 
-  initialData, 
-  fbPages, 
-  onConnect, 
-  onSelectPage, 
+export function FacebookStep({
+  initialData,
+  fbPages,
+  onConnect,
+  onSelectPage,
   onManualSave,
-  onBack, 
-  onNext 
+  onBack,
+  onNext
 }: FacebookStepProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -99,26 +99,26 @@ export function FacebookStep({
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Facebook className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Facebook className="w-8 h-8 text-blue-600" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Facebook Page холбох</h2>
-        <p className="text-gray-400">Messenger чатбот идэвхжүүлэхийн тулд Page холбоно уу</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Facebook Page холбох</h2>
+        <p className="text-gray-500">Messenger чатбот идэвхжүүлэхийн тулд Page холбоно уу</p>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-red-200 text-sm">
+        <div className="mb-6 bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm">
           {error}
         </div>
       )}
 
       {initialData.fbConnected && (
-        <div className="bg-emerald-500/20 border border-emerald-500/50 rounded-xl p-4 mb-6">
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-6">
           <div className="flex items-center gap-3">
-            <CheckCircle className="w-6 h-6 text-emerald-400" />
+            <CheckCircle className="w-6 h-6 text-emerald-500" />
             <div>
-              <p className="text-emerald-300 font-medium">Facebook Page холбогдсон!</p>
-              <p className="text-sm text-gray-400">{initialData.fbPageName}</p>
+              <p className="text-emerald-700 font-medium">Facebook Page холбогдсон!</p>
+              <p className="text-sm text-emerald-600 opacity-80">{initialData.fbPageName}</p>
             </div>
           </div>
         </div>
@@ -126,28 +126,27 @@ export function FacebookStep({
 
       {fbPages.length > 0 && (
         <div className="space-y-4">
-          <p className="text-gray-300 text-center">Page сонгоно уу:</p>
+          <p className="text-gray-700 text-center font-medium">Page сонгоно уу:</p>
           <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
             {fbPages.map((page) => (
               <button
                 key={page.id}
                 onClick={() => handleSelect(page.id)}
                 disabled={saving}
-                className={`w-full p-4 rounded-xl border transition-all flex items-center gap-3 ${
-                  selectedPageId === page.id
-                    ? 'bg-blue-500/30 border-blue-500'
-                    : 'bg-white/5 border-white/20 hover:bg-white/10 hover:border-blue-400'
-                }`}
+                className={`w-full p-4 rounded-xl border transition-all flex items-center gap-3 ${selectedPageId === page.id
+                    ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500/20'
+                    : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
+                  }`}
               >
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <Facebook className="w-5 h-5 text-blue-400" />
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Facebook className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="text-left flex-1">
-                  <p className="text-white font-medium">{page.name}</p>
-                  {page.category && <p className="text-sm text-gray-400">{page.category}</p>}
+                  <p className="text-gray-900 font-medium">{page.name}</p>
+                  {page.category && <p className="text-sm text-gray-500">{page.category}</p>}
                 </div>
                 {selectedPageId === page.id && saving && (
-                  <div className="w-5 h-5 border-2 border-blue-300/30 border-t-blue-300 rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
                 )}
               </button>
             ))}
@@ -159,36 +158,36 @@ export function FacebookStep({
         <>
           <button
             onClick={onConnect}
-            className="w-full py-4 bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3"
+            className="w-full py-4 bg-[#1877F2] hover:bg-[#166FE5] text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20"
           >
             <Facebook className="w-6 h-6" />
             Facebook-ээр холбох
           </button>
-          
+
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10"></div>
+              <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-transparent text-gray-500">эсвэл</span>
+              <span className="px-4 bg-white text-gray-500">эсвэл</span>
             </div>
           </div>
 
           <details className="group">
-            <summary className="cursor-pointer text-gray-400 hover:text-gray-300 text-sm text-center list-none">
+            <summary className="cursor-pointer text-gray-500 hover:text-gray-700 text-sm text-center list-none font-medium transition-colors">
               Гараар оруулах ↓
             </summary>
-            <div className="mt-4 space-y-4 pt-4 border-t border-white/10">
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-                <h3 className="text-blue-300 font-medium mb-2 flex items-center gap-2">
+            <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <h3 className="text-blue-700 font-medium mb-2 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5" />
                   Хэрхэн холбох вэ?
                 </h3>
-                <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
-                  <li><a href="https://developers.facebook.com/apps" target="_blank" rel="noopener" className="text-blue-400 hover:underline inline-flex items-center gap-1">Facebook Developers <ExternalLink className="w-3 h-3" /></a> руу орно</li>
+                <ol className="text-sm text-blue-900/70 space-y-2 list-decimal list-inside">
+                  <li><a href="https://developers.facebook.com/apps" target="_blank" rel="noopener" className="text-blue-600 hover:underline inline-flex items-center gap-1 font-medium">Facebook Developers <ExternalLink className="w-3 h-3" /></a> руу орно</li>
                   <li>Апп үүсгээд Messenger product нэмнэ</li>
                   <li>Page Access Token авна</li>
-                  <li>Webhook URL: <code className="bg-white/10 px-2 py-0.5 rounded text-xs">https://smarthub-opal.vercel.app/api/webhook</code></li>
+                  <li>Webhook URL: <code className="bg-white px-2 py-0.5 rounded text-xs border border-blue-200 select-all">https://smarthub-opal.vercel.app/api/webhook</code></li>
                 </ol>
               </div>
 
@@ -198,26 +197,26 @@ export function FacebookStep({
                   value={manualPageName}
                   onChange={(e) => setManualPageName(e.target.value)}
                   placeholder="Page нэр"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 <input
                   type="text"
                   value={manualPageId}
                   onChange={(e) => setManualPageId(e.target.value)}
                   placeholder="Page ID"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 />
                 <textarea
                   value={manualToken}
                   onChange={(e) => setManualToken(e.target.value)}
                   placeholder="Page Access Token"
                   rows={3}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm font-mono"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm font-mono transition-all"
                 />
                 <button
                   onClick={handleManualSubmit}
                   disabled={saving || !manualPageId || !manualToken || !manualPageName}
-                  className="w-full py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {saving ? 'Хадгалж байна...' : 'Гараар хадгалах'}
                 </button>
@@ -230,14 +229,14 @@ export function FacebookStep({
       <div className="flex gap-4 pt-4">
         <button
           onClick={onBack}
-          className="flex-1 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+          className="flex-1 py-4 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
         >
           <ArrowLeft className="w-5 h-5" />
           Буцах
         </button>
         <button
           onClick={onNext}
-          className="flex-1 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+          className="flex-1 py-4 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20"
         >
           {initialData.fbConnected ? 'Үргэлжлүүлэх' : 'Алгасах'}
           <ArrowRight className="w-5 h-5" />
