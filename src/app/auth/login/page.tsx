@@ -22,10 +22,10 @@ export default function LoginPage() {
 
     try {
       const { data, error } = await signIn(email, password);
-      
+
       if (error) {
-        setError(error.message === 'Invalid login credentials' 
-          ? 'Имэйл эсвэл нууц үг буруу байна' 
+        setError(error.message === 'Invalid login credentials'
+          ? 'Имэйл эсвэл нууц үг буруу байна'
           : error.message);
         return;
       }
@@ -42,34 +42,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      {/* Background decorations - subtle for light mode */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-violet-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse delay-1000"></div>
       </div>
 
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/10">
+              <Sparkles className="w-7 h-7 text-violet-600" />
             </div>
-            <span className="text-2xl font-bold text-white">SmartHub</span>
+            <span className="text-2xl font-bold text-gray-900">SmartHub</span>
           </Link>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-gray-200/50">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Тавтай морил! 👋</h1>
-            <p className="text-gray-300">Бүртгэлдээ нэвтэрнэ үү</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Тавтай морил! 👋</h1>
+            <p className="text-gray-500">Бүртгэлдээ нэвтэрнэ үү</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 text-red-200 text-sm">
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm">
                 {error}
               </div>
             )}
@@ -82,7 +82,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Имэйл хаяг"
                 required
-                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
 
@@ -94,14 +94,14 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Нууц үг"
                 required
-                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-violet-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-4 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-violet-500/30"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -115,9 +115,9 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-gray-400">
+            <p className="text-gray-500">
               Бүртгэл байхгүй юу?{' '}
-              <Link href="/auth/register" className="text-violet-400 hover:text-violet-300 font-medium">
+              <Link href="/auth/register" className="text-violet-600 hover:text-violet-700 font-medium font-semibold">
                 Бүртгүүлэх
               </Link>
             </p>
@@ -125,7 +125,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-gray-500 text-sm mt-8">
+        <p className="text-center text-gray-400 text-sm mt-8">
           © 2026 SmartHub. Бүх эрх хуулиар хамгаалагдсан.
         </p>
       </div>
