@@ -15,9 +15,20 @@ export function Header() {
 
     const handleLogout = async () => {
         setLoggingOut(true);
-        await signOut();
-        router.push('/auth/login');
-        router.refresh();
+        try {
+            await signOut();
+            // Clear any cached data for PWA
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            // Use hard redirect for PWA compatibility
+            window.location.href = '/auth/login';
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Force redirect even on error
+            window.location.href = '/auth/login';
+        }
     };
 
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
