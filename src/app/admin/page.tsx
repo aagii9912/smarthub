@@ -2,22 +2,23 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 
 export default function AdminIndexPage() {
     const router = useRouter();
+    const { isSignedIn, isLoaded } = useAuth();
 
     useEffect(() => {
-        // Check if admin token exists
-        const adminToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('admin_token='));
+        if (!isLoaded) return;
 
-        if (adminToken) {
+        if (isSignedIn) {
+            // User is signed in, go to dashboard
             router.replace('/admin/dashboard');
         } else {
+            // Not signed in, go to login
             router.replace('/admin/login');
         }
-    }, [router]);
+    }, [isLoaded, isSignedIn, router]);
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -25,3 +26,4 @@ export default function AdminIndexPage() {
         </div>
     );
 }
+
