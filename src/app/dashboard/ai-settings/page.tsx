@@ -8,10 +8,10 @@ import {
     Bot, Save, Plus, Trash2, Edit2, X, Check,
     MessageSquare, Zap, Sparkles, BarChart3,
     Smile, Briefcase, Cloud, PartyPopper, AlertCircle,
-    HelpCircle, MessageCircle, Quote
+    HelpCircle, MessageCircle, Quote, Bell
 } from 'lucide-react';
 
-type Tab = 'general' | 'faqs' | 'quick_replies' | 'slogans' | 'stats';
+type Tab = 'general' | 'faqs' | 'quick_replies' | 'slogans' | 'notifications' | 'stats';
 type AiEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
 
 interface FAQ {
@@ -66,6 +66,7 @@ const tabs = [
     { id: 'faqs' as Tab, label: 'FAQ', icon: HelpCircle },
     { id: 'quick_replies' as Tab, label: 'Хурдан хариулт', icon: MessageCircle },
     { id: 'slogans' as Tab, label: 'Хэллэгүүд', icon: Quote },
+    { id: 'notifications' as Tab, label: 'Мэдэгдэл', icon: Bell },
     { id: 'stats' as Tab, label: 'Статистик', icon: BarChart3 },
 ];
 
@@ -80,6 +81,10 @@ export default function AISettingsPage() {
     const [shopDescription, setShopDescription] = useState('');
     const [aiInstructions, setAiInstructions] = useState('');
     const [aiEmotion, setAiEmotion] = useState<AiEmotion>('friendly');
+    const [notifyOnOrder, setNotifyOnOrder] = useState(true);
+    const [notifyOnContact, setNotifyOnContact] = useState(true);
+    const [notifyOnSupport, setNotifyOnSupport] = useState(true);
+    const [notifyOnCancel, setNotifyOnCancel] = useState(true);
 
     // AI Features data
     const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -105,6 +110,10 @@ export default function AISettingsPage() {
                 setShopDescription(shopData.shop.description || '');
                 setAiInstructions(shopData.shop.ai_instructions || '');
                 setAiEmotion(shopData.shop.ai_emotion || 'friendly');
+                setNotifyOnOrder(shopData.shop.notify_on_order ?? true);
+                setNotifyOnContact(shopData.shop.notify_on_contact ?? true);
+                setNotifyOnSupport(shopData.shop.notify_on_support ?? true);
+                setNotifyOnCancel(shopData.shop.notify_on_cancel ?? true);
             }
 
             // Fetch AI settings
@@ -134,6 +143,10 @@ export default function AISettingsPage() {
                     description: shopDescription,
                     ai_instructions: aiInstructions,
                     ai_emotion: aiEmotion,
+                    notify_on_order: notifyOnOrder,
+                    notify_on_contact: notifyOnContact,
+                    notify_on_support: notifyOnSupport,
+                    notify_on_cancel: notifyOnCancel,
                 }),
             });
             if (!res.ok) throw new Error('Failed to save');
@@ -708,6 +721,78 @@ export default function AISettingsPage() {
                             )}
                         </CardContent>
                     </Card>
+                </div>
+            )}
+
+            {activeTab === 'notifications' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-2">Push Мэдэгдлийн тохиргоо</h2>
+                            <p className="text-sm text-gray-500 mb-6">AI ямар тохиолдолд танд болон операторууд руу мэдэгдэл илгээхийг сонгоно уу.</p>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Шинэ захиалга</p>
+                                        <p className="text-xs text-gray-500">AI амжилттай захиалга бүртгэх үед</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotifyOnOrder(!notifyOnOrder)}
+                                        className={`w-12 h-6 rounded-full transition-colors relative ${notifyOnOrder ? 'bg-violet-600' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnOrder ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Холбоо барих мэдээлэл</p>
+                                        <p className="text-xs text-gray-500">Хэрэглэгч утас, хаягаа AI-д үлдээх үед</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotifyOnContact(!notifyOnContact)}
+                                        className={`w-12 h-6 rounded-full transition-colors relative ${notifyOnContact ? 'bg-violet-600' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnContact ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Оператортой холбогдох</p>
+                                        <p className="text-xs text-gray-500">Хэрэглэгч хүнээс тусламж хүсэх үед</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotifyOnSupport(!notifyOnSupport)}
+                                        className={`w-12 h-6 rounded-full transition-colors relative ${notifyOnSupport ? 'bg-violet-600' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnSupport ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Захиалга цуцлалт</p>
+                                        <p className="text-xs text-gray-500">Хэрэглэгч чатаар захиалгаа цуцлах үед</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setNotifyOnCancel(!notifyOnCancel)}
+                                        className={`w-12 h-6 rounded-full transition-colors relative ${notifyOnCancel ? 'bg-violet-600' : 'bg-gray-300'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnCancel ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <Button onClick={handleSaveGeneral} disabled={saving}>
+                            <Save className="w-4 h-4 mr-2" />
+                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>

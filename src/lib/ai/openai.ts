@@ -37,6 +37,13 @@ export interface ChatContext {
     faqs?: Array<{ question: string; answer: string }>;
     quickReplies?: Array<{ trigger_words: string[]; response: string; is_exact_match?: boolean }>;
     slogans?: Array<{ slogan: string; usage_context: string }>;
+    // Notification settings
+    notifySettings?: {
+        order: boolean;
+        contact: boolean;
+        support: boolean;
+        cancel: boolean;
+    };
 }
 
 interface ChatMessage {
@@ -459,12 +466,14 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                     logger.info('Contact info saved to CRM:', updateData);
 
                                     // Send notification about contact info
-                                    await sendPushNotification(context.shopId, {
-                                        title: '📍 Хаяг мэдээлэл ирлээ',
-                                        body: `${name || 'Хэрэглэгч'} мэдээллээ үлдээлээ: ${phone || ''} ${address || ''}`,
-                                        url: `/dashboard/customers/${context.customerId}`,
-                                        tag: `contact-${context.customerId}`
-                                    });
+                                    if (context.notifySettings?.contact !== false) {
+                                        await sendPushNotification(context.shopId, {
+                                            title: '📍 Хаяг мэдээлэл ирлээ',
+                                            body: `${name || 'Хэрэглэгч'} мэдээллээ үлдээлээ: ${phone || ''} ${address || ''}`,
+                                            url: `/dashboard/customers/${context.customerId}`,
+                                            tag: `contact-${context.customerId}`
+                                        });
+                                    }
 
                                     messages.push({
                                         role: 'tool',
@@ -497,12 +506,14 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                             const { reason } = args;
 
                             // Send push notification
-                            await sendPushNotification(context.shopId, {
-                                title: '📞 Холбогдох хүсэлт',
-                                body: `Хэрэглэгч холбогдох хүсэлт илгээлээ. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
-                                url: `/dashboard/chat?customer=${context.customerId}`,
-                                tag: `support-${context.customerId}`
-                            });
+                            if (context.notifySettings?.support !== false) {
+                                await sendPushNotification(context.shopId, {
+                                    title: '📞 Холбогдох хүсэлт',
+                                    body: `Хэрэглэгч холбогдох хүсэлт илгээлээ. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
+                                    url: `/dashboard/chat?customer=${context.customerId}`,
+                                    tag: `support-${context.customerId}`
+                                });
+                            }
 
                             messages.push({
                                 role: 'tool',
@@ -604,14 +615,16 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                 const successMessage = `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`;
 
                                 // Send push notification to shop owner
-                                try {
-                                    await sendOrderNotification(context.shopId, 'new', {
-                                        orderId: order.id,
-                                        customerName: context.customerName,
-                                        totalAmount: dbProduct.price * quantity,
-                                    });
-                                } catch (notifError: unknown) {
-                                    logger.warn('Failed to send order notification:', { error: String(notifError) });
+                                if (context.notifySettings?.order !== false) {
+                                    try {
+                                        await sendOrderNotification(context.shopId, 'new', {
+                                            orderId: order.id,
+                                            customerName: context.customerName,
+                                            totalAmount: dbProduct.price * quantity,
+                                        });
+                                    } catch (notifError: unknown) {
+                                        logger.warn('Failed to send order notification:', { error: String(notifError) });
+                                    }
                                 }
 
                                 messages.push({
@@ -699,12 +712,14 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                 logger.info('Order cancelled and stock restored:', { orderId: pendingOrder.id });
 
                                 // Send notification
-                                await sendPushNotification(context.shopId, {
-                                    title: '❌ Захиалга цуцлагдлаа',
-                                    body: `${context.customerName || 'Хэрэглэгч'} захиалгаа цуцаллаа. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
-                                    url: '/dashboard/orders',
-                                    tag: `cancel-${pendingOrder.id}`
-                                });
+                                if (context.notifySettings?.cancel !== false) {
+                                    await sendPushNotification(context.shopId, {
+                                        title: '❌ Захиалга цуцлагдлаа',
+                                        body: `${context.customerName || 'Хэрэглэгч'} захиалгаа цуцаллаа. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
+                                        url: '/dashboard/orders',
+                                        tag: `cancel-${pendingOrder.id}`
+                                    });
+                                }
 
                                 messages.push({
                                     role: 'tool',

@@ -308,6 +308,12 @@ export async function POST(request: NextRequest) {
                                     faqs: shopFaqs,
                                     quickReplies: shopQuickReplies,
                                     slogans: shopSlogans,
+                                    notifySettings: {
+                                        order: shop.notify_on_order ?? true,
+                                        contact: shop.notify_on_contact ?? true,
+                                        support: shop.notify_on_support ?? true,
+                                        cancel: shop.notify_on_cancel ?? true,
+                                    }
                                 },
                                 previousHistory
                             ),
