@@ -31,7 +31,11 @@ export default function MarketingPage() {
 
     async function fetchCustomers() {
         try {
-            const res = await fetch('/api/dashboard/customers');
+            const res = await fetch('/api/dashboard/customers', {
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                }
+            });
             const data = await res.json();
             setCustomers(data.customers || []);
         } catch (error) {
@@ -72,7 +76,10 @@ export default function MarketingPage() {
         try {
             const res = await fetch('/api/marketing/send', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                },
                 body: JSON.stringify({
                     message: message.trim(),
                     customerIds: eligibleCustomers.map(c => c.id),
@@ -157,8 +164,8 @@ export default function MarketingPage() {
 
                             {result && (
                                 <div className={`flex items-center gap-2 p-3 rounded-xl ${result.success
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-red-50 text-red-700'
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-red-50 text-red-700'
                                     }`}>
                                     {result.success ? (
                                         <CheckCircle className="w-5 h-5" />

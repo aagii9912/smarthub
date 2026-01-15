@@ -36,7 +36,11 @@ export function useOrders() {
     return useQuery({
         queryKey: ['orders'],
         queryFn: async (): Promise<OrderWithDetails[]> => {
-            const res = await fetch('/api/orders');
+            const res = await fetch('/api/orders', {
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                }
+            });
             if (!res.ok) throw new Error('Failed to fetch orders');
             const data: OrdersResponse = await res.json();
             return data.orders;

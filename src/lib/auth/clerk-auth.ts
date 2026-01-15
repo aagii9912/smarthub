@@ -1,4 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
+import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
 // Get authenticated user from Clerk
@@ -29,15 +30,24 @@ export async function getClerkUserShop() {
         return null;
     }
 
+    // Check for x-shop-id in headers
+    const headerList = await headers();
+    const requestedShopId = headerList.get('x-shop-id');
+
     const supabase = supabaseAdmin();
 
-    // Select specific columns to avoid issues with potential problematic columns (like large JSONB or foreign keys)
-    // and match the working pattern of /api/user/shops
-    const { data: shops, error } = await supabase
+    // Build query
+    let query = supabase
         .from('shops')
         .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at')
-        .eq('user_id', userId)
-        .limit(1);
+        .eq('user_id', userId);
+
+    // If specific shop requested, use it, otherwise get first
+    if (requestedShopId) {
+        query = query.eq('id', requestedShopId);
+    }
+
+    const { data: shops, error } = await query.limit(1);
 
     if (error) {
         console.error('getClerkUserShop Error:', error);

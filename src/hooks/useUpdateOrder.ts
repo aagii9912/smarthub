@@ -13,8 +13,11 @@ export function useUpdateOrder() {
         mutationFn: async ({ orderId, status }: UpdateOrderParams) => {
             const res = await fetch('/api/orders', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId, status }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                },
+                body: JSON.stringify({ id: orderId, status }),
             });
             if (!res.ok) throw new Error('Failed to update status');
             return res.json();

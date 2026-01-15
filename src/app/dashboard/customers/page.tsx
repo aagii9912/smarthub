@@ -65,7 +65,11 @@ export default function CustomersPage() {
             if (selectedTag) params.set('tag', selectedTag);
             params.set('sortBy', sortBy);
 
-            const res = await fetch(`/api/dashboard/customers?${params}`);
+            const res = await fetch(`/api/dashboard/customers?${params}`, {
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                }
+            });
             const data = await res.json();
             setCustomers(data.customers || []);
         } catch (error) {
@@ -77,7 +81,11 @@ export default function CustomersPage() {
 
     async function fetchCustomerDetail(id: string) {
         try {
-            const res = await fetch(`/api/dashboard/customers/${id}`);
+            const res = await fetch(`/api/dashboard/customers/${id}`, {
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                }
+            });
             const data = await res.json();
             setSelectedCustomer(data.customer);
             setEditForm({
@@ -98,7 +106,10 @@ export default function CustomersPage() {
         try {
             await fetch('/api/dashboard/customers', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                },
                 body: JSON.stringify({
                     id: selectedCustomer.id,
                     ...editForm

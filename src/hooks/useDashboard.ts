@@ -19,7 +19,11 @@ export function useDashboard(period: 'today' | 'week' | 'month' = 'today') {
     return useQuery({
         queryKey: ['dashboard', period],
         queryFn: async (): Promise<DashboardData> => {
-            const res = await fetch(`/api/dashboard/stats?period=${period}`);
+            const res = await fetch(`/api/dashboard/stats?period=${period}`, {
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+                }
+            });
             if (!res.ok) throw new Error('Failed to fetch dashboard data');
             return res.json();
         },
