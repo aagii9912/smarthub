@@ -36,14 +36,13 @@ export async function getClerkUserShop() {
 
     const supabase = supabaseAdmin();
 
-    // Build query with sorting to be consistent with AuthContext
+    // Build query
     let query = supabase
         .from('shops')
         .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true });
+        .eq('user_id', userId);
 
-    // If specific shop requested, use it, otherwise get first (which will be oldest due to sort)
+    // If specific shop requested, use it, otherwise get first
     if (requestedShopId) {
         query = query.eq('id', requestedShopId);
     }
@@ -51,15 +50,14 @@ export async function getClerkUserShop() {
     const { data: shops, error } = await query.limit(1);
 
     if (error) {
-        console.error(`getClerkUserShop Error for user ${userId}:`, error);
+        console.error('getClerkUserShop Error:', error);
         return null;
     }
 
     if (!shops || shops.length === 0) {
-        console.warn(`getClerkUserShop: No shops found for userId: ${userId}`);
+        // console.log('getClerkUserShop: No shops found for userId:', userId);
         return null;
     }
 
-    console.log(`getClerkUserShop: Found shop ${shops[0].name} (${shops[0].id}) for user ${userId}`);
     return shops[0];
 }
