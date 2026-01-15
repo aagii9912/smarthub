@@ -22,62 +22,102 @@ export async function GET(request: NextRequest) {
             ? new Date(new Date().setFullYear(new Date().getFullYear() - 1))
             : getStartOfPeriod(period as 'today' | 'week' | 'month');
 
-        // ============================================
-        // 1. REVENUE STATISTICS
-        // ============================================
-
-        // Get all orders in period
-        const { data: periodOrders } = await supabase
-            .from('orders')
-            .select('id, total_amount, status, created_at')
-            .eq('shop_id', shopId)
-            .gte('created_at', periodStart.toISOString())
-            .in('status', ['confirmed', 'processing', 'shipped', 'delivered']);
-
-        const totalRevenue = periodOrders?.reduce((sum, order) =>
-            sum + Number(order.total_amount), 0) || 0;
-
-        const orderCount = periodOrders?.length || 0;
-        const avgOrderValue = orderCount > 0 ? Math.round(totalRevenue / orderCount) : 0;
-
         // Previous period comparison
         const prevPeriodStart = new Date(periodStart);
         const periodDays = period === 'today' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
         prevPeriodStart.setDate(prevPeriodStart.getDate() - periodDays);
 
-        const { data: prevPeriodOrders } = await supabase
-            .from('orders')
-            .select('total_amount')
-            .eq('shop_id', shopId)
-            .gte('created_at', prevPeriodStart.toISOString())
-            .lt('created_at', periodStart.toISOString())
-            .in('status', ['confirmed', 'processing', 'shipped', 'delivered']);
+        // ============================================
+        // 1. REVENUE STATISTICS
+        // ============================================
 
-        const prevRevenue = prevPeriodOrders?.reduce((sum, order) =>
-            sum + Number(order.total_amount), 0) || 0;
+        // Run independent queries in parallel
+        const [
+            allPeriodOrdersResponse,
+            prevPeriodOrdersResponse,
+            orderItemsResponse,
+            totalCustomersResponse,
+            newCustomersResponse,
+            vipCustomersResponse
+        ] = await Promise.all([
+            // 1. Current Period Orders (for Revenue & Status)
+            supabase
+                .from('orders')
+                .select('id, total_amount, status, created_at')
+                .eq('shop_id', shopId)
+                .gte('created_at', periodStart.toISOString()),
+
+            // 2. Previous Period Orders (only revenue statuses)
+            supabase
+                .from('orders')
+                .select('total_amount')
+                .eq('shop_id', shopId)
+                .gte('created_at', prevPeriodStart.toISOString())
+                .lt('created_at', periodStart.toISOString())
+                .in('status', ['confirmed', 'processing', 'shipped', 'delivered']),
+
+            // 3. Order Items (for Best Sellers)
+            supabase
+                .from('order_items')
+                .select(`
+                    quantity,
+                    unit_price,
+                    product_id,
+                    products (id, name, images, price),
+                    orders!inner (shop_id, status, created_at)
+                `)
+                .eq('orders.shop_id', shopId)
+                .gte('orders.created_at', periodStart.toISOString())
+                .in('orders.status', ['confirmed', 'processing', 'shipped', 'delivered']),
+
+            // 4. Customer Counts
+            supabase
+                .from('customers')
+                .select('*', { count: 'exact', head: true })
+                .eq('shop_id', shopId),
+
+            // 5. New Customers
+            supabase
+                .from('customers')
+                .select('*', { count: 'exact', head: true })
+                .eq('shop_id', shopId)
+                .gte('created_at', periodStart.toISOString()),
+
+            // 6. VIP Customers
+            supabase
+                .from('customers')
+                .select('*', { count: 'exact', head: true })
+                .eq('shop_id', shopId)
+                .eq('is_vip', true)
+        ]);
+
+        const allPeriodOrders = allPeriodOrdersResponse.data || [];
+        const prevPeriodOrders = prevPeriodOrdersResponse.data || [];
+        const orderItems = orderItemsResponse.data || [];
+        const totalCustomers = totalCustomersResponse.count || 0;
+        const newCustomers = newCustomersResponse.count || 0;
+        const vipCustomers = vipCustomersResponse.count || 0;
+
+        // Process Revenue (Filter for valid statuses)
+        const validOrders = allPeriodOrders.filter(o =>
+            ['confirmed', 'processing', 'shipped', 'delivered'].includes(o.status)
+        );
+
+        const totalRevenue = validOrders.reduce((sum, order) =>
+            sum + Number(order.total_amount), 0);
+
+        const orderCount = validOrders.length;
+        const avgOrderValue = orderCount > 0 ? Math.round(totalRevenue / orderCount) : 0;
+
+        // Process Previous Period Revenue
+        const prevRevenue = prevPeriodOrders.reduce((sum, order) =>
+            sum + Number(order.total_amount), 0);
 
         const revenueGrowth = prevRevenue > 0
             ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100)
             : totalRevenue > 0 ? 100 : 0;
 
-        // ============================================
-        // 2. BEST SELLING PRODUCTS (Top 10)
-        // ============================================
-
-        const { data: orderItems } = await supabase
-            .from('order_items')
-            .select(`
-        quantity,
-        unit_price,
-        product_id,
-        products (id, name, images, price),
-        orders!inner (shop_id, status, created_at)
-      `)
-            .eq('orders.shop_id', shopId)
-            .gte('orders.created_at', periodStart.toISOString())
-            .in('orders.status', ['confirmed', 'processing', 'shipped', 'delivered']);
-
-        // Aggregate by product
+        // Process Best Sellers
         const productSalesMap = new Map<string, {
             id: string;
             name: string;
@@ -86,7 +126,7 @@ export async function GET(request: NextRequest) {
             revenue: number;
         }>();
 
-        orderItems?.forEach(item => {
+        orderItems.forEach(item => {
             const product = item.products as any;
             if (!product) return;
 
@@ -107,24 +147,17 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        const bestSellers = Array.from(productSalesMap.values())
+        const bestSellersWithPercent = Array.from(productSalesMap.values())
             .sort((a, b) => b.revenue - a.revenue)
-            .slice(0, 10);
+            .slice(0, 10)
+            .map((product, index, array) => ({
+                ...product,
+                rank: index + 1,
+                percent: array[0]?.revenue ? Math.round((product.revenue / array[0].revenue) * 100) : 0,
+            }));
 
-        const maxRevenue = bestSellers[0]?.revenue || 1;
-        const bestSellersWithPercent = bestSellers.map((product, index) => ({
-            ...product,
-            rank: index + 1,
-            percent: Math.round((product.revenue / maxRevenue) * 100),
-        }));
-
-        // ============================================
-        // 3. DAILY REVENUE CHART DATA
-        // ============================================
-
+        // Process Chart Data (Daily Revenue)
         const dailyRevenueMap = new Map<string, number>();
-
-        // Initialize all days in period
         const currentDate = new Date(periodStart);
         const today = new Date();
         while (currentDate <= today) {
@@ -133,8 +166,7 @@ export async function GET(request: NextRequest) {
             currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Fill with actual data
-        periodOrders?.forEach(order => {
+        validOrders.forEach(order => {
             const dateKey = new Date(order.created_at).toISOString().split('T')[0];
             const current = dailyRevenueMap.get(dateKey) || 0;
             dailyRevenueMap.set(dateKey, current + Number(order.total_amount));
@@ -148,37 +180,7 @@ export async function GET(request: NextRequest) {
             }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        // ============================================
-        // 4. CUSTOMER ANALYTICS
-        // ============================================
-
-        const { count: totalCustomers } = await supabase
-            .from('customers')
-            .select('*', { count: 'exact', head: true })
-            .eq('shop_id', shopId);
-
-        const { count: newCustomers } = await supabase
-            .from('customers')
-            .select('*', { count: 'exact', head: true })
-            .eq('shop_id', shopId)
-            .gte('created_at', periodStart.toISOString());
-
-        const { count: vipCustomers } = await supabase
-            .from('customers')
-            .select('*', { count: 'exact', head: true })
-            .eq('shop_id', shopId)
-            .eq('is_vip', true);
-
-        // ============================================
-        // 5. ORDER STATUS BREAKDOWN
-        // ============================================
-
-        const { data: statusData } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('shop_id', shopId)
-            .gte('created_at', periodStart.toISOString());
-
+        // Process Order Status Breakdown
         const statusBreakdown = {
             pending: 0,
             confirmed: 0,
@@ -188,7 +190,7 @@ export async function GET(request: NextRequest) {
             cancelled: 0,
         };
 
-        statusData?.forEach(order => {
+        allPeriodOrders.forEach(order => {
             if (order.status in statusBreakdown) {
                 statusBreakdown[order.status as keyof typeof statusBreakdown]++;
             }
@@ -197,8 +199,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             period,
             periodStart: periodStart.toISOString(),
-
-            // Revenue Stats
             revenue: {
                 total: totalRevenue,
                 orderCount,
@@ -206,23 +206,16 @@ export async function GET(request: NextRequest) {
                 growth: revenueGrowth,
                 prevPeriodTotal: prevRevenue,
             },
-
-            // Best Sellers
             bestSellers: bestSellersWithPercent,
-
-            // Chart Data
             chartData: revenueChartData,
-
-            // Customer Stats
             customers: {
-                total: totalCustomers || 0,
-                new: newCustomers || 0,
-                vip: vipCustomers || 0,
+                total: totalCustomers,
+                new: newCustomers,
+                vip: vipCustomers,
             },
-
-            // Order Status
             orderStatus: statusBreakdown,
         });
+
     } catch (error) {
         console.error('Reports API error:', error);
         return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });

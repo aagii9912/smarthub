@@ -232,18 +232,30 @@ export default function ProductsPage() {
                 <div className="flex gap-2">
                     <Button
                         variant="secondary"
+                        className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
+                        title="Export Excel"
                         onClick={() => window.open('/api/dashboard/products/export', '_blank')}
                     >
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Export Excel
+                        <FileSpreadsheet className="w-4 h-4 md:mr-2" />
+                        <span className="hidden md:inline">Export</span>
                     </Button>
-                    <Button variant="secondary" onClick={() => setShowImportModal(true)}>
-                        <FileSpreadsheet className="w-4 h-4 mr-2" />
-                        Файлаас импорт
+                    <Button
+                        variant="secondary"
+                        className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
+                        title="Файлаас импорт"
+                        onClick={() => setShowImportModal(true)}
+                    >
+                        <Upload className="w-4 h-4 md:mr-2" />
+                        <span className="hidden md:inline">Import</span>
                     </Button>
-                    <Button onClick={() => { setEditingProduct(null); setShowModal(true); }}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Шинэ нэмэх
+                    <Button
+                        onClick={() => { setEditingProduct(null); setShowModal(true); }}
+                        size="sm"
+                        className="h-9 px-3 md:px-4"
+                    >
+                        <Plus className="w-4 h-4 mr-1 md:mr-2" />
+                        <span className="hidden md:inline">Шинэ нэмэх</span>
+                        <span className="md:hidden">Нэмэх</span>
                     </Button>
                 </div>
             </div>

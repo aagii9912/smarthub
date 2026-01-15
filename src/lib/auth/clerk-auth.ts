@@ -27,11 +27,18 @@ export async function getClerkUserShop() {
     if (!userId) return null;
 
     const supabase = supabaseAdmin();
-    const { data: shop } = await supabase
+    // For now, we just return the first shop found for the user
+    // TODO: Implement logic to select "active" shop from cookie or context if multiple exist
+    const { data: shops, error } = await supabase
         .from('shops')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .limit(1);
 
-    return shop;
+    if (error) {
+        console.error('Error fetching shop:', error);
+        return null;
+    }
+
+    return shops?.[0] || null;
 }

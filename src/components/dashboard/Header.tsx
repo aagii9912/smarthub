@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
 import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 
 export function Header() {
     const router = useRouter();
+    const pathname = usePathname();
     const { signOut } = useClerk();
     const { user, shop, shops } = useAuth();
     const [showDropdown, setShowDropdown] = useState(false);
@@ -18,14 +19,14 @@ export function Header() {
     const handleLogout = async () => {
         setLoggingOut(true);
         try {
-            if ('caches' in window) {
+            if (typeof window !== 'undefined' && 'caches' in window) {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
             }
             await signOut({ redirectUrl: '/auth/login' });
         } catch (error) {
             console.error('Logout error:', error);
-            window.location.href = '/auth/login';
+            if (typeof window !== 'undefined') window.location.href = '/auth/login';
         }
     };
 
@@ -34,15 +35,41 @@ export function Header() {
     const firstName = fullName.split(' ')[0];
     const displayEmail = user?.email || '';
 
-    return (
-        <header className="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
-            {/* Left: Greeting */}
-            <div className="flex-1 min-w-0">
+    // Determine header title based on current path
+    const getHeaderTitle = () => {
+        const path = pathname || '';
+        if (path === '/dashboard' || path === '/dashboard/') {
+            return (
                 <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">
                     <span className="hidden sm:inline">Сайн байна уу, {fullName}!</span>
                     <span className="sm:hidden">Сайн уу, {firstName}!</span>
                 </h1>
-                {shop && (
+            );
+        }
+
+        let title = 'Dashboard';
+        if (path.includes('/orders')) title = 'Захиалга';
+        else if (path.includes('/products')) title = 'Бүтээгдэхүүн';
+        else if (path.includes('/customers')) title = 'Харилцагч';
+        else if (path.includes('/reports')) title = 'Тайлан';
+        else if (path.includes('/settings')) title = 'Тохиргоо';
+        else if (path.includes('/marketing')) title = 'Маркетинг';
+        else if (path.includes('/ai-settings')) title = 'AI Тохиргоо';
+        else if (path.includes('/subscription')) title = 'Төлбөр & Эрх';
+
+        return (
+            <h1 className="text-lg font-bold text-gray-900">
+                {title}
+            </h1>
+        );
+    };
+
+    return (
+        <header className="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
+            {/* Left: Title or Greeting */}
+            <div className="flex-1 min-w-0">
+                {getHeaderTitle()}
+                {shop && (pathname === '/dashboard' || pathname === '/dashboard/') && (
                     <p className="text-xs text-gray-500 truncate hidden sm:block">
                         {shop.name}
                     </p>

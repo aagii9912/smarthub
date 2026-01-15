@@ -47,13 +47,14 @@ export default function DashboardPage() {
         <PullToRefresh onRefresh={handleRefresh}>
             <div className="space-y-4 md:space-y-6">
                 {/* Page Title */}
+                {/* Page Title */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold text-[#111111]">
-                            Сайн байна уу{user?.fullName ? `, ${user.fullName}` : ''}! 👋
+                            Өнөөдрийн тойм
                         </h1>
                         <p className="text-sm text-[#6c757d] mt-1">
-                            {shop?.name ? `${shop.name} - ` : ''}Өнөөдрийн борлуулалтын тойм
+                            {shop?.name || 'SmartHub'}
                         </p>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-auto">
