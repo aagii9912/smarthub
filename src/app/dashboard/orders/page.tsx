@@ -159,25 +159,20 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Захиалгууд 📦</h1>
-          <p className="text-muted-foreground mt-1">Нийт {orders.length} захиалга</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => window.open('/api/orders/export', '_blank')}
-          >
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Export Excel
-          </Button>
-          <Button onClick={() => refetch()} disabled={isRefetching}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-            Шинэчлэх
-          </Button>
-        </div>
+      {/* Page Header Actions - Title removed */}
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          className="h-9"
+          onClick={() => window.open('/api/orders/export', '_blank')}
+        >
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Export Excel
+        </Button>
+        <Button onClick={() => refetch()} disabled={isRefetching} className="h-9">
+          <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
+          Шинэчлэх
+        </Button>
       </div>
 
       {/* Filter Tabs */}

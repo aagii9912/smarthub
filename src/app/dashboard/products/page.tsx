@@ -223,41 +223,35 @@ export default function ProductsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">Бүтээгдэхүүн & Үйлчилгээ</h1>
-                    <p className="text-muted-foreground mt-1">Нийт {products.length} бүртгэл</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="secondary"
-                        className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
-                        title="Export Excel"
-                        onClick={() => window.open('/api/dashboard/products/export', '_blank')}
-                    >
-                        <FileSpreadsheet className="w-4 h-4 md:mr-2" />
-                        <span className="hidden md:inline">Export</span>
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
-                        title="Файлаас импорт"
-                        onClick={() => setShowImportModal(true)}
-                    >
-                        <Upload className="w-4 h-4 md:mr-2" />
-                        <span className="hidden md:inline">Import</span>
-                    </Button>
-                    <Button
-                        onClick={() => { setEditingProduct(null); setShowModal(true); }}
-                        size="sm"
-                        className="h-9 px-3 md:px-4"
-                    >
-                        <Plus className="w-4 h-4 mr-1 md:mr-2" />
-                        <span className="hidden md:inline">Шинэ нэмэх</span>
-                        <span className="md:hidden">Нэмэх</span>
-                    </Button>
-                </div>
+            {/* Header Actions - Title removed */}
+            <div className="flex items-center justify-end gap-2">
+                <Button
+                    variant="secondary"
+                    className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
+                    title="Export Excel"
+                    onClick={() => window.open('/api/dashboard/products/export', '_blank')}
+                >
+                    <FileSpreadsheet className="w-4 h-4 md:mr-2" />
+                    <span className="hidden md:inline">Export</span>
+                </Button>
+                <Button
+                    variant="secondary"
+                    className="w-9 h-9 p-0 md:w-auto md:px-4 md:h-9"
+                    title="Файлаас импорт"
+                    onClick={() => setShowImportModal(true)}
+                >
+                    <Upload className="w-4 h-4 md:mr-2" />
+                    <span className="hidden md:inline">Import</span>
+                </Button>
+                <Button
+                    onClick={() => { setEditingProduct(null); setShowModal(true); }}
+                    size="sm"
+                    className="h-9 px-3 md:px-4"
+                >
+                    <Plus className="w-4 h-4 mr-1 md:mr-2" />
+                    <span className="hidden md:inline">Шинэ нэмэх</span>
+                    <span className="md:hidden">Нэмэх</span>
+                </Button>
             </div>
 
             {/* Products Table */}
