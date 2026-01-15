@@ -286,8 +286,8 @@ export default function AISettingsPage() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-violet-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         <tab.icon className="w-4 h-4" />
@@ -327,14 +327,14 @@ export default function AISettingsPage() {
                                         type="button"
                                         onClick={() => setAiEmotion(option.value)}
                                         className={`p-4 rounded-xl border-2 transition-all ${aiEmotion === option.value
-                                                ? 'border-violet-500 bg-violet-50'
-                                                : 'border-gray-200 hover:border-violet-200'
+                                            ? 'border-violet-500 bg-violet-50'
+                                            : 'border-gray-200 hover:border-violet-200'
                                             }`}
                                     >
                                         <div className={`mb-2 ${aiEmotion === option.value ? 'text-violet-600' : 'text-gray-400'}`}>
                                             {option.icon}
                                         </div>
-                                        <p className="font-medium text-sm">{option.label}</p>
+                                        <p className={`font-medium text-sm ${aiEmotion === option.value ? 'text-violet-700' : 'text-gray-900'}`}>{option.label}</p>
                                     </button>
                                 ))}
                             </div>
@@ -621,9 +621,9 @@ export default function AISettingsPage() {
                                             <div className="flex-1">
                                                 <p className="font-medium text-gray-900">"{slogan.slogan}"</p>
                                                 <span className={`inline-block mt-2 px-2 py-0.5 text-xs rounded ${slogan.usage_context === 'greeting' ? 'bg-green-100 text-green-700' :
-                                                        slogan.usage_context === 'closing' ? 'bg-blue-100 text-blue-700' :
-                                                            slogan.usage_context === 'promotion' ? 'bg-orange-100 text-orange-700' :
-                                                                'bg-gray-100 text-gray-700'
+                                                    slogan.usage_context === 'closing' ? 'bg-blue-100 text-blue-700' :
+                                                        slogan.usage_context === 'promotion' ? 'bg-orange-100 text-orange-700' :
+                                                            'bg-gray-100 text-gray-700'
                                                     }`}>
                                                     {slogan.usage_context === 'greeting' ? 'Мэндчилгээ' :
                                                         slogan.usage_context === 'closing' ? 'Баяртай' :
