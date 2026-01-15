@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createProductSchema, updateProductSchema, parseWithErrors } from '@/lib/validations';
 
 export async function GET() {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ products: [] });
     }
@@ -30,29 +31,41 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json();
+
+    // Zod validation
+    const validation = parseWithErrors(createProductSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: validation.errors
+      }, { status: 400 });
+    }
+
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
-    const body = await request.json();
+    const validData = validation.data;
 
     const { data, error } = await supabase
       .from('products')
       .insert([{
         shop_id: shopId,
-        name: body.name,
-        description: body.description,
-        price: body.price,
-        stock: body.stock,
-        is_active: true,
-        type: body.type || 'physical',
-        colors: body.colors || [],
-        sizes: body.sizes || [],
-        images: body.images || []
+        name: validData.name,
+        description: validData.description,
+        price: validData.price,
+        stock: validData.stock,
+        discount_percent: validData.discountPercent,
+        is_active: validData.isActive,
+        type: validData.type,
+        colors: validData.colors,
+        sizes: validData.sizes,
+        images: validData.images
       }])
       .select()
       .single();
@@ -68,16 +81,26 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json();
+
+    // Zod validation
+    const validation = parseWithErrors(updateProductSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: validation.errors
+      }, { status: 400 });
+    }
+
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
-    const body = await request.json();
-    const { id, ...updates } = body;
+    const { id, ...validData } = validation.data;
 
     // Verify product belongs to shop
     const { data: existingProduct } = await supabase
@@ -91,9 +114,22 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    // Map camelCase to snake_case for database
+    const dbUpdates: Record<string, unknown> = {};
+    if (validData.name !== undefined) dbUpdates.name = validData.name;
+    if (validData.description !== undefined) dbUpdates.description = validData.description;
+    if (validData.price !== undefined) dbUpdates.price = validData.price;
+    if (validData.stock !== undefined) dbUpdates.stock = validData.stock;
+    if (validData.discountPercent !== undefined) dbUpdates.discount_percent = validData.discountPercent;
+    if (validData.isActive !== undefined) dbUpdates.is_active = validData.isActive;
+    if (validData.type !== undefined) dbUpdates.type = validData.type;
+    if (validData.colors !== undefined) dbUpdates.colors = validData.colors;
+    if (validData.sizes !== undefined) dbUpdates.sizes = validData.sizes;
+    if (validData.images !== undefined) dbUpdates.images = validData.images;
+
     const { data, error } = await supabase
       .from('products')
-      .update(updates)
+      .update(dbUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -109,8 +145,8 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -119,6 +155,10 @@ export async function DELETE(request: Request) {
     const shopId = authShop.id;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
+    }
 
     // Verify product belongs to shop
     const { data: existingProduct } = await supabase
@@ -145,3 +185,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }
+

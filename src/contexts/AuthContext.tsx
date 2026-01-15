@@ -1,12 +1,12 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { createClient } from '@/lib/auth/supabase-auth';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { useUser } from '@clerk/nextjs';
 
 const isDev = process.env.NODE_ENV === 'development';
+const ACTIVE_SHOP_KEY = 'smarthub_active_shop_id';
 
-interface Shop {
+export interface Shop {
   id: string;
   name: string;
   owner_name: string | null;
@@ -18,108 +18,135 @@ interface Shop {
 }
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: { id: string; email: string; fullName: string | null } | null;
   shop: Shop | null;
+  shops: Shop[];
   loading: boolean;
+  isSignedIn: boolean;
   refreshShop: () => Promise<void>;
+  switchShop: (shopId: string) => Promise<void>;
+  refreshShops: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
   shop: null,
+  shops: [],
   loading: true,
+  isSignedIn: false,
   refreshShop: async () => { },
+  switchShop: async () => { },
+  refreshShops: async () => { },
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const [shop, setShop] = useState<Shop | null>(null);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  // Transform Clerk user to our format
+  const user = clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+    fullName: clerkUser.fullName,
+  } : null;
 
-  const fetchShop = async (userId: string) => {
+  // Fetch all shops for user
+  const fetchShops = useCallback(async () => {
+    if (!isSignedIn) return [];
+
     try {
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        // Normal - shop may not exist yet for new users
-        setShop(null);
-      } else {
-        setShop(data);
-      }
-    } catch (err) {
-      if (isDev) console.error('Shop fetch exception:', err);
-      setShop(null);
-    }
-  };
-
-  const refreshShop = async () => {
-    // Use API endpoint for more reliable auth handling
-    try {
-      const res = await fetch('/api/shop');
+      const res = await fetch('/api/user/shops');
       const data = await res.json();
-      if (data.shop) {
-        setShop(data.shop);
-      }
+      const userShops = data.shops || [];
+      setShops(userShops);
+      return userShops;
     } catch (err) {
-      if (isDev) console.error('Refresh shop error:', err);
+      if (isDev) console.error('Fetch shops error:', err);
+      return [];
     }
-  };
+  }, [isSignedIn]);
 
-  useEffect(() => {
-    // Get initial session with timeout protection
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        if (isDev) console.log('Auth loading timeout');
-        setLoading(false);
-      }
-    }, 5000); // 5 second timeout
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(timeoutId);
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchShop(session.user.id);
-      }
-
-      setLoading(false);
-    }).catch((err) => {
-      clearTimeout(timeoutId);
-      if (isDev) console.error('Auth session error:', err);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          await fetchShop(session.user.id);
-        } else {
-          setShop(null);
-        }
-
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+  // Set active shop (with localStorage persistence)
+  const setActiveShop = useCallback((shopData: Shop | null) => {
+    setShop(shopData);
+    if (shopData) {
+      localStorage.setItem(ACTIVE_SHOP_KEY, shopData.id);
+    } else {
+      localStorage.removeItem(ACTIVE_SHOP_KEY);
+    }
   }, []);
 
+  // Initialize active shop from localStorage or default to first shop
+  const initializeActiveShop = useCallback((userShops: Shop[]) => {
+    if (userShops.length === 0) {
+      setActiveShop(null);
+      return;
+    }
+
+    const savedShopId = localStorage.getItem(ACTIVE_SHOP_KEY);
+    const savedShop = savedShopId ? userShops.find(s => s.id === savedShopId) : null;
+
+    setActiveShop(savedShop || userShops[0]);
+  }, [setActiveShop]);
+
+  // Switch to a different shop
+  const switchShop = useCallback(async (shopId: string) => {
+    try {
+      const res = await fetch('/api/user/switch-shop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shopId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.shop) {
+        setActiveShop(data.shop);
+        window.location.reload();
+      }
+    } catch (err) {
+      if (isDev) console.error('Switch shop error:', err);
+    }
+  }, [setActiveShop]);
+
+  const refreshShops = useCallback(async () => {
+    const userShops = await fetchShops();
+    initializeActiveShop(userShops);
+  }, [fetchShops, initializeActiveShop]);
+
+  const refreshShop = useCallback(async () => {
+    await refreshShops();
+  }, [refreshShops]);
+
+  // Initialize on auth state change
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (isSignedIn) {
+      fetchShops().then(userShops => {
+        initializeActiveShop(userShops);
+        setLoading(false);
+      });
+    } else {
+      setShop(null);
+      setShops([]);
+      setLoading(false);
+    }
+  }, [isLoaded, isSignedIn, fetchShops, initializeActiveShop]);
+
   return (
-    <AuthContext.Provider value={{ user, session, shop, loading, refreshShop }}>
+    <AuthContext.Provider value={{
+      user,
+      shop,
+      shops,
+      loading: !isLoaded || loading,
+      isSignedIn: isSignedIn || false,
+      refreshShop,
+      switchShop,
+      refreshShops,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -132,4 +159,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

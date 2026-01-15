@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
+import { DataTable, createSelectColumn } from '@/components/ui/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils/date';
+import { useOrders, OrderWithDetails } from '@/hooks/useOrders';
+import { useUpdateOrder } from '@/hooks/useUpdateOrder';
 import {
   Package,
   User,
@@ -17,34 +21,9 @@ import {
   RefreshCw,
   MessageSquare,
   FileSpreadsheet,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
-
-interface Order {
-  id: string;
-  total_amount: number;
-  status: string;
-  notes: string | null;
-  delivery_address: string | null;
-  created_at: string;
-  updated_at: string;
-  customers: {
-    id: string;
-    name: string | null;
-    phone: string | null;
-    address: string | null;
-    facebook_id: string | null;
-  } | null;
-  order_items: Array<{
-    id: string;
-    quantity: number;
-    unit_price: number;
-    products: {
-      id: string;
-      name: string;
-      price: number;
-    } | null;
-  }>;
-}
 
 const statusOptions = [
   { value: 'pending', label: 'Хүлээгдэж буй', icon: Clock, color: 'bg-yellow-500' },
@@ -56,65 +35,121 @@ const statusOptions = [
 ];
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const { data: orders = [], isLoading, refetch, isRefetching } = useOrders();
+  const { mutate: updateStatus } = useUpdateOrder();
+
   const [filter, setFilter] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
 
-  const fetchOrders = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setRefreshing(true);
-
-    try {
-      const res = await fetch('/api/orders');
-      const data = await res.json();
-      setOrders(data.orders || []);
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(() => fetchOrders(), 30000);
-    return () => clearInterval(interval);
-  }, [fetchOrders]);
-
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    setUpdatingId(orderId);
-
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status: newStatus }),
-      });
-
-      if (res.ok) {
-        setOrders(orders.map(o =>
-          o.id === orderId ? { ...o, status: newStatus } : o
-        ));
-
-        if (selectedOrder?.id === orderId) {
-          setSelectedOrder({ ...selectedOrder, status: newStatus });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+  const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
   const filteredOrders = filter === 'all'
     ? orders
     : orders.filter(o => o.status === filter);
 
-  if (loading) {
+  // Define columns for DataTable
+  const columns: ColumnDef<OrderWithDetails, unknown>[] = useMemo(() => [
+    createSelectColumn<OrderWithDetails>(),
+    {
+      accessorKey: 'id',
+      header: 'ID',
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-500 font-mono">
+          #{row.original.id.slice(0, 8)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Төлөв',
+      cell: ({ row }) => <OrderStatusBadge status={row.original.status} />,
+      filterFn: (row, _columnId, filterValue) => {
+        if (filterValue === 'all') return true;
+        return row.original.status === filterValue;
+      },
+    },
+    {
+      id: 'products',
+      header: 'Бүтээгдэхүүн',
+      cell: ({ row }) => (
+        <div className="space-y-0.5">
+          {row.original.order_items.slice(0, 2).map((item, idx) => (
+            <p key={idx} className="text-sm font-medium text-gray-900">
+              {item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}
+            </p>
+          ))}
+          {row.original.order_items.length > 2 && (
+            <p className="text-xs text-gray-400">+{row.original.order_items.length - 2} бусад</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'customer',
+      header: 'Харилцагч',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-700">
+            {row.original.customers?.name || 'Нэргүй'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'total_amount',
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Дүн
+          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      ),
+      cell: ({ row }) => (
+        <p className="font-semibold text-gray-900">
+          ₮{Number(row.original.total_amount).toLocaleString()}
+        </p>
+      ),
+    },
+    {
+      accessorKey: 'created_at',
+      header: ({ column }) => (
+        <button
+          className="flex items-center gap-1"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Огноо
+          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      ),
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-500">{formatDate(row.original.created_at)}</span>
+      ),
+    },
+  ], []);
+
+  // Bulk action handler
+  const handleBulkAction = (selectedRows: OrderWithDetails[], action: string) => {
+    if (action === 'status') {
+      setBulkSelectedOrders(selectedRows);
+      setShowBulkStatusModal(true);
+    }
+  };
+
+  // Bulk status update
+  const handleBulkStatusUpdate = (newStatus: string) => {
+    bulkSelectedOrders.forEach((order) => {
+      updateStatus({ orderId: order.id, status: newStatus });
+    });
+    setShowBulkStatusModal(false);
+    setBulkSelectedOrders([]);
+  };
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-lg text-muted-foreground">Ачааллаж байна...</div>
@@ -138,8 +173,8 @@ export default function OrdersPage() {
             <FileSpreadsheet className="w-4 h-4 mr-2" />
             Export Excel
           </Button>
-          <Button onClick={() => fetchOrders(true)} disabled={refreshing}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+          <Button onClick={() => refetch()} disabled={isRefetching}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
             Шинэчлэх
           </Button>
         </div>
@@ -174,8 +209,22 @@ export default function OrdersPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Orders List */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Orders DataTable - Desktop */}
+        <div className="lg:col-span-2 hidden md:block">
+          <DataTable
+            columns={columns}
+            data={filteredOrders}
+            enableRowSelection
+            onBulkAction={handleBulkAction}
+            bulkActions={[
+              { label: 'Төлөв өөрчлөх', value: 'status', icon: <Truck className="w-4 h-4 mr-1" /> },
+            ]}
+            pageSize={10}
+          />
+        </div>
+
+        {/* Orders List - Mobile Cards */}
+        <div className="lg:col-span-2 md:hidden space-y-4">
           {filteredOrders.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -187,9 +236,9 @@ export default function OrdersPage() {
             filteredOrders.map((order) => (
               <Card
                 key={order.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${selectedOrder?.id === order.id ? 'ring-2 ring-violet-500' : ''
+                className={`cursor-pointer transition-all hover:shadow-lg ${selectedOrderId === order.id ? 'ring-2 ring-violet-500' : ''
                   }`}
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => setSelectedOrderId(order.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -200,7 +249,6 @@ export default function OrdersPage() {
                           #{order.id.slice(0, 8)}
                         </span>
                       </div>
-
                       <div className="space-y-1">
                         {order.order_items.map((item, idx) => (
                           <p key={idx} className="font-medium text-gray-900">
@@ -208,7 +256,6 @@ export default function OrdersPage() {
                           </p>
                         ))}
                       </div>
-
                       <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <User className="w-4 h-4" />
@@ -220,7 +267,6 @@ export default function OrdersPage() {
                         </span>
                       </div>
                     </div>
-
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">
                         ₮{Number(order.total_amount).toLocaleString()}
@@ -319,20 +365,19 @@ export default function OrdersPage() {
                     {statusOptions.map((status) => {
                       const Icon = status.icon;
                       const isActive = selectedOrder.status === status.value;
-                      const isUpdating = updatingId === selectedOrder.id;
 
                       return (
                         <button
                           key={status.value}
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateStatus(selectedOrder.id, status.value);
+                            updateStatus({ orderId: selectedOrder.id, status: status.value });
                           }}
-                          disabled={isActive || isUpdating}
+                          disabled={isActive}
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
                             ? 'bg-violet-100 text-violet-700 cursor-default'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            } disabled:opacity-50`}
+                            }`}
                         >
                           <Icon className="w-4 h-4" />
                           {status.label}
@@ -359,6 +404,38 @@ export default function OrdersPage() {
           )}
         </div>
       </div>
+
+      {/* Bulk Status Update Modal */}
+      {showBulkStatusModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 m-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              {bulkSelectedOrders.length} захиалгын төлөв өөрчлөх
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {statusOptions.map((status) => {
+                const Icon = status.icon;
+                return (
+                  <button
+                    key={status.value}
+                    onClick={() => handleBulkStatusUpdate(status.value)}
+                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-violet-100 hover:text-violet-700 transition-colors font-medium"
+                  >
+                    <Icon className="w-5 h-5" />
+                    {status.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setShowBulkStatusModal(false)}
+              className="mt-4 w-full py-2 text-gray-500 hover:text-gray-700"
+            >
+              Цуцлах
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

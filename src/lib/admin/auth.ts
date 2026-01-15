@@ -3,7 +3,7 @@
  * Middleware for Super Admin access
  */
 
-import { createServerSupabase } from '@/lib/auth/server-auth';
+import { auth } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
@@ -19,22 +19,21 @@ export interface AdminUser {
  */
 export async function getAdminUser(): Promise<AdminUser | null> {
     try {
-        const supabase = await createServerSupabase();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { userId } = await auth();
 
-        if (!user) {
+        if (!userId) {
             logger.debug('Admin auth: No user found');
             return null;
         }
 
-        logger.debug('Admin auth: User found', { userId: user.id, email: user.email });
+        logger.debug('Admin auth: User found', { userId });
 
         // Check if user is in admins table
         const adminDb = supabaseAdmin();
         const { data: admin, error } = await adminDb
             .from('admins')
             .select('id, email, role')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .eq('is_active', true)
             .single();
 

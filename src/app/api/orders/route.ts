@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { updateOrderStatusSchema, parseWithErrors } from '@/lib/validations';
 
 // GET all orders
 export async function GET() {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ orders: [] });
     }
@@ -37,26 +38,27 @@ export async function GET() {
   }
 }
 
-// PATCH - Update order status
+// PATCH - Update order status (with Zod validation)
 export async function PATCH(request: NextRequest) {
   try {
-    const authShop = await getUserShop();
-    
+    const authShop = await getClerkUserShop();
+
     if (!authShop) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { orderId, status } = body;
 
-    if (!orderId || !status) {
-      return NextResponse.json({ error: 'orderId and status required' }, { status: 400 });
+    // Zod validation
+    const validation = parseWithErrors(updateOrderStatusSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: validation.errors
+      }, { status: 400 });
     }
 
-    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
-    }
+    const { orderId, status } = validation.data;
 
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
@@ -91,8 +93,8 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       order: updatedOrder,
       message: `Захиалга "${status}" болгож шинэчлэгдлээ`
     });
@@ -101,3 +103,4 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }
+

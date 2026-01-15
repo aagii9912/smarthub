@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from '@clerk/nextjs';
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +24,9 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5, // Allow pinch zoom for accessibility
-  userScalable: true,
-  viewportFit: 'cover', // Safe area support for notched devices
+  maximumScale: 1, // Prevent zoom which can break "app-like" feel
+  userScalable: false, // Force app-like experience
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -54,16 +56,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ServiceWorkerRegistration />
-        <PWAInstallPrompt />
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="mn">
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <ServiceWorkerRegistration />
+          <PWAInstallPrompt />
+          <QueryProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </QueryProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
+

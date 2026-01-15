@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
 
 export async function GET(request: NextRequest) {
     try {
-        const authShop = await getUserShop();
+        const authShop = await getClerkUserShop();
 
         if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

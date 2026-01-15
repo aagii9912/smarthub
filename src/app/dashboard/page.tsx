@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActionCenter } from '@/components/dashboard/ActionCenter';
@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
-import { DashboardSkeleton, StatsCardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDashboard } from '@/hooks/useDashboard';
 import { formatTimeAgo } from '@/lib/utils/date';
 import {
     ShoppingCart,
@@ -24,65 +25,22 @@ import {
 
 export default function DashboardPage() {
     const { user, shop, loading: authLoading } = useAuth();
-
-    const [stats, setStats] = useState({
-        todayOrders: 0,
-        pendingOrders: 0,
-        totalRevenue: 0,
-        totalCustomers: 0,
-    });
-    const [recentOrders, setRecentOrders] = useState<any[]>([]);
-    const [activeConversations, setActiveConversations] = useState<any[]>([]);
-    const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
-    const [unansweredCount, setUnansweredCount] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
     const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
 
-    const fetchDashboardData = useCallback(async (showRefresh = false, period = timeFilter) => {
-        if (showRefresh) setRefreshing(true);
+    const { data, isLoading, refetch, isRefetching } = useDashboard(timeFilter);
 
-        try {
-            const res = await fetch(`/api/dashboard/stats?period=${period}`);
-            const data = await res.json();
-            setStats(data.stats);
-            setRecentOrders(data.recentOrders);
-            setActiveConversations(data.activeConversations || []);
-            setLowStockProducts(data.lowStockProducts || []);
-            setUnansweredCount(data.unansweredCount || 0);
-            setLastUpdate(new Date());
-        } catch (error) {
-            console.error('Failed to fetch dashboard data:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [timeFilter]);
+    const stats = data?.stats || { todayOrders: 0, pendingOrders: 0, totalRevenue: 0, totalCustomers: 0 };
+    const recentOrders = data?.recentOrders || [];
+    const activeConversations = data?.activeConversations || [];
+    const lowStockProducts = data?.lowStockProducts || [];
+    const unansweredCount = data?.unansweredCount || 0;
 
-    useEffect(() => {
-        const timeout = setTimeout(() => {
-            if (loading) setLoading(false);
-        }, 10000);
-
-        if (!authLoading) {
-            fetchDashboardData();
-            const interval = setInterval(() => fetchDashboardData(), 15000);
-            return () => {
-                clearInterval(interval);
-                clearTimeout(timeout);
-            };
-        }
-
-        return () => clearTimeout(timeout);
-    }, [authLoading, fetchDashboardData]);
-
-    if (loading || authLoading) {
+    if (isLoading || authLoading) {
         return <DashboardSkeleton />;
     }
 
     const handleRefresh = async () => {
-        await fetchDashboardData(true);
+        await refetch();
     };
 
     return (
@@ -92,15 +50,15 @@ export default function DashboardPage() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold text-[#111111]">
-                            Сайн байна уу{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ''}! 👋
+                            Сайн байна уу{user?.fullName ? `, ${user.fullName}` : ''}! 👋
                         </h1>
                         <p className="text-sm text-[#6c757d] mt-1">
                             {shop?.name ? `${shop.name} - ` : ''}Өнөөдрийн борлуулалтын тойм
                         </p>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-auto">
-                        <Button onClick={() => fetchDashboardData(true)} disabled={refreshing} variant="secondary" size="sm" className="h-9">
-                            <RefreshCw className={`w-3.5 h-3.5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                        <Button onClick={() => refetch()} disabled={isRefetching} variant="secondary" size="sm" className="h-9">
+                            <RefreshCw className={`w-3.5 h-3.5 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
                             <span className="hidden sm:inline">Шинэчлэх</span>
                         </Button>
                         <Link href="/dashboard/products">
@@ -144,13 +102,10 @@ export default function DashboardPage() {
                     ].map((option) => (
                         <button
                             key={option.value}
-                            onClick={() => {
-                                setTimeFilter(option.value as 'today' | 'week' | 'month');
-                                fetchDashboardData(true, option.value as 'today' | 'week' | 'month');
-                            }}
+                            onClick={() => setTimeFilter(option.value as 'today' | 'week' | 'month')}
                             className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${timeFilter === option.value
-                                    ? 'bg-[#65c51a] text-white'
-                                    : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                                ? 'bg-[#65c51a] text-white'
+                                : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
                                 }`}
                         >
                             {option.label}
@@ -206,7 +161,7 @@ export default function DashboardPage() {
                             </CardHeader>
                             <CardContent className="p-0">
                                 <div className="divide-y divide-border">
-                                    {recentOrders.length > 0 ? recentOrders.slice(0, 5).map((order) => {
+                                    {recentOrders.length > 0 ? recentOrders.slice(0, 5).map((order: any) => {
                                         const customerName = order.customers?.name || 'Харилцагч';
                                         const productName = order.order_items?.[0]?.products?.name || 'Бүтээгдэхүүн';
                                         return (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
@@ -13,7 +13,7 @@ export async function GET(
     { params }: { params: Promise<{ paymentId: string }> }
 ) {
     try {
-        const authShop = await getUserShop();
+        const authShop = await getClerkUserShop();
         if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

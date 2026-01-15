@@ -12,19 +12,32 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.9",
+    "@clerk/nextjs": "^6.36.7",
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@tanstack/react-query": "^5.90.17",
+    "@tanstack/react-table": "^8.21.3",
+    "ai": "^6.0.33",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
     "next": "16.1.1",
     "openai": "^6.15.0",
+    "postgres": "^3.4.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.1",
     "recharts": "^3.6.0",
     "resend": "^6.7.0",
+    "svix": "^1.84.1",
+    "tailwind-merge": "^3.4.0",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

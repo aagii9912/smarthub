@@ -171,8 +171,8 @@ function SetupContent() {
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all border ${step >= s
-                  ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
-                  : 'bg-white text-gray-400 border-gray-200'
+                ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
+                : 'bg-white text-gray-400 border-gray-200'
                 }`}>
                 {step > s ? <Check className="w-5 h-5" /> : s}
               </div>
@@ -192,7 +192,7 @@ function SetupContent() {
             <ShopInfoStep
               initialData={{
                 name: shop?.name || '',
-                owner_name: shop?.owner_name || user?.user_metadata?.full_name || '',
+                owner_name: shop?.owner_name || user?.fullName || '',
                 phone: shop?.phone || ''
               }}
               onNext={handleShopSave}

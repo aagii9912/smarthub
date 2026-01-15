@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerUser } from '@/lib/auth/server-auth';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getClerkUser, supabaseAdmin } from '@/lib/auth/clerk-auth';
 
 // GET - Get user's shop
 export async function GET() {
   try {
-    const user = await getServerUser();
+    const userId = await getClerkUser();
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = supabaseAdmin();
-    
+
     const { data: shop, error } = await supabase
       .from('shops')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -33,9 +32,9 @@ export async function GET() {
 // POST - Create or update shop (upsert)
 export async function POST(request: NextRequest) {
   try {
-    const user = await getServerUser();
-    
-    if (!user) {
+    const userId = await getClerkUser();
+
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -52,7 +51,7 @@ export async function POST(request: NextRequest) {
     const { data: existingShop } = await supabase
       .from('shops')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (existingShop) {
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
         name,
         owner_name,
         phone,
-        user_id: user.id,
+        user_id: userId,
         is_active: true,
         setup_completed: false
       })
@@ -94,9 +93,9 @@ export async function POST(request: NextRequest) {
 // PATCH - Update shop
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getServerUser();
-    
-    if (!user) {
+    const userId = await getClerkUser();
+
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -107,7 +106,7 @@ export async function PATCH(request: NextRequest) {
     const { data: shop } = await supabase
       .from('shops')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (!shop) {

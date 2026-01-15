@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { getAdminUser } from '@/lib/admin/auth';
@@ -10,7 +10,7 @@ const RATE_WINDOW_MS = 60000;
 
 export async function POST(request: NextRequest) {
     try {
-        const authShop = await getUserShop();
+        const authShop = await getClerkUserShop();
 
         if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

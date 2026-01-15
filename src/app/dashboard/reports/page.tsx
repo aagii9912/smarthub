@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { BestSellersTable } from '@/components/dashboard/BestSellersTable';
 import { RevenueStats } from '@/components/dashboard/RevenueStats';
+import { SmartInsights } from '@/components/dashboard/SmartInsights';
+import { useReports } from '@/hooks/useReports';
 import {
     RefreshCw,
     Download,
@@ -19,68 +21,12 @@ import {
 
 type Period = 'today' | 'week' | 'month' | 'year';
 
-interface ReportsData {
-    revenue: {
-        total: number;
-        orderCount: number;
-        avgOrderValue: number;
-        growth: number;
-    };
-    bestSellers: Array<{
-        id: string;
-        name: string;
-        image: string | null;
-        quantity: number;
-        revenue: number;
-        rank: number;
-        percent: number;
-    }>;
-    chartData: Array<{
-        date: string;
-        revenue: number;
-        label: string;
-    }>;
-    customers: {
-        total: number;
-        new: number;
-        vip: number;
-    };
-    orderStatus: {
-        pending: number;
-        confirmed: number;
-        processing: number;
-        shipped: number;
-        delivered: number;
-        cancelled: number;
-    };
-}
-
 export default function ReportsPage() {
-    const [data, setData] = useState<ReportsData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [period, setPeriod] = useState<Period>('month');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [exporting, setExporting] = useState<string | null>(null);
 
-    const fetchData = useCallback(async (showRefresh = false, selectedPeriod = period) => {
-        if (showRefresh) setRefreshing(true);
-
-        try {
-            const res = await fetch(`/api/dashboard/reports?period=${selectedPeriod}`);
-            const json = await res.json();
-            setData(json);
-        } catch (error) {
-            console.error('Failed to fetch reports:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [period]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const { data, isLoading, refetch, isRefetching } = useReports(period);
 
     const handleExport = async (type: 'orders' | 'products' | 'sales') => {
         setExporting(type);
@@ -111,7 +57,7 @@ export default function ReportsPage() {
         { value: 'year', label: 'Жил' },
     ];
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="space-y-6">
                 <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
@@ -140,12 +86,12 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
-                        onClick={() => fetchData(true)}
-                        disabled={refreshing}
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
                         variant="secondary"
                         size="sm"
                     >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
                         Шинэчлэх
                     </Button>
                 </div>
@@ -156,13 +102,10 @@ export default function ReportsPage() {
                 {periodOptions.map((option) => (
                     <button
                         key={option.value}
-                        onClick={() => {
-                            setPeriod(option.value as Period);
-                            fetchData(true, option.value as Period);
-                        }}
+                        onClick={() => setPeriod(option.value as Period)}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${period === option.value
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                     >
                         {option.label}
@@ -179,6 +122,15 @@ export default function ReportsPage() {
                     growth={data.revenue.growth}
                     newCustomers={data.customers.new}
                     vipCustomers={data.customers.vip}
+                />
+            )}
+
+            {/* Smart Insights */}
+            {data && (
+                <SmartInsights
+                    bestSellers={data.bestSellers}
+                    revenue={data.revenue}
+                    period={period}
                 />
             )}
 

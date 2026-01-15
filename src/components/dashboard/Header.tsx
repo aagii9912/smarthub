@@ -2,59 +2,58 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, User, LogOut, Settings, Bell, ChevronDown } from 'lucide-react';
+import { useClerk } from '@clerk/nextjs';
+import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { signOut } from '@/lib/auth/supabase-auth';
 import { NotificationButton } from '@/components/NotificationButton';
+import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 
 export function Header() {
     const router = useRouter();
-    const { user, shop } = useAuth();
+    const { signOut } = useClerk();
+    const { user, shop, shops } = useAuth();
     const [showDropdown, setShowDropdown] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
 
     const handleLogout = async () => {
         setLoggingOut(true);
         try {
-            await signOut();
-            // Clear any cached data for PWA
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
             }
-            // Use hard redirect for PWA compatibility
-            window.location.href = '/auth/login';
+            await signOut({ redirectUrl: '/auth/login' });
         } catch (error) {
             console.error('Logout error:', error);
-            // Force redirect even on error
             window.location.href = '/auth/login';
         }
     };
 
-    const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+    // Get first name for mobile, full name for desktop
+    const fullName = user?.fullName || user?.email?.split('@')[0] || 'User';
+    const firstName = fullName.split(' ')[0];
     const displayEmail = user?.email || '';
 
     return (
-        <header className="h-14 md:h-16 bg-white border-b border-[#dee2e6] flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
-            {/* Left: Page title or breadcrumb space */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-                {/* This space is for page-level content */}
+        <header className="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
+            {/* Left: Greeting */}
+            <div className="flex-1 min-w-0">
+                <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">
+                    <span className="hidden sm:inline">Сайн байна уу, {fullName}!</span>
+                    <span className="sm:hidden">Сайн уу, {firstName}!</span>
+                </h1>
+                {shop && (
+                    <p className="text-xs text-gray-500 truncate hidden sm:block">
+                        {shop.name}
+                    </p>
+                )}
             </div>
 
-            {/* Center: Search */}
-            <div className="flex-1 max-w-md mx-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6c757d]" />
-                    <input
-                        type="text"
-                        placeholder="Search"
-                        className="w-full pl-10 pr-4 py-2.5 bg-[#f1f3f5] border border-transparent focus:border-[#65c51a] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#65c51a]/20 transition-all placeholder:text-[#6c757d] text-[#111111]"
-                    />
-                </div>
-            </div>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 md:gap-3">
+                {/* Shop Switcher - show if user has multiple shops */}
+                {shops.length > 1 && <ShopSwitcher />}
 
-            {/* Right side */}
-            <div className="flex items-center gap-3">
                 {/* Notifications */}
                 <NotificationButton />
 
@@ -62,16 +61,12 @@ export function Header() {
                 <div className="relative">
                     <button
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className="flex items-center gap-3 hover:bg-[#f1f3f5] rounded-lg transition-colors px-2 py-1.5"
+                        className="flex items-center gap-2 hover:bg-gray-100 rounded-xl transition-colors p-1.5 md:px-3 md:py-2"
                     >
-                        <div className="w-9 h-9 rounded-full bg-[#f1f3f5] flex items-center justify-center overflow-hidden border-2 border-[#dee2e6]">
-                            <User className="w-5 h-5 text-[#6c757d]" />
+                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#65c51a] to-emerald-600 flex items-center justify-center text-white font-medium text-sm">
+                            {firstName[0]?.toUpperCase()}
                         </div>
-                        <div className="hidden md:block text-left">
-                            <p className="text-sm font-medium text-[#111111] truncate max-w-[120px]">{displayName}</p>
-                            <p className="text-xs text-[#6c757d]">Sales manager</p>
-                        </div>
-                        <ChevronDown className="w-4 h-4 text-[#6c757d] hidden md:block" />
+                        <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block" />
                     </button>
 
                     {/* Dropdown Menu */}
@@ -81,10 +76,10 @@ export function Header() {
                                 className="fixed inset-0 z-40"
                                 onClick={() => setShowDropdown(false)}
                             />
-                            <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-[#dee2e6] z-50 overflow-hidden">
-                                <div className="p-4 border-b border-[#dee2e6]">
-                                    <p className="font-medium text-[#111111] truncate">{displayName}</p>
-                                    <p className="text-sm text-[#6c757d] truncate">{displayEmail}</p>
+                            <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+                                <div className="p-4 border-b border-gray-100 bg-gray-50">
+                                    <p className="font-medium text-gray-900 truncate">{fullName}</p>
+                                    <p className="text-sm text-gray-500 truncate">{displayEmail}</p>
                                 </div>
                                 <div className="p-2 space-y-1">
                                     <button
@@ -92,10 +87,10 @@ export function Header() {
                                             setShowDropdown(false);
                                             router.push('/dashboard/settings');
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#111111] hover:bg-[#f1f3f5] rounded-lg transition-colors"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                                     >
-                                        <Settings className="w-4 h-4 text-[#6c757d]" />
-                                        Settings
+                                        <Settings className="w-4 h-4 text-gray-400" />
+                                        Тохиргоо
                                     </button>
                                     <button
                                         onClick={handleLogout}
@@ -103,7 +98,7 @@ export function Header() {
                                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     >
                                         <LogOut className="w-4 h-4" />
-                                        {loggingOut ? 'Logging out...' : 'Log out'}
+                                        {loggingOut ? 'Гарч байна...' : 'Гарах'}
                                     </button>
                                 </div>
                             </div>

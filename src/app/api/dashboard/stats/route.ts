@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfToday, getStartOfPeriod } from '@/lib/utils/date';
 
 export async function GET(request: NextRequest) {
   try {
-    const authShop = await getUserShop();
+    const authShop = await getClerkUserShop();
 
     // Get period from query params (default: today)
     const { searchParams } = new URL(request.url);

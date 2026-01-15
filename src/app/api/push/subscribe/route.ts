@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserShop } from '@/lib/auth/server-auth';
+import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // POST - Subscribe to push notifications
 export async function POST(request: NextRequest) {
     try {
-        const authShop = await getUserShop();
+        const authShop = await getClerkUserShop();
 
         if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 // DELETE - Unsubscribe from push notifications
 export async function DELETE(request: NextRequest) {
     try {
-        const authShop = await getUserShop();
+        const authShop = await getClerkUserShop();
 
         if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

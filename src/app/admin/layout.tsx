@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
     LayoutDashboard, Users, CreditCard, Package,
@@ -15,7 +16,7 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/shops', label: 'Shops', icon: Users },
     { href: '/admin/plans', label: 'Plans', icon: Package },
     { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
@@ -26,12 +27,13 @@ const navItems = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const { isSignedIn, isLoaded } = useAuth();
     const [loading, setLoading] = useState(true);
     const [admin, setAdmin] = useState<{ email: string; role: string } | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Allow login page to render without auth check
-    const isLoginPage = pathname === '/admin/login';
+    const isLoginPage = pathname?.startsWith('/admin/login');
 
     useEffect(() => {
         if (isLoginPage) {
@@ -39,38 +41,36 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             return;
         }
 
-        // Set timeout to prevent infinite loading
-        const timeout = setTimeout(() => {
-            if (isDev) console.log('Admin auth loading timeout');
-            setLoading(false);
+        if (!isLoaded) return;
+
+        if (!isSignedIn) {
             router.push('/admin/login');
-        }, 10000);
+            return;
+        }
 
-        checkAdmin().finally(() => clearTimeout(timeout));
-
-        return () => clearTimeout(timeout);
-    }, [isLoginPage]);
+        // Check if user is admin
+        checkAdmin();
+    }, [isLoaded, isSignedIn, isLoginPage]);
 
     async function checkAdmin() {
         try {
-            // Check admin user via API
             const res = await fetch('/api/admin/dashboard', {
                 credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache'
-                }
+                headers: { 'Cache-Control': 'no-cache' }
             });
+
             if (res.ok) {
                 const data = await res.json();
                 if (isDev) console.log('Admin verified:', data.admin?.email);
                 setAdmin(data.admin);
             } else {
-                if (isDev) console.log('Admin check failed');
-                router.push('/admin/login');
+                if (isDev) console.log('Not an admin, redirecting');
+                // Not an admin - redirect to regular dashboard
+                router.push('/dashboard');
             }
         } catch (error) {
             if (isDev) console.error('Admin check error:', error);
-            router.push('/admin/login');
+            router.push('/dashboard');
         } finally {
             setLoading(false);
         }
@@ -81,7 +81,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return <>{children}</>;
     }
 
-    if (loading) {
+    if (loading || !isLoaded) {
         return (
             <div className="min-h-screen bg-gray-100 flex items-center justify-center">
                 <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full"></div>
@@ -123,17 +123,23 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
                 {/* Navigation */}
                 <nav className="p-4 space-y-1">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            className="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
-                            onClick={() => setSidebarOpen(false)}
-                        >
-                            <item.icon className="w-5 h-5" />
-                            <span>{item.label}</span>
-                        </Link>
-                    ))}
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                                        ? 'bg-violet-600 text-white'
+                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                    }`}
+                                onClick={() => setSidebarOpen(false)}
+                            >
+                                <item.icon className="w-5 h-5" />
+                                <span>{item.label}</span>
+                            </Link>
+                        );
+                    })}
                 </nav>
 
                 {/* Admin info */}
@@ -171,7 +177,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                         <Link href="/admin" className="hover:text-gray-900">Admin</Link>
                         <ChevronRight className="w-4 h-4" />
-                        <span className="text-gray-900 font-medium">Dashboard</span>
+                        <span className="text-gray-900 font-medium">
+                            {navItems.find(n => pathname?.startsWith(n.href))?.label || 'Dashboard'}
+                        </span>
                     </div>
 
                     <div className="flex items-center gap-4">

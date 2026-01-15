@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/auth/supabase-auth';
+import { useClerk } from '@clerk/nextjs';
 import {
     Store, User, Facebook, Bot, Bell, Shield,
     Save, LogOut, Loader2, Check, AlertCircle,
@@ -15,7 +15,7 @@ import {
 export default function SettingsPage() {
     const { user, shop, refreshShop } = useAuth();
     const router = useRouter();
-    const supabase = createClient();
+    const { signOut } = useClerk();
 
     const [loading, setLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -66,8 +66,7 @@ export default function SettingsPage() {
     }
 
     async function handleLogout() {
-        await supabase.auth.signOut();
-        router.push('/auth/login');
+        await signOut({ redirectUrl: '/auth/login' });
     }
 
     return (

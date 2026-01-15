@@ -4,30 +4,22 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Plus, Search, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-
-interface Product {
-    id: string;
-    name: string;
-    description: string | null;
-    price: number;
-    stock: number | null;
-    reserved_stock: number | null;
-    discount_percent: number | null;
-    is_active: boolean;
-    type: 'physical' | 'service';
-    colors: string[];
-    sizes: string[];
-    images: string[];
-}
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState<Product[]>([]);
+    // TanStack Query hooks
+    const { data: products = [], isLoading } = useProducts();
+    const createProduct = useCreateProduct();
+    const updateProduct = useUpdateProduct();
+    const deleteProduct = useDeleteProduct();
+    const queryClient = useQueryClient();
+
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [loading, setLoading] = useState(true);
 
     // Form States
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -41,10 +33,6 @@ export default function ProductsPage() {
     const [importPreview, setImportPreview] = useState<any[]>([]);
     const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
-
-    useEffect(() => {
-        fetchProducts();
-    }, []);
 
     // Reset form when modal opens/closes or editing product changes
     useEffect(() => {
@@ -74,18 +62,6 @@ export default function ProductsPage() {
             }
         };
     }, [imagePreview]);
-
-    async function fetchProducts() {
-        try {
-            const res = await fetch('/api/dashboard/products');
-            const data = await res.json();
-            setProducts(data.products || []);
-        } catch (error) {
-            console.error('Failed to fetch products:', error);
-        } finally {
-            setLoading(false);
-        }
-    }
 
     const uploadImage = async (file: File) => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -130,9 +106,6 @@ export default function ProductsPage() {
                 } catch (e) {
                     console.error("Image upload failed:", e);
                     alert('Зураг оруулахад алдаа гарлаа. Зураггүйгээр үргэлжлүүлэх үү?');
-                    // Keep the old image URL if upload fails, or null if no old image
-                    // If we want to proceed without image on error, we keep imageUrl as is (old image)
-                    // If user cancels, they can try again. But here we just log and proceed with old/null.
                 }
             }
 
@@ -141,7 +114,7 @@ export default function ProductsPage() {
                 description: formData.get('description') as string,
                 price: Number(formData.get('price')),
                 stock: productType === 'service' ? null : Number(formData.get('stock')),
-                discount_percent: Number(formData.get('discount')) || 0,
+                discountPercent: Number(formData.get('discount')) || 0,
                 type: productType,
                 colors: (formData.get('colors') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
                 sizes: (formData.get('sizes') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
@@ -149,26 +122,15 @@ export default function ProductsPage() {
             };
 
             if (editingProduct) {
-                // Update
-                await fetch('/api/dashboard/products', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: editingProduct.id, ...productData }),
-                });
+                await updateProduct.mutateAsync({ id: editingProduct.id, ...productData });
             } else {
-                // Create
-                await fetch('/api/dashboard/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(productData),
-                });
+                await createProduct.mutateAsync(productData);
             }
-            fetchProducts();
             setShowModal(false);
             setEditingProduct(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to save product:', error);
-            alert('Алдаа гарлаа. Дахин оролдоно уу.');
+            alert(error.message || 'Алдаа гарлаа. Дахин оролдоно уу.');
         } finally {
             setSaving(false);
         }
@@ -176,12 +138,8 @@ export default function ProductsPage() {
 
     async function handleDelete(id: string) {
         if (!confirm('Устгахдаа итгэлтэй байна уу?')) return;
-
         try {
-            await fetch(`/api/dashboard/products?id=${id}`, {
-                method: 'DELETE',
-            });
-            fetchProducts();
+            await deleteProduct.mutateAsync(id);
         } catch (error) {
             console.error('Failed to delete product:', error);
         }
@@ -244,7 +202,7 @@ export default function ProductsPage() {
                 setShowImportModal(false);
                 setImportFile(null);
                 setImportPreview([]);
-                fetchProducts();
+                queryClient.invalidateQueries({ queryKey: ['products'] });
             }
         } catch (error: any) {
             setImportError(error.message || 'Import failed');
@@ -253,7 +211,7 @@ export default function ProductsPage() {
         }
     }
 
-    if (loading) {
+    if (isLoading) {
         return <div className="flex items-center justify-center h-96">
             <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
         </div>;
