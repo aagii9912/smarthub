@@ -45,13 +45,29 @@ export async function POST(request: NextRequest) {
         for (const entry of body.entry) {
             const pageId = entry.id;
 
-            // Get shop info from database with access token
+            // Get shop info from database with access token and AI features
             const { data: shop } = await supabase
                 .from('shops')
                 .select('*, products(*)')
                 .eq('facebook_page_id', pageId)
                 .eq('is_active', true)
                 .single();
+
+            // Fetch AI features separately for the shop
+            let shopFaqs: any[] = [];
+            let shopQuickReplies: any[] = [];
+            let shopSlogans: any[] = [];
+
+            if (shop) {
+                const [faqRes, qrRes, sloganRes] = await Promise.all([
+                    supabase.from('shop_faqs').select('question, answer').eq('shop_id', shop.id).eq('is_active', true),
+                    supabase.from('shop_quick_replies').select('trigger_words, response, is_exact_match').eq('shop_id', shop.id).eq('is_active', true),
+                    supabase.from('shop_slogans').select('slogan, usage_context').eq('shop_id', shop.id).eq('is_active', true)
+                ]);
+                shopFaqs = faqRes.data || [];
+                shopQuickReplies = qrRes.data || [];
+                shopSlogans = sloganRes.data || [];
+            }
 
             if (!shop) {
                 logger.warn(`No active shop found for page ${pageId}`);
@@ -288,6 +304,10 @@ export async function POST(request: NextRequest) {
                                     products: shop.products || [],
                                     customerName: customer?.name || undefined,
                                     orderHistory: customer?.total_orders || 0,
+                                    // AI Features
+                                    faqs: shopFaqs,
+                                    quickReplies: shopQuickReplies,
+                                    slogans: shopSlogans,
                                 },
                                 previousHistory
                             ),

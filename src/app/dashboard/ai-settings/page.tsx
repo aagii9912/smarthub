@@ -3,53 +3,129 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Textarea } from '@/components/ui/Input';
-import { Bot, Save, Upload, FileText, Sparkles, AlertCircle, Smile, Briefcase, Zap, Cloud, PartyPopper } from 'lucide-react';
+import { Input, Textarea } from '@/components/ui/Input';
+import {
+    Bot, Save, Plus, Trash2, Edit2, X, Check,
+    MessageSquare, Zap, Sparkles, BarChart3,
+    Smile, Briefcase, Cloud, PartyPopper, AlertCircle,
+    HelpCircle, MessageCircle, Quote
+} from 'lucide-react';
 
+type Tab = 'general' | 'faqs' | 'quick_replies' | 'slogans' | 'stats';
 type AiEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
 
-const emotionOptions: Array<{ value: AiEmotion; label: string; desc: string; icon: React.ReactNode }> = [
-    { value: 'friendly', label: 'Найрсаг 😊', desc: 'Халуун дотно, эерэг', icon: <Smile className="w-5 h-5" /> },
-    { value: 'professional', label: 'Мэргэжлийн 👔', desc: 'Албан ёсны, товч', icon: <Briefcase className="w-5 h-5" /> },
-    { value: 'enthusiastic', label: 'Урам зоригтой 🎉', desc: 'Идэвхтэй, сэтгэлтэй', icon: <Zap className="w-5 h-5" /> },
-    { value: 'calm', label: 'Тайван 🧘', desc: 'Эв нямбай, тайвшруулах', icon: <Cloud className="w-5 h-5" /> },
-    { value: 'playful', label: 'Тоглоомтой 🎮', desc: 'Хөгжилтэй, шог', icon: <PartyPopper className="w-5 h-5" /> },
+interface FAQ {
+    id: string;
+    question: string;
+    answer: string;
+    category: string;
+    is_active: boolean;
+    usage_count: number;
+}
+
+interface QuickReply {
+    id: string;
+    name: string;
+    trigger_words: string[];
+    response: string;
+    is_exact_match: boolean;
+    is_active: boolean;
+    usage_count: number;
+}
+
+interface Slogan {
+    id: string;
+    slogan: string;
+    usage_context: string;
+    is_active: boolean;
+}
+
+interface AIStats {
+    total_conversations: number;
+    total_messages: number;
+    conversion_rate: number;
+    recent_conversations: number;
+    top_questions: Array<{
+        question_pattern: string;
+        sample_question: string;
+        category: string;
+        count: number;
+    }>;
+}
+
+const emotionOptions: Array<{ value: AiEmotion; label: string; icon: React.ReactNode }> = [
+    { value: 'friendly', label: 'Найрсаг 😊', icon: <Smile className="w-5 h-5" /> },
+    { value: 'professional', label: 'Мэргэжлийн 👔', icon: <Briefcase className="w-5 h-5" /> },
+    { value: 'enthusiastic', label: 'Урам зоригтой 🎉', icon: <Zap className="w-5 h-5" /> },
+    { value: 'calm', label: 'Тайван 🧘', icon: <Cloud className="w-5 h-5" /> },
+    { value: 'playful', label: 'Тоглоомтой 🎮', icon: <PartyPopper className="w-5 h-5" /> },
+];
+
+const tabs = [
+    { id: 'general' as Tab, label: 'Үндсэн', icon: Bot },
+    { id: 'faqs' as Tab, label: 'FAQ', icon: HelpCircle },
+    { id: 'quick_replies' as Tab, label: 'Хурдан хариулт', icon: MessageCircle },
+    { id: 'slogans' as Tab, label: 'Хэллэгүүд', icon: Quote },
+    { id: 'stats' as Tab, label: 'Статистик', icon: BarChart3 },
 ];
 
 export default function AISettingsPage() {
+    const [activeTab, setActiveTab] = useState<Tab>('general');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [shopDescription, setShopDescription] = useState('');
-    const [aiInstructions, setAiInstructions] = useState('');
-    const [aiEmotion, setAiEmotion] = useState<AiEmotion>('friendly');
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // General settings
+    const [shopDescription, setShopDescription] = useState('');
+    const [aiInstructions, setAiInstructions] = useState('');
+    const [aiEmotion, setAiEmotion] = useState<AiEmotion>('friendly');
+
+    // AI Features data
+    const [faqs, setFaqs] = useState<FAQ[]>([]);
+    const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+    const [slogans, setSlogans] = useState<Slogan[]>([]);
+    const [stats, setStats] = useState<AIStats | null>(null);
+
+    // Edit states
+    const [editingFaq, setEditingFaq] = useState<Partial<FAQ> | null>(null);
+    const [editingQuickReply, setEditingQuickReply] = useState<Partial<QuickReply> | null>(null);
+    const [editingSlogan, setEditingSlogan] = useState<Partial<Slogan> | null>(null);
+
     useEffect(() => {
-        fetchShopData();
+        fetchAllData();
     }, []);
 
-    async function fetchShopData() {
+    async function fetchAllData() {
         try {
-            const res = await fetch('/api/shop');
-            const data = await res.json();
-            if (data.shop) {
-                setShopDescription(data.shop.description || '');
-                setAiInstructions(data.shop.ai_instructions || '');
-                setAiEmotion(data.shop.ai_emotion || 'friendly');
+            // Fetch shop data
+            const shopRes = await fetch('/api/shop');
+            const shopData = await shopRes.json();
+            if (shopData.shop) {
+                setShopDescription(shopData.shop.description || '');
+                setAiInstructions(shopData.shop.ai_instructions || '');
+                setAiEmotion(shopData.shop.ai_emotion || 'friendly');
             }
-        } catch (error) {
-            console.error('Failed to fetch shop:', error);
+
+            // Fetch AI settings
+            const aiRes = await fetch('/api/ai-settings');
+            if (aiRes.ok) {
+                const aiData = await aiRes.json();
+                setFaqs(aiData.faqs || []);
+                setQuickReplies(aiData.quickReplies || []);
+                setSlogans(aiData.slogans || []);
+                setStats(aiData.stats || null);
+            }
+        } catch (err) {
+            console.error('Failed to fetch data:', err);
         } finally {
             setLoading(false);
         }
     }
 
-    async function handleSave() {
+    async function handleSaveGeneral() {
         setSaving(true);
         setError(null);
-        setSuccess(false);
-
         try {
             const res = await fetch('/api/shop', {
                 method: 'PATCH',
@@ -60,61 +136,164 @@ export default function AISettingsPage() {
                     ai_emotion: aiEmotion,
                 }),
             });
-
-            if (!res.ok) {
-                throw new Error('Failed to save');
-            }
-
+            if (!res.ok) throw new Error('Failed to save');
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (err: any) {
-            setError(err.message || 'Хадгалахад алдаа гарлаа');
+            setError(err.message);
         } finally {
             setSaving(false);
         }
     }
 
-    async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        if (!e.target.files?.[0]) return;
-
-        const file = e.target.files[0];
-        setError(null);
+    // FAQ CRUD
+    async function saveFaq() {
+        if (!editingFaq?.question || !editingFaq?.answer) return;
 
         try {
-            if (file.name.endsWith('.txt')) {
-                // TXT files are read directly
-                const text = await file.text();
-                setAiInstructions(prev => prev ? prev + '\n\n' + text : text);
-            } else if (file.name.endsWith('.docx')) {
-                // DOCX parsing requires additional setup
-                // For now, inform user to use TXT format
-                setError('DOCX форматыг дэмжихгүй байна. TXT файл ашиглана уу (Word дээр Save As → Plain Text сонгоно уу)');
+            const isNew = !editingFaq.id;
+            const res = await fetch('/api/ai-settings', {
+                method: isNew ? 'POST' : 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'faqs',
+                    ...editingFaq
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to save FAQ');
+
+            const { data } = await res.json();
+            if (isNew) {
+                setFaqs([...faqs, data]);
             } else {
-                setError('Зөвхөн .txt файл дэмждэг');
+                setFaqs(faqs.map(f => f.id === data.id ? data : f));
             }
-        } catch (error) {
-            console.error('File upload error:', error);
-            setError('Файл уншихад алдаа гарлаа');
+            setEditingFaq(null);
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    async function deleteFaq(id: string) {
+        try {
+            await fetch(`/api/ai-settings?type=faqs&id=${id}`, { method: 'DELETE' });
+            setFaqs(faqs.filter(f => f.id !== id));
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    // Quick Reply CRUD
+    async function saveQuickReply() {
+        if (!editingQuickReply?.name || !editingQuickReply?.response) return;
+
+        try {
+            const isNew = !editingQuickReply.id;
+            const res = await fetch('/api/ai-settings', {
+                method: isNew ? 'POST' : 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'quick_replies',
+                    ...editingQuickReply,
+                    trigger_words: typeof editingQuickReply.trigger_words === 'string'
+                        ? editingQuickReply.trigger_words
+                        : editingQuickReply.trigger_words?.join(', ')
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to save Quick Reply');
+
+            const { data } = await res.json();
+            if (isNew) {
+                setQuickReplies([...quickReplies, data]);
+            } else {
+                setQuickReplies(quickReplies.map(q => q.id === data.id ? data : q));
+            }
+            setEditingQuickReply(null);
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    async function deleteQuickReply(id: string) {
+        try {
+            await fetch(`/api/ai-settings?type=quick_replies&id=${id}`, { method: 'DELETE' });
+            setQuickReplies(quickReplies.filter(q => q.id !== id));
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    // Slogan CRUD
+    async function saveSlogan() {
+        if (!editingSlogan?.slogan) return;
+
+        try {
+            const isNew = !editingSlogan.id;
+            const res = await fetch('/api/ai-settings', {
+                method: isNew ? 'POST' : 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'slogans',
+                    ...editingSlogan
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to save Slogan');
+
+            const { data } = await res.json();
+            if (isNew) {
+                setSlogans([...slogans, data]);
+            } else {
+                setSlogans(slogans.map(s => s.id === data.id ? data : s));
+            }
+            setEditingSlogan(null);
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    async function deleteSlogan(id: string) {
+        try {
+            await fetch(`/api/ai-settings?type=slogans&id=${id}`, { method: 'DELETE' });
+            setSlogans(slogans.filter(s => s.id !== id));
+        } catch (err: any) {
+            setError(err.message);
         }
     }
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-96">
-                <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-4xl">
+        <div className="space-y-6 max-w-5xl">
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                     <Bot className="w-7 h-7 text-violet-600" />
                     AI Тохируулга
                 </h1>
-                <p className="text-gray-500 mt-1">Chatbot-ийн зан байдлыг өөрчлөх</p>
+                <p className="text-gray-500 mt-1">Chatbot-ийн зан байдал, хариултуудыг тохируулах</p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
+                                ? 'bg-violet-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                    >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
             {/* Success/Error Messages */}
@@ -128,112 +307,409 @@ export default function AISettingsPage() {
                 <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5" />
                     {error}
+                    <button onClick={() => setError(null)} className="ml-auto">
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
             )}
 
-            {/* Shop Description */}
-            <Card>
-                <CardContent className="p-6">
-                    <h2 className="font-semibold text-gray-900 mb-2">Дэлгүүрийн тайлбар</h2>
-                    <p className="text-sm text-gray-500 mb-4">
-                        AI энэ мэдээллийг ашиглан дэлгүүрийн талаар дэлгэрэнгүй хариулна
-                    </p>
-                    <Textarea
-                        value={shopDescription}
-                        onChange={(e) => setShopDescription(e.target.value)}
-                        placeholder="Жишээ: Манай дэлгүүр бол гар урлалын бүтээгдэхүүн борлуулдаг. 100% байгалийн материал ашигладаг..."
-                        rows={4}
-                    />
-                </CardContent>
-            </Card>
+            {/* Tab Content */}
+            {activeTab === 'general' && (
+                <div className="space-y-6">
+                    {/* AI Emotion */}
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-4">AI Зан байдал</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                                {emotionOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => setAiEmotion(option.value)}
+                                        className={`p-4 rounded-xl border-2 transition-all ${aiEmotion === option.value
+                                                ? 'border-violet-500 bg-violet-50'
+                                                : 'border-gray-200 hover:border-violet-200'
+                                            }`}
+                                    >
+                                        <div className={`mb-2 ${aiEmotion === option.value ? 'text-violet-600' : 'text-gray-400'}`}>
+                                            {option.icon}
+                                        </div>
+                                        <p className="font-medium text-sm">{option.label}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-            {/* AI Emotion/Personality */}
-            <Card>
-                <CardContent className="p-6">
-                    <h2 className="font-semibold text-gray-900 mb-2">AI Зан байдал</h2>
-                    <p className="text-sm text-gray-500 mb-4">
-                        AI-н ярианы хэв маягийг сонгоно уу
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                        {emotionOptions.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                onClick={() => setAiEmotion(option.value)}
-                                className={`p-4 rounded-xl border-2 transition-all text-left ${aiEmotion === option.value
-                                    ? 'border-violet-500 bg-violet-50'
-                                    : 'border-gray-200 hover:border-violet-200 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <div className={`mb-2 ${aiEmotion === option.value ? 'text-violet-600' : 'text-gray-400'}`}>
-                                    {option.icon}
-                                </div>
-                                <p className={`font-medium text-sm ${aiEmotion === option.value ? 'text-violet-900' : 'text-gray-700'}`}>
-                                    {option.label}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5">{option.desc}</p>
-                            </button>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* AI Instructions */}
-            <Card>
-                <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="font-semibold text-gray-900">AI Заавар</h2>
-                        <label className="flex items-center gap-2 px-3 py-1.5 text-sm text-violet-600 hover:bg-violet-50 rounded-lg cursor-pointer transition-colors">
-                            <Upload className="w-4 h-4" />
-                            Файл оруулах
-                            <input
-                                type="file"
-                                accept=".txt,.docx"
-                                onChange={handleFileUpload}
-                                className="hidden"
+                    {/* Shop Description */}
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-2">Бизнесийн тайлбар</h2>
+                            <p className="text-sm text-gray-500 mb-4">AI энэ мэдээллийг ашиглан бизнесийн талаар хариулна</p>
+                            <Textarea
+                                value={shopDescription}
+                                onChange={(e) => setShopDescription(e.target.value)}
+                                placeholder="Жишээ: Манай компани бол орон сууцны хороолол хөгжүүлэгч..."
+                                rows={4}
                             />
-                        </label>
+                        </CardContent>
+                    </Card>
+
+                    {/* AI Instructions */}
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-2">AI Заавар</h2>
+                            <p className="text-sm text-gray-500 mb-4">AI хэрхэн ярих, ямар хэв маягтай байхыг заана</p>
+                            <Textarea
+                                value={aiInstructions}
+                                onChange={(e) => setAiInstructions(e.target.value)}
+                                placeholder="Жишээ: Хэрэглэгчтэй найрсаг, дотно харилцаарай..."
+                                rows={6}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <Button onClick={handleSaveGeneral} disabled={saving}>
+                            <Save className="w-4 h-4 mr-2" />
+                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                        </Button>
                     </div>
-                    <p className="text-sm text-gray-500 mb-4">
-                        AI хэрхэн ярих, ямар хэв маягтай байхыг заана уу
-                    </p>
-                    <Textarea
-                        value={aiInstructions}
-                        onChange={(e) => setAiInstructions(e.target.value)}
-                        placeholder={`Жишээ зааврууд:
-- Хэрэглэгчтэй маш найрсаг, дотно харилцаарай
-- Бүтээгдэхүүний материал, хийх үйлдвэрлэлийн тухай дэлгэрэнгүй тайлбарла
-- Монгол үндэсний соёлыг онцол
-- Хэрэв үнэ асуувал эхлээд чанарын талаар ярьж, дараа нь үнийг хэл
-- Заримдаа "Таалагдсан уу?" гэх мэт эерэг асуулт тавь`}
-                        rows={8}
-                    />
-                </CardContent>
-            </Card>
+                </div>
+            )}
 
-            {/* Tips */}
-            <Card className="bg-violet-50 border-violet-100">
-                <CardContent className="p-6">
-                    <h3 className="font-medium text-violet-900 mb-3 flex items-center gap-2">
-                        <FileText className="w-5 h-5" />
-                        Зөвлөмж
-                    </h3>
-                    <ul className="text-sm text-violet-800 space-y-2">
-                        <li>• <strong>Найрсаг</strong> - "Хэрэглэгчтэй найзын адил яриарай"</li>
-                        <li>• <strong>Мэргэжлийн</strong> - "Албан ёсны, мэргэжлийн хэлээр хариулаарай"</li>
-                        <li>• <strong>Борлуулалтад чиглүүлэх</strong> - "Бүтээгдэхүүний давуу талыг онцол"</li>
-                        <li>• <strong>Тусгай мэдээлэл</strong> - "Хүргэлт 24 цагийн дотор гэж хэлээрэй"</li>
-                    </ul>
-                </CardContent>
-            </Card>
+            {activeTab === 'faqs' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-semibold">Түгээмэл асуултууд (FAQ)</h2>
+                        <Button onClick={() => setEditingFaq({ question: '', answer: '', category: 'general' })}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Нэмэх
+                        </Button>
+                    </div>
 
-            {/* Save Button */}
-            <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={saving} size="lg">
-                    <Save className="w-4 h-4 mr-2" />
-                    {saving ? 'Хадгалж байна...' : 'Хадгалах'}
-                </Button>
-            </div>
+                    {/* FAQ Edit Form */}
+                    {editingFaq && (
+                        <Card className="border-violet-200 bg-violet-50">
+                            <CardContent className="p-4 space-y-4">
+                                <Input
+                                    placeholder="Асуулт"
+                                    value={editingFaq.question || ''}
+                                    onChange={(e) => setEditingFaq({ ...editingFaq, question: e.target.value })}
+                                />
+                                <Textarea
+                                    placeholder="Хариулт"
+                                    value={editingFaq.answer || ''}
+                                    onChange={(e) => setEditingFaq({ ...editingFaq, answer: e.target.value })}
+                                    rows={3}
+                                />
+                                <div className="flex gap-2">
+                                    <Button onClick={saveFaq} size="sm">
+                                        <Check className="w-4 h-4 mr-1" />
+                                        Хадгалах
+                                    </Button>
+                                    <Button variant="secondary" size="sm" onClick={() => setEditingFaq(null)}>
+                                        <X className="w-4 h-4 mr-1" />
+                                        Цуцлах
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* FAQ List */}
+                    {faqs.length === 0 && !editingFaq ? (
+                        <Card>
+                            <CardContent className="p-8 text-center text-gray-500">
+                                <HelpCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                                <p>FAQ байхгүй байна. Түгээмэл асуултуудаа нэмнэ үү.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {faqs.map((faq) => (
+                                <Card key={faq.id}>
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">{faq.question}</p>
+                                                <p className="text-sm text-gray-600 mt-1">{faq.answer}</p>
+                                                <p className="text-xs text-gray-400 mt-2">
+                                                    Ашиглагдсан: {faq.usage_count}x
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditingFaq(faq)}
+                                                    className="p-2 text-gray-400 hover:text-violet-600"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteFaq(faq.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-600"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'quick_replies' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-semibold">Хурдан хариултууд</h2>
+                        <Button onClick={() => setEditingQuickReply({ name: '', trigger_words: [], response: '' })}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Нэмэх
+                        </Button>
+                    </div>
+
+                    {/* Quick Reply Edit Form */}
+                    {editingQuickReply && (
+                        <Card className="border-violet-200 bg-violet-50">
+                            <CardContent className="p-4 space-y-4">
+                                <Input
+                                    placeholder="Нэр (жишээ: Үнэ асуулт)"
+                                    value={editingQuickReply.name || ''}
+                                    onChange={(e) => setEditingQuickReply({ ...editingQuickReply, name: e.target.value })}
+                                />
+                                <Input
+                                    placeholder="Trigger үгс (таслалаар: үнэ, хэд вэ, price)"
+                                    value={
+                                        Array.isArray(editingQuickReply.trigger_words)
+                                            ? editingQuickReply.trigger_words.join(', ')
+                                            : editingQuickReply.trigger_words || ''
+                                    }
+                                    onChange={(e) => setEditingQuickReply({
+                                        ...editingQuickReply,
+                                        trigger_words: e.target.value as any
+                                    })}
+                                />
+                                <Textarea
+                                    placeholder="Хариулт"
+                                    value={editingQuickReply.response || ''}
+                                    onChange={(e) => setEditingQuickReply({ ...editingQuickReply, response: e.target.value })}
+                                    rows={3}
+                                />
+                                <div className="flex gap-2">
+                                    <Button onClick={saveQuickReply} size="sm">
+                                        <Check className="w-4 h-4 mr-1" />
+                                        Хадгалах
+                                    </Button>
+                                    <Button variant="secondary" size="sm" onClick={() => setEditingQuickReply(null)}>
+                                        <X className="w-4 h-4 mr-1" />
+                                        Цуцлах
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Quick Reply List */}
+                    {quickReplies.length === 0 && !editingQuickReply ? (
+                        <Card>
+                            <CardContent className="p-8 text-center text-gray-500">
+                                <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                                <p>Хурдан хариулт байхгүй. Trigger үгс + хариулт нэмнэ үү.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {quickReplies.map((qr) => (
+                                <Card key={qr.id}>
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">{qr.name}</p>
+                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                    {qr.trigger_words.map((word, i) => (
+                                                        <span key={i} className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded">
+                                                            {word}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <p className="text-sm text-gray-600 mt-2">{qr.response}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditingQuickReply(qr)}
+                                                    className="p-2 text-gray-400 hover:text-violet-600"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteQuickReply(qr.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-600"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'slogans' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-semibold">Тусгай хэллэгүүд</h2>
+                        <Button onClick={() => setEditingSlogan({ slogan: '', usage_context: 'any' })}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Нэмэх
+                        </Button>
+                    </div>
+
+                    {/* Slogan Edit Form */}
+                    {editingSlogan && (
+                        <Card className="border-violet-200 bg-violet-50">
+                            <CardContent className="p-4 space-y-4">
+                                <Textarea
+                                    placeholder="Хэллэг (жишээ: Манайхаар хэзээ ч тавтай морилно уу!)"
+                                    value={editingSlogan.slogan || ''}
+                                    onChange={(e) => setEditingSlogan({ ...editingSlogan, slogan: e.target.value })}
+                                    rows={2}
+                                />
+                                <select
+                                    value={editingSlogan.usage_context || 'any'}
+                                    onChange={(e) => setEditingSlogan({ ...editingSlogan, usage_context: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                                >
+                                    <option value="any">Дурын үед</option>
+                                    <option value="greeting">Мэндчилгээнд</option>
+                                    <option value="closing">Баяртай хэлэхэд</option>
+                                    <option value="promotion">Хямдрал дурдахад</option>
+                                </select>
+                                <div className="flex gap-2">
+                                    <Button onClick={saveSlogan} size="sm">
+                                        <Check className="w-4 h-4 mr-1" />
+                                        Хадгалах
+                                    </Button>
+                                    <Button variant="secondary" size="sm" onClick={() => setEditingSlogan(null)}>
+                                        <X className="w-4 h-4 mr-1" />
+                                        Цуцлах
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Slogan List */}
+                    {slogans.length === 0 && !editingSlogan ? (
+                        <Card>
+                            <CardContent className="p-8 text-center text-gray-500">
+                                <Quote className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                                <p>Хэллэг байхгүй. Брэндийн хэллэгүүдээ нэмнэ үү.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {slogans.map((slogan) => (
+                                <Card key={slogan.id}>
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">"{slogan.slogan}"</p>
+                                                <span className={`inline-block mt-2 px-2 py-0.5 text-xs rounded ${slogan.usage_context === 'greeting' ? 'bg-green-100 text-green-700' :
+                                                        slogan.usage_context === 'closing' ? 'bg-blue-100 text-blue-700' :
+                                                            slogan.usage_context === 'promotion' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-gray-100 text-gray-700'
+                                                    }`}>
+                                                    {slogan.usage_context === 'greeting' ? 'Мэндчилгээ' :
+                                                        slogan.usage_context === 'closing' ? 'Баяртай' :
+                                                            slogan.usage_context === 'promotion' ? 'Хямдрал' : 'Дурын'}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditingSlogan(slogan)}
+                                                    className="p-2 text-gray-400 hover:text-violet-600"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteSlogan(slogan.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-600"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'stats' && (
+                <div className="space-y-6">
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card>
+                            <CardContent className="p-4 text-center">
+                                <p className="text-3xl font-bold text-violet-600">{stats?.total_conversations || 0}</p>
+                                <p className="text-sm text-gray-500">Нийт яриа</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4 text-center">
+                                <p className="text-3xl font-bold text-violet-600">{stats?.recent_conversations || 0}</p>
+                                <p className="text-sm text-gray-500">Сүүлийн 7 хоног</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4 text-center">
+                                <p className="text-3xl font-bold text-violet-600">{stats?.total_messages || 0}</p>
+                                <p className="text-sm text-gray-500">Нийт мессеж</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4 text-center">
+                                <p className="text-3xl font-bold text-emerald-600">{stats?.conversion_rate?.toFixed(1) || 0}%</p>
+                                <p className="text-sm text-gray-500">Захиалга болсон</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Top Questions */}
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-4">Түгээмэл асуултууд</h2>
+                            {stats?.top_questions?.length ? (
+                                <div className="space-y-3">
+                                    {stats.top_questions.map((q, i) => (
+                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                            <div>
+                                                <p className="text-sm text-gray-900">{q.sample_question}</p>
+                                                <span className="text-xs text-gray-500">{q.category}</span>
+                                            </div>
+                                            <span className="px-2 py-1 bg-violet-100 text-violet-700 text-sm font-medium rounded">
+                                                {q.count}x
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 text-center py-8">
+                                    Статистик цуглаагүй байна. AI ашиглагдсаны дараа энд харагдана.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }

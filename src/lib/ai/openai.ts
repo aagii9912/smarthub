@@ -33,6 +33,10 @@ export interface ChatContext {
     }>;
     customerName?: string;
     orderHistory?: number;
+    // New AI features
+    faqs?: Array<{ question: string; answer: string }>;
+    quickReplies?: Array<{ trigger_words: string[]; response: string; is_exact_match?: boolean }>;
+    slogans?: Array<{ slogan: string; usage_context: string }>;
 }
 
 interface ChatMessage {
@@ -216,12 +220,23 @@ export async function generateChatResponse(
 
         const emotionStyle = emotionPrompts[context.aiEmotion || 'friendly'];
 
+        // Build FAQ section for prompt
+        const faqSection = context.faqs && context.faqs.length > 0
+            ? `\nТҮГЭЭМЭЛ АСУУЛТ-ХАРИУЛТ (FAQ):\n${context.faqs.map(f =>
+                `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')}\n\n⚠️ FAQ-д байгаа асуултыг яг дагаж хариулаарай!`
+            : '';
+
+        // Build slogans section
+        const sloganSection = context.slogans && context.slogans.length > 0
+            ? `\nБРЭНД ХЭЛЛЭГ: "${context.slogans[0].slogan}" (заримдаа ашиглаарай)`
+            : '';
+
         const systemPrompt = `Та бол "${context.shopName}" -ийн МЭРГЭЖЛИЙН ЗӨВЛӨХ юм.
 Чиний зорилго: хэрэглэгчид энэ бизнесийн талаар хамгийн зөв мэдээлэл, шийдлийг олоход туслах.
 
 ЗАН БАЙДАЛ: ${emotionStyle}
 
-${shopInfo}${customInstructions}
+${shopInfo}${customInstructions}${faqSection}${sloganSection}
 
 ЧУХАЛ ДҮРЭМ:
 1. "Сайн байна уу" БҮҮ ДАВТ (хэрэв өмнө нь хэлсэн бол)
