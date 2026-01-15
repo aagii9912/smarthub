@@ -24,21 +24,30 @@ export function supabaseAdmin() {
 // Get shop for a Clerk user
 export async function getClerkUserShop() {
     const userId = await getClerkUser();
-    if (!userId) return null;
+    if (!userId) {
+        // console.log('getClerkUserShop: No userId found from Clerk');
+        return null;
+    }
 
     const supabase = supabaseAdmin();
-    // For now, we just return the first shop found for the user
-    // TODO: Implement logic to select "active" shop from cookie or context if multiple exist
+
+    // Select specific columns to avoid issues with potential problematic columns (like large JSONB or foreign keys)
+    // and match the working pattern of /api/user/shops
     const { data: shops, error } = await supabase
         .from('shops')
-        .select('*')
+        .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at')
         .eq('user_id', userId)
         .limit(1);
 
     if (error) {
-        console.error('Error fetching shop:', error);
+        console.error('getClerkUserShop Error:', error);
         return null;
     }
 
-    return shops?.[0] || null;
+    if (!shops || shops.length === 0) {
+        // console.log('getClerkUserShop: No shops found for userId:', userId);
+        return null;
+    }
+
+    return shops[0];
 }

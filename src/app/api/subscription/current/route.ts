@@ -12,6 +12,7 @@ export async function GET() {
         const shop = await getClerkUserShop();
 
         if (!shop) {
+            console.error('Subscription API: Unauthorized - No shop found for user');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
