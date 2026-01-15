@@ -8,6 +8,7 @@ import { Plus, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet }
 import { supabase } from '@/lib/supabase';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProductsPage() {
     // TanStack Query hooks
@@ -16,6 +17,7 @@ export default function ProductsPage() {
     const updateProduct = useUpdateProduct();
     const deleteProduct = useDeleteProduct();
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -64,7 +66,6 @@ export default function ProductsPage() {
     }, [imagePreview]);
 
     const uploadImage = async (file: File) => {
-        const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Нэвтрээгүй байна");
 
         const fileExt = file.name.split('.').pop();

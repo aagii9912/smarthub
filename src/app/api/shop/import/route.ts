@@ -1,35 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getClerkUserShop, supabaseAdmin } from '@/lib/auth/clerk-auth';
 import { parseProductFile, ParsedProduct } from '@/lib/utils/file-parser';
-
-async function getAuthUser() {
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return cookieStore.getAll();
-                },
-                setAll() { },
-            },
-        }
-    );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-}
 
 // POST - Import products from Excel/DOCX file
 export async function POST(request: NextRequest) {
     try {
-        const user = await getAuthUser();
+        const shop = await getClerkUserShop();
 
-        if (!user) {
+        if (!shop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -64,17 +42,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Get user's shop
         const supabase = supabaseAdmin();
-        const { data: shop } = await supabase
-            .from('shops')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
-        }
 
         // Prepare products for database
         const productsToInsert = products.map((p: ParsedProduct) => ({

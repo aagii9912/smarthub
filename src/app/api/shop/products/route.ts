@@ -1,34 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { supabaseAdmin } from '@/lib/supabase';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
+import { getClerkUserShop, supabaseAdmin } from '@/lib/auth/clerk-auth';
 
 // POST - Add products to shop
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser();
-    
-    if (!user) {
+    const shop = await getClerkUserShop();
+
+    if (!shop) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,17 +18,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = supabaseAdmin();
-
-    // Get user's shop
-    const { data: shop } = await supabase
-      .from('shops')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!shop) {
-      return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
-    }
 
     // Filter valid products
     const validProducts = products
@@ -86,7 +53,7 @@ export async function POST(request: NextRequest) {
       .update({ setup_completed: true })
       .eq('id', shop.id);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       products: insertedProducts,
       message: `${insertedProducts.length} бүтээгдэхүүн нэмэгдлээ`
     });

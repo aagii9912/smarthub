@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Product {
   name: string;
@@ -23,6 +24,7 @@ interface ProductStepProps {
 }
 
 export function ProductStep({ initialProducts, onBack, onComplete }: ProductStepProps) {
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>(
     initialProducts.length > 0
       ? initialProducts.map(p => ({
@@ -113,7 +115,6 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   };
 
   const uploadImage = async (file: File) => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Нэвтрээгүй байна");
 
     const fileExt = file.name.split('.').pop();
@@ -196,8 +197,8 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                 <button
                   onClick={() => updateProduct(index, 'type', 'physical')}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${product.type === 'physical'
-                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                 >
                   <Box className="w-3.5 h-3.5" /> Бараа
@@ -205,8 +206,8 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                 <button
                   onClick={() => updateProduct(index, 'type', 'service')}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${product.type === 'service'
-                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                 >
                   <Layers className="w-3.5 h-3.5" /> Үйлчилгээ
