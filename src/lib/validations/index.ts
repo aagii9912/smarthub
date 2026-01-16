@@ -33,7 +33,7 @@ export const createOrderSchema = z.object({
 // PRODUCT SCHEMAS
 // ============================================
 
-export const productTypeSchema = z.enum(['physical', 'service']);
+export const productTypeSchema = z.enum(['physical', 'service', 'appointment']);
 
 export const createProductSchema = z.object({
     name: z.string()
@@ -58,6 +58,12 @@ export const createProductSchema = z.object({
     sizes: z.array(z.string()).optional().default([]),
     images: z.array(z.string().url()).optional().default([]),
     isActive: z.boolean().optional().default(true),
+    // Appointment-specific fields
+    durationMinutes: z.number().int().min(15).max(480).optional().nullable(),
+    availableDays: z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).optional().default([]),
+    startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
+    endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
+    maxBookingsPerDay: z.number().int().min(1).max(100).optional().nullable(),
 });
 
 export const updateProductSchema = createProductSchema.partial().extend({

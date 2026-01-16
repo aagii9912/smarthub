@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
-import { Plus, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, X, Upload, Box, Layers, FileSpreadsheet, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
@@ -27,7 +27,7 @@ export default function ProductsPage() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [productType, setProductType] = useState<'physical' | 'service'>('physical');
+    const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>('physical');
 
     // Import States
     const [showImportModal, setShowImportModal] = useState(false);
@@ -114,12 +114,18 @@ export default function ProductsPage() {
                 name: formData.get('name') as string,
                 description: formData.get('description') as string,
                 price: Number(formData.get('price')),
-                stock: productType === 'service' ? null : Number(formData.get('stock')),
+                stock: productType === 'service' || productType === 'appointment' ? null : Number(formData.get('stock')),
                 discountPercent: Number(formData.get('discount')) || 0,
                 type: productType,
                 colors: (formData.get('colors') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
                 sizes: (formData.get('sizes') as string)?.split(',').map(s => s.trim()).filter(Boolean) || [],
                 images: imageUrl ? [imageUrl] : [],
+                // Appointment-specific fields
+                durationMinutes: productType === 'appointment' ? Number(formData.get('duration')) : null,
+                availableDays: productType === 'appointment' ? formData.getAll('availableDays') as string[] : [],
+                startTime: productType === 'appointment' ? formData.get('startTime') as string : null,
+                endTime: productType === 'appointment' ? formData.get('endTime') as string : null,
+                maxBookingsPerDay: productType === 'appointment' ? Number(formData.get('maxBookings')) : null,
             };
 
             if (editingProduct) {
@@ -302,8 +308,8 @@ export default function ProductsPage() {
                                     </div>
 
                                     <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
-                                            {product.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : product.type === 'appointment' ? 'bg-blue-500/10 text-blue-600 border-blue-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
+                                            {product.type === 'service' ? 'Үйлчилгээ' : product.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
                                         </span>
                                         {product.type === 'physical' && (
                                             <span className={`text-xs ${(product.stock || 0) > 0 ? 'text-muted-foreground' : 'text-destructive'}`}>
@@ -353,8 +359,8 @@ export default function ProductsPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
-                                            {product.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
+                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : product.type === 'appointment' ? 'bg-blue-500/10 text-blue-600 border-blue-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
+                                            {product.type === 'service' ? 'Үйлчилгээ' : product.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
@@ -437,6 +443,13 @@ export default function ProductsPage() {
                                 >
                                     <Layers className="w-4 h-4" /> Үйлчилгээ
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setProductType('appointment')}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === 'appointment' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                >
+                                    <Calendar className="w-4 h-4" /> Цаг захиалга
+                                </button>
                             </div>
 
                             <div className="flex gap-6">
@@ -464,7 +477,7 @@ export default function ProductsPage() {
                                     <Input
                                         name="name"
                                         label="Нэр"
-                                        placeholder={productType === 'physical' ? "Барааны нэр" : "Үйлчилгээний нэр"}
+                                        placeholder={productType === 'physical' ? "Барааны нэр" : productType === 'service' ? "Үйлчилгээний нэр" : "Цаг захиалгын нэр"}
                                         defaultValue={editingProduct?.name}
                                         required
                                     />
@@ -505,20 +518,104 @@ export default function ProductsPage() {
                                 defaultValue={editingProduct?.description || ''}
                             />
 
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-                                <Input
-                                    name="colors"
-                                    label="Өнгө / Хувилбар"
-                                    placeholder="Улаан, Хар (Таслалаар зааглана)"
-                                    defaultValue={editingProduct?.colors?.join(', ')}
-                                />
-                                <Input
-                                    name="sizes"
-                                    label="Хэмжээ / Хугацаа"
-                                    placeholder={productType === 'physical' ? "S, M, L" : "1 цаг, 1 сар"}
-                                    defaultValue={editingProduct?.sizes?.join(', ')}
-                                />
-                            </div>
+                            {/* Appointment-specific fields */}
+                            {productType === 'appointment' && (
+                                <div className="space-y-4 p-4 bg-violet-50 rounded-xl border border-violet-200">
+                                    <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-violet-600" />
+                                        Цаг захиалгын тохиргоо
+                                    </h4>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Үргэлжлэх хугацаа</label>
+                                            <select
+                                                name="duration"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                defaultValue={editingProduct?.duration_minutes || 60}
+                                            >
+                                                <option value="30">30 минут</option>
+                                                <option value="60">1 цаг</option>
+                                                <option value="90">1.5 цаг</option>
+                                                <option value="120">2 цаг</option>
+                                                <option value="180">3 цаг</option>
+                                                <option value="240">4 цаг</option>
+                                            </select>
+                                        </div>
+                                        <Input
+                                            name="maxBookings"
+                                            label="Өдөрт хамгийн олон"
+                                            type="number"
+                                            placeholder="10"
+                                            defaultValue={editingProduct?.max_bookings_per_day || 10}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Боломжтой өдрүүд</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { value: 'mon', label: 'Да' },
+                                                { value: 'tue', label: 'Мя' },
+                                                { value: 'wed', label: 'Лх' },
+                                                { value: 'thu', label: 'Пү' },
+                                                { value: 'fri', label: 'Ба' },
+                                                { value: 'sat', label: 'Бя' },
+                                                { value: 'sun', label: 'Ня' },
+                                            ].map(day => (
+                                                <label key={day.value} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-violet-400 has-[:checked]:bg-violet-100 has-[:checked]:border-violet-500">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="availableDays"
+                                                        value={day.value}
+                                                        defaultChecked={editingProduct?.available_days?.includes(day.value) ?? ['mon', 'tue', 'wed', 'thu', 'fri'].includes(day.value)}
+                                                        className="w-4 h-4 text-violet-600 rounded"
+                                                    />
+                                                    <span className="text-sm">{day.label}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Эхлэх цаг</label>
+                                            <input
+                                                type="time"
+                                                name="startTime"
+                                                defaultValue={editingProduct?.start_time || '09:00'}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Дуусах цаг</label>
+                                            <input
+                                                type="time"
+                                                name="endTime"
+                                                defaultValue={editingProduct?.end_time || '18:00'}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {productType !== 'appointment' && (
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                                    <Input
+                                        name="colors"
+                                        label="Өнгө / Хувилбар"
+                                        placeholder="Улаан, Хар (Таслалаар зааглана)"
+                                        defaultValue={editingProduct?.colors?.join(', ')}
+                                    />
+                                    <Input
+                                        name="sizes"
+                                        label="Хэмжээ / Хугацаа"
+                                        placeholder={productType === 'physical' ? "S, M, L" : "1 цаг, 1 сар"}
+                                        defaultValue={editingProduct?.sizes?.join(', ')}
+                                    />
+                                </div>
+                            )}
 
                             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
                                 <Button variant="secondary" type="button" onClick={() => setShowModal(false)} disabled={saving}>
@@ -601,8 +698,8 @@ export default function ProductsPage() {
                                                 <tr key={i}>
                                                     <td className="px-3 py-2 text-gray-900">{p.name}</td>
                                                     <td className="px-3 py-2">
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.type === 'service' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>
-                                                            {p.type === 'service' ? 'Үйлчилгээ' : 'Бараа'}
+                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.type === 'service' ? 'bg-purple-50 text-purple-700' : p.type === 'appointment' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
+                                                            {p.type === 'service' ? 'Үйлчилгээ' : p.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-gray-600">₮{p.price?.toLocaleString()}</td>

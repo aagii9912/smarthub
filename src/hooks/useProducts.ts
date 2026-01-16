@@ -9,10 +9,16 @@ export interface Product {
     reserved_stock: number | null;
     discount_percent: number | null;
     is_active: boolean;
-    type: 'physical' | 'service';
+    type: 'physical' | 'service' | 'appointment';
     colors: string[];
     sizes: string[];
     images: string[];
+    // Appointment-specific fields
+    duration_minutes: number | null;
+    available_days: string[] | null;
+    start_time: string | null;
+    end_time: string | null;
+    max_bookings_per_day: number | null;
 }
 
 interface ProductsResponse {

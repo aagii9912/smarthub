@@ -26,7 +26,7 @@ export async function GET() {
         const excelData = (products || []).map((p, index) => ({
             '№': index + 1,
             'Нэр': p.name,
-            'Төрөл': p.type === 'service' ? 'Үйлчилгээ' : 'Бараа',
+            'Төрөл': p.type === 'service' ? 'Үйлчилгээ' : p.type === 'appointment' ? 'Цаг захиалга' : 'Бараа',
             'Үнэ (₮)': p.price,
             'Хямдрал (%)': p.discount_percent || 0,
             'Хямдралын үнэ (₮)': p.discount_percent

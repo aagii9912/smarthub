@@ -65,7 +65,13 @@ export async function POST(request: Request) {
         type: validData.type,
         colors: validData.colors,
         sizes: validData.sizes,
-        images: validData.images
+        images: validData.images,
+        // Appointment-specific fields
+        duration_minutes: validData.durationMinutes,
+        available_days: validData.availableDays,
+        start_time: validData.startTime,
+        end_time: validData.endTime,
+        max_bookings_per_day: validData.maxBookingsPerDay
       }])
       .select()
       .single();
@@ -126,6 +132,12 @@ export async function PATCH(request: Request) {
     if (validData.colors !== undefined) dbUpdates.colors = validData.colors;
     if (validData.sizes !== undefined) dbUpdates.sizes = validData.sizes;
     if (validData.images !== undefined) dbUpdates.images = validData.images;
+    // Appointment-specific fields
+    if (validData.durationMinutes !== undefined) dbUpdates.duration_minutes = validData.durationMinutes;
+    if (validData.availableDays !== undefined) dbUpdates.available_days = validData.availableDays;
+    if (validData.startTime !== undefined) dbUpdates.start_time = validData.startTime;
+    if (validData.endTime !== undefined) dbUpdates.end_time = validData.endTime;
+    if (validData.maxBookingsPerDay !== undefined) dbUpdates.max_bookings_per_day = validData.maxBookingsPerDay;
 
     const { data, error } = await supabase
       .from('products')
