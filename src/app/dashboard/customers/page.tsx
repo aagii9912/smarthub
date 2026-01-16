@@ -13,12 +13,10 @@ interface Customer {
     id: string;
     name: string | null;
     phone: string | null;
-    email: string | null;
-    tags: string[];
-    notes: string | null;
+    address: string | null;
     total_orders: number;
     total_spent: number;
-    last_contact_at: string | null;
+    is_vip: boolean;
     created_at: string;
     orders?: Array<{ id: string; status: string; total_amount: number; created_at: string }>;
     chat_history?: Array<{ message: string; response: string; created_at: string }>;
@@ -39,7 +37,7 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
-    const [sortBy, setSortBy] = useState('last_contact_at');
+    const [sortBy, setSortBy] = useState('created_at');
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -229,9 +227,8 @@ export default function CustomersPage() {
                                 onChange={(e) => setSortBy(e.target.value)}
                                 className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                             >
-                                <option value="last_contact_at">Сүүлд харьцсан</option>
-                                <option value="total_spent">Зарцуулсан дүн</option>
                                 <option value="created_at">Бүртгэсэн огноо</option>
+                                <option value="total_spent">Зарцуулсан дүн</option>
                             </select>
                         </div>
                     </div>
@@ -276,20 +273,17 @@ export default function CustomersPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1">
-                                                {(customer.tags || []).map(tag => (
-                                                    <span
-                                                        key={tag}
-                                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${TAG_COLORS[tag] || 'bg-gray-100 text-gray-600'}`}
-                                                    >
-                                                        {tag}
+                                                {customer.is_vip && (
+                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-amber-400 to-yellow-500 text-white">
+                                                        VIP
                                                     </span>
-                                                ))}
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-1 text-sm text-gray-600">
                                                 <Clock className="w-4 h-4 text-gray-400" />
-                                                {formatTime(customer.last_contact_at)}
+                                                {formatTime(customer.created_at)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -400,67 +394,31 @@ export default function CustomersPage() {
                                     ) : (
                                         <p className="flex items-center gap-2 text-gray-900">
                                             <Mail className="w-4 h-4 text-gray-400" />
-                                            {selectedCustomer.email || '-'}
+                                            {selectedCustomer.address || '-'}
                                         </p>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Tags */}
+                            {/* Tags - Coming Soon */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {(selectedCustomer.tags || []).map(tag => (
-                                        <span
-                                            key={tag}
-                                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${TAG_COLORS[tag] || 'bg-gray-100 text-gray-600'}`}
-                                        >
-                                            {tag}
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); removeTag(selectedCustomer.id, tag); }}
-                                                className="hover:opacity-70"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
+                                    {selectedCustomer.is_vip && (
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-amber-400 to-yellow-500 text-white">
+                                            VIP
                                         </span>
-                                    ))}
-                                    {/* Add Tag Dropdown */}
-                                    <div className="relative group">
-                                        <button className="flex items-center gap-1 px-3 py-1 border border-dashed border-gray-300 rounded-full text-sm text-gray-500 hover:border-violet-500 hover:text-violet-500">
-                                            <Plus className="w-3 h-3" />
-                                            Tag нэмэх
-                                        </button>
-                                        <div className="absolute top-full left-0 mt-1 hidden group-hover:block bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-2 min-w-[120px]">
-                                            {PREDEFINED_TAGS.filter(t => !(selectedCustomer.tags || []).includes(t)).map(tag => (
-                                                <button
-                                                    key={tag}
-                                                    onClick={() => addTag(selectedCustomer.id, tag)}
-                                                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 rounded-lg"
-                                                >
-                                                    {tag}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    )}
+                                    <span className="text-sm text-gray-500">Tag feature удахгүй...</span>
                                 </div>
                             </div>
 
-                            {/* Notes */}
+                            {/* Notes - Coming Soon */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Тэмдэглэл</label>
-                                {editMode ? (
-                                    <textarea
-                                        value={editForm.notes}
-                                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                                        rows={3}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                        placeholder="Тэмдэглэл бичих..."
-                                    />
-                                ) : (
-                                    <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">
-                                        {selectedCustomer.notes || 'Тэмдэглэл байхгүй'}
-                                    </p>
-                                )}
+                                <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">
+                                    Тэмдэглэл feature удахгүй...
+                                </p>
                             </div>
 
                             {/* Stats */}
@@ -479,9 +437,9 @@ export default function CustomersPage() {
                                 </div>
                                 <div className="bg-blue-50 p-4 rounded-xl text-center">
                                     <p className="text-2xl font-bold text-blue-600">
-                                        {formatTime(selectedCustomer.last_contact_at)}
+                                        {formatTime(selectedCustomer.created_at)}
                                     </p>
-                                    <p className="text-sm text-gray-600">Сүүлд харьцсан</p>
+                                    <p className="text-sm text-gray-600">Бүртгэсэн</p>
                                 </div>
                             </div>
 
