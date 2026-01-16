@@ -17,7 +17,6 @@ import {
     Megaphone,
     CreditCard,
     BarChart3,
-    MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,7 +28,6 @@ const menuItems = [
     { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
     { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard },
-    { name: 'Inbox', href: '/dashboard/inbox', icon: MessageCircle },
     { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
 ];
 

@@ -8,10 +8,10 @@ import {
     Bot, Save, Plus, Trash2, Edit2, X, Check,
     MessageSquare, Zap, Sparkles, BarChart3,
     Smile, Briefcase, Cloud, PartyPopper, AlertCircle,
-    HelpCircle, MessageCircle, Quote, Bell
+    HelpCircle, MessageCircle, Quote, Bell, BookOpen, Settings2
 } from 'lucide-react';
 
-type Tab = 'general' | 'faqs' | 'quick_replies' | 'slogans' | 'notifications' | 'stats';
+type Tab = 'general' | 'faqs' | 'quick_replies' | 'slogans' | 'notifications' | 'knowledge' | 'policies' | 'stats';
 type AiEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
 
 interface FAQ {
@@ -66,6 +66,8 @@ const tabs = [
     { id: 'faqs' as Tab, label: 'FAQ', icon: HelpCircle },
     { id: 'quick_replies' as Tab, label: 'Хурдан хариулт', icon: MessageCircle },
     { id: 'slogans' as Tab, label: 'Хэллэгүүд', icon: Quote },
+    { id: 'knowledge' as Tab, label: 'Мэдлэгийн сан', icon: BookOpen },
+    { id: 'policies' as Tab, label: 'Бодлогууд', icon: Settings2 },
     { id: 'notifications' as Tab, label: 'Мэдэгдэл', icon: Bell },
     { id: 'stats' as Tab, label: 'Статистик', icon: BarChart3 },
 ];
@@ -92,6 +94,17 @@ export default function AISettingsPage() {
     const [slogans, setSlogans] = useState<Slogan[]>([]);
     const [stats, setStats] = useState<AIStats | null>(null);
 
+    // NEW: Knowledge Base & Policies
+    const [customKnowledge, setCustomKnowledge] = useState<Array<{ key: string; value: string }>>([]);
+    const [policies, setPolicies] = useState({
+        shipping_threshold: 50000,
+        payment_methods: ['QPay', 'SocialPay', 'Бэлэн мөнгө'],
+        delivery_areas: ['Улаанбаатар'],
+        return_policy: '7 хоногийн дотор буцаах боломжтой'
+    });
+    const [newKnowledgeKey, setNewKnowledgeKey] = useState('');
+    const [newKnowledgeValue, setNewKnowledgeValue] = useState('');
+
     // Edit states
     const [editingFaq, setEditingFaq] = useState<Partial<FAQ> | null>(null);
     const [editingQuickReply, setEditingQuickReply] = useState<Partial<QuickReply> | null>(null);
@@ -114,6 +127,18 @@ export default function AISettingsPage() {
                 setNotifyOnContact(shopData.shop.notify_on_contact ?? true);
                 setNotifyOnSupport(shopData.shop.notify_on_support ?? true);
                 setNotifyOnCancel(shopData.shop.notify_on_cancel ?? true);
+
+                // Load custom knowledge
+                if (shopData.shop.custom_knowledge) {
+                    const knowledgeArray = Object.entries(shopData.shop.custom_knowledge)
+                        .map(([key, value]) => ({ key, value: String(value) }));
+                    setCustomKnowledge(knowledgeArray);
+                }
+
+                // Load policies
+                if (shopData.shop.policies) {
+                    setPolicies(prev => ({ ...prev, ...shopData.shop.policies }));
+                }
             }
 
             // Fetch AI settings
@@ -789,6 +814,179 @@ export default function AISettingsPage() {
 
                     <div className="flex justify-end">
                         <Button onClick={handleSaveGeneral} disabled={saving}>
+                            <Save className="w-4 h-4 mr-2" />
+                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Knowledge Base Tab */}
+            {activeTab === 'knowledge' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-2">Мэдлэгийн сан</h2>
+                            <p className="text-sm text-gray-500 mb-4">AI-д ашиглуулах нэмэлт мэдээлэл (буцаалтын бодлого, ажлын цаг г.м)</p>
+
+                            {/* Add new knowledge item */}
+                            <div className="flex gap-2 mb-4">
+                                <Input
+                                    placeholder="Талбарын нэр (жишээ: Буцаалт)"
+                                    value={newKnowledgeKey}
+                                    onChange={(e) => setNewKnowledgeKey(e.target.value)}
+                                    className="flex-1"
+                                />
+                                <Input
+                                    placeholder="Утга (жишээ: 7 хоногийн дотор)"
+                                    value={newKnowledgeValue}
+                                    onChange={(e) => setNewKnowledgeValue(e.target.value)}
+                                    className="flex-1"
+                                />
+                                <Button
+                                    onClick={() => {
+                                        if (newKnowledgeKey && newKnowledgeValue) {
+                                            setCustomKnowledge([...customKnowledge, { key: newKnowledgeKey, value: newKnowledgeValue }]);
+                                            setNewKnowledgeKey('');
+                                            setNewKnowledgeValue('');
+                                        }
+                                    }}
+                                    disabled={!newKnowledgeKey || !newKnowledgeValue}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            {/* Knowledge list */}
+                            {customKnowledge.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                                    <p>Мэдээлэл байхгүй. AI-д зааж өгөх мэдээлэл нэмнэ үү.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {customKnowledge.map((item, index) => (
+                                        <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                                            <span className="font-medium text-violet-700 min-w-[120px]">{item.key}:</span>
+                                            <span className="flex-1 text-gray-900">{item.value}</span>
+                                            <button
+                                                onClick={() => setCustomKnowledge(customKnowledge.filter((_, i) => i !== index))}
+                                                className="p-1 text-gray-400 hover:text-red-600"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <Button onClick={async () => {
+                            setSaving(true);
+                            try {
+                                const knowledgeObject = customKnowledge.reduce((acc, item) => {
+                                    acc[item.key] = item.value;
+                                    return acc;
+                                }, {} as Record<string, string>);
+
+                                await fetch('/api/shop', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ custom_knowledge: knowledgeObject }),
+                                });
+                                setSuccess(true);
+                                setTimeout(() => setSuccess(false), 3000);
+                            } catch (err: any) {
+                                setError(err.message);
+                            } finally {
+                                setSaving(false);
+                            }
+                        }} disabled={saving}>
+                            <Save className="w-4 h-4 mr-2" />
+                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Policies Tab */}
+            {activeTab === 'policies' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardContent className="p-6">
+                            <h2 className="font-semibold text-gray-900 mb-4">Дэлгүүрийн бодлогууд</h2>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Үнэгүй хүргэлтийн босго (₮)
+                                    </label>
+                                    <Input
+                                        type="number"
+                                        value={policies.shipping_threshold}
+                                        onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })}
+                                        placeholder="50000"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Энэ дүнгээс дээш захиалгад хүргэлт үнэгүй</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Төлбөрийн аргууд
+                                    </label>
+                                    <Input
+                                        value={policies.payment_methods.join(', ')}
+                                        onChange={(e) => setPolicies({ ...policies, payment_methods: e.target.value.split(',').map(s => s.trim()) })}
+                                        placeholder="QPay, SocialPay, Бэлэн мөнгө"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Таслалаар тусгаарла</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Хүргэлтийн бүс нутаг
+                                    </label>
+                                    <Input
+                                        value={policies.delivery_areas.join(', ')}
+                                        onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })}
+                                        placeholder="Улаанбаатар, Дархан"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Буцаалтын бодлого
+                                    </label>
+                                    <Textarea
+                                        value={policies.return_policy}
+                                        onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })}
+                                        placeholder="7 хоногийн дотор буцаах боломжтой"
+                                        rows={2}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end">
+                        <Button onClick={async () => {
+                            setSaving(true);
+                            try {
+                                await fetch('/api/shop', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ policies }),
+                                });
+                                setSuccess(true);
+                                setTimeout(() => setSuccess(false), 3000);
+                            } catch (err: any) {
+                                setError(err.message);
+                            } finally {
+                                setSaving(false);
+                            }
+                        }} disabled={saving}>
                             <Save className="w-4 h-4 mr-2" />
                             {saving ? 'Хадгалж байна...' : 'Хадгалах'}
                         </Button>

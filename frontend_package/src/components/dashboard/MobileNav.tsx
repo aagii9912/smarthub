@@ -16,7 +16,6 @@ import {
     Bot,
     CreditCard,
     FileText,
-    MessageCircle,
 } from 'lucide-react';
 
 // Main nav items (4 essential)
@@ -31,7 +30,6 @@ const secondaryNavItems = [
     { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
     { name: 'Харилцагч', href: '/dashboard/customers', icon: Users },
     { name: 'Маркетинг', href: '/dashboard/marketing', icon: Megaphone },
-    { name: 'Чат', href: '/dashboard/inbox', icon: MessageCircle },
     { name: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Захиалга', href: '/dashboard/subscription', icon: CreditCard },
     { name: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },
@@ -74,8 +72,8 @@ export function MobileNav() {
                                         href={item.href}
                                         onClick={() => setShowMore(false)}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${isActiveItem(item.href)
-                                            ? 'bg-[#65c51a]/10 text-[#65c51a]'
-                                            : 'hover:bg-gray-50 text-gray-600'
+                                                ? 'bg-[#65c51a]/10 text-[#65c51a]'
+                                                : 'hover:bg-gray-50 text-gray-600'
                                             }`}
                                     >
                                         <item.icon className="w-6 h-6" />
@@ -98,8 +96,8 @@ export function MobileNav() {
                                 <Link
                                     href={item.href}
                                     className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${isActive
-                                        ? 'text-[#65c51a]'
-                                        : 'text-gray-500'
+                                            ? 'text-[#65c51a]'
+                                            : 'text-gray-500'
                                         }`}
                                 >
                                     <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-[#65c51a]/10' : ''}`}>
@@ -121,8 +119,8 @@ export function MobileNav() {
                         <button
                             onClick={() => setShowMore(!showMore)}
                             className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${showMore || isMoreActive
-                                ? 'text-[#65c51a]'
-                                : 'text-gray-500'
+                                    ? 'text-[#65c51a]'
+                                    : 'text-gray-500'
                                 }`}
                         >
                             <div className={`p-2 rounded-xl transition-all ${showMore || isMoreActive ? 'bg-[#65c51a]/10' : ''}`}>
