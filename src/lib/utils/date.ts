@@ -4,6 +4,7 @@
 
 /**
  * Format a date string to relative time (e.g., "5 мин өмнө", "2 цаг өмнө")
+ * Uses Asia/Ulaanbaatar timezone for Mongolia
  */
 export function formatTimeAgo(date: string | Date): string {
   const now = new Date();
@@ -17,6 +18,17 @@ export function formatTimeAgo(date: string | Date): string {
   if (diffMins < 60) return `${diffMins} мин өмнө`;
   if (diffHours < 24) return `${diffHours} цаг өмнө`;
   return `${diffDays} өдрийн өмнө`;
+}
+
+/**
+ * Format time for display (HH:MM format) using Mongolian timezone
+ */
+export function formatTime(date: string | Date): string {
+  return new Date(date).toLocaleTimeString('mn-MN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Ulaanbaatar'
+  });
 }
 
 /**

@@ -1,6 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Check, CheckCheck } from 'lucide-react';
 
+// Helper: Format message time with date context (өнөөдөр, өчигдөр, or full date)
+function formatMessageTime(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const time = date.toLocaleTimeString('mn-MN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Ulaanbaatar'
+    });
+
+    if (msgDate.getTime() === today.getTime()) {
+        return `Өнөөдөр ${time}`;
+    } else if (msgDate.getTime() === yesterday.getTime()) {
+        return `Өчигдөр ${time}`;
+    } else {
+        const dateFormatted = date.toLocaleDateString('mn-MN', {
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'Asia/Ulaanbaatar'
+        });
+        return `${dateFormatted} ${time}`;
+    }
+}
+
 interface Message {
     id: string;
     role: 'user' | 'assistant' | 'human';
@@ -13,9 +43,10 @@ interface MessageThreadProps {
     messages: Message[];
     customerName: string;
     onReply: (text: string) => void;
+    hideHeader?: boolean;
 }
 
-export function MessageThread({ messages, customerName, onReply }: MessageThreadProps) {
+export function MessageThread({ messages, customerName, onReply, hideHeader = false }: MessageThreadProps) {
     const [reply, setReply] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -33,16 +64,18 @@ export function MessageThread({ messages, customerName, onReply }: MessageThread
 
     return (
         <div className="flex flex-col h-full bg-white">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                    <h3 className="font-bold text-gray-900">{customerName}</h3>
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">Online</span>
+            {/* Header - hidden on mobile when parent provides it */}
+            {!hideHeader && (
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-bold text-gray-900">{customerName}</h3>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Online</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-gray-50/30">
@@ -60,7 +93,7 @@ export function MessageThread({ messages, customerName, onReply }: MessageThread
                                 </div>
                                 <div className={`flex items-center gap-1 mt-1 px-1 ${isIncoming ? 'justify-start' : 'justify-end'}`}>
                                     <span className="text-[10px] text-gray-400">
-                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {formatMessageTime(msg.created_at)}
                                     </span>
                                     {!isIncoming && (
                                         msg.status === 'read' ? <CheckCheck className="w-3 h-3 text-violet-400" /> : <Check className="w-3 h-3 text-gray-300" />
