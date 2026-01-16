@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get('search');
     const tag = searchParams.get('tag');
-    const sortBy = searchParams.get('sortBy') || 'last_contact_at';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') === 'asc' ? true : false;
 
     let query = supabase
       .from('customers')
-      .select('id, name, facebook_id, phone, email, tags, notes, last_contact_at, total_spent, total_orders, created_at')
+      .select('id, name, facebook_id, phone, address, total_orders, total_spent, is_vip, created_at')
       .eq('shop_id', shopId);
 
     // Search by name or phone
@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
       query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
-    // Filter by tag
-    if (tag) {
-      query = query.contains('tags', [tag]);
-    }
+    // Filter by tag - disabled until migration runs
+    // if (tag) {
+    //   query = query.contains('tags', [tag]);
+    // }
 
     // Sort
     query = query.order(sortBy, { ascending: sortOrder, nullsFirst: false });
