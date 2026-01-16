@@ -6,7 +6,10 @@ export async function GET(request: NextRequest) {
   try {
     const authShop = await getClerkUserShop();
 
+    console.log('[Customers API] authShop:', authShop ? { id: authShop.id, name: authShop.name } : null);
+
     if (!authShop) {
+      console.log('[Customers API] No authShop found, returning empty array');
       return NextResponse.json({ customers: [] });
     }
 
@@ -40,6 +43,8 @@ export async function GET(request: NextRequest) {
 
     const { data: customers, error } = await query;
 
+    console.log('[Customers API] Query result - count:', customers?.length, 'error:', error);
+
     if (error) throw error;
 
     return NextResponse.json({ customers: customers || [] });
@@ -48,6 +53,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
   }
 }
+
 
 // Update customer info
 export async function PATCH(request: NextRequest) {
