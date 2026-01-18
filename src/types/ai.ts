@@ -14,6 +14,7 @@ export interface AIProduct {
     reserved_stock?: number;
     description?: string;
     image_url?: string;
+    images?: string[];
     discount_percent?: number | null;
     type?: 'product' | 'service' | 'appointment';
     unit?: string;
