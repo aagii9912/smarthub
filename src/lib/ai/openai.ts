@@ -515,7 +515,8 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
 БҮҮ ХИЙ:
 - Дэлгүүрээс өөр сэдвийн талаар ярилцах (ChatGPT шиг ажиллахыг хориглоно!)
 - Хэт урт нуршуу хариулт өгөх (хамгийн гол мэдээллээ эхэнд нь хэл)
-- Хэрэглэгчийн асуугаагүй зүйлийг хэт тулгах`;
+- Хэрэглэгчийн асуугаагүй зүйлийг хэт тулгах
+- ЗУРАГ URL, ![](url), эсвэл "placeholder" гэсэн текст ХЭЗЭЭ Ч бичиж болохгүй! Зураг харуулахын тулд show_product_image функц дуудаарай.`;
 
         const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             {
@@ -611,7 +612,7 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                 type: 'function',
                 function: {
                     name: 'show_product_image',
-                    description: 'Show product image(s) ONLY when customer asks about a SPECIFIC product by name or description (e.g. "харуулаач", "зураг", "юу шиг харагддаг вэ?"). DO NOT use for generic questions like "ямар бараа байна?" - just answer with text. Use "confirm" mode when 2-5 similar products match to ask which one they want.',
+                    description: 'REQUIRED: When customer asks to see product image/photo (e.g. "зураг харуул", "зураг", "харуулаач"), you MUST call this function. NEVER write image URLs, markdown ![](url), or placeholder text in your response. The system will send the actual image to Messenger. Use EXACT product names from the product list.',
                     parameters: {
                         type: 'object',
                         properties: {
@@ -1054,6 +1055,17 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                         if (functionName === 'show_product_image') {
                             try {
                                 const { product_names, mode } = args as { product_names: string[]; mode: 'single' | 'confirm' };
+
+                                // DEBUG: Log the request
+                                logger.info('[show_product_image] Request:', {
+                                    product_names,
+                                    mode,
+                                    availableProducts: context.products.map(p => ({
+                                        name: p.name,
+                                        hasImages: !!(p.images && p.images.length > 0),
+                                        hasImageUrl: !!p.image_url
+                                    }))
+                                });
 
                                 // Find matching products with images
                                 const matchedProducts = product_names
