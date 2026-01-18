@@ -182,6 +182,8 @@ export interface ChatContext {
         images?: string[];   // New images array
         type?: 'product' | 'service' | 'appointment';  // product = бараа, service = үйлчилгээ, appointment = цаг захиалга
         unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
+        colors?: string[];  // Available colors
+        sizes?: string[];   // Available sizes
         variants?: Array<{
             color: string | null;
             size: string | null;
@@ -384,7 +386,11 @@ export async function generateChatResponse(
                 const hasImage = (p.images && p.images.length > 0) || !!p.image_url;
                 const imageLabel = hasImage ? '[Зурагтай] ' : '';
 
-                return `- ${typeLabel} ${imageLabel}${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${desc}`;
+                // Colors and sizes info
+                const colorsInfo = p.colors && p.colors.length > 0 ? `\n  Өнгүүд: ${p.colors.join(', ')}` : '';
+                const sizesInfo = p.sizes && p.sizes.length > 0 ? `\n  Хэмжээ: ${p.sizes.join(', ')}` : '';
+
+                return `- ${typeLabel} ${imageLabel}${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${colorsInfo}${sizesInfo}${desc}`;
             }).join('\n')
             : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
 

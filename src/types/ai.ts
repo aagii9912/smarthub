@@ -18,6 +18,8 @@ export interface AIProduct {
     discount_percent?: number | null;
     type?: 'product' | 'service' | 'appointment';
     unit?: string;
+    colors?: string[];
+    sizes?: string[];
     variants?: AIProductVariant[];
 }
 
