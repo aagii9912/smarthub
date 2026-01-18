@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
+const analyze = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   images: {
@@ -12,4 +17,4 @@ const nextConfig: NextConfig = {
   // CSP headers removed temporarily to debug connection issues
 };
 
-export default nextConfig;
+export default analyze(nextConfig);

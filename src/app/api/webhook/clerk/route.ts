@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/auth/clerk-auth';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(req: Request) {
     // Get webhook secret from environment
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
         const email = email_addresses[0]?.email_address;
         const fullName = [first_name, last_name].filter(Boolean).join(' ');
 
-        console.log(`New user created: ${email} (${id})`);
+        logger.info('New user created', { email, userId: id });
 
         // Create a default shop for new users
         const { error } = await supabase

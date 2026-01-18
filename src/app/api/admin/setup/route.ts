@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET() {
     try {
@@ -53,7 +54,7 @@ export async function GET() {
             });
         } catch (rpcError) {
             // RPC might not exist, try direct approach
-            console.log('RPC not available, using direct approach');
+            logger.debug('RPC not available, using direct approach');
         }
 
         // Step 2: Try to insert/update admin record

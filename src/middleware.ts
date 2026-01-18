@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { checkMiddlewareRateLimit } from '@/lib/utils/rate-limiter';
 
 // Define protected routes
 const isProtectedRoute = createRouteMatcher([
@@ -22,7 +23,36 @@ const isPublicRoute = createRouteMatcher([
     '/help',
 ]);
 
+// AI/Chat routes (strict rate limit)
+const isAIRoute = createRouteMatcher([
+    '/api/chat(.*)',
+    '/api/ai(.*)',
+]);
+
+// Webhook routes (relaxed rate limit)
+const isWebhookRoute = createRouteMatcher([
+    '/api/webhook(.*)',
+    '/api/subscription/webhook',
+    '/api/payment/webhook',
+]);
+
 export default clerkMiddleware(async (auth, req) => {
+    // Rate limiting for API routes
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+        let routeType: 'strict' | 'standard' | 'webhook' = 'standard';
+
+        if (isAIRoute(req)) {
+            routeType = 'strict';
+        } else if (isWebhookRoute(req)) {
+            routeType = 'webhook';
+        }
+
+        const rateLimit = checkMiddlewareRateLimit(req, routeType);
+        if (!rateLimit.allowed && rateLimit.response) {
+            return rateLimit.response;
+        }
+    }
+
     // Allow public routes
     if (isPublicRoute(req)) {
         return NextResponse.next();
@@ -54,3 +84,4 @@ export const config = {
         '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|webmanifest)$).*)',
     ],
 };
+

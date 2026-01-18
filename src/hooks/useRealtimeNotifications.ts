@@ -14,7 +14,7 @@ export function useRealtimeNotifications() {
     useEffect(() => {
         if (!shop?.id) return;
 
-        console.log('🔔 Subscribing to realtime notifications for shop:', shop.id);
+        // Realtime notifications subscription active for shop
 
         const channel = supabase
             .channel(`shop-updates-${shop.id}`)
@@ -37,7 +37,7 @@ export function useRealtimeNotifications() {
 
                 // Play notification sound
                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.play().catch(e => console.log('Audio play failed:', e));
+                audio.play().catch(() => { /* Audio autoplay blocked */ });
             })
             // 💬 New Messages
             .on('postgres_changes', {
@@ -57,7 +57,7 @@ export function useRealtimeNotifications() {
                     });
 
                     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-                    audio.play().catch(e => console.log('Audio play failed:', e));
+                    audio.play().catch(() => { /* Audio autoplay blocked */ });
                 }
             })
             .subscribe();

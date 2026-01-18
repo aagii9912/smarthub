@@ -1,15 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
     const authShop = await getClerkUserShop();
 
-    console.log('[Customers API] authShop:', authShop ? { id: authShop.id, name: authShop.name } : null);
+    logger.debug('[Customers API] authShop:', { shop: authShop ? { id: authShop.id, name: authShop.name } : null });
 
     if (!authShop) {
-      console.log('[Customers API] No authShop found, returning empty array');
+      logger.debug('[Customers API] No authShop found, returning empty array');
       return NextResponse.json({ customers: [] });
     }
 
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const { data: customers, error } = await query;
 
-    console.log('[Customers API] Query result - count:', customers?.length, 'error:', error);
+    logger.debug('[Customers API] Query result', { count: customers?.length, error });
 
     if (error) throw error;
 

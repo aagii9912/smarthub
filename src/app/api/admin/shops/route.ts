@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/admin/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { auth } from '@clerk/nextjs/server';
+import { logger } from '@/lib/utils/logger';
 
 // GET - List all shops with subscription info
 export async function GET(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
         const { userId } = await auth();
         const admin = await getAdminUser();
 
-        console.log('[Admin Shops API] userId:', userId, 'admin:', admin?.email);
+        logger.debug('[Admin Shops API]', { userId, admin: admin?.email });
 
         // For now, allow if user is authenticated (will add strict admin check later)
         if (!userId) {
