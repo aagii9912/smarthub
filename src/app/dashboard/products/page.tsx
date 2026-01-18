@@ -68,21 +68,21 @@ export default function ProductsPage() {
     const uploadImage = async (file: File) => {
         if (!user) throw new Error("Нэвтрээгүй байна");
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const formData = new FormData();
+        formData.append('file', file);
 
-        const { error } = await supabase.storage
-            .from('products')
-            .upload(filePath, file);
+        const res = await fetch('/api/dashboard/upload', {
+            method: 'POST',
+            body: formData,
+        });
 
-        if (error) throw error;
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Image upload failed');
+        }
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('products')
-            .getPublicUrl(filePath);
-
-        return publicUrl;
+        const data = await res.json();
+        return data.url;
     };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
