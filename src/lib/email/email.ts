@@ -44,8 +44,8 @@ async function sendEmail({ to, subject, html }: EmailParams): Promise<boolean> {
 
         logger.success('Email sent successfully:', { to, subject, id: data?.id });
         return true;
-    } catch (error: any) {
-        logger.error('Email error:', error);
+    } catch (error) {
+        logger.error('Email error:', { error: error instanceof Error ? error.message : 'Unknown error' });
         return false;
     }
 }

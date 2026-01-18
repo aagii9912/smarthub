@@ -16,11 +16,12 @@ export const geminiModel = genAI.getGenerativeModel({
 async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
     try {
         return await operation();
-    } catch (error: any) {
-        if (retries > 0 && (error.message?.includes('503') || error.message?.includes('overloaded'))) {
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '';
+        if (retries > 0 && (errorMessage.includes('503') || errorMessage.includes('overloaded'))) {
             logger.warn(`Gemini overloaded, retrying in ${delay}ms... (${retries} retries left)`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            return retryOperation(operation, retries - 1, delay * 2); // Exponential backoff
+            return retryOperation(operation, retries - 1, delay * 2);
         }
         throw error;
     }
@@ -195,13 +196,15 @@ export async function generateChatResponse(
 
             return responseText;
         });
-    } catch (error: any) {
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        const errorName = error instanceof Error ? error.name : 'UnknownError';
         logger.error('Gemini API Error:', {
-            message: error?.message,
-            stack: error?.stack,
-            name: error?.name,
-            response: error?.response
+            message: errorMessage,
+            stack: errorStack,
+            name: errorName
         });
-        throw error; // Re-throw to be handled by caller
+        throw error;
     }
 }

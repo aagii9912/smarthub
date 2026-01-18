@@ -32,9 +32,38 @@ export default function InboxPage() {
         setShowInfo(false);
     };
 
-    const handleReply = (text: string) => {
-        toast.info('Мессеж илгээх боломж удахгүй ашиглах боломжтой болно');
-        console.log('Reply:', text, 'to customer:', activeId);
+    const [isSending, setIsSending] = useState(false);
+
+    const handleReply = async (text: string) => {
+        if (!activeId || isSending) return;
+
+        setIsSending(true);
+        try {
+            const res = await fetch('/api/dashboard/conversations/reply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: activeId,
+                    message: text,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to send message');
+            }
+
+            toast.success('Мессеж илгээгдлээ! ✅');
+
+            // Refetch conversations to show new message
+            // TODO: Use optimistic update for better UX
+        } catch (error) {
+            console.error('Reply error:', error);
+            toast.error(`Мессеж илгээхэд алдаа гарлаа: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsSending(false);
+        }
     };
 
     // Loading State
@@ -131,6 +160,7 @@ export default function InboxPage() {
                                     customerName={activeConvo.customer_name || 'Зочин'}
                                     onReply={handleReply}
                                     hideHeader
+                                    isLoading={isSending}
                                 />
                             </div>
                         </div>
@@ -200,6 +230,7 @@ export default function InboxPage() {
                             messages={activeMessages}
                             customerName={activeConvo.customer_name || 'Зочин'}
                             onReply={handleReply}
+                            isLoading={isSending}
                         />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-gray-400">

@@ -9,7 +9,7 @@ export type IntentType =
     | 'COMPLAINT'          // Гомдол
     | 'GENERAL_CHAT';      // Ерөнхий яриа
 
-interface IntentResult {
+export interface IntentResult {
     intent: IntentType;
     confidence: number;
     entities: {

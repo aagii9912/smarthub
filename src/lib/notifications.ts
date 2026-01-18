@@ -97,12 +97,14 @@ export async function sendPushNotification(
                 JSON.stringify(payload)
             );
             success++;
-        } catch (err: any) {
-            logger.error('Push notification failed', { error: err.message });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+            logger.error('Push notification failed', { error: errorMessage });
             failed++;
 
             // Remove invalid subscriptions (expired or unsubscribed)
-            if (err.statusCode === 404 || err.statusCode === 410) {
+            const statusCode = (err as { statusCode?: number })?.statusCode;
+            if (statusCode === 404 || statusCode === 410) {
                 await supabase
                     .from('push_subscriptions')
                     .delete()

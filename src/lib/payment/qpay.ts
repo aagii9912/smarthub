@@ -120,8 +120,9 @@ async function getAccessToken(): Promise<string> {
 
         logger.success('QPay access token obtained');
         return data.access_token;
-    } catch (error: any) {
-        logger.error('Failed to get QPay access token', { error: error?.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Failed to get QPay access token', { error: errorMessage });
         throw error;
     }
 }
@@ -180,8 +181,9 @@ export async function createQPayInvoice(params: {
 
         logger.success('QPay invoice created:', { invoice_id: invoice.invoice_id });
         return invoice;
-    } catch (error: any) {
-        logger.error('Failed to create QPay invoice', { error: error?.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Failed to create QPay invoice', { error: errorMessage });
         throw error;
     }
 }
@@ -230,8 +232,9 @@ export async function checkPaymentStatus(invoiceId: string): Promise<QPayPayment
         });
 
         return result;
-    } catch (error: any) {
-        logger.error('Failed to check QPay payment', { error: error?.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Failed to check QPay payment', { error: errorMessage });
         throw error;
     }
 }
@@ -253,8 +256,9 @@ export function validateWebhookSignature(
             .digest('hex');
 
         return signature === expectedSignature;
-    } catch (error: any) {
-        logger.error('Webhook signature validation error', { error: error?.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Webhook signature validation error', { error: errorMessage });
         return false;
     }
 }

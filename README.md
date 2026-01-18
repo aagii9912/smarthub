@@ -11,11 +11,12 @@ SmartHub нь жижиг, дунд бизнесүүдэд зориулсан у�
 
 ## ✨ Онцлог
 
-### 🤖 AI Чат Боть
-- Google Gemini AI ашигласан ухаалаг харилцаа
+### 🤖 AI Чат Boть
+- **OpenAI GPT-4o** ашигласан ухаалаг харилцаа (Function Calling дэмжигдсэн)
 - Автоматаар бүтээгдэхүүний мэдээлэл өгөх
-- Захиалга автоматаар бүртгэх
+- Захиалга автоматаар бүртгэх (AI Tools: create_order, add_to_cart, check_stock)
 - Харилцагчийн асуултад хариулах
+- Зураг таних (Vision API)
 
 ### 📊 Dashboard
 - Real-time статистик (өнөөдрийн захиалга, орлого, харилцагч)
@@ -39,11 +40,12 @@ SmartHub нь жижиг, дунд бизнесүүдэд зориулсан у�
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Next.js 15, React 19, TypeScript
-- **Styling:** Tailwind CSS
+- **Frontend:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS v4
 - **Database:** Supabase (PostgreSQL)
-- **AI:** Google Gemini API
+- **AI:** OpenAI GPT-4o (Function Calling)
 - **Messenger:** Facebook Graph API
+- **Testing:** Vitest, React Testing Library
 - **Deployment:** Vercel
 
 ---
@@ -73,8 +75,8 @@ FACEBOOK_PAGE_ACCESS_TOKEN=your_token
 FACEBOOK_VERIFY_TOKEN=your_verify_token
 FACEBOOK_APP_SECRET=your_app_secret
 
-# Gemini AI
-GEMINI_API_KEY=your_gemini_api_key
+# OpenAI API
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### 3. Database Setup

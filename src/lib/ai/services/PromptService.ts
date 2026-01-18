@@ -1,0 +1,220 @@
+/**
+ * PromptService - Handles prompt engineering for OpenAI
+ * Builds system prompts based on shop context and settings
+ */
+
+import type { ChatContext } from '@/types/ai';
+
+/**
+ * Emotion prompts for AI personality
+ */
+const EMOTION_PROMPTS: Record<string, string> = {
+    friendly: 'Та маш найрсаг, халуун дотно ярина. Emoji ашиглаж, эерэг сэтгэлтэй байна.',
+    professional: 'Та мэргэжлийн, албан ёсны хэлээр ярина. Тодорхой, товч байна. Emoji баг ашиглана.',
+    enthusiastic: 'Та урам зоригтой, идэвхтэй! Шинэ бүтээгдэхүүнд сэтгэлтэй. "Вау!", "Гайхалтай!" гэх мэт хэллэг ашиглана.',
+    calm: 'Та тайван, эв нямбай ярина. Хэрэглэгчийг ямар ч нөхцөлд тайвшруулна.',
+    playful: 'Та тоглоомтой, хөгжилтэй! Заримдаа хошин шог хэлнэ. Emoji их ашиглана 🎉'
+};
+
+/**
+ * Build product information string for prompt
+ */
+export function buildProductsInfo(products: ChatContext['products']): string {
+    if (!products || products.length === 0) {
+        return '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+    }
+
+    return products.map(p => {
+        const isService = p.type === 'service';
+        const unit = p.unit || (isService ? 'захиалга' : 'ширхэг');
+
+        // Calculate available stock (total - reserved)
+        const availableStock = p.stock - (p.reserved_stock || 0);
+
+        // Different display for products vs services
+        let stockDisplay: string;
+        if (availableStock > 0) {
+            if (isService) {
+                stockDisplay = `${availableStock} ${unit} авах боломжтой`;
+            } else {
+                stockDisplay = `${availableStock} ${unit} байна`;
+            }
+        } else {
+            if (isService) {
+                stockDisplay = 'Захиалга дүүрсэн';
+            } else {
+                stockDisplay = 'Дууссан';
+            }
+        }
+
+        const typeLabel = isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
+
+        // Calculate discount
+        const hasDiscount = p.discount_percent && p.discount_percent > 0;
+        const discountedPrice = hasDiscount
+            ? Math.round(p.price * (1 - p.discount_percent! / 100))
+            : p.price;
+
+        const priceDisplay = hasDiscount
+            ? `🔥${discountedPrice.toLocaleString()}₮ (-${p.discount_percent}% ХЯМДРАЛ! Жинхэнэ үнэ: ${p.price.toLocaleString()}₮)`
+            : `${p.price.toLocaleString()}₮`;
+
+        const variantInfo = p.variants && p.variants.length > 0
+            ? `\n  Хувилбарууд: ${p.variants.map(v => `${v.color || ''} ${v.size || ''} (${v.stock > 0 ? `${v.stock}${unit}` : 'Дууссан'})`).join(', ')}`
+            : '';
+
+        // Include description for AI context
+        const desc = p.description ? `\n  Тайлбар: ${p.description}` : '';
+
+        return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${desc}`;
+    }).join('\n');
+}
+
+/**
+ * Build custom instructions section
+ */
+export function buildCustomInstructions(aiInstructions?: string): string {
+    if (!aiInstructions) return '';
+    return `\nДЭЛГҮҮРИЙН ЭЗНИЙ ЗААВАР (Зан төлөв):\n${aiInstructions}\n`;
+}
+
+/**
+ * Build dynamic knowledge section from JSONB
+ */
+export function buildDynamicKnowledge(customKnowledge?: Record<string, unknown>): string {
+    if (!customKnowledge || Object.keys(customKnowledge).length === 0) {
+        return '';
+    }
+
+    const knowledgeList = Object.entries(customKnowledge)
+        .map(([key, value]) => {
+            const displayValue = typeof value === 'object'
+                ? JSON.stringify(value)
+                : String(value);
+            return `- ${key}: ${displayValue}`;
+        })
+        .join('\n');
+
+    return `\nДЭЛГҮҮРИЙН ТУСГАЙ МЭДЭЭЛЭЛ (Асуувал хариулна уу):\n${knowledgeList}\n`;
+}
+
+/**
+ * Build shop policies section
+ */
+export function buildPoliciesInfo(shopPolicies?: ChatContext['shopPolicies']): string {
+    if (!shopPolicies) return '';
+
+    const p = shopPolicies;
+    return `\nДЭЛГҮҮРИЙН БОДЛОГО:
+- Үнэгүй хүргэлт: ${p.shipping_threshold?.toLocaleString()}₮-аас дээш
+- Төлбөрийн арга: ${p.payment_methods?.join(', ') || 'Тодорхойгүй'}
+- Хүргэлтийн бүс: ${p.delivery_areas?.join(', ') || 'Тодорхойгүй'}
+${p.return_policy ? `- Буцаалт: ${p.return_policy}` : ''}\n`;
+}
+
+/**
+ * Build active cart context
+ */
+export function buildCartContext(
+    activeCart?: ChatContext['activeCart'],
+    shippingThreshold?: number
+): string {
+    if (!activeCart || activeCart.items.length === 0) {
+        return '\nОДООГИЙН САГС: Хоосон\n';
+    }
+
+    const itemsList = activeCart.items
+        .map((i: { name: string; quantity: number; unit_price: number }) => `- ${i.name} (x${i.quantity}): ${(i.unit_price * i.quantity).toLocaleString()}₮`)
+        .join('\n');
+
+    const threshold = shippingThreshold || 0;
+    const isFreeShipping = activeCart.total_amount >= threshold;
+    const shippingMsg = isFreeShipping
+        ? '(✅ Хүргэлт үнэгүй болох нөхцөл хангасан)'
+        : `(ℹ️ ${threshold.toLocaleString()}₮ хүрвэл хүргэлт үнэгүй)`;
+
+    return `\nОДООГИЙН САГСАНД БАЙГАА БАРАА:\n${itemsList}\nНИЙТ: ${activeCart.total_amount.toLocaleString()}₮ ${shippingMsg}\n`;
+}
+
+/**
+ * Build FAQ section
+ */
+export function buildFAQSection(faqs?: ChatContext['faqs']): string {
+    if (!faqs || faqs.length === 0) return '';
+
+    const faqContent = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n');
+    return `\nТҮГЭЭМЭЛ АСУУЛТ-ХАРИУЛТ (FAQ):\n${faqContent}\n\n⚠️ FAQ-д байгаа асуултыг яг дагаж хариулаарай!`;
+}
+
+/**
+ * Build slogans section
+ */
+export function buildSloganSection(slogans?: ChatContext['slogans']): string {
+    if (!slogans || slogans.length === 0) return '';
+    return `\nБРЭНД ХЭЛЛЭГ: "${slogans[0].slogan}" (заримдаа ашиглаарай)`;
+}
+
+/**
+ * Build the complete system prompt
+ */
+export function buildSystemPrompt(context: ChatContext): string {
+    const emotionStyle = EMOTION_PROMPTS[context.aiEmotion || 'friendly'];
+    const productsInfo = buildProductsInfo(context.products);
+    const shopInfo = context.shopDescription
+        ? `\nДЭЛГҮҮРИЙН ТУХАЙ: ${context.shopDescription}`
+        : '';
+    const customInstructions = buildCustomInstructions(context.aiInstructions);
+    const dynamicKnowledge = buildDynamicKnowledge(context.customKnowledge);
+    const policiesInfo = buildPoliciesInfo(context.shopPolicies);
+    const cartContext = buildCartContext(
+        context.activeCart,
+        context.shopPolicies?.shipping_threshold
+    );
+    const faqSection = buildFAQSection(context.faqs);
+    const sloganSection = buildSloganSection(context.slogans);
+
+    return `Та бол "${context.shopName}" -ийн МЭРГЭЖЛИЙН ЗӨВЛӨХ юм.
+Чиний зорилго: хэрэглэгчид энэ бизнесийн талаар хамгийн зөв мэдээлэл, шийдлийг олоход туслах.
+
+ЗАН БАЙДАЛ: ${emotionStyle}
+
+${shopInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${faqSection}${sloganSection}
+
+ЧУХАЛ ДҮРЭМ:
+1. "Сайн байна уу" БҮҮ ДАВТ (хэрэв өмнө нь хэлсэн бол)
+2. Хэрэглэгчийн асуултад шууд, товч хариул.
+3. БИЗНЕСИЙН ТУХАЙ асуулт ирэхэд ДЭЛГҮҮРИЙН ТУХАЙ мэдээллийг ашиглаж хариулаарай.
+
+ХЯМДРАЛ САНАЛ БОЛГОХ:
+1. Хэрэглэгч бүтээгдэхүүн асуухад хямдралтай бүтээгдэхүүн байвал ЭХЛЭЭД ТҮҮНИЙГ санал болго!
+2. "🔥 Хямдрал!" гэж тод онцол.
+3. Хуучин болон шинэ үнийг ХОЁУЛАНГ нь хэл. Жишээ: "Одоо 185,000₮ биш 148,000₮-өөр авах боломжтой!"
+
+ХУДАЛДААНЫ АРГА БАРИЛ (Consultative Selling):
+1. ХҮЭРЭГЦЭЭ ТОДОРХОЙЛОХ: Хэрэглэгч юу хайж байгааг ойлгохын тулд тодруулах асуулт асуу. 
+   (Жишээ: "Та ямар зориулалтаар ашиглах вэ?", "Ямар өнгөнд дуртай вэ?")
+2. ЗӨВЛӨХ: Хэрэглэгчийн хэрэгцээнд хамгийн сайн тохирох бүтээгдэхүүнийг санал болгож, ЯАГААД гэдгийг тайлбарла.
+3. ХАРЬЦУУЛАХ: Хэрэв хэд хэдэн сонголт байвал хооронд нь харьцуулж давуу талыг хэлж өг.
+4. ХУДАЛДАХ: Бүтээгдэхүүнээ сонгосон бол захиалга хийхийг санал болго.
+
+ХЯЗГААРЛАЛТ:
+1. ЗӨВХӨН "${context.shopName}" болон түүний бизнесийн талаар л ярина.
+2. Хамааралгүй сэдэв (улс төр, цаг агаар, код, г.м) асуувал эелдэгээр татгалз.
+3. [БАРАА] = физик бүтээгдэхүүн (stock = тоо хэмжээ).
+4. [ҮЙЛЧИЛГЭЭ] = үйлчилгээ (stock = боломжит захиалгын тоо).
+5. Хариулт найрсаг, мэргэжлийн, цэгцтэй байна. 1-2 emoji ашиглаж болно.
+
+ЖИШЭЭ ХАРИЛЦАА:
+Хэрэглэгч: "Танайд ямар цүнх байна?"
+Чи: "Манайд арьсан болон даавуун цүнхнүүд байгаа. Та өдөр тутам барих уу, эсвэл гоёлынх хайж байна уу? 😊"
+
+БҮТЭЭГДЭХҮҮН/ҮЙЛЧИЛГЭЭ (Мэдлэг):
+${productsInfo}
+
+${context.customerName ? `Хэрэглэгч: ${context.customerName}` : ''}
+${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
+
+БҮҮ ХИЙ:
+- Дэлгүүрээс өөр сэдвийн талаар ярилцах (ChatGPT шиг ажиллахыг хориглоно!)
+- Хэт урт нуршуу хариулт өгөх (хамгийн гол мэдээллээ эхэнд нь хэл)`;
+}

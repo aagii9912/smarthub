@@ -44,9 +44,10 @@ interface MessageThreadProps {
     customerName: string;
     onReply: (text: string) => void;
     hideHeader?: boolean;
+    isLoading?: boolean;
 }
 
-export function MessageThread({ messages, customerName, onReply, hideHeader = false }: MessageThreadProps) {
+export function MessageThread({ messages, customerName, onReply, hideHeader = false, isLoading = false }: MessageThreadProps) {
     const [reply, setReply] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -112,7 +113,8 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
                     <button
                         key={temp}
                         onClick={() => onReply(temp)}
-                        className="px-3 py-1 bg-gray-100 hover:bg-violet-100 hover:text-violet-600 rounded-full text-[11px] font-medium text-gray-500 transition-colors whitespace-nowrap"
+                        disabled={isLoading}
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-violet-100 hover:text-violet-600 rounded-full text-[11px] font-medium text-gray-500 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {temp}
                     </button>
@@ -126,15 +128,20 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
                         type="text"
                         value={reply}
                         onChange={(e) => setReply(e.target.value)}
-                        placeholder="Хариу бичих..."
-                        className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-gray-400"
+                        placeholder={isLoading ? "Илгээж байна..." : "Хариу бичих..."}
+                        disabled={isLoading}
+                        className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-gray-400 disabled:cursor-not-allowed"
                     />
                     <button
                         type="submit"
-                        disabled={!reply.trim()}
+                        disabled={!reply.trim() || isLoading}
                         className="p-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-30 transition-all shadow-md shadow-violet-500/10"
                     >
-                        <Send className="w-4 h-4" />
+                        {isLoading ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <Send className="w-4 h-4" />
+                        )}
                     </button>
                 </div>
             </form>

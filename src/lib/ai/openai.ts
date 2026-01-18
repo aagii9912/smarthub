@@ -179,7 +179,7 @@ export interface ChatContext {
         discount_percent?: number;
         description?: string;
         image_url?: string;  // Product image URL for Messenger
-        type?: 'product' | 'service';  // product = бараа, service = үйлчилгээ
+        type?: 'product' | 'service' | 'appointment';  // product = бараа, service = үйлчилгээ, appointment = цаг захиалга
         unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
         variants?: Array<{
             color: string | null;
