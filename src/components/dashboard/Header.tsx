@@ -53,7 +53,8 @@ export function Header() {
         else if (path.includes('/customers')) title = 'Харилцагч';
         else if (path.includes('/reports')) title = 'Тайлан';
         else if (path.includes('/settings')) title = 'Тохиргоо';
-        else if (path.includes('/marketing')) title = 'Маркетинг';
+        else if (path.includes('/inbox')) title = 'Идэвхтэй Сагс';
+
         else if (path.includes('/ai-settings')) title = 'AI Тохиргоо';
         else if (path.includes('/subscription')) title = 'Төлбөр & Эрх';
 

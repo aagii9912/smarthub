@@ -12,7 +12,6 @@ import {
     X,
     Users,
     Settings,
-    Megaphone,
     Bot,
     CreditCard,
     FileText,
@@ -30,8 +29,8 @@ const primaryNavItems = [
 const secondaryNavItems = [
     { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
     { name: 'Харилцагч', href: '/dashboard/customers', icon: Users },
-    { name: 'Маркетинг', href: '/dashboard/marketing', icon: Megaphone },
-    { name: 'Чат', href: '/dashboard/inbox', icon: MessageCircle },
+
+    { name: 'Сагс', href: '/dashboard/inbox', icon: ShoppingCart },
     { name: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Захиалга', href: '/dashboard/subscription', icon: CreditCard },
     { name: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },

@@ -162,7 +162,7 @@ function SetupContent() {
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/10">
               <Sparkles className="w-7 h-7 text-violet-600" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">SmartHub</span>
+            <span className="text-2xl font-bold text-gray-900">Syncly</span>
           </Link>
         </div>
 

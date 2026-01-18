@@ -14,7 +14,6 @@ import {
     Facebook,
     HelpCircle,
     Bot,
-    Megaphone,
     CreditCard,
     BarChart3,
     MessageCircle,
@@ -26,10 +25,10 @@ const menuItems = [
     { name: 'Products', href: '/dashboard/products', icon: Package },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Customers', href: '/dashboard/customers', icon: Users },
-    { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+
     { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard },
-    { name: 'Inbox', href: '/dashboard/inbox', icon: MessageCircle },
+    { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart },
     { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
 ];
 
@@ -56,7 +55,7 @@ export function Sidebar() {
                             <span className="text-white font-bold text-lg">S</span>
                         </div>
                         <span className="font-semibold text-lg text-white">
-                            SmartHub
+                            Syncly
                         </span>
                     </div>
                 )}
@@ -123,7 +122,7 @@ export function Sidebar() {
             {!collapsed && (
                 <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-white font-semibold text-sm">SmartHub</span>
+                        <span className="text-white font-semibold text-sm">Syncly</span>
                         <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded">Pro</span>
                     </div>
                     <ul className="text-xs text-[#a1a1aa] space-y-1">

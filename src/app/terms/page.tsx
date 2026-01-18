@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-    title: 'Terms of Service | SmartHub',
-    description: 'SmartHub үйлчилгээний ашиглах нөхцөл',
+    title: 'Terms of Service | Syncly',
+    description: 'Syncly үйлчилгээний ашиглах нөхцөл',
 };
 
 export default function TermsOfServicePage() {
@@ -31,7 +31,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Үйлчилгээний тухай</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            SmartHub нь Facebook Messenger платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
+                            Syncly нь Facebook Messenger платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
                             Манай үйлчилгээ нь бизнесүүдэд харилцагчидтай автоматаар харилцах, захиалга авах,
                             борлуулалтаа нэмэгдүүлэх боломжийг олгодог.
                         </p>
@@ -100,7 +100,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">6. Оюуны өмч</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            SmartHub платформ, код, дизайн, контент нь манай оюуны өмч юм. Та дараах зүйлийг хийж болохгүй:
+                            Syncly платформ, код, дизайн, контент нь манай оюуны өмч юм. Та дараах зүйлийг хийж болохгүй:
                         </p>
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
                             <li>Манай код, систем хуулбарлах</li>

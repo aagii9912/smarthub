@@ -30,13 +30,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SmartHub - AI Чатбот",
+  title: "Syncly - AI Чатбот",
   description: "Facebook Messenger дээр ажилладаг AI чатбот. Таны бизнесийг автоматжуулна.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent", // Better for dark mode
-    title: "SmartHub",
+    title: "Syncly",
   },
   icons: {
     icon: "/icon-192.png",

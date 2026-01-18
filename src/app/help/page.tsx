@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { 
-  HelpCircle, MessageSquare, Facebook, Package, 
-  Settings, Mail, ArrowRight, ExternalLink, Sparkles 
+import {
+  HelpCircle, MessageSquare, Facebook, Package,
+  Settings, Mail, ArrowRight, ExternalLink, Sparkles
 } from 'lucide-react';
 
 export default function HelpPage() {
   const faqs = [
     {
       question: 'AI чатбот хэрхэн ажилладаг вэ?',
-      answer: 'SmartHub AI чатбот нь таны Facebook Page-тэй холбогдож, Messenger-ээр ирсэн мессежүүдэд автоматаар хариулна. Google Gemini AI ашиглан хэрэглэгчийн асуултад зөв хариулт өгнө.'
+      answer: 'Syncly AI чатбот нь таны Facebook Page-тэй холбогдож, Messenger-ээр ирсэн мессежүүдэд автоматаар хариулна. Google Gemini AI ашиглан хэрэглэгчийн асуултад зөв хариулт өгнө.'
     },
     {
       question: 'Facebook Page-ээ хэрхэн холбох вэ?',
@@ -39,14 +39,14 @@ export default function HelpPage() {
             <HelpCircle className="w-10 h-10" />
           </div>
           <h1 className="text-4xl font-bold mb-4">Тусламж & FAQ</h1>
-          <p className="text-xl text-violet-100">SmartHub ашиглахад тусламж хэрэгтэй юу?</p>
+          <p className="text-xl text-violet-100">Syncly ашиглахад тусламж хэрэгтэй юу?</p>
         </div>
       </div>
 
       {/* Quick Links */}
       <div className="max-w-4xl mx-auto px-6 -mt-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link 
+          <Link
             href="/setup"
             className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
@@ -60,7 +60,7 @@ export default function HelpPage() {
             </span>
           </Link>
 
-          <Link 
+          <Link
             href="/dashboard/products"
             className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
@@ -74,7 +74,7 @@ export default function HelpPage() {
             </span>
           </Link>
 
-          <Link 
+          <Link
             href="/dashboard"
             className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
@@ -95,7 +95,7 @@ export default function HelpPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Түгээмэл асуултууд</h2>
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <details 
+            <details
               key={index}
               className="group bg-white rounded-xl border border-gray-200 overflow-hidden"
             >
@@ -119,15 +119,15 @@ export default function HelpPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Дэмжлэг хэрэгтэй юу?</h2>
           <p className="text-gray-600 mb-8">Бидэнтэй холбоо барина уу</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a 
-              href="mailto:support@smarthub.mn"
+            <a
+              href="mailto:support@syncly.mn"
               className="flex items-center gap-2 px-6 py-3 bg-white rounded-xl shadow hover:shadow-lg transition-all"
             >
               <Mail className="w-5 h-5 text-violet-600" />
-              <span className="font-medium text-gray-900">support@smarthub.mn</span>
+              <span className="font-medium text-gray-900">support@syncly.mn</span>
             </a>
-            <a 
-              href="https://m.me/smarthubmn"
+            <a
+              href="https://m.me/synclymn"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-6 py-3 bg-[#1877F2] text-white rounded-xl shadow hover:shadow-lg transition-all"
@@ -142,7 +142,7 @@ export default function HelpPage() {
 
       {/* Back to Dashboard */}
       <div className="text-center py-8">
-        <Link 
+        <Link
           href="/dashboard"
           className="text-violet-600 hover:text-violet-700 font-medium"
         >
