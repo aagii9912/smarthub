@@ -179,6 +179,7 @@ export interface ChatContext {
         discount_percent?: number;
         description?: string;
         image_url?: string;  // Product image URL for Messenger
+        images?: string[];   // New images array
         type?: 'product' | 'service' | 'appointment';  // product = бараа, service = үйлчилгээ, appointment = цаг захиалга
         unit?: string;  // e.g., 'ширхэг', 'захиалга', 'цаг'
         variants?: Array<{
@@ -379,7 +380,11 @@ export async function generateChatResponse(
                 // Include description for AI context (vital for comparison and recommendation)
                 const desc = p.description ? `\n  Тайлбар: ${p.description}` : '';
 
-                return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${desc}`;
+                // Check if image exists (new array or old url)
+                const hasImage = (p.images && p.images.length > 0) || !!p.image_url;
+                const imageLabel = hasImage ? '[Зурагтай] ' : '';
+
+                return `- ${typeLabel} ${imageLabel}${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${desc}`;
             }).join('\n')
             : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
 
