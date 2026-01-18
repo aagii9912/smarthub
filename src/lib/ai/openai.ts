@@ -1062,11 +1062,17 @@ ${context.orderHistory ? `VIP (${context.orderHistory}x)` : ''}
                                             p.name.toLowerCase().includes(name.toLowerCase()) ||
                                             name.toLowerCase().includes(p.name.toLowerCase())
                                         );
-                                        if (product && product.image_url) {
+
+                                        // Check images array first, then fallback to image_url
+                                        const imageUrl = (product && product.images && product.images.length > 0)
+                                            ? product.images[0]
+                                            : (product && product.image_url);
+
+                                        if (product && imageUrl) {
                                             return {
                                                 name: product.name,
                                                 price: product.price,
-                                                imageUrl: product.image_url,
+                                                imageUrl: imageUrl,
                                                 description: product.description,
                                             };
                                         }
