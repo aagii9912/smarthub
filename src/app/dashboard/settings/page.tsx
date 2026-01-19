@@ -9,7 +9,7 @@ import { useClerk } from '@clerk/nextjs';
 import {
     Store, User, Facebook, Bot, Bell, Shield,
     Save, LogOut, Loader2, Check, AlertCircle,
-    Key, Palette, Globe
+    Key, Palette, Globe, CreditCard
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -24,6 +24,9 @@ export default function SettingsPage() {
     const [shopName, setShopName] = useState('');
     const [ownerName, setOwnerName] = useState('');
     const [phone, setPhone] = useState('');
+    const [bankName, setBankName] = useState('');
+    const [accountNumber, setAccountNumber] = useState('');
+    const [accountName, setAccountName] = useState('');
 
     // AI Settings
     const [aiEnabled, setAiEnabled] = useState(true);
@@ -35,6 +38,12 @@ export default function SettingsPage() {
             setShopName(shop.name || '');
             setOwnerName(shop.owner_name || '');
             setPhone(shop.phone || '');
+            // @ts-ignore
+            setBankName(shop.bank_name || '');
+            // @ts-ignore
+            setAccountNumber(shop.account_number || '');
+            // @ts-ignore
+            setAccountName(shop.account_name || '');
         }
     }, [shop]);
 
@@ -49,7 +58,10 @@ export default function SettingsPage() {
                 body: JSON.stringify({
                     name: shopName,
                     owner_name: ownerName,
-                    phone: phone
+                    phone: phone,
+                    bank_name: bankName,
+                    account_number: accountNumber,
+                    account_name: accountName
                 })
             });
 
@@ -125,6 +137,67 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
+                    <div className="flex justify-end">
+                        <Button onClick={handleSaveShop} disabled={loading}>
+                            {saveStatus === 'saving' ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Хадгалж байна...</>
+                            ) : saveStatus === 'saved' ? (
+                                <><Check className="w-4 h-4 mr-2" /> Хадгалагдлаа!</>
+                            ) : (
+                                <><Save className="w-4 h-4 mr-2" /> Хадгалах</>
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Bank Information */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-violet-600" />
+                        Дансны мэдээлэл
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Банкны нэр
+                            </label>
+                            <input
+                                type="text"
+                                value={bankName}
+                                onChange={(e) => setBankName(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                placeholder="Хаан банк"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Дансны дугаар
+                            </label>
+                            <input
+                                type="text"
+                                value={accountNumber}
+                                onChange={(e) => setAccountNumber(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                placeholder="5000000000"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Дансны нэр
+                            </label>
+                            <input
+                                type="text"
+                                value={accountName}
+                                onChange={(e) => setAccountName(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                placeholder="Эзэмшигчийн нэр"
+                            />
+                        </div>
+                    </div>
                     <div className="flex justify-end">
                         <Button onClick={handleSaveShop} disabled={loading}>
                             {saveStatus === 'saving' ? (

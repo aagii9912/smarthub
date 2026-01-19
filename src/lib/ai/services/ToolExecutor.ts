@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendOrderNotification, sendPushNotification } from '@/lib/notifications';
 import { checkProductStock, getProductFromDB, addItemToCart, getCartFromDB } from '../helpers/stockHelpers';
+import { createQPayInvoice } from '@/lib/payment/qpay';
 import type { ChatContext, ImageAction } from '@/types/ai';
 import type {
     CreateOrderArgs,
@@ -465,6 +466,31 @@ export async function executeCheckout(
         return { success: false, error: checkoutError.message };
     }
 
+    // Generate QPay Invoice
+    let qpayInvoice = null;
+    let bankInfo = null;
+
+    try {
+        // Fetch Shop Bank Info
+        const { data: shop } = await supabase
+            .from('shops')
+            .select('bank_name, account_number, account_name')
+            .eq('id', context.shopId)
+            .single();
+
+        bankInfo = shop;
+
+        // Create QPay Invoice
+        qpayInvoice = await createQPayInvoice({
+            orderId: orderId,
+            amount: cart.total_amount,
+            description: `Order #${orderId.substring(0, 8)}`,
+            callbackUrl: `https://smarthub.mn/api/payment/callback/qpay`
+        });
+    } catch (err) {
+        logger.warn('Failed to generate payment info:', { error: String(err) });
+    }
+
     // Send notification
     if (context.notifySettings?.order !== false) {
         try {
@@ -478,10 +504,28 @@ export async function executeCheckout(
         }
     }
 
+    // Construct Payment Instructions
+    let paymentMsg = `Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ! Нийт: ${cart.total_amount.toLocaleString()}₮\n\nТөлбөр төлөх сонголтууд:`;
+
+    // Opt 1: QPay
+    if (qpayInvoice) {
+        paymentMsg += `\n\n1. QPay (Хялбар): Доорх линкээр орж эсвэл QR кодыг уншуулж төлнө үү.\n${qpayInvoice.qpay_shorturl}`;
+    }
+
+    // Opt 2: Bank
+    if (bankInfo && bankInfo.account_number) {
+        paymentMsg += `\n\n2. Дансны шилжүүлэг:\nБанк: ${bankInfo.bank_name || 'Банк'}\nДанс: ${bankInfo.account_number}\nНэр: ${bankInfo.account_name || 'Дэлгүүр'}\nГүйлгээний утга: ${orderId.substring(0, 8)}`;
+        paymentMsg += `\n\n*Дансаар шилжүүлсэн бол баримтаа илгээнэ үү.`;
+    }
+
     return {
         success: true,
-        message: `Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ! Нийт: ${cart.total_amount.toLocaleString()}₮`,
-        data: { order_id: orderId }
+        message: paymentMsg,
+        data: {
+            order_id: orderId,
+            qpay: qpayInvoice,
+            bank: bankInfo
+        }
     };
 }
 

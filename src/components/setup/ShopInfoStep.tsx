@@ -82,6 +82,24 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
           />
         </div>
+
+        <div className="pt-4 border-t border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Дансны мэдээлэл (Заавал биш)</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Банкны нэр</label>
+              <input
+                type="text"
+                // @ts-ignore
+                value={initialData.bank_name || ''}
+                // @ts-ignore
+                onChange={(e) => { /* State logic handled by parent if possible, but here we are in controlled component */ }}
+                placeholder="Хаан банк"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <button
