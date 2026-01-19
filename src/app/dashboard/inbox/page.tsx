@@ -11,6 +11,73 @@ import { Button } from '@/components/ui/Button';
 export default function InboxPage() {
     const { data: carts = [], isLoading, error, refetch } = useActiveCarts();
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [isConverting, setIsConverting] = useState(false);
+    const [isReminding, setIsReminding] = useState(false);
+
+    const handleConvertToOrder = async () => {
+        if (!activeId) return;
+        const cart = carts.find(c => c.id === activeId);
+        if (!cart) return;
+
+        try {
+            setIsConverting(true);
+            const res = await fetch('/api/cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'checkout',
+                    customer_id: cart.customer.id,
+                    notes: 'Dashboard Inbox Checkout'
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Захиалга үүсгэхэд алдаа гарлаа');
+            }
+
+            toast.success(data.message || 'Захиалга амжилттай үүслээ');
+
+            // Refresh list and clear selection if needed
+            await refetch();
+            setActiveId(null);
+
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setIsConverting(false);
+        }
+    };
+
+    const handleSendReminder = async () => {
+        if (!activeId) return;
+        const cart = carts.find(c => c.id === activeId);
+        if (!cart) return;
+
+        try {
+            setIsReminding(true);
+            const res = await fetch('/api/dashboard/inbox/remind', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: cart.customer.id
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Сануулга илгээхэд алдаа гарлаа');
+            }
+
+            toast.success(data.message || 'Сануулга илгээгдлээ');
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setIsReminding(false);
+        }
+    };
 
     // Set first cart as active when data loads (desktop only)
     React.useEffect(() => {
@@ -115,8 +182,9 @@ export default function InboxPage() {
                                 <ActiveCartWidget
                                     customerName={activeCart.customer.name}
                                     items={activeCart.items}
-                                    onConvertToOrder={() => toast.info('Захиалга үүсгэх функц удахгүй бэлэн болно')}
-                                    onSendReminder={() => toast.info('Сануулга илгээгдлээ')}
+                                    onConvertToOrder={handleConvertToOrder}
+                                    onSendReminder={handleSendReminder}
+                                    isLoading={isConverting || isReminding}
                                 />
 
                                 {/* Customer Info Card */}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { updateOrderStatusSchema, parseWithErrors } from '@/lib/validations';
+import { updateOrderStatusSchema, parseWithErrors, createOrderSchema } from '@/lib/validations';
+import { logger } from '@/lib/utils/logger';
 
 // GET all orders
 export async function GET() {
@@ -33,10 +34,101 @@ export async function GET() {
 
     return NextResponse.json({ orders: orders || [] });
   } catch (error) {
-    console.error('Orders API error:', error);
+    logger.error('Orders API error:', { error });
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }
+
+// POST - Create manual order
+
+export async function POST(request: NextRequest) {
+  try {
+    const authShop = await getClerkUserShop();
+    if (!authShop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Zod validation
+    const validation = parseWithErrors(createOrderSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: validation.errors
+      }, { status: 400 });
+    }
+
+    const { customerId, items, notes, deliveryAddress } = validation.data;
+    const supabase = supabaseAdmin();
+    const shopId = authShop.id;
+
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+    // 1. Create Order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        shop_id: shopId,
+        customer_id: customerId,
+        status: 'pending',
+        total_amount: totalAmount,
+        notes: notes,
+        delivery_address: deliveryAddress,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      throw orderError;
+    }
+
+    // 2. Create Order Items and Reserve Stock
+    for (const item of items) {
+      const { error: itemError } = await supabase
+        .from('order_items')
+        .insert({
+          order_id: order.id,
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice
+        });
+
+      if (itemError) throw itemError;
+
+      // Reserve stock (using RPC or direct update)
+      // Ideally we should use a transaction or RPC, but for now simple update
+      const { data: product } = await supabase
+        .from('products')
+        .select('reserved_stock')
+        .eq('id', item.productId)
+        .single();
+
+      if (product) {
+        await supabase
+          .from('products')
+          .update({
+            reserved_stock: (product.reserved_stock || 0) + item.quantity,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.productId);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      order: order,
+      message: `Захиалга #${order.id.slice(0, 8)} амжилттай үүслээ`
+    });
+
+  } catch (error: any) {
+    logger.error('Create order error:', { error });
+    return NextResponse.json({ error: error.message || 'Failed to create order' }, { status: 500 });
+  }
+}
+
 
 // PATCH - Update order status (with Zod validation)
 export async function PATCH(request: NextRequest) {
@@ -99,7 +191,7 @@ export async function PATCH(request: NextRequest) {
       message: `Захиалга "${status}" болгож шинэчлэгдлээ`
     });
   } catch (error) {
-    console.error('Update order error:', error);
+    logger.error('Update order error:', { error });
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }

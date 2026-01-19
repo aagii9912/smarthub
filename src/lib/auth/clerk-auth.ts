@@ -1,3 +1,4 @@
+import { logger } from '@/lib/utils/logger';
 import { auth } from '@clerk/nextjs/server';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
@@ -50,7 +51,7 @@ export async function getClerkUserShop() {
     const { data: shops, error } = await query.limit(1);
 
     if (error) {
-        console.error('getClerkUserShop Error:', error);
+        logger.error('getClerkUserShop Error:', { error });
         return null;
     }
 

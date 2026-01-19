@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
+import { logger } from '@/lib/utils/logger';
 
 export interface ParsedProduct {
     name: string;
@@ -141,7 +142,7 @@ export async function parseProductFile(buffer: Buffer, fileName: string): Promis
             sizes: p.sizes
         }));
     } catch (error) {
-        console.error('AI Parsing failed, falling back to rule-based:', error);
+        logger.error('AI Parsing failed, falling back to rule-based:', { error });
         // Fallback to old methods if AI fails
         if (['xlsx', 'xls', 'csv'].includes(extension)) {
             return parseExcel(buffer);

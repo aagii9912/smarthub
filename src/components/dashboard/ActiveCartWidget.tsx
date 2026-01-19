@@ -15,9 +15,10 @@ interface ActiveCartWidgetProps {
     items: CartItem[];
     onConvertToOrder: () => void;
     onSendReminder: () => void;
+    isLoading?: boolean;
 }
 
-export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSendReminder }: ActiveCartWidgetProps) {
+export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSendReminder, isLoading = false }: ActiveCartWidgetProps) {
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return (
@@ -44,11 +45,22 @@ export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSend
                             <span className="text-lg font-black text-violet-600">{total.toLocaleString()}₮</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <Button size="sm" onClick={onConvertToOrder} className="h-8 text-[11px] font-bold">
-                                <ArrowRightLeft className="w-3 h-3 mr-1" />
-                                Захиалга
+                            <Button
+                                size="sm"
+                                onClick={onConvertToOrder}
+                                disabled={isLoading}
+                                className="h-8 text-[11px] font-bold"
+                            >
+                                <ArrowRightLeft className={`w-3 h-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                                {isLoading ? 'Үүсгэж байна...' : 'Захиалга'}
                             </Button>
-                            <Button variant="secondary" size="sm" onClick={onSendReminder} className="h-8 text-[11px] font-bold">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={onSendReminder}
+                                disabled={isLoading}
+                                className="h-8 text-[11px] font-bold"
+                            >
                                 <Send className="w-3 h-3 mr-1" />
                                 Сануулах
                             </Button>
