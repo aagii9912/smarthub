@@ -107,6 +107,8 @@ export interface ChatContext {
     shopPolicies?: ShopPolicies;
     customKnowledge?: Record<string, unknown>;
     activeCart?: ActiveCart;
+    // AI Memory: stored customer preferences (size, color, style, etc.)
+    customerMemory?: Record<string, string | string[] | number>;
 }
 
 // Chat message for history

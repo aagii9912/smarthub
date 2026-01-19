@@ -197,6 +197,28 @@ export const AI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
                 required: []
             }
         }
+    },
+    // Memory Tool
+    {
+        type: 'function',
+        function: {
+            name: 'remember_preference',
+            description: 'Хэрэглэгчийн сонголтыг санах. Размер, өнгө, стиль гэх мэт хэлэхэд ашиглана.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string',
+                        description: 'Сонголтын төрөл (size, color, style, budget)'
+                    },
+                    value: {
+                        type: 'string',
+                        description: 'Санах утга'
+                    }
+                },
+                required: ['key', 'value']
+            }
+        }
     }
 ];
 
@@ -244,6 +266,11 @@ export interface CheckoutArgs {
     notes?: string;
 }
 
+export interface RememberPreferenceArgs {
+    key: string;
+    value: string;
+}
+
 /**
  * Union type for all tool arguments
  */
@@ -255,7 +282,8 @@ export type ToolArgs =
     | ShowProductImageArgs
     | AddToCartArgs
     | RemoveFromCartArgs
-    | CheckoutArgs;
+    | CheckoutArgs
+    | RememberPreferenceArgs;
 
 /**
  * Tool names type
@@ -269,4 +297,6 @@ export type ToolName =
     | 'add_to_cart'
     | 'view_cart'
     | 'remove_from_cart'
-    | 'checkout';
+    | 'checkout'
+    | 'remember_preference';
+

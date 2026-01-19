@@ -18,8 +18,10 @@ import type {
     AddToCartArgs,
     RemoveFromCartArgs,
     CheckoutArgs,
+    RememberPreferenceArgs,
     ToolName,
 } from '../tools/definitions';
+import { saveCustomerPreference } from '../tools/memory';
 
 /**
  * Result of tool execution
@@ -367,10 +369,16 @@ export async function executeAddToCart(
     // Get updated total
     const { data: total } = await supabase.rpc('calculate_cart_total', { p_cart_id: cartId });
 
+    // Stock urgency hint
+    let urgencyHint = '';
+    if (stockCheck.currentStock <= 3) {
+        urgencyHint = ` ⚠️ Зөвхөн ${stockCheck.currentStock} ширхэг үлдлээ!`;
+    }
+
     return {
         success: true,
-        message: `${product.name} (${result.newQuantity}ш) сагсанд нэмэгдлээ! Нийт: ${total?.toLocaleString()}₮`,
-        data: { cart_total: total }
+        message: `${product.name} (${result.newQuantity}ш) сагсанд нэмэгдлээ!${urgencyHint} Нийт: ${total?.toLocaleString()}₮`,
+        data: { cart_total: total, stock_remaining: stockCheck.currentStock }
     };
 }
 
@@ -530,6 +538,34 @@ export async function executeCheckout(
 }
 
 /**
+ * Execute remember_preference tool - Save customer preference to memory
+ */
+export async function executeRememberPreference(
+    args: RememberPreferenceArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const { key, value } = args;
+
+    if (!context.customerId) {
+        return { success: false, error: 'No customer context' };
+    }
+
+    const result = await saveCustomerPreference(context.customerId, key, value);
+
+    if (!result.success) {
+        return { success: false, error: result.error };
+    }
+
+    logger.info('Customer preference saved:', { customerId: context.customerId, key, value });
+
+    return {
+        success: true,
+        message: `Санах ойд хадгаллаа: ${key} = ${value}`,
+        data: { key, value }
+    };
+}
+
+/**
  * Main tool executor - routes to appropriate handler
  */
 export async function executeTool(
@@ -557,6 +593,8 @@ export async function executeTool(
                 return await executeRemoveFromCart(args as RemoveFromCartArgs, context);
             case 'checkout':
                 return await executeCheckout(args as CheckoutArgs, context);
+            case 'remember_preference':
+                return await executeRememberPreference(args as RememberPreferenceArgs, context);
             default:
                 return { success: false, error: `Unknown tool: ${toolName}` };
         }
