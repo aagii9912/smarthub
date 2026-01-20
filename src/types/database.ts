@@ -2,9 +2,16 @@ export interface Shop {
     id: string;
     name: string;
     facebook_page_id: string | null;
+    facebook_page_name?: string | null;
     owner_name: string | null;
     phone: string | null;
     created_at: string;
+    setup_completed?: boolean;
+    is_active?: boolean;
+    // Bank information
+    bank_name?: string | null;
+    account_number?: string | null;
+    account_name?: string | null;
 }
 
 export interface Product {

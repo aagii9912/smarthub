@@ -15,6 +15,10 @@ export interface Shop {
   facebook_page_name: string | null;
   setup_completed: boolean;
   is_active: boolean;
+  // Bank information
+  bank_name?: string | null;
+  account_number?: string | null;
+  account_name?: string | null;
 }
 
 interface AuthContextType {

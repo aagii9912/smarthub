@@ -1,21 +1,34 @@
 'use client';
 
 import { useState } from 'react';
-import { Store, ArrowRight } from 'lucide-react';
+import { Store, ArrowRight, Building2 } from 'lucide-react';
 
 interface ShopInfoStepProps {
   initialData: {
     name: string;
     owner_name: string;
     phone: string;
+    bank_name?: string;
+    account_number?: string;
+    account_name?: string;
   };
-  onNext: (data: { name: string; owner_name: string; phone: string }) => Promise<void>;
+  onNext: (data: {
+    name: string;
+    owner_name: string;
+    phone: string;
+    bank_name?: string;
+    account_number?: string;
+    account_name?: string;
+  }) => Promise<void>;
 }
 
 export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
   const [name, setName] = useState(initialData.name || '');
   const [ownerName, setOwnerName] = useState(initialData.owner_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
+  const [bankName, setBankName] = useState(initialData.bank_name || '');
+  const [accountNumber, setAccountNumber] = useState(initialData.account_number || '');
+  const [accountName, setAccountName] = useState(initialData.account_name || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,7 +37,14 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
     setSaving(true);
     setError('');
     try {
-      await onNext({ name, owner_name: ownerName, phone });
+      await onNext({
+        name,
+        owner_name: ownerName,
+        phone,
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_name: accountName
+      });
     } catch (err: any) {
       setError(err.message || 'Алдаа гарлаа');
     } finally {
@@ -84,17 +104,39 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
         </div>
 
         <div className="pt-4 border-t border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Дансны мэдээлэл (Заавал биш)</h3>
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 className="w-5 h-5 text-violet-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Дансны мэдээлэл</h3>
+            <span className="text-xs text-gray-500">(Заавал биш)</span>
+          </div>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Банкны нэр</label>
               <input
                 type="text"
-                // @ts-ignore
-                value={initialData.bank_name || ''}
-                // @ts-ignore
-                onChange={(e) => { /* State logic handled by parent if possible, but here we are in controlled component */ }}
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
                 placeholder="Хаан банк"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Дансны дугаар</label>
+              <input
+                type="text"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="5000000000"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Дансны нэр</label>
+              <input
+                type="text"
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder="Эзэмшигчийн нэр"
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
@@ -119,4 +161,3 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
     </div>
   );
 }
-

@@ -20,6 +20,40 @@ const openai = new OpenAI({
 });
 
 /**
+ * Token limits configuration by plan
+ * Optimized for e-commerce sales chatbot use cases:
+ * - Starter: 600 (basic product info, short responses)
+ * - Pro: 1000 (detailed sales pitches, multiple products)
+ * - Ultimate: 1500 (comprehensive responses, complex orders)
+ */
+const DEFAULT_MAX_TOKENS = 800;    // Fallback default
+const MIN_TOKENS = 300;           // Minimum to ensure complete responses
+const MAX_TOKENS_LIMIT = 2000;    // Safety cap to prevent runaway costs
+
+/**
+ * Get max tokens for response based on plan
+ */
+function getMaxTokens(planFeatures?: ChatContext['planFeatures']): number {
+    // Use plan-defined value if available
+    if (planFeatures?.max_tokens) {
+        // Clamp between min and max
+        return Math.min(Math.max(planFeatures.max_tokens, MIN_TOKENS), MAX_TOKENS_LIMIT);
+    }
+
+    // Default based on model
+    if (planFeatures?.ai_model === 'gpt-4o') {
+        return 1200;  // Higher for premium model
+    }
+
+    // Check if sales intelligence is enabled (Pro+ plans)
+    if (planFeatures?.sales_intelligence) {
+        return 1000;  // Sales responses need more tokens
+    }
+
+    return DEFAULT_MAX_TOKENS;
+}
+
+/**
  * Retry operation with exponential backoff
  */
 async function retryOperation<T>(
@@ -135,10 +169,14 @@ export async function generateChatResponse(
             const aiModel = context.planFeatures?.ai_model || 'gpt-4o-mini';
             logger.info(`Sending message to OpenAI ${aiModel}...`);
 
+            // Dynamic token limit based on plan
+            const maxTokens = getMaxTokens(context.planFeatures);
+            logger.debug('Using max_tokens:', { maxTokens, plan: context.planFeatures });
+
             const response = await openai.chat.completions.create({
                 model: aiModel,
                 messages: messages,
-                max_completion_tokens: 800,
+                max_completion_tokens: maxTokens,
                 tools: AI_TOOLS,
                 tool_choice: 'auto',
             });
@@ -196,11 +234,11 @@ export async function generateChatResponse(
                     }
                 }
 
-                // Call OpenAI again with tool results
+                // Call OpenAI again with tool results (use same token limit)
                 const secondResponse = await openai.chat.completions.create({
                     model: aiModel,
                     messages: messages,
-                    max_completion_tokens: 800,
+                    max_completion_tokens: maxTokens,
                 });
 
                 finalResponseText = secondResponse.choices[0]?.message?.content || '';

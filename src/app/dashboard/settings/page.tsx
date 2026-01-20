@@ -38,11 +38,8 @@ export default function SettingsPage() {
             setShopName(shop.name || '');
             setOwnerName(shop.owner_name || '');
             setPhone(shop.phone || '');
-            // @ts-ignore
             setBankName(shop.bank_name || '');
-            // @ts-ignore
             setAccountNumber(shop.account_number || '');
-            // @ts-ignore
             setAccountName(shop.account_name || '');
         }
     }, [shop]);

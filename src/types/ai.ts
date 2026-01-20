@@ -114,6 +114,7 @@ export interface ChatContext {
         ai_model?: 'gpt-4o-mini' | 'gpt-4o';
         sales_intelligence?: boolean;
         ai_memory?: boolean;
+        max_tokens?: number;  // Dynamic token limit based on plan
     };
 }
 
