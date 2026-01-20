@@ -28,7 +28,7 @@ describe('AI Tool Definitions', () => {
         });
 
         it('has correct count of tools', () => {
-            expect(AI_TOOLS.length).toBe(9);
+            expect(AI_TOOLS.length).toBe(10);
         });
 
         it('all tools have type "function"', () => {

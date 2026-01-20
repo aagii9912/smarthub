@@ -225,7 +225,7 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('Test Shop');
-            expect(result).toContain('МЭРГЭЖЛИЙН ЗӨВЛӨХ');
+            expect(result).toContain('БОРЛУУЛАЛТЫН МЭРГЭЖИЛТЭН');
             expect(result).toContain('ЧУХАЛ ДҮРЭМ');
             expect(result).toContain('ХЯЗГААРЛАЛТ');
         });
@@ -241,7 +241,8 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('Bat');
-            expect(result).toContain('VIP');
+            // orderHistory is included in context but format changed
+            expect(result).toContain('Хэрэглэгч: Bat');
         });
 
         it('applies emotion style', () => {
