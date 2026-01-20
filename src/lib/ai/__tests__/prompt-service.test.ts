@@ -225,7 +225,7 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('Test Shop');
-            expect(result).toContain('БОРЛУУЛАЛТЫН МЭРГЭЖИЛТЭН');
+            expect(result).toContain('борлуулалтын мэргэжилтэн');
             expect(result).toContain('ЧУХАЛ ДҮРЭМ');
             expect(result).toContain('ХЯЗГААРЛАЛТ');
         });
@@ -241,8 +241,8 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('Bat');
-            // orderHistory is included in context but format changed
-            expect(result).toContain('Хэрэглэгч: Bat');
+            // Customer info format matches PromptService output
+            expect(result).toContain('ХЭРЭГЛЭГЧ: Bat');
         });
 
         it('applies emotion style', () => {

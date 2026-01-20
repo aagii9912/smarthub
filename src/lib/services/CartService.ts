@@ -4,8 +4,8 @@
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
-import { DatabaseError, NotFoundError, ValidationError } from '@/types/errors';
-import type { Cart, CartItem } from '@/types/ai';
+import { DatabaseError, NotFoundError } from '@/types/errors';
+import type { CartItem } from '@/types/ai';
 
 export interface AddToCartData {
     productId: string;
@@ -33,7 +33,7 @@ export class CartService {
      */
     async getOrCreate(shopId: string, customerId: string): Promise<CartWithItems> {
         // Try to find existing cart
-        let cart = await this.getByCustomer(shopId, customerId);
+        const cart = await this.getByCustomer(shopId, customerId);
 
         if (cart) {
             return cart;
@@ -94,7 +94,6 @@ export class CartService {
         }
 
         // Transform to CartWithItems format
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const items: CartItem[] = (data.cart_items || []).map((item: any) => ({
             id: item.id,
             product_id: item.product_id,
@@ -127,7 +126,7 @@ export class CartService {
         cartId: string,
         item: AddToCartData
     ): Promise<{ success: boolean; newQuantity: number }> {
-        const variantSpecsKey = JSON.stringify(item.variantSpecs || {});
+
 
         // Check if item already exists in cart
         const { data: existingItem } = await this.supabase
@@ -274,7 +273,6 @@ export class CartService {
             throw new NotFoundError('Cart', cartId);
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const items: CartItem[] = (data.cart_items || []).map((item: any) => ({
             id: item.id,
             product_id: item.product_id,

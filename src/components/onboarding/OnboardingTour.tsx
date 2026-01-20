@@ -56,25 +56,6 @@ export function OnboardingTour() {
     const [currentStep, setCurrentStep] = useState(0);
     const [position, setPosition] = useState({ top: 0, left: 0 });
 
-    useEffect(() => {
-        // Check if tour was already completed
-        const completed = localStorage.getItem(TOUR_STORAGE_KEY);
-        if (!completed) {
-            // Delay tour start to let page render
-            const timer = setTimeout(() => {
-                setIsOpen(true);
-                updatePosition();
-            }, 1500);
-            return () => clearTimeout(timer);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (isOpen) {
-            updatePosition();
-        }
-    }, [currentStep, isOpen]);
-
     function updatePosition() {
         const step = TOUR_STEPS[currentStep];
         const element = document.querySelector(step.target);
@@ -98,6 +79,11 @@ export function OnboardingTour() {
         }
     }
 
+    function completeTour() {
+        localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+        setIsOpen(false);
+    }
+
     function handleNext() {
         if (currentStep < TOUR_STEPS.length - 1) {
             setCurrentStep(prev => prev + 1);
@@ -112,14 +98,30 @@ export function OnboardingTour() {
         }
     }
 
-    function completeTour() {
-        localStorage.setItem(TOUR_STORAGE_KEY, 'true');
-        setIsOpen(false);
-    }
-
     function skipTour() {
         completeTour();
     }
+
+    useEffect(() => {
+        // Check if tour was already completed
+        const completed = localStorage.getItem(TOUR_STORAGE_KEY);
+        if (!completed) {
+            // Delay tour start to let page render
+            const timer = setTimeout(() => {
+                setIsOpen(true);
+                updatePosition();
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            updatePosition();
+        }
+    }, [currentStep, isOpen]);
+
+
 
     if (!isOpen) return null;
 
@@ -193,10 +195,10 @@ export function OnboardingTour() {
                         <div
                             key={i}
                             className={`w-2 h-2 rounded-full transition-colors ${i === currentStep
-                                    ? 'bg-violet-500'
-                                    : i < currentStep
-                                        ? 'bg-violet-300'
-                                        : 'bg-gray-200'
+                                ? 'bg-violet-500'
+                                : i < currentStep
+                                    ? 'bg-violet-300'
+                                    : 'bg-gray-200'
                                 }`}
                         />
                     ))}

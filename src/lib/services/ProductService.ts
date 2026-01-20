@@ -49,6 +49,7 @@ export class ProductService {
      */
     async findByName(shopId: string, name: string): Promise<ProductWithVariants | null> {
         // Try exact match first
+        // eslint-disable-next-line prefer-const
         let { data, error } = await this.supabase
             .from('products')
             .select('*, variants:product_variants(*)')

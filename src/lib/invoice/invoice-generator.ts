@@ -3,7 +3,7 @@
  * Generates HTML invoices for orders
  */
 
-import { logger } from '@/lib/utils/logger';
+
 
 interface InvoiceData {
     invoiceNumber: string;

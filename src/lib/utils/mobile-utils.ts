@@ -24,7 +24,7 @@ export const vibrate = (pattern: number | number[] = 10): void => {
 
     try {
         navigator.vibrate(pattern);
-    } catch (e) {
+    } catch (_e) {
         // Vibration not supported or failed
     }
 };
@@ -108,8 +108,7 @@ export const isPWA = (): boolean => {
 // Network information (if available)
 export const getNetworkType = (): string => {
     if (typeof navigator === 'undefined') return 'unknown';
-    // @ts-ignore
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
     return connection?.effectiveType || 'unknown';
 };
 

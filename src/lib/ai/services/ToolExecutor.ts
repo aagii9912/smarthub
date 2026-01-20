@@ -244,7 +244,6 @@ export async function executeCancelOrder(
         .eq('id', pendingOrder.id);
 
     // Restore stock
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const item of (pendingOrder.order_items as any[] || [])) {
         const { data: product } = await supabase
             .from('products')

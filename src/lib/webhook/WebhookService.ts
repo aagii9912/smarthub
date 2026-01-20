@@ -5,11 +5,10 @@
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
-import { sendTextMessage, sendSenderAction, sendImage, sendImageGallery } from '@/lib/facebook/messenger';
-import { generateChatResponse } from '@/lib/ai/openai';
-import { detectIntent, IntentResult } from '@/lib/ai/intent-detector';
-import { shouldReplyToComment, generateCommentReply } from '@/lib/ai/comment-detector';
+import { sendImage, sendImageGallery } from '@/lib/facebook/messenger';
+import { generateCommentReply } from '@/lib/ai/comment-detector';
 import type { AIProduct, AIFAQ, AIQuickReply, AISlogan, NotifySettings, ChatMessage as AIChatMessage } from '@/types/ai';
+import { IntentResult } from '@/lib/ai/intent-detector';
 
 /**
  * Shop data with products and settings

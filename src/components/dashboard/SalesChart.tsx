@@ -26,6 +26,20 @@ interface SalesChartProps {
     height?: number;
 }
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+                <p className="font-medium text-sm text-gray-900">{label}</p>
+                <p className="text-primary font-semibold">
+                    ₮{Number(payload[0].value).toLocaleString()}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
 export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProps) {
     const formatRevenue = (value: number) => {
         if (value >= 1000000) {
@@ -37,19 +51,7 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
         return value.toString();
     };
 
-    const CustomTooltip = ({ active, payload, label }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-                    <p className="font-medium text-sm text-gray-900">{label}</p>
-                    <p className="text-primary font-semibold">
-                        ₮{Number(payload[0].value).toLocaleString()}
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
+
 
     const chartData = useMemo(() => data || [], [data]);
 

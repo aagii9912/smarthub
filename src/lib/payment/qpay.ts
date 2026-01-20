@@ -10,6 +10,7 @@
  */
 
 import { logger } from '@/lib/utils/logger';
+import crypto from 'crypto';
 
 // QPay API Configuration
 const QPAY_CONFIG = {
@@ -249,7 +250,6 @@ export function validateWebhookSignature(
     secret: string
 ): boolean {
     try {
-        const crypto = require('crypto');
         const expectedSignature = crypto
             .createHmac('sha256', secret)
             .update(payload)

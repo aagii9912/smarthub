@@ -144,7 +144,6 @@ export async function getCartFromDB(shopId: string, customerId: string): Promise
         return { id: cart.id, items: [], total_amount: 0 };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mappedItems = items.map((item: any) => ({
         id: item.id,
         product_id: item.product_id,

@@ -166,7 +166,6 @@ export class ChatHistoryService {
             }
 
             // Handle Supabase join result which may be array or object
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const customers = entry.customers as any;
             const customerName = Array.isArray(customers)
                 ? customers[0]?.name

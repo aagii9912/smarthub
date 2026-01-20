@@ -126,18 +126,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize on auth state change
   useEffect(() => {
-    if (!isLoaded) return;
+    let isMounted = true;
 
-    if (isSignedIn) {
-      fetchShops().then(userShops => {
-        initializeActiveShop(userShops);
-        setLoading(false);
-      });
-    } else {
-      setShop(null);
-      setShops([]);
-      setLoading(false);
-    }
+    const init = async () => {
+      if (!isLoaded) return;
+
+      if (isSignedIn) {
+
+        fetchShops().then(userShops => {
+          if (isMounted) {
+            initializeActiveShop(userShops);
+            setLoading(false);
+          }
+        });
+      } else {
+        if (isMounted) {
+          setShop(null);
+          setShops([]);
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isLoaded, isSignedIn, fetchShops, initializeActiveShop]);
 
   return (

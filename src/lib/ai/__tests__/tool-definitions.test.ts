@@ -8,7 +8,6 @@ import type {
 } from '../tools/definitions';
 
 // Helper to access function tool properties
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getToolFunction = (tool: any) => tool.function;
 
 describe('AI Tool Definitions', () => {

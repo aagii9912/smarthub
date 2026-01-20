@@ -21,6 +21,7 @@ export async function parseExcel(buffer: Buffer): Promise<ParsedProduct[]> {
     const sheet = workbook.Sheets[sheetName];
 
     // Convert to JSON
+
     const data = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
 
     // Try to detect column names

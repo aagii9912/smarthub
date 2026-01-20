@@ -46,7 +46,6 @@ export async function GET() {
         }
 
         // Transform data for frontend
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formattedCarts = carts.map((cart: any) => {
             const items = cart.cart_items || [];
             // Calculate totals manually to be safe

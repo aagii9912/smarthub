@@ -80,12 +80,16 @@ export function useIsTouchDevice() {
     const [isTouch, setIsTouch] = useState(false);
 
     useEffect(() => {
-        setIsTouch(
-            'ontouchstart' in window ||
-            navigator.maxTouchPoints > 0 ||
-            // @ts-ignore
-            navigator.msMaxTouchPoints > 0
-        );
+        const checkTouch = () => {
+            const hasTouch = 'ontouchstart' in window ||
+                navigator.maxTouchPoints > 0 ||
+                // msMaxTouchPoints is vendor specific
+                (navigator as unknown as { msMaxTouchPoints: number }).msMaxTouchPoints > 0;
+
+            setIsTouch(!!hasTouch);
+        };
+
+        checkTouch();
     }, []);
 
     return isTouch;

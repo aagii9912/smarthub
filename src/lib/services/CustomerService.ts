@@ -66,7 +66,7 @@ export class CustomerService {
      */
     async getOrCreate(data: CreateCustomerData): Promise<Customer> {
         // Try to find existing customer
-        let customer = await this.getByFacebookId(data.facebookId, data.shopId);
+        const customer = await this.getByFacebookId(data.facebookId, data.shopId);
 
         if (customer) {
             return customer;
