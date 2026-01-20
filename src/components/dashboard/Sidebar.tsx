@@ -21,15 +21,15 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 
 const menuItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Products', href: '/dashboard/products', icon: Package },
-    { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
-    { name: 'Customers', href: '/dashboard/customers', icon: Users },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, tour: 'dashboard' },
+    { name: 'Products', href: '/dashboard/products', icon: Package, tour: 'products' },
+    { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart, tour: 'orders' },
+    { name: 'Customers', href: '/dashboard/customers', icon: Users, tour: 'customers' },
 
-    { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot },
-    { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard },
-    { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart },
-    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+    { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot, tour: 'ai-settings' },
+    { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard, tour: 'payments' },
+    { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart, tour: 'carts' },
+    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3, tour: 'reports' },
 ];
 
 const bottomMenuItems = [
@@ -103,6 +103,7 @@ export function Sidebar() {
                             <li key={item.name}>
                                 <Link
                                     href={item.href}
+                                    data-tour={item.tour}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
                                         ? 'bg-[#65c51a] text-white'
                                         : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'

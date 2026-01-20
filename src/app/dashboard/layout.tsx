@@ -3,6 +3,8 @@
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Header } from '@/components/dashboard/Header';
 import { MobileNav } from '@/components/dashboard/MobileNav';
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { FeedbackWidget } from '@/components/feedback/FeedbackWidget';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 export default function DashboardLayout({
@@ -23,6 +25,10 @@ export default function DashboardLayout({
                 </main>
             </div>
             <MobileNav />
+
+            {/* Onboarding & Feedback */}
+            <OnboardingTour />
+            <FeedbackWidget />
         </div>
     );
 }
