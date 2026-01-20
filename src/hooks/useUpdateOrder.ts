@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrderWithDetails } from './useOrders';
+import { toast } from 'sonner';
 
 interface UpdateOrderParams {
     orderId: string;
@@ -17,7 +18,7 @@ export function useUpdateOrder() {
                     'Content-Type': 'application/json',
                     'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
                 },
-                body: JSON.stringify({ id: orderId, status }),
+                body: JSON.stringify({ orderId, status }),
             });
             if (!res.ok) throw new Error('Failed to update status');
             return res.json();
@@ -43,7 +44,11 @@ export function useUpdateOrder() {
             // Return context for rollback
             return { previousOrders };
         },
+        onSuccess: () => {
+            toast.success('Захиалгын төлөв амжилттай шинэчлэгдлээ');
+        },
         onError: (err, newTodo, context) => {
+            toast.error('Төлөв шинэчлэхэд алдаа гарлаа');
             // Rollback
             if (context?.previousOrders) {
                 queryClient.setQueryData(['orders'], context.previousOrders);
