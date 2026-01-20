@@ -109,6 +109,12 @@ export interface ChatContext {
     activeCart?: ActiveCart;
     // AI Memory: stored customer preferences (size, color, style, etc.)
     customerMemory?: Record<string, string | string[] | number>;
+    // Plan-based features for dynamic AI behavior
+    planFeatures?: {
+        ai_model?: 'gpt-4o-mini' | 'gpt-4o';
+        sales_intelligence?: boolean;
+        ai_memory?: boolean;
+    };
 }
 
 // Chat message for history

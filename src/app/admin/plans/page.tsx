@@ -52,8 +52,18 @@ export default function PlansPage() {
             messages_per_month: 100,
             shops_limit: 1,
             ai_enabled: true,
+            ai_model: 'gpt-4o-mini',
+            sales_intelligence: false,
+            ai_memory: false,
+            cart_system: 'none',
+            payment_integration: false,
+            crm_analytics: 'basic',
+            auto_tagging: false,
+            appointment_booking: false,
+            bulk_marketing: false,
+            excel_export: false,
+            custom_branding: false,
             comment_reply: false,
-            analytics: 'basic',
             priority_support: false
         },
         limits: {
@@ -96,8 +106,18 @@ export default function PlansPage() {
                 messages_per_month: 100,
                 shops_limit: 1,
                 ai_enabled: true,
+                ai_model: 'gpt-4o-mini',
+                sales_intelligence: false,
+                ai_memory: false,
+                cart_system: 'none',
+                payment_integration: false,
+                crm_analytics: 'basic',
+                auto_tagging: false,
+                appointment_booking: false,
+                bulk_marketing: false,
+                excel_export: false,
+                custom_branding: false,
                 comment_reply: false,
-                analytics: 'basic',
                 priority_support: false
             },
             limits: {
@@ -381,8 +401,8 @@ export default function PlansPage() {
 
                             {/* Features */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
-                                <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">AI Features</label>
+                                <div className="space-y-2 mb-4">
                                     <label className="flex items-center gap-2">
                                         <input
                                             type="checkbox"
@@ -395,6 +415,123 @@ export default function PlansPage() {
                                         />
                                         <span className="text-sm">AI Enabled</span>
                                     </label>
+                                    <div className="flex items-center gap-2 ml-6">
+                                        <span className="text-sm text-gray-500">AI Model:</span>
+                                        <select
+                                            value={formData.features.ai_model || 'gpt-4o-mini'}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, ai_model: e.target.value }
+                                            })}
+                                            className="text-sm border rounded px-2 py-1"
+                                        >
+                                            <option value="gpt-4o-mini">GPT-4o-mini (Basic)</option>
+                                            <option value="gpt-4o">GPT-4o (Advanced)</option>
+                                        </select>
+                                    </div>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.sales_intelligence}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, sales_intelligence: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Sales Intelligence</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.ai_memory}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, ai_memory: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">AI Memory</span>
+                                    </label>
+                                </div>
+
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Business Features</label>
+                                <div className="space-y-2 mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-500">Cart System:</span>
+                                        <select
+                                            value={formData.features.cart_system || 'none'}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, cart_system: e.target.value }
+                                            })}
+                                            className="text-sm border rounded px-2 py-1"
+                                        >
+                                            <option value="none">None</option>
+                                            <option value="basic">Basic</option>
+                                            <option value="full">Full</option>
+                                        </select>
+                                    </div>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.payment_integration}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, payment_integration: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Payment Integration (QPay/Bank)</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.auto_tagging}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, auto_tagging: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Auto Tagging</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.appointment_booking}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, appointment_booking: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Appointment Booking</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.bulk_marketing}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, bulk_marketing: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Bulk Marketing</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.excel_export}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, excel_export: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Excel Export</span>
+                                    </label>
                                     <label className="flex items-center gap-2">
                                         <input
                                             type="checkbox"
@@ -406,6 +543,18 @@ export default function PlansPage() {
                                             className="rounded"
                                         />
                                         <span className="text-sm">Comment Auto-Reply</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.features.custom_branding}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                features: { ...formData.features, custom_branding: e.target.checked }
+                                            })}
+                                            className="rounded"
+                                        />
+                                        <span className="text-sm">Custom Branding</span>
                                     </label>
                                     <label className="flex items-center gap-2">
                                         <input

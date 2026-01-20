@@ -7,6 +7,7 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { BestSellersTable } from '@/components/dashboard/BestSellersTable';
 import { RevenueStats } from '@/components/dashboard/RevenueStats';
 import { SmartInsights } from '@/components/dashboard/SmartInsights';
+import { FeatureGate } from '@/components/FeatureGate';
 import { useReports } from '@/hooks/useReports';
 import {
     RefreshCw,
@@ -214,63 +215,65 @@ export default function ReportsPage() {
                 </CardContent>
             </Card>
 
-            {/* Export Section */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                        Excel Экспорт
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <button
-                            onClick={() => handleExport('orders')}
-                            disabled={exporting !== null}
-                            className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                        >
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <ShoppingCart className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div className="text-left">
-                                <p className="font-medium text-gray-900">Захиалгууд</p>
-                                <p className="text-xs text-gray-500">Бүх захиалгын жагсаалт</p>
-                            </div>
-                            <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'orders' ? 'animate-bounce' : ''}`} />
-                        </button>
+            {/* Export Section - Requires excel_export feature */}
+            <FeatureGate feature="excel_export">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                            Excel Экспорт
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <button
+                                onClick={() => handleExport('orders')}
+                                disabled={exporting !== null}
+                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <ShoppingCart className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium text-gray-900">Захиалгууд</p>
+                                    <p className="text-xs text-gray-500">Бүх захиалгын жагсаалт</p>
+                                </div>
+                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'orders' ? 'animate-bounce' : ''}`} />
+                            </button>
 
-                        <button
-                            onClick={() => handleExport('products')}
-                            disabled={exporting !== null}
-                            className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                        >
-                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <Package className="w-5 h-5 text-purple-600" />
-                            </div>
-                            <div className="text-left">
-                                <p className="font-medium text-gray-900">Бүтээгдэхүүн</p>
-                                <p className="text-xs text-gray-500">Бүх барааны жагсаалт</p>
-                            </div>
-                            <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'products' ? 'animate-bounce' : ''}`} />
-                        </button>
+                            <button
+                                onClick={() => handleExport('products')}
+                                disabled={exporting !== null}
+                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium text-gray-900">Бүтээгдэхүүн</p>
+                                    <p className="text-xs text-gray-500">Бүх барааны жагсаалт</p>
+                                </div>
+                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'products' ? 'animate-bounce' : ''}`} />
+                            </button>
 
-                        <button
-                            onClick={() => handleExport('sales')}
-                            disabled={exporting !== null}
-                            className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                        >
-                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                <TrendingUp className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div className="text-left">
-                                <p className="font-medium text-gray-900">Борлуулалт</p>
-                                <p className="text-xs text-gray-500">Сүүлийн 30 хоногийн</p>
-                            </div>
-                            <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'sales' ? 'animate-bounce' : ''}`} />
-                        </button>
-                    </div>
-                </CardContent>
-            </Card>
+                            <button
+                                onClick={() => handleExport('sales')}
+                                disabled={exporting !== null}
+                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <TrendingUp className="w-5 h-5 text-green-600" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-medium text-gray-900">Борлуулалт</p>
+                                    <p className="text-xs text-gray-500">Сүүлийн 30 хоногийн</p>
+                                </div>
+                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'sales' ? 'animate-bounce' : ''}`} />
+                            </button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </FeatureGate>
         </div>
     );
 }

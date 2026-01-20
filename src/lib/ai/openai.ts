@@ -131,10 +131,12 @@ export async function generateChatResponse(
         logger.debug('System prompt prepared', { length: systemPrompt.length });
 
         return await retryOperation(async () => {
-            logger.info('Sending message to OpenAI GPT-4o...');
+            // Dynamic model selection based on plan
+            const aiModel = context.planFeatures?.ai_model || 'gpt-4o-mini';
+            logger.info(`Sending message to OpenAI ${aiModel}...`);
 
             const response = await openai.chat.completions.create({
-                model: 'gpt-4o',
+                model: aiModel,
                 messages: messages,
                 max_completion_tokens: 800,
                 tools: AI_TOOLS,
@@ -196,7 +198,7 @@ export async function generateChatResponse(
 
                 // Call OpenAI again with tool results
                 const secondResponse = await openai.chat.completions.create({
-                    model: 'gpt-4o',
+                    model: aiModel,
                     messages: messages,
                     max_completion_tokens: 800,
                 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
-import { generateChatResponse } from '@/lib/ai/openai';
+import { generateChatResponse, analyzeProductImage } from '@/lib/ai/openai';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
@@ -37,7 +37,13 @@ interface WebhookEntry {
     }>;
     messaging?: Array<{
         sender: { id: string };
-        message?: { text?: string };
+        message?: {
+            text?: string;
+            attachments?: Array<{
+                type: string;
+                payload?: { url?: string };
+            }>;
+        };
         postback?: { payload?: string };
     }>;
 }
@@ -221,6 +227,54 @@ export async function POST(request: NextRequest) {
                     } catch (sendError) {
                         const errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error';
                         logger.error('Failed to send message:', { message: errorMessage });
+                    }
+                }
+
+                // Handle image attachments
+                const attachments = event.message?.attachments;
+                if (attachments && attachments.length > 0) {
+                    const imageAttachment = attachments.find(a => a.type === 'image');
+                    if (imageAttachment?.payload?.url) {
+                        const imageUrl = imageAttachment.payload.url;
+                        logger.info(`[${shop.name}] Received image attachment`, { imageUrl });
+
+                        await sendSenderAction(senderId, 'mark_seen', pageAccessToken);
+                        await sendSenderAction(senderId, 'typing_on', pageAccessToken);
+
+                        try {
+                            // Analyze image with Vision API
+                            const analysis = await analyzeProductImage(imageUrl, shop.products);
+                            logger.info('Image analysis result:', analysis);
+
+                            let responseMessage: string;
+                            if (analysis.matchedProduct && analysis.confidence > 0.6) {
+                                const product = shop.products.find(p => p.name === analysis.matchedProduct);
+                                if (product) {
+                                    const price = product.discount_percent
+                                        ? Math.round(product.price * (1 - product.discount_percent / 100))
+                                        : product.price;
+                                    responseMessage = `🎯 Таны зураг дээр "${product.name}" харагдаж байна!\n\n💰 Үнэ: ${price.toLocaleString()}₮\n📦 Үлдэгдэл: ${product.stock} ширхэг\n\nЗахиалах уу? 😊`;
+                                } else {
+                                    responseMessage = `Зураг дээр ${analysis.description}. Таны хайсан бүтээгдэхүүн манайд байж магадгүй, нэрийг нь хэлнэ үү?`;
+                                }
+                            } else {
+                                responseMessage = `Зураг дээр ${analysis.description}. Аль бүтээгдэхүүнийг хайж байгаагаа хэлнэ үү? 🤔`;
+                            }
+
+                            await sendSenderAction(senderId, 'typing_off', pageAccessToken);
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: responseMessage,
+                                pageAccessToken,
+                            });
+                        } catch (imageError) {
+                            logger.error('Image analysis error:', { error: imageError });
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
+                                pageAccessToken,
+                            });
+                        }
                     }
                 }
 
