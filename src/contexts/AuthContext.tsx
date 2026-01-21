@@ -19,6 +19,10 @@ export interface Shop {
   bank_name?: string | null;
   account_number?: string | null;
   account_name?: string | null;
+  // AI Settings
+  description?: string | null;
+  ai_emotion?: string | null;
+  ai_instructions?: string | null;
 }
 
 interface AuthContextType {

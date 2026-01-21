@@ -219,6 +219,24 @@ export const AI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
                 required: ['key', 'value']
             }
         }
+    },
+    // Payment Tool
+    {
+        type: 'function',
+        function: {
+            name: 'check_payment_status',
+            description: 'Check payment status manually. Use when customer says they paid ("Tulluu", "Shiljuullee") but AI didn\'t confirm yet.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    order_id: {
+                        type: 'string',
+                        description: 'Order ID to check (optional, if known)'
+                    }
+                },
+                required: []
+            }
+        }
     }
 ];
 
@@ -271,6 +289,10 @@ export interface RememberPreferenceArgs {
     value: string;
 }
 
+export interface CheckPaymentArgs {
+    order_id?: string;
+}
+
 /**
  * Union type for all tool arguments
  */
@@ -283,7 +305,8 @@ export type ToolArgs =
     | AddToCartArgs
     | RemoveFromCartArgs
     | CheckoutArgs
-    | RememberPreferenceArgs;
+    | RememberPreferenceArgs
+    | CheckPaymentArgs;
 
 /**
  * Tool names type
@@ -298,5 +321,6 @@ export type ToolName =
     | 'view_cart'
     | 'remove_from_cart'
     | 'checkout'
-    | 'remember_preference';
+    | 'remember_preference'
+    | 'check_payment_status';
 

@@ -58,6 +58,15 @@ export async function POST(request: NextRequest) {
             intent: 'human_reply',
         });
 
+        // Admin Takeover: Pause AI for 30 minutes
+        const pauseTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        await supabase
+            .from('customers')
+            .update({ ai_paused_until: pauseTime })
+            .eq('id', customerId);
+
+
+
         return NextResponse.json({ success: true, message: 'Message sent successfully' });
     } catch (error) {
         console.error('Reply API error:', error);

@@ -27,6 +27,7 @@ export interface ShopWithProducts {
     notify_on_contact?: boolean | null;
     notify_on_support?: boolean | null;
     notify_on_cancel?: boolean | null;
+    is_ai_active?: boolean | null; // Added
 }
 
 /**
@@ -37,6 +38,7 @@ export interface CustomerData {
     name?: string | null;
     phone?: string | null;
     total_orders?: number;
+    ai_paused_until?: string | null; // Added
 }
 
 /**
@@ -85,6 +87,7 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         notify_on_contact: data.notify_on_contact,
         notify_on_support: data.notify_on_support,
         notify_on_cancel: data.notify_on_cancel,
+        is_ai_active: data.is_ai_active, // Mapped
     };
 }
 
@@ -130,6 +133,7 @@ export async function getOrCreateCustomer(
             name: existingCustomer.name,
             phone: existingCustomer.phone,
             total_orders: existingCustomer.total_orders || 0,
+            ai_paused_until: existingCustomer.ai_paused_until, // Mapped
         };
     }
 

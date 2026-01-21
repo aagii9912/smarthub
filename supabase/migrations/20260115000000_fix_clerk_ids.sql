@@ -25,6 +25,20 @@ BEGIN
         END LOOP;
     END IF;
 
+    -- 3.1. DROP POLICIES ON CARTS (Fix for dependency error)
+    -- Explicitly drop the known conflicting policy if it exists
+    BEGIN
+        DROP POLICY IF EXISTS "Users can manage own shop carts" ON carts;
+    EXCEPTION WHEN OTHERS THEN
+        NULL; -- Ignore if table doesn't exist
+    END;
+
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'carts') THEN
+        FOR r IN (SELECT policyname FROM pg_policies WHERE tablename = 'carts') LOOP
+            EXECUTE 'DROP POLICY IF EXISTS "' || r.policyname || '" ON carts';
+        END LOOP;
+    END IF;
+
     -- 4. DROP FOREIGN KEY CONSTRAINTS
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'shops') THEN
         ALTER TABLE shops DROP CONSTRAINT IF EXISTS shops_user_id_fkey;

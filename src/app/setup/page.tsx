@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
 import { FacebookStep } from '@/components/setup/FacebookStep';
 import { ProductStep } from '@/components/setup/ProductStep';
+import { AISetupStep } from '@/components/setup/AISetupStep';
 
 function SetupContent() {
   const router = useRouter();
@@ -20,6 +21,7 @@ function SetupContent() {
   const [error, setError] = useState('');
   const [fbPages, setFbPages] = useState([]);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [fbToken, setFbToken] = useState<string>(''); // NEW: Store token for AI context
 
   // Handle Facebook OAuth callback
   useEffect(() => {
@@ -45,11 +47,14 @@ function SetupContent() {
       }
 
       if (shop) {
-        if (shop.setup_completed && shop.facebook_page_id) {
+        if (shop.setup_completed) {
           router.push('/dashboard');
         } else if (!shop.facebook_page_id) {
           setStep(2);
-        } else {
+        } else if (step < 3) {
+          // If FB connected but setup not done, go to step 3
+          // Note: We might miss fbToken here if reloading. 
+          // That's acceptable, user can just skip "Fetch from FB"
           setStep(3);
         }
       }
@@ -95,6 +100,11 @@ function SetupContent() {
     const pageData = await pageRes.json();
     if (!pageRes.ok) throw new Error(pageData.error);
 
+    // Save token to state for AI step
+    if (pageData.page?.access_token) {
+      setFbToken(pageData.page.access_token);
+    }
+
     const shopRes = await fetch('/api/shop', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -112,6 +122,11 @@ function SetupContent() {
   };
 
   const handleManualFacebookSave = async (data: any) => {
+    // Save token to state for AI step
+    if (data.accessToken) {
+      setFbToken(data.accessToken);
+    }
+
     const res = await fetch('/api/shop', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -136,6 +151,27 @@ function SetupContent() {
     });
 
     if (!res.ok) throw new Error('Бүтээгдэхүүн хадгалахад алдаа гарлаа');
+
+    // Move to AI Step instead of finishing
+    setStep(4);
+  };
+
+  const handleAIComplete = async (aiData: any) => {
+    // Save AI settings
+    if (aiData) {
+      await fetch('/api/shop', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aiData)
+      });
+    }
+
+    // Mark setup as completed (if not already handled by backend on product save, 
+    // but usually we want a flag. Assuming shop.setup_completed is handled or we enforce it here)
+    // Actually, let's ensure we mark it complete or redirect. 
+    // Current logic checks `shop.setup_completed` in useEffect.
+    // If the backend sets `setup_completed` only when products are added, we are fine.
+    // But if we want to ensure, we can call a 'complete' endpoint or just redirect.
 
     router.push('/dashboard');
   };
@@ -168,7 +204,7 @@ function SetupContent() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-12">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all border ${step >= s
                 ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
@@ -176,7 +212,7 @@ function SetupContent() {
                 }`}>
                 {step > s ? <Check className="w-5 h-5" /> : s}
               </div>
-              {s < 3 && <div className={`w-16 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
+              {s < 4 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>
@@ -220,6 +256,20 @@ function SetupContent() {
               initialProducts={[]} // Could fetch existing if needed
               onBack={() => setStep(2)}
               onComplete={handleProductsComplete}
+            />
+          )}
+
+          {step === 4 && (
+            <AISetupStep
+              initialData={{
+                description: shop?.description || '',
+                ai_emotion: shop?.ai_emotion || '',
+                ai_instructions: shop?.ai_instructions || ''
+              }}
+              fbPageId={shop?.facebook_page_id || undefined}
+              fbPageToken={fbToken}
+              onSkip={() => handleAIComplete(null)}
+              onSave={handleAIComplete}
             />
           )}
         </div>

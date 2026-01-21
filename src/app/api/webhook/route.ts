@@ -152,6 +152,18 @@ export async function POST(request: NextRequest) {
                     // Update customer info if needed
                     customer = await updateCustomerInfo(customer, senderId, pageAccessToken, userMessage);
 
+                    // CHECK: Global AI Switch
+                    if (shop.is_ai_active === false) {
+                        logger.info(`[${shop.name}] AI is globally disabled. Skipping response.`);
+                        continue;
+                    }
+
+                    // CHECK: Admin Takeover (AI Paused)
+                    if (customer.ai_paused_until && new Date(customer.ai_paused_until) > new Date()) {
+                        logger.info(`[${shop.name}] AI paused for customer ${customer.id} until ${customer.ai_paused_until}. Skipping.`);
+                        continue;
+                    }
+
                     // Generate AI response
                     let aiResponse: string;
                     try {
@@ -231,6 +243,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 // Handle image attachments
+                // Handle image attachments
                 const attachments = event.message?.attachments;
                 if (attachments && attachments.length > 0) {
                     const imageAttachment = attachments.find(a => a.type === 'image');
@@ -247,7 +260,10 @@ export async function POST(request: NextRequest) {
                             logger.info('Image analysis result:', analysis);
 
                             let responseMessage: string;
-                            if (analysis.matchedProduct && analysis.confidence > 0.6) {
+                            if (analysis.isReceipt) {
+                                responseMessage = `💰 Төлбөрийн баримтыг хүлээж авлаа! Баярлалаа. \n\nАдмин шалгаад удахгүй баталгаажуулах болно. Түр хүлээнэ үү. 🙏`;
+                                // TODO: Notify Admin here (future improvement)
+                            } else if (analysis.matchedProduct && analysis.confidence > 0.6) {
                                 const product = shop.products.find(p => p.name === analysis.matchedProduct);
                                 if (product) {
                                     const price = product.discount_percent

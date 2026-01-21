@@ -86,7 +86,9 @@ export default function AISettingsPage() {
     const [notifyOnOrder, setNotifyOnOrder] = useState(true);
     const [notifyOnContact, setNotifyOnContact] = useState(true);
     const [notifyOnSupport, setNotifyOnSupport] = useState(true);
+
     const [notifyOnCancel, setNotifyOnCancel] = useState(true);
+    const [isAiActive, setIsAiActive] = useState(true); // Added state
 
     // AI Features data
     const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -127,6 +129,7 @@ export default function AISettingsPage() {
                 setNotifyOnContact(shopData.shop.notify_on_contact ?? true);
                 setNotifyOnSupport(shopData.shop.notify_on_support ?? true);
                 setNotifyOnCancel(shopData.shop.notify_on_cancel ?? true);
+                setIsAiActive(shopData.shop.is_ai_active ?? true); // Added
 
                 // Load custom knowledge
                 if (shopData.shop.custom_knowledge) {
@@ -172,6 +175,7 @@ export default function AISettingsPage() {
                     notify_on_contact: notifyOnContact,
                     notify_on_support: notifyOnSupport,
                     notify_on_cancel: notifyOnCancel,
+                    is_ai_active: isAiActive, // Added
                 }),
             });
             if (!res.ok) throw new Error('Failed to save');
@@ -354,6 +358,29 @@ export default function AISettingsPage() {
             {/* Tab Content */}
             {activeTab === 'general' && (
                 <div className="space-y-6">
+                    {/* Main AI Toggle */}
+                    <Card className={`${isAiActive ? 'bg-white' : 'bg-red-50 border-red-200'}`}>
+                        <CardContent className="p-6 flex items-center justify-between">
+                            <div>
+                                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                                    <Zap className={`w-5 h-5 ${isAiActive ? 'text-violet-600' : 'text-gray-400'}`} />
+                                    AI-г идэвхжүүлэх
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {isAiActive
+                                        ? 'AI одоогоор идэвхтэй байна. Хэрэглэгчдэд хариу өгч байна.'
+                                        : 'AI унтраалттай байна. Зөвхөн админ хариу өгнө.'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsAiActive(!isAiActive)}
+                                className={`w-14 h-8 rounded-full transition-colors relative ${isAiActive ? 'bg-violet-600' : 'bg-gray-300'}`}
+                            >
+                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${isAiActive ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </CardContent>
+                    </Card>
+
                     {/* AI Emotion */}
                     <Card>
                         <CardContent className="p-6">

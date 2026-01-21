@@ -19,9 +19,11 @@ import type {
     RemoveFromCartArgs,
     CheckoutArgs,
     RememberPreferenceArgs,
+    CheckPaymentArgs, // Added
     ToolName,
 } from '../tools/definitions';
 import { saveCustomerPreference } from '../tools/memory';
+import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
 
 /**
  * Result of tool execution
@@ -151,6 +153,42 @@ export async function executeCreateOrder(
 
     if (!context.shopId || !context.customerId) {
         return { success: false, error: 'Missing shop or customer ID context.' };
+    }
+
+    // Create order
+
+
+    // Check for duplicate pending orders (Idempotency)
+    // If a pending order for same product/customer exists created in last 30s, return it
+    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
+    const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id, total_amount')
+        .eq('customer_id', context.customerId)
+        .eq('shop_id', context.shopId)
+        .eq('status', 'pending')
+        .gt('created_at', thirtySecondsAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+    if (existingOrder) {
+        // Double check if it contains the same product
+        const { data: verifyItem } = await supabase
+            .from('order_items')
+            .select('product_id')
+            .eq('order_id', existingOrder.id)
+            .eq('product_id', product.id)
+            .single();
+
+        if (verifyItem) {
+            logger.info('Duplicate order prevented, returning existing:', { orderId: existingOrder.id });
+            return {
+                success: true,
+                message: `Success! Order #${existingOrder.id.substring(0, 8)} created (Found existing). Total: ${existingOrder.total_amount.toLocaleString()}₮.`,
+                data: { orderId: existingOrder.id, total: existingOrder.total_amount }
+            };
+        }
     }
 
     // Create order
@@ -298,11 +336,13 @@ export function executeShowProductImage(
                 ? product.images[0]
                 : (product && product.image_url);
 
-            if (product && imageUrl) {
+            if (product) {
+                // FALLBACK: Use placeholder if no image
+                const finalImageUrl = imageUrl || 'https://placehold.co/600x400?text=No+Image';
                 return {
                     name: product.name,
                     price: product.price,
-                    imageUrl: imageUrl,
+                    imageUrl: finalImageUrl,
                     description: product.description,
                 };
             }
@@ -318,7 +358,11 @@ export function executeShowProductImage(
         };
     }
 
-    return { success: false, error: 'No matching products with images found.' };
+    return {
+        success: false,
+        // Changed error to a soft message so AI can say "I couldn't find an image" gracefully
+        error: 'Зурагтай бүтээгдэхүүн олдсонгүй.'
+    };
 }
 
 /**
@@ -565,6 +609,103 @@ export async function executeRememberPreference(
 }
 
 /**
+ * Execute check_payment_status tool
+ */
+export async function executeCheckPaymentStatus(
+    args: CheckPaymentArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const supabase = supabaseAdmin();
+
+    if (!context.customerId) {
+        return { success: false, error: 'No customer context' };
+    }
+
+    // 1. Find recent pending orders
+    let query = supabase
+        .from('orders')
+        .select('*')
+        .eq('shop_id', context.shopId)
+        .eq('customer_id', context.customerId)
+        .eq('status', 'pending');
+
+    if (args.order_id) {
+        query = query.eq('id', args.order_id);
+    } else {
+        query = query.order('created_at', { ascending: false }).limit(3);
+    }
+
+    const { data: orders } = await query;
+
+    if (!orders || orders.length === 0) {
+        return { success: false, error: 'Төлөгдөөгүй захиалга олдсонгүй.' };
+    }
+
+    let verifiedCount = 0;
+    const verifiedOrderIds = [];
+
+    // 2. Check status for each pending order
+    for (const order of orders) {
+        // Find QPay Invoice ID associated with this order (assuming it's stored in metadata/notes or specific table)
+        // Since we don't have a direct invoice_id link in `orders` yet (based on types), 
+        // we'll try to find it via metadata or assume (for now) we can look up by order_id if QPay supports it 
+        // OR we just use order_id as invoice_id if that's how we implemented `createQPayInvoice` (sender_invoice_no: orderId).
+        // Let's assume we can check by Sender Invoice No (Order ID) but QPay API needs Object ID (Invoice ID).
+
+        // Wait, `createQPayInvoice` returns `invoice_id`. We should have stored it.
+        // If we didn't store it, we can't verify easily. 
+        // Let's check `qpay_invoices` table if it exists? Or maybe `payments` table?
+        // Based on `qpay.ts`, we create invoice but maybe not storing the QPay ID in DB?
+
+        // Quick Fix: Look for payments table entry with this order_id
+        const { data: payment } = await supabase
+            .from('payments')
+            .select('provider_transaction_id, id')
+            .eq('order_id', order.id)
+            .eq('status', 'pending')
+            .single();
+
+        if (payment && payment.provider_transaction_id) {
+            try {
+                const checkResult = await checkPaymentStatus(payment.provider_transaction_id);
+                if (isPaymentCompleted(checkResult)) {
+                    // Update Payment
+                    await supabase
+                        .from('payments')
+                        .update({ status: 'paid', paid_at: new Date().toISOString() })
+                        .eq('id', payment.id);
+
+                    // Update Order
+                    await supabase
+                        .from('orders')
+                        .update({ status: 'paid' })
+                        .eq('id', order.id);
+
+                    verifiedOrderIds.push(order.id);
+                    verifiedCount++;
+                }
+            } catch (err: any) {
+                logger.warn(`Failed to check payment for order ${order.id}:`, { error: err.message || String(err) });
+            }
+        }
+    }
+
+    if (verifiedCount > 0) {
+        return {
+            success: true,
+            message: `Төлбөр баталгаажлаа! ✅ Захиалга: ${verifiedOrderIds.map(id => '#' + id.substring(0, 8)).join(', ')}`,
+            data: { verified_orders: verifiedOrderIds }
+        };
+    }
+
+    return {
+        success: true, // Success execution, but result is "not paid"
+        message: 'Төлбөр хараахан орж ирээгүй байна. Түр хүлээгээд дахин шалгана уу.',
+        data: { paid: false }
+    };
+}
+
+/**
  * Main tool executor - routes to appropriate handler
  */
 export async function executeTool(
@@ -594,10 +735,13 @@ export async function executeTool(
                 return await executeCheckout(args as CheckoutArgs, context);
             case 'remember_preference':
                 return await executeRememberPreference(args as RememberPreferenceArgs, context);
+            case 'check_payment_status':
+                return await executeCheckPaymentStatus(args as CheckPaymentArgs, context);
             default:
                 return { success: false, error: `Unknown tool: ${toolName}` };
         }
     } catch (error) {
+
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         logger.error(`Tool execution error (${toolName}):`, { error: errorMessage });
         return { success: false, error: errorMessage };

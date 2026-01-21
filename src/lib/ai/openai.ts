@@ -76,29 +76,43 @@ async function retryOperation<T>(
 /**
  * Analyze product image using GPT-4 Vision
  */
+/**
+ * Analyze product image using GPT-4 Vision
+ * - Detects if it's a product inquiry or a payment receipt
+ */
 export async function analyzeProductImage(
     imageUrl: string,
     products: Array<{ id: string; name: string; description?: string }>
-): Promise<{ matchedProduct: string | null; confidence: number; description: string }> {
+): Promise<{
+    matchedProduct: string | null;
+    confidence: number;
+    description: string;
+    isReceipt?: boolean;
+    receiptAmount?: number;
+}> {
     try {
         logger.info('analyzeProductImage called for:', { imageUrl });
 
         const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
 
-        const prompt = `Та бол дэлгүүрийн туслах юм. Энэ зургийг судалж, доорх бүтээгдэхүүнүүдийн алинтай нь тохирч байгааг хэлнэ үү.
+        const prompt = `Та бол дэлгүүрийн ухаалаг туслах юм. Энэ зургийг шинжилж, хоёр зүйлийн аль нэг гэж ангилна уу:
+1. "product_inquiry": Хэрэглэгч барааны зураг явуулж, байгаа эсэхийг асууж байна.
+2. "payment_receipt": Хэрэглэгч төлбөрийн баримт (банкны шилжүүлэг, скриншот) явуулж байна.
 
 Боломжит бүтээгдэхүүнүүд:
 ${productList}
 
 Зөвхөн JSON форматаар хариулна уу:
 {
-  "matchedProduct": "Тохирсон бүтээгдэхүүний нэр (яг ижил нэрээр), эсвэл null",
-  "confidence": 0.0-1.0 хооронд тоо,
-  "description": "Зураг дээр юу харагдаж байгааг товч монголоор тайлбарла"
+  "type": "product_inquiry" эсвэл "payment_receipt",
+  "matchedProduct": "Тохирсон бүтээгдэхүүний нэр (хэрэв бараа бол), эсвэл null",
+  "confidence": 0.0-1.0 (итгэлтэй байдал),
+  "description": "Зураг дээр юу харагдаж байгааг товч монголоор тайлбарла",
+  "receiptAmount": 0 (хэрэв баримт бол дүн, үгүй бол 0)
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o-mini', // or 'gpt-4o' if vision needed, currently alias usually points to vision capable model or use gpt-4o
             messages: [
                 {
                     role: 'user',
@@ -116,7 +130,14 @@ ${productList}
 
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            const result = JSON.parse(jsonMatch[0]);
+            return {
+                matchedProduct: result.matchedProduct,
+                confidence: result.confidence,
+                description: result.description,
+                isReceipt: result.type === 'payment_receipt',
+                receiptAmount: result.receiptAmount
+            };
         }
 
         return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
