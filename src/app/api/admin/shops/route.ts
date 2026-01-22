@@ -113,6 +113,16 @@ export async function PATCH(request: NextRequest) {
             updateData.plan_id = plan_id;
         }
 
+        // Shop Details
+        if (body.name !== undefined) updateData.name = body.name;
+        if (body.owner_name !== undefined) updateData.owner_name = body.owner_name;
+        if (body.phone !== undefined) updateData.phone = body.phone;
+        if (body.description !== undefined) updateData.description = body.description; // Shop description
+
+        // AI Settings
+        if (body.ai_instructions !== undefined) updateData.ai_instructions = body.ai_instructions;
+        if (body.ai_emotion !== undefined) updateData.ai_emotion = body.ai_emotion;
+
         const { data: shop, error } = await supabase
             .from('shops')
             .update(updateData)

@@ -3,6 +3,7 @@ import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook
 import { generateChatResponse, analyzeProductImage } from '@/lib/ai/openai';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
+import { getCustomerMemory } from '@/lib/ai/tools/memory';
 import { logger } from '@/lib/utils/logger';
 import {
     getShopByPageId,
@@ -178,6 +179,11 @@ export async function POST(request: NextRequest) {
                             discount_percent: p.discount_percent ?? undefined,
                         }));
 
+                        // Get customer memory (preferences saved by AI)
+                        const customerMemory = customer.id
+                            ? await getCustomerMemory(customer.id)
+                            : undefined;
+
                         // Generate response with minimum delay for typing animation
                         const [response] = await Promise.all([
                             generateChatResponse(
@@ -196,6 +202,7 @@ export async function POST(request: NextRequest) {
                                     quickReplies: aiFeatures.quickReplies,
                                     slogans: aiFeatures.slogans,
                                     notifySettings: buildNotifySettings(shop),
+                                    customerMemory: customerMemory || undefined,
                                 },
                                 previousHistory
                             ),

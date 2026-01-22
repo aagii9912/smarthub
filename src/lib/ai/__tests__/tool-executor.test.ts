@@ -111,14 +111,15 @@ describe('ToolExecutor', () => {
             expect(result.imageAction?.type).toBe('confirm');
         });
 
-        it('should filter out products without images', () => {
+        it('should use placeholder for products without images', () => {
             const result = executeShowProductImage(
                 { product_names: ['No Image Product'], mode: 'single' },
                 mockContext
             );
 
-            expect(result.success).toBe(false);
-            expect(result.error).toContain('No matching products');
+            // Now uses placeholder fallback instead of error
+            expect(result.success).toBe(true);
+            expect(result.imageAction?.products[0].imageUrl).toContain('placehold');
         });
 
         it('should handle partial name matching', () => {

@@ -30,16 +30,16 @@ CREATE POLICY "Anyone can submit feedback" ON feedback
 CREATE POLICY "Admins can read feedback" ON feedback
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM admin_users 
-            WHERE admin_users.clerk_user_id = auth.uid()::text
+            SELECT 1 FROM admins 
+            WHERE admins.user_id = auth.uid()::text
         )
     );
 
 CREATE POLICY "Admins can update feedback" ON feedback
     FOR UPDATE USING (
         EXISTS (
-            SELECT 1 FROM admin_users 
-            WHERE admin_users.clerk_user_id = auth.uid()::text
+            SELECT 1 FROM admins 
+            WHERE admins.user_id = auth.uid()::text
         )
     );
 
