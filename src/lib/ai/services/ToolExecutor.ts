@@ -34,6 +34,7 @@ export interface ToolExecutionResult {
     error?: string;
     data?: Record<string, unknown>;
     imageAction?: ImageAction;
+    quickReplies?: Array<{ title: string; payload: string }>;  // Quick reply buttons
 }
 
 /**
@@ -421,7 +422,12 @@ export async function executeAddToCart(
     return {
         success: true,
         message: `${product.name} (${result.newQuantity}ш) сагсанд нэмэгдлээ!${urgencyHint} Нийт: ${total?.toLocaleString()}₮`,
-        data: { cart_total: total, stock_remaining: stockCheck.currentStock }
+        data: { cart_total: total, stock_remaining: stockCheck.currentStock },
+        quickReplies: [
+            { title: '💳 Төлбөр төлөх', payload: 'CHECKOUT' },
+            { title: '🛒 Сагс харах', payload: 'VIEW_CART' },
+            { title: '🔙 Үргэлжлүүлэх', payload: 'CONTINUE_SHOPPING' }
+        ]
     };
 }
 
@@ -452,7 +458,12 @@ export async function executeViewCart(
     return {
         success: true,
         message: `Таны сагс:\n${summary}\n\nНийт: ${cart.total_amount.toLocaleString()}₮`,
-        data: { items: cart.items, total: cart.total_amount }
+        data: { items: cart.items, total: cart.total_amount },
+        quickReplies: [
+            { title: '💳 Төлбөр төлөх', payload: 'CHECKOUT' },
+            { title: '➕ Бараа нэмэх', payload: 'ADD_MORE' },
+            { title: '🗑️ Цэвэрлэх', payload: 'CLEAR_CART' }
+        ]
     };
 }
 

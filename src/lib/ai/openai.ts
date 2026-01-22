@@ -156,6 +156,7 @@ export async function generateChatResponse(
     previousHistory: ChatMessage[] = []
 ): Promise<ChatResponse> {
     let imageAction: ImageAction | undefined;
+    let quickReplies: Array<{ title: string; payload: string }> | undefined;
 
     try {
         logger.debug('generateChatResponse called with:', {
@@ -242,6 +243,11 @@ export async function generateChatResponse(
                             imageAction = result.imageAction;
                         }
 
+                        // Check for quick replies
+                        if (result.quickReplies && result.quickReplies.length > 0) {
+                            quickReplies = result.quickReplies;
+                        }
+
                         // Add tool result to messages
                         messages.push({
                             role: 'tool',
@@ -284,7 +290,7 @@ export async function generateChatResponse(
 
             logger.success('OpenAI response received', { length: finalResponseText.length });
 
-            return { text: finalResponseText, imageAction };
+            return { text: finalResponseText, imageAction, quickReplies };
         });
     } catch (error: any) {
         logger.error('OpenAI API Error:', {

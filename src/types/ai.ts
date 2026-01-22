@@ -137,10 +137,17 @@ export interface ProductImageData {
     description?: string;
 }
 
+// Quick Reply for interactive buttons
+export interface QuickReplyOption {
+    title: string;      // Display text (max 20 chars)
+    payload: string;    // Internal payload for handling
+}
+
 // AI Response
 export interface ChatResponse {
     text: string;
     imageAction?: ImageAction;
+    quickReplies?: QuickReplyOption[];  // Optional quick reply buttons
 }
 
 // Tool execution result

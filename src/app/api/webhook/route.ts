@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
 
                     // Generate AI response
                     let aiResponse: string;
+                    let aiQuickReplies: Array<{ title: string; payload: string }> | undefined;
                     try {
                         logger.info(`[${shop.name}] Generating AI response...`);
 
@@ -211,9 +212,11 @@ export async function POST(request: NextRequest) {
 
 
                         aiResponse = response.text;
+                        aiQuickReplies = response.quickReplies;
                         logger.success('AI response generated', {
                             preview: aiResponse.substring(0, 100) + '...',
-                            hasImage: !!response.imageAction
+                            hasImage: !!response.imageAction,
+                            hasQuickReplies: !!aiQuickReplies
                         });
 
                         // Process and send product images if AI requested
@@ -234,15 +237,32 @@ export async function POST(request: NextRequest) {
                     // Save chat history
                     await saveChatHistory(shop.id, customer.id, userMessage, aiResponse, intent.intent);
 
-                    // Send response to Facebook
+                    // Send response to Facebook (with or without quick replies)
                     try {
                         logger.info(`[${shop.name}] Sending response...`);
-                        await sendTextMessage({
-                            recipientId: senderId,
-                            message: aiResponse,
-                            pageAccessToken,
-                        });
-                        logger.success('Message sent successfully!');
+
+                        // Check if we have quick replies from AI
+                        if (aiQuickReplies && aiQuickReplies.length > 0) {
+                            const { sendMessageWithQuickReplies } = await import('@/lib/facebook/messenger');
+                            await sendMessageWithQuickReplies({
+                                recipientId: senderId,
+                                message: aiResponse,
+                                quickReplies: aiQuickReplies.map((qr: { title: string; payload: string }) => ({
+                                    content_type: 'text' as const,
+                                    title: qr.title.substring(0, 20), // Max 20 chars
+                                    payload: qr.payload
+                                })),
+                                pageAccessToken,
+                            });
+                            logger.success('Message with quick replies sent!');
+                        } else {
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: aiResponse,
+                                pageAccessToken,
+                            });
+                            logger.success('Message sent successfully!');
+                        }
                     } catch (sendError) {
                         const errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error';
                         logger.error('Failed to send message:', { message: errorMessage });
