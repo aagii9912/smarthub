@@ -43,7 +43,18 @@ export async function GET(request: NextRequest) {
                 setup_completed,
                 created_at,
                 user_id,
-                plan_id
+                plan_id,
+                subscriptions (
+                    id,
+                    status,
+                    billing_cycle,
+                    current_period_end,
+                    plans (
+                        id,
+                        name,
+                        price_monthly
+                    )
+                )
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range((page - 1) * limit, page * limit - 1);
@@ -92,7 +103,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { id, is_active, plan_id, notes } = body;
+        const { id, is_active, plan_id } = body;
 
         if (!id) {
             return NextResponse.json(
