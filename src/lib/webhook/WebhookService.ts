@@ -27,7 +27,11 @@ export interface ShopWithProducts {
     notify_on_contact?: boolean | null;
     notify_on_support?: boolean | null;
     notify_on_cancel?: boolean | null;
-    is_ai_active?: boolean | null; // Added
+    is_ai_active?: boolean | null;
+    // Plan-based AI routing fields
+    subscription_plan?: string | null;
+    subscription_status?: string | null;
+    trial_ends_at?: string | null;
 }
 
 /**
@@ -38,7 +42,10 @@ export interface CustomerData {
     name?: string | null;
     phone?: string | null;
     total_orders?: number;
-    ai_paused_until?: string | null; // Added
+    ai_paused_until?: string | null;
+    // Message counting fields
+    message_count?: number;
+    message_count_reset_at?: string | null;
 }
 
 /**
@@ -87,7 +94,11 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         notify_on_contact: data.notify_on_contact,
         notify_on_support: data.notify_on_support,
         notify_on_cancel: data.notify_on_cancel,
-        is_ai_active: data.is_ai_active, // Mapped
+        is_ai_active: data.is_ai_active,
+        // Plan-based AI routing
+        subscription_plan: data.subscription_plan,
+        subscription_status: data.subscription_status,
+        trial_ends_at: data.trial_ends_at,
     };
 }
 
@@ -133,7 +144,9 @@ export async function getOrCreateCustomer(
             name: existingCustomer.name,
             phone: existingCustomer.phone,
             total_orders: existingCustomer.total_orders || 0,
-            ai_paused_until: existingCustomer.ai_paused_until, // Mapped
+            ai_paused_until: existingCustomer.ai_paused_until,
+            message_count: existingCustomer.message_count || 0,
+            message_count_reset_at: existingCustomer.message_count_reset_at,
         };
     }
 
@@ -155,6 +168,8 @@ export async function getOrCreateCustomer(
         name: userName,
         phone: null,
         total_orders: 0,
+        message_count: 0,
+        message_count_reset_at: null,
     };
 }
 
@@ -264,6 +279,66 @@ export async function saveChatHistory(
         response,
         intent
     });
+}
+
+/**
+ * Increment customer message count for plan-based limiting
+ * Uses database function for atomic increment with monthly reset
+ */
+export async function incrementMessageCount(customerId: string): Promise<number> {
+    const supabase = supabaseAdmin();
+
+    try {
+        // Try to use the database function for atomic increment
+        const { data, error } = await supabase
+            .rpc('increment_customer_message_count', { p_customer_id: customerId });
+
+        if (error) {
+            logger.warn('RPC increment failed, using manual update:', { error: error.message });
+
+            // Fallback: manual increment
+            const { data: customer } = await supabase
+                .from('customers')
+                .select('message_count, message_count_reset_at')
+                .eq('id', customerId)
+                .single();
+
+            let newCount = (customer?.message_count || 0) + 1;
+            const resetAt = customer?.message_count_reset_at;
+
+            // Check if reset needed
+            if (resetAt && new Date(resetAt) <= new Date()) {
+                newCount = 1;
+                await supabase
+                    .from('customers')
+                    .update({
+                        message_count: newCount,
+                        message_count_reset_at: getNextMonthFirstDay()
+                    })
+                    .eq('id', customerId);
+            } else {
+                await supabase
+                    .from('customers')
+                    .update({ message_count: newCount })
+                    .eq('id', customerId);
+            }
+
+            return newCount;
+        }
+
+        return data || 0;
+    } catch (error) {
+        logger.error('Failed to increment message count:', { error, customerId });
+        return 0;
+    }
+}
+
+/**
+ * Get first day of next month
+ */
+function getNextMonthFirstDay(): string {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 }
 
 /**

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
-import { generateChatResponse, analyzeProductImage } from '@/lib/ai/openai';
+import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { getCustomerMemory } from '@/lib/ai/tools/memory';
@@ -12,6 +12,7 @@ import {
     updateCustomerInfo,
     getChatHistory,
     saveChatHistory,
+    incrementMessageCount,
     buildNotifySettings,
     generateFallbackResponse,
     processAIResponse,
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
 
                         // Generate response with minimum delay for typing animation
                         const [response] = await Promise.all([
-                            generateChatResponse(
+                            routeToAI(
                                 userMessage,
                                 {
                                     shopId: shop.id,
@@ -204,6 +205,13 @@ export async function POST(request: NextRequest) {
                                     slogans: aiFeatures.slogans,
                                     notifySettings: buildNotifySettings(shop),
                                     customerMemory: customerMemory || undefined,
+                                    // Add subscription for plan-based AI routing
+                                    subscription: {
+                                        plan: shop.subscription_plan || 'starter',
+                                        status: shop.subscription_status || 'active',
+                                        trial_ends_at: shop.trial_ends_at || undefined,
+                                    },
+                                    messageCount: customer.message_count || 0,
                                 },
                                 previousHistory
                             ),
@@ -234,8 +242,14 @@ export async function POST(request: NextRequest) {
                     // Typing Off
                     await sendSenderAction(senderId, 'typing_off', pageAccessToken);
 
-                    // Save chat history
+                    // Save chat history and increment message count
                     await saveChatHistory(shop.id, customer.id, userMessage, aiResponse, intent.intent);
+
+                    // Increment message count for plan-based limiting
+                    if (customer.id) {
+                        const newCount = await incrementMessageCount(customer.id);
+                        logger.info(`Message count for customer ${customer.id}: ${newCount}`);
+                    }
 
                     // Send response to Facebook (with or without quick replies)
                     try {
@@ -282,8 +296,12 @@ export async function POST(request: NextRequest) {
                         await sendSenderAction(senderId, 'typing_on', pageAccessToken);
 
                         try {
-                            // Analyze image with Vision API
-                            const analysis = await analyzeProductImage(imageUrl, shop.products);
+                            // Analyze image with Vision API (plan-based)
+                            const planType = getPlanTypeFromSubscription({
+                                plan: (shop as unknown as Record<string, string>).subscription_plan,
+                                status: (shop as unknown as Record<string, string>).subscription_status,
+                            });
+                            const analysis = await analyzeProductImageWithPlan(imageUrl, shop.products, planType);
                             logger.info('Image analysis result:', analysis);
 
                             let responseMessage: string;

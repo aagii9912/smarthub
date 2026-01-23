@@ -111,7 +111,7 @@ export interface ChatContext {
     customerMemory?: Record<string, string | string[] | number>;
     // Plan-based features for dynamic AI behavior
     planFeatures?: {
-        ai_model?: 'gpt-4o-mini' | 'gpt-4o';
+        ai_model?: 'gpt-4o-mini' | 'gpt-4o' | 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5';
         sales_intelligence?: boolean;
         ai_memory?: boolean;
         max_tokens?: number;  // Dynamic token limit based on plan
