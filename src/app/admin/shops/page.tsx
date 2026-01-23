@@ -19,6 +19,9 @@ interface Shop {
     is_active: boolean;
     created_at: string;
     plan_id: string | null;
+    subscription_plan: string | null;
+    subscription_status: string | null;
+    trial_ends_at: string | null;
     subscriptions: Array<{
         id: string;
         status: string;
@@ -37,6 +40,9 @@ interface EditFormData {
     owner_name: string;
     phone: string;
     description: string;
+    subscription_plan: string;
+    subscription_status: string;
+    trial_ends_at: string;
 }
 
 export default function ShopsPage() {
@@ -48,7 +54,15 @@ export default function ShopsPage() {
 
     // Edit modal state
     const [editingShop, setEditingShop] = useState<Shop | null>(null);
-    const [editForm, setEditForm] = useState<EditFormData>({ name: '', owner_name: '', phone: '', description: '' });
+    const [editForm, setEditForm] = useState<EditFormData>({
+        name: '',
+        owner_name: '',
+        phone: '',
+        description: '',
+        subscription_plan: '',
+        subscription_status: '',
+        trial_ends_at: ''
+    });
     const [saving, setSaving] = useState(false);
 
     // Toggle loading state
@@ -124,7 +138,10 @@ export default function ShopsPage() {
             name: shop.name || '',
             owner_name: shop.owner_name || '',
             phone: shop.phone || '',
-            description: shop.description || ''
+            description: shop.description || '',
+            subscription_plan: shop.subscription_plan || 'starter',
+            subscription_status: shop.subscription_status || 'active',
+            trial_ends_at: shop.trial_ends_at ? new Date(shop.trial_ends_at).toISOString().split('T')[0] : ''
         });
     }
 
@@ -146,7 +163,10 @@ export default function ShopsPage() {
                     name: editForm.name.trim(),
                     owner_name: editForm.owner_name.trim() || null,
                     phone: editForm.phone.trim() || null,
-                    description: editForm.description.trim() || null
+                    description: editForm.description.trim() || null,
+                    subscription_plan: editForm.subscription_plan,
+                    subscription_status: editForm.subscription_status,
+                    trial_ends_at: editForm.trial_ends_at ? new Date(editForm.trial_ends_at).toISOString() : null
                 })
             });
 
@@ -403,10 +423,51 @@ export default function ShopsPage() {
                                 <textarea
                                     value={editForm.description}
                                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                    rows={3}
+                                    rows={2}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
                                     placeholder="Shop description"
                                 />
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-100">
+                                <h3 className="text-sm font-semibold text-gray-900 mb-3">Subscription</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                                        <select
+                                            value={editForm.subscription_plan}
+                                            onChange={(e) => setEditForm({ ...editForm, subscription_plan: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                        >
+                                            <option value="trial">Trial</option>
+                                            <option value="starter">Starter</option>
+                                            <option value="pro">Pro</option>
+                                            <option value="ultimate">Ultimate</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                        <select
+                                            value={editForm.subscription_status}
+                                            onChange={(e) => setEditForm({ ...editForm, subscription_status: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="trial">Trial</option>
+                                            <option value="inactive">Inactive</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Trial Ends At</label>
+                                        <input
+                                            type="date"
+                                            value={editForm.trial_ends_at}
+                                            onChange={(e) => setEditForm({ ...editForm, trial_ends_at: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

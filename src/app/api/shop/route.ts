@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClerkUser, supabaseAdmin } from '@/lib/auth/clerk-auth';
+import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import { checkShopLimit } from '@/lib/ai/config/plans';
 
 // GET - Get user's shop
 export async function GET() {
@@ -65,6 +67,51 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error;
       return NextResponse.json({ shop: updatedShop });
+    }
+
+    // Check shop creation limit
+    // Get count of all shops for this user
+    const { count, error: countError } = await supabase
+      .from('shops')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) throw countError;
+
+    // Get plan type from existing shops
+    const { data: userShops } = await supabase
+      .from('shops')
+      .select('subscription_plan, subscription_status, trial_ends_at')
+      .eq('user_id', userId);
+
+    // Determine effective plan - find highest tier plan among existing shops
+    let effectivePlan = 'trial';
+
+    if (userShops && userShops.length > 0) {
+      // Map all plans
+      const plans = userShops.map(s => getPlanTypeFromSubscription({
+        plan: s.subscription_plan,
+        status: s.subscription_status,
+        trial_ends_at: s.trial_ends_at
+      }));
+
+      // Pick best plan
+      if (plans.includes('ultimate')) effectivePlan = 'ultimate';
+      else if (plans.includes('pro')) effectivePlan = 'pro';
+      else if (plans.includes('starter')) effectivePlan = 'starter';
+      // else fallback to trial
+    } else {
+      // No shops yet = first shop is free (Trial logic typically allows 1 shop)
+      effectivePlan = 'trial';
+    }
+
+    const limitCheck = checkShopLimit(effectivePlan as any, count || 0);
+
+    // Allow creation if limit not reached
+    if (!limitCheck.allowed) {
+      return NextResponse.json({
+        error: `Shop limit reached. Your ${effectivePlan} plan allows ${limitCheck.limit} shops. Please upgrade your existing shop to create more.`
+      }, { status: 403 });
     }
 
     // Create new shop

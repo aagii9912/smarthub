@@ -24,6 +24,7 @@ export interface PlanAIConfig {
     maxTokens: number;
     messagesPerMonth: number;
     trialDays?: number;
+    maxShops: number;
     price: {
         mnt: number;
         usd: number;
@@ -49,6 +50,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxTokens: 600,
         messagesPerMonth: 1000,
         trialDays: 14,
+        maxShops: 1,
         price: { mnt: 0, usd: 0 },
         features: {
             toolCalling: true,
@@ -76,6 +78,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         model: 'gpt-5-nano',
         maxTokens: 500,
         messagesPerMonth: 2000,
+        maxShops: 1,
         price: { mnt: 149000, usd: 44 },
         features: {
             toolCalling: true,
@@ -98,6 +101,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         model: 'gpt-5-mini',
         maxTokens: 800,
         messagesPerMonth: 25000,
+        maxShops: 3,
         price: { mnt: 349000, usd: 103 },
         features: {
             toolCalling: true,
@@ -126,6 +130,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         model: 'gpt-5',
         maxTokens: 1500,
         messagesPerMonth: 50000,
+        maxShops: 1000, // Effectively unlimited
         price: { mnt: 999000, usd: 294 },
         features: {
             toolCalling: true,
@@ -221,6 +226,24 @@ export function checkMessageLimit(
 ): { allowed: boolean; remaining: number; limit: number } {
     const config = getPlanConfig(plan);
     const limit = config.messagesPerMonth;
+    const remaining = Math.max(0, limit - currentCount);
+
+    return {
+        allowed: currentCount < limit,
+        remaining,
+        limit,
+    };
+}
+
+/**
+ * Check shop limit
+ */
+export function checkShopLimit(
+    plan: PlanType,
+    currentCount: number
+): { allowed: boolean; remaining: number; limit: number } {
+    const config = getPlanConfig(plan);
+    const limit = config.maxShops;
     const remaining = Math.max(0, limit - currentCount);
 
     return {

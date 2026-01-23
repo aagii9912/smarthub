@@ -43,7 +43,11 @@ export async function GET(request: NextRequest) {
                 setup_completed,
                 created_at,
                 user_id,
+                user_id,
                 plan_id,
+                subscription_plan,
+                subscription_status,
+                trial_ends_at,
                 subscriptions (
                     id,
                     status,
@@ -129,6 +133,11 @@ export async function PATCH(request: NextRequest) {
         if (body.owner_name !== undefined) updateData.owner_name = body.owner_name;
         if (body.phone !== undefined) updateData.phone = body.phone;
         if (body.description !== undefined) updateData.description = body.description; // Shop description
+
+        // Subscription Fields
+        if (body.subscription_plan !== undefined) updateData.subscription_plan = body.subscription_plan;
+        if (body.subscription_status !== undefined) updateData.subscription_status = body.subscription_status;
+        if (body.trial_ends_at !== undefined) updateData.trial_ends_at = body.trial_ends_at;
 
         // AI Settings
         if (body.ai_instructions !== undefined) updateData.ai_instructions = body.ai_instructions;
