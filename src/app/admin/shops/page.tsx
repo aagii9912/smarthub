@@ -22,6 +22,8 @@ interface Shop {
     subscription_plan: string | null;
     subscription_status: string | null;
     trial_ends_at: string | null;
+    ai_instructions: string | null;
+    ai_emotion: string | null;
     subscriptions: Array<{
         id: string;
         status: string;
@@ -32,7 +34,25 @@ interface Shop {
             name: string;
             price_monthly: number;
         };
+        subscriptions: Array<{
+            id: string;
+            status: string;
+            billing_cycle: string;
+            current_period_end: string;
+            plans: {
+                id: string;
+                name: string;
+                price_monthly: number;
+            };
+        }>;
     }>;
+}
+
+interface Plan {
+    id: string;
+    name: string;
+    slug: string;
+    price_monthly: number;
 }
 
 interface EditFormData {
@@ -40,13 +60,17 @@ interface EditFormData {
     owner_name: string;
     phone: string;
     description: string;
+    plan_id: string;
     subscription_plan: string;
     subscription_status: string;
     trial_ends_at: string;
+    ai_instructions: string;
+    ai_emotion: string;
 }
 
 export default function ShopsPage() {
     const [shops, setShops] = useState<Shop[]>([]);
+    const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -59,9 +83,12 @@ export default function ShopsPage() {
         owner_name: '',
         phone: '',
         description: '',
+        plan_id: '',
         subscription_plan: '',
         subscription_status: '',
-        trial_ends_at: ''
+        trial_ends_at: '',
+        ai_instructions: '',
+        ai_emotion: ''
     });
     const [saving, setSaving] = useState(false);
 
@@ -70,7 +97,20 @@ export default function ShopsPage() {
 
     useEffect(() => {
         fetchShops();
+        fetchPlans();
     }, [pagination.page, statusFilter]);
+
+    async function fetchPlans() {
+        try {
+            const res = await fetch('/api/admin/plans');
+            if (res.ok) {
+                const data = await res.json();
+                setAvailablePlans(data.plans || []);
+            }
+        } catch (error) {
+            console.error('Fetch plans error:', error);
+        }
+    }
 
     async function fetchShops() {
         try {
@@ -139,9 +179,12 @@ export default function ShopsPage() {
             owner_name: shop.owner_name || '',
             phone: shop.phone || '',
             description: shop.description || '',
+            plan_id: shop.plan_id || '',
             subscription_plan: shop.subscription_plan || 'starter',
             subscription_status: shop.subscription_status || 'active',
-            trial_ends_at: shop.trial_ends_at ? new Date(shop.trial_ends_at).toISOString().split('T')[0] : ''
+            trial_ends_at: shop.trial_ends_at ? new Date(shop.trial_ends_at).toISOString().split('T')[0] : '',
+            ai_instructions: shop.ai_instructions || '',
+            ai_emotion: shop.ai_emotion || ''
         });
     }
 
@@ -164,9 +207,12 @@ export default function ShopsPage() {
                     owner_name: editForm.owner_name.trim() || null,
                     phone: editForm.phone.trim() || null,
                     description: editForm.description.trim() || null,
+                    plan_id: editForm.plan_id,
                     subscription_plan: editForm.subscription_plan,
                     subscription_status: editForm.subscription_status,
-                    trial_ends_at: editForm.trial_ends_at ? new Date(editForm.trial_ends_at).toISOString() : null
+                    trial_ends_at: editForm.trial_ends_at ? new Date(editForm.trial_ends_at).toISOString() : null,
+                    ai_instructions: editForm.ai_instructions,
+                    ai_emotion: editForm.ai_emotion
                 })
             });
 
@@ -435,15 +481,26 @@ export default function ShopsPage() {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
                                         <select
-                                            value={editForm.subscription_plan}
-                                            onChange={(e) => setEditForm({ ...editForm, subscription_plan: e.target.value })}
+                                            value={editForm.plan_id}
+                                            onChange={(e) => {
+                                                const selectedPlanId = e.target.value;
+                                                const selectedPlan = availablePlans.find(p => p.id === selectedPlanId);
+                                                setEditForm({
+                                                    ...editForm,
+                                                    plan_id: selectedPlanId,
+                                                    subscription_plan: selectedPlan?.slug || editForm.subscription_plan
+                                                });
+                                            }}
                                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
                                         >
-                                            <option value="trial">Trial</option>
-                                            <option value="starter">Starter</option>
-                                            <option value="pro">Pro</option>
-                                            <option value="ultimate">Ultimate</option>
+                                            <option value="">Select Plan</option>
+                                            {availablePlans.map((plan) => (
+                                                <option key={plan.id} value={plan.id}>
+                                                    {plan.name} ({plan.slug})
+                                                </option>
+                                            ))}
                                         </select>
+                                        <p className="text-xs text-gray-500 mt-1">Slug: {editForm.subscription_plan}</p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -465,6 +522,32 @@ export default function ShopsPage() {
                                             value={editForm.trial_ends_at}
                                             onChange={(e) => setEditForm({ ...editForm, trial_ends_at: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-100">
+                                <h3 className="text-sm font-semibold text-gray-900 mb-3">AI Settings</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">System Instructions</label>
+                                        <textarea
+                                            value={editForm.ai_instructions}
+                                            onChange={(e) => setEditForm({ ...editForm, ai_instructions: e.target.value })}
+                                            rows={4}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm"
+                                            placeholder="Example: You are a helpful sales assistant..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Emotion / Tone</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.ai_emotion}
+                                            onChange={(e) => setEditForm({ ...editForm, ai_emotion: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                            placeholder="Example: Friendly, Professional, Enthusiastic"
                                         />
                                     </div>
                                 </div>

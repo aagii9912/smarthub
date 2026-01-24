@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
+import { toast } from 'sonner';
 import {
     Bot, Save, Plus, Trash2, Edit2, X, Check,
     MessageSquare, Zap, Sparkles, BarChart3,
@@ -385,13 +386,13 @@ export default function AISettingsPage() {
                     <Card>
                         <CardContent className="p-6">
                             <h2 className="font-semibold text-gray-900 mb-4">AI Зан байдал</h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
                                 {emotionOptions.map((option) => (
                                     <button
                                         key={option.value}
                                         type="button"
                                         onClick={() => setAiEmotion(option.value)}
-                                        className={`p-4 rounded-xl border-2 transition-all ${aiEmotion === option.value
+                                        className={`p-4 rounded-xl border-2 transition-all relative overflow-hidden ${aiEmotion === option.value
                                             ? 'border-violet-500 bg-violet-50'
                                             : 'border-gray-200 hover:border-violet-200'
                                             }`}
@@ -400,8 +401,31 @@ export default function AISettingsPage() {
                                             {option.icon}
                                         </div>
                                         <p className={`font-medium text-sm ${aiEmotion === option.value ? 'text-violet-700' : 'text-gray-900'}`}>{option.label}</p>
+
+                                        {aiEmotion === option.value && (
+                                            <div className="absolute top-2 right-2 w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
+                                        )}
                                     </button>
                                 ))}
+                            </div>
+
+                            {/* Emotion Preview */}
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex gap-4 items-start">
+                                <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
+                                    <Bot className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 mb-1">Жишээ хариулт ({emotionOptions.find(e => e.value === aiEmotion)?.label}):</p>
+                                    <p className="text-sm text-gray-700 italic">
+                                        "{
+                                            aiEmotion === 'friendly' ? 'Сайн байна уу! 😊 Та манай дэлгүүрийг сонирхсонд баярлалаа. Би танд юугаар туслах вэ?' :
+                                                aiEmotion === 'professional' ? 'Сайн байна уу. SmartHub-д тавтай морил. Танд бүтээгдэхүүний мэдээлэл хэрэгтэй юу?' :
+                                                    aiEmotion === 'enthusiastic' ? 'Сайн уу!! 🎉 Манай дэлгүүрт тавтай морил! Өнөөдөр ямар гоё зүйл хайж байна вэ?' :
+                                                        aiEmotion === 'calm' ? 'Сайн байна уу. Тавтай морилно уу. Та тайван сонголтоо хийгээрэй, асуух зүйл байвал би энд байна. 🧘' :
+                                                            'Хөөх, сайн уу! 🎮 Юу сонирхож байна? Гоё юмнууд их байгаа шүү!'
+                                        }"
+                                    </p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -799,8 +823,8 @@ export default function AISettingsPage() {
 
                                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                                     <div>
-                                        <p className="font-medium text-gray-900">Холбоо барих мэдээлэл</p>
-                                        <p className="text-xs text-gray-500">Хэрэглэгч утас, хаягаа AI-д үлдээх үед</p>
+                                        <p className="font-medium text-gray-900">Холбогдох хүсэлт</p>
+                                        <p className="text-xs text-gray-500">Хэрэглэгч дугаараа үлдээх үед</p>
                                     </div>
                                     <button
                                         onClick={() => setNotifyOnContact(!notifyOnContact)}
@@ -812,8 +836,8 @@ export default function AISettingsPage() {
 
                                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                                     <div>
-                                        <p className="font-medium text-gray-900">Оператортой холбогдох</p>
-                                        <p className="text-xs text-gray-500">Хэрэглэгч хүнээс тусламж хүсэх үед</p>
+                                        <p className="font-medium text-gray-900">Тусламж хүсэх</p>
+                                        <p className="text-xs text-gray-500">Хэрэглэгч оператортой холбогдох үед</p>
                                     </div>
                                     <button
                                         onClick={() => setNotifyOnSupport(!notifyOnSupport)}
@@ -822,33 +846,178 @@ export default function AISettingsPage() {
                                         <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnSupport ? 'left-7' : 'left-1'}`} />
                                     </button>
                                 </div>
+                            </div>
 
-                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                    <div>
-                                        <p className="font-medium text-gray-900">Захиалга цуцлалт</p>
-                                        <p className="text-xs text-gray-500">Хэрэглэгч чатаар захиалгаа цуцлах үед</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setNotifyOnCancel(!notifyOnCancel)}
-                                        className={`w-12 h-6 rounded-full transition-colors relative ${notifyOnCancel ? 'bg-violet-600' : 'bg-gray-300'}`}
-                                    >
-                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifyOnCancel ? 'left-7' : 'left-1'}`} />
-                                    </button>
-                                </div>
+                            <div className="flex justify-end mt-6">
+                                <Button onClick={handleSaveGeneral} disabled={saving}>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Хадгалах
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
-
-                    <div className="flex justify-end">
-                        <Button onClick={handleSaveGeneral} disabled={saving}>
-                            <Save className="w-4 h-4 mr-2" />
-                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
-                        </Button>
-                    </div>
                 </div>
             )}
 
-            {/* Knowledge Base Tab */}
+            {activeTab === 'knowledge' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Мэдлэгийн сан (Custom Knowledge)</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <p className="text-sm text-gray-500">
+                                AI-д танай бизнесийн онцлог мэдээллийг зааж өгөх. Жишээ нь: "Хаяг", "Цагийн хуваарь", "Үүсгэн байгуулагч".
+                            </p>
+
+                            {/* Add New Knowledge */}
+                            <div className="flex gap-3 items-end p-4 bg-gray-50 rounded-xl border border-gray-100">
+                                <div className="flex-1">
+                                    <label className="text-xs font-medium text-gray-500 mb-1 block">Түлхүүр үг (Key)</label>
+                                    <Input
+                                        placeholder="Жишээ: Хаяг"
+                                        value={newKnowledgeKey}
+                                        onChange={(e) => setNewKnowledgeKey(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex-[2]">
+                                    <label className="text-xs font-medium text-gray-500 mb-1 block">Утга (Value)</label>
+                                    <Input
+                                        placeholder="Жишээ: СБД, 1-р хороо, Blue Sky Tower, 3 давхарт"
+                                        value={newKnowledgeValue}
+                                        onChange={(e) => setNewKnowledgeValue(e.target.value)}
+                                    />
+                                </div>
+                                <Button
+                                    onClick={() => {
+                                        if (newKnowledgeKey && newKnowledgeValue) {
+                                            setCustomKnowledge([...customKnowledge, { key: newKnowledgeKey, value: newKnowledgeValue }]);
+                                            setNewKnowledgeKey('');
+                                            setNewKnowledgeValue('');
+                                        }
+                                    }}
+                                    disabled={!newKnowledgeKey || !newKnowledgeValue}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            {/* List */}
+                            <div className="space-y-2">
+                                {customKnowledge.map((item, idx) => (
+                                    <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-violet-300 transition-colors group">
+                                        <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-xs">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="flex-1 grid grid-cols-3 gap-4">
+                                            <div className="font-medium text-gray-900 col-span-1 border-r border-gray-100 pr-4">
+                                                {item.key}
+                                            </div>
+                                            <div className="text-gray-600 col-span-2">
+                                                {item.value}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setCustomKnowledge(customKnowledge.filter((_, i) => i !== idx))}
+                                            className="p-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {customKnowledge.length === 0 && (
+                                    <div className="text-center py-8 text-gray-400">
+                                        Мэдээлэл оруулаагүй байна.
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                {/* Note: In real app, we need to save this to backend. Currently using handleSaveGeneral for simplicity if API supports it, or separate handler */}
+                                <Button onClick={handleSaveGeneral} disabled={saving}>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Хадгалах
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {activeTab === 'policies' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Бодлого & Дүрэм</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Хүргэлтийн үнэгүй болох дүн (₮)</label>
+                                    <Input
+                                        type="number"
+                                        value={policies.shipping_threshold}
+                                        onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Энэ дүнгээс дээш худалдан авалтад хүргэлт үнэгүй гэж AI хариулна.</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Буцаалтын нөхцөл</label>
+                                    <Input
+                                        value={policies.return_policy}
+                                        onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Жишээ: 24 цагийн дотор, таг аваагүй бол.</p>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Төлбөрийн хэлбэрүүд</label>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {['QPay', 'SocialPay', 'Бэлэн мөнгө', 'Дансаар', 'StorePay', 'Pocket'].map(method => (
+                                            <button
+                                                key={method}
+                                                onClick={() => {
+                                                    const current = policies.payment_methods || [];
+                                                    const newMethods = current.includes(method)
+                                                        ? current.filter(m => m !== method)
+                                                        : [...current, method];
+                                                    setPolicies({ ...policies, payment_methods: newMethods });
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${policies.payment_methods?.includes(method)
+                                                    ? 'bg-violet-100 text-violet-700 border-violet-200'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                                    }`}
+                                            >
+                                                {method}
+                                                {policies.payment_methods?.includes(method) && <Check className="w-3 h-3 ml-1 inline-block" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Хүргэлтийн бүсүүд</label>
+                                    <Textarea
+                                        value={policies.delivery_areas?.join(', ')}
+                                        onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })}
+                                        placeholder="Улаанбаатар, Хөдөө орон нутаг..."
+                                        rows={2}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Таслалаар тусгаарлаж бичнэ үү.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                <Button onClick={handleSaveGeneral} disabled={saving}>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    Хадгалах
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
             {activeTab === 'knowledge' && (
                 <div className="space-y-6">
                     <Card>
@@ -885,141 +1054,160 @@ export default function AISettingsPage() {
                             </div>
 
                             {/* Knowledge list */}
-                            {customKnowledge.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                                    <p>Мэдээлэл байхгүй. AI-д зааж өгөх мэдээлэл нэмнэ үү.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {customKnowledge.map((item, index) => (
-                                        <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                                            <span className="font-medium text-violet-700 min-w-[120px]">{item.key}:</span>
-                                            <span className="flex-1 text-gray-900">{item.value}</span>
+                            <div className="space-y-2 mt-6">
+                                {customKnowledge.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                        <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                                        <p className="text-sm">Мэдээлэл байхгүй байна</p>
+                                    </div>
+                                ) : (
+                                    customKnowledge.map((item, idx) => (
+                                        <div key={idx} className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-violet-300 transition-colors group">
+                                            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-xs">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-3 gap-4">
+                                                <div className="font-medium text-gray-900 col-span-1 border-r border-gray-100 pr-4 truncate" title={item.key}>
+                                                    {item.key}
+                                                </div>
+                                                <div className="text-gray-600 col-span-2 truncate" title={item.value}>
+                                                    {item.value}
+                                                </div>
+                                            </div>
                                             <button
-                                                onClick={() => setCustomKnowledge(customKnowledge.filter((_, i) => i !== index))}
-                                                className="p-1 text-gray-400 hover:text-red-600"
+                                                onClick={() => setCustomKnowledge(customKnowledge.filter((_, i) => i !== idx))}
+                                                className="p-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                    ))
+                                )}
+                            </div>
 
-                    <div className="flex justify-end">
-                        <Button onClick={async () => {
-                            setSaving(true);
-                            try {
-                                const knowledgeObject = customKnowledge.reduce((acc, item) => {
-                                    acc[item.key] = item.value;
-                                    return acc;
-                                }, {} as Record<string, string>);
+                            <div className="flex justify-end pt-6 border-t mt-6">
+                                <Button onClick={async () => {
+                                    setSaving(true);
+                                    try {
+                                        // Convert array back to object for API
+                                        const knowledgeObject = customKnowledge.reduce((acc, item) => {
+                                            if (item.key && item.value) acc[item.key] = item.value;
+                                            return acc;
+                                        }, {} as Record<string, string>);
 
-                                await fetch('/api/shop', {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ custom_knowledge: knowledgeObject }),
-                                });
-                                setSuccess(true);
-                                setTimeout(() => setSuccess(false), 3000);
-                            } catch (err: any) {
-                                setError(err.message);
-                            } finally {
-                                setSaving(false);
-                            }
-                        }} disabled={saving}>
-                            <Save className="w-4 h-4 mr-2" />
-                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
-                        </Button>
-                    </div>
-                </div>
-            )}
+                                        const res = await fetch('/api/shop', {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ custom_knowledge: knowledgeObject }),
+                                        });
 
-            {/* Policies Tab */}
-            {activeTab === 'policies' && (
-                <div className="space-y-6">
-                    <Card>
-                        <CardContent className="p-6">
-                            <h2 className="font-semibold text-gray-900 mb-4">Дэлгүүрийн бодлогууд</h2>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Үнэгүй хүргэлтийн босго (₮)
-                                    </label>
-                                    <Input
-                                        type="number"
-                                        value={policies.shipping_threshold}
-                                        onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })}
-                                        placeholder="50000"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Энэ дүнгээс дээш захиалгад хүргэлт үнэгүй</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Төлбөрийн аргууд
-                                    </label>
-                                    <Input
-                                        value={policies.payment_methods.join(', ')}
-                                        onChange={(e) => setPolicies({ ...policies, payment_methods: e.target.value.split(',').map(s => s.trim()) })}
-                                        placeholder="QPay, SocialPay, Бэлэн мөнгө"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Таслалаар тусгаарла</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Хүргэлтийн бүс нутаг
-                                    </label>
-                                    <Input
-                                        value={policies.delivery_areas.join(', ')}
-                                        onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })}
-                                        placeholder="Улаанбаатар, Дархан"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Буцаалтын бодлого
-                                    </label>
-                                    <Textarea
-                                        value={policies.return_policy}
-                                        onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })}
-                                        placeholder="7 хоногийн дотор буцаах боломжтой"
-                                        rows={2}
-                                    />
-                                </div>
+                                        if (res.ok) {
+                                            setSuccess(true);
+                                            toast.success('Амжилттай хадгалагдлаа');
+                                            setTimeout(() => setSuccess(false), 3000);
+                                        } else {
+                                            throw new Error('Failed to save');
+                                        }
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        setError(err.message);
+                                        toast.error('Хадгалахад алдаа гарлаа');
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }} disabled={saving}>
+                                    <Save className="w-4 h-4 mr-2" />
+                                    {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
+                </div>)}
 
-                    <div className="flex justify-end">
-                        <Button onClick={async () => {
-                            setSaving(true);
-                            try {
-                                await fetch('/api/shop', {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ policies }),
-                                });
-                                setSuccess(true);
-                                setTimeout(() => setSuccess(false), 3000);
-                            } catch (err: any) {
-                                setError(err.message);
-                            } finally {
-                                setSaving(false);
-                            }
-                        }} disabled={saving}>
-                            <Save className="w-4 h-4 mr-2" />
-                            {saving ? 'Хадгалж байна...' : 'Хадгалах'}
-                        </Button>
+            {/* Policies Tab */}
+            {
+                activeTab === 'policies' && (
+                    <div className="space-y-6">
+                        <Card>
+                            <CardContent className="p-6">
+                                <h2 className="font-semibold text-gray-900 mb-4">Дэлгүүрийн бодлогууд</h2>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Үнэгүй хүргэлтийн босго (₮)
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            value={policies.shipping_threshold}
+                                            onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })}
+                                            placeholder="50000"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Энэ дүнгээс дээш захиалгад хүргэлт үнэгүй</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Төлбөрийн аргууд
+                                        </label>
+                                        <Input
+                                            value={policies.payment_methods.join(', ')}
+                                            onChange={(e) => setPolicies({ ...policies, payment_methods: e.target.value.split(',').map(s => s.trim()) })}
+                                            placeholder="QPay, SocialPay, Бэлэн мөнгө"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Таслалаар тусгаарла</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Хүргэлтийн бүс нутаг
+                                        </label>
+                                        <Input
+                                            value={policies.delivery_areas.join(', ')}
+                                            onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })}
+                                            placeholder="Улаанбаатар, Дархан"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Буцаалтын бодлого
+                                        </label>
+                                        <Textarea
+                                            value={policies.return_policy}
+                                            onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })}
+                                            placeholder="7 хоногийн дотор буцаах боломжтой"
+                                            rows={2}
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <div className="flex justify-end">
+                            <Button onClick={async () => {
+                                setSaving(true);
+                                try {
+                                    await fetch('/api/shop', {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ policies }),
+                                    });
+                                    setSuccess(true);
+                                    setTimeout(() => setSuccess(false), 3000);
+                                } catch (err: any) {
+                                    setError(err.message);
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }} disabled={saving}>
+                                <Save className="w-4 h-4 mr-2" />
+                                {saving ? 'Хадгалж байна...' : 'Хадгалах'}
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

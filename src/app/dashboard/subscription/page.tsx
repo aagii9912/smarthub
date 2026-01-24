@@ -621,26 +621,71 @@ export default function SubscriptionPage() {
                 </div>
             )}
 
-            {/* Upgrade Modal */}
+            {/* Payment Modal */}
             {showUpgradeModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
-                                <Zap className="w-6 h-6 text-white" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center">
+                                    <CreditCard className="w-5 h-5 text-violet-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Төлбөр төлөх</h3>
+                                    <p className="text-sm text-gray-500">QPay-ээр хялбар төлнө үү</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900">Төлөвлөгөө шинэчлэх</h3>
-                                <p className="text-sm text-gray-500">Илүү олон боломжтой болоорой</p>
+                            <button
+                                onClick={() => setShowUpgradeModal(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+
+                        {/* Plan Summary */}
+                        <div className="bg-gray-50 p-4 rounded-xl mb-6">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="font-medium text-gray-700">Сонгосон багц:</span>
+                                <span className="font-bold text-violet-700 uppercase">
+                                    {selectedPlan || 'Pro'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm text-gray-600">Хугацаа:</span>
+                                <span className="text-sm text-gray-900">
+                                    {billingPeriod === 'monthly' ? '1 сар' : '1 жил (2 сар үнэгүй)'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-200 mt-2">
+                                <span className="font-bold text-gray-900">Нийт дүн:</span>
+                                <span className="font-bold text-xl text-violet-700">
+                                    {formatCurrency(
+                                        plans.find(p => p.slug === selectedPlan)?.[
+                                        billingPeriod === 'monthly' ? 'price_monthly' : 'price_yearly'
+                                        ] || 0
+                                    )}
+                                </span>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-gray-50 rounded-xl mb-4">
-                            <p className="text-sm text-gray-600">
-                                {selectedPlan === 'enterprise'
-                                    ? 'Enterprise төлөвлөгөө авахын тулд бидэнтэй холбогдоно уу.'
-                                    : 'Шинэ төлөвлөгөө руу шилжихэд одоогийн үлдэгдэл дуусах хүртэл хүлээх шаардлагагүй.'}
-                            </p>
+                        {/* QR Code Placeholder */}
+                        <div className="text-center mb-6">
+                            <p className="text-sm font-medium text-gray-700 mb-3">Банкны апп-аар уншуулна уу</p>
+                            <div className="w-48 h-48 bg-white border-2 border-gray-100 rounded-xl mx-auto flex items-center justify-center shadow-sm p-2">
+                                {/* Simulated QR */}
+                                <div className="w-full h-full bg-[url('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://qpay.mn/mock')] bg-contain bg-no-repeat bg-center opacity-80" />
+                            </div>
+                            <p className="text-xs text-gray-400 mt-2">Төлбөр төлөгдсөний дараа автоматаар идэвхжинэ</p>
+                        </div>
+
+                        {/* Banks Icons (Mock) */}
+                        <div className="flex justify-center gap-3 mb-6 opacity-60 grayscale hover:grayscale-0 transition-all">
+                            <div className="w-8 h-8 rounded bg-blue-600" title="Khan Bank"></div>
+                            <div className="w-8 h-8 rounded bg-green-600" title="TDB"></div>
+                            <div className="w-8 h-8 rounded bg-orange-600" title="Golomt"></div>
+                            <div className="w-8 h-8 rounded bg-red-600" title="XacBank"></div>
                         </div>
 
                         <div className="flex gap-3">
@@ -651,8 +696,21 @@ export default function SubscriptionPage() {
                             >
                                 Болих
                             </Button>
-                            <Button className="flex-1">
-                                {selectedPlan === 'enterprise' ? 'Холбогдох' : 'Шинэчлэх'}
+                            <Button
+                                className="flex-1 bg-violet-600 hover:bg-violet-700"
+                                onClick={() => {
+                                    // Simulate payment success
+                                    setLoading(true);
+                                    setTimeout(() => {
+                                        setLoading(false);
+                                        setShowUpgradeModal(false);
+                                        fetchData(true); // Refresh data
+                                        // You would typically show a success toast here
+                                    }, 2000);
+                                }}
+                            >
+                                {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                                Төлбөр шалгах
                             </Button>
                         </div>
                     </div>

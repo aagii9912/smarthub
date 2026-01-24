@@ -35,9 +35,16 @@ interface Plan {
     name: string;
 }
 
+interface Usage {
+    messages_count: number;
+    shops_count: number;
+    products_count: number;
+}
+
 interface FeaturesResponse {
     features: Features;
     limits: Limits;
+    usage?: Usage;
     plan: Plan;
     shopId?: string;
 }
@@ -127,8 +134,9 @@ export function useFeatures() {
         isLimitReached,
         isPaidPlan,
         isProOrHigher,
-        refresh: mutate
+        refresh: mutate,
+        usage: data?.usage
     };
 }
 
-export type { Features, Limits, Plan, FeaturesResponse };
+export type { Features, Limits, Plan, FeaturesResponse, Usage };

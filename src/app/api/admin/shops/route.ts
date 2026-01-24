@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
                 subscription_plan,
                 subscription_status,
                 trial_ends_at,
+                ai_instructions,
+                ai_emotion,
                 subscriptions (
                     id,
                     status,

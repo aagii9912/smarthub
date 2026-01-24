@@ -30,11 +30,24 @@ export interface PlanAIConfig {
         usd: number;
     };
     features: {
+        // AI Core
         toolCalling: boolean;
         vision: boolean;
         memory: boolean;
         salesIntelligence: boolean;
-        paymentCheck: boolean;
+
+        // Modules
+        cartSystem: 'none' | 'basic' | 'full';
+        paymentIntegration: boolean;
+        crmAnalytics: 'none' | 'basic' | 'advanced' | 'full';
+
+        // Tools
+        autoTagging: boolean;
+        appointmentBooking: boolean;
+        bulkMarketing: boolean;
+        excelExport: boolean;
+        customBranding: boolean;
+        commentReply: boolean;
         prioritySupport: boolean;
     };
     enabledTools: ToolName[];
@@ -53,11 +66,24 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxShops: 1,
         price: { mnt: 0, usd: 0 },
         features: {
+            // AI Core
             toolCalling: true,
             vision: true,
             memory: true,
             salesIntelligence: true,
-            paymentCheck: false,
+
+            // Modules
+            cartSystem: 'full',
+            paymentIntegration: true,
+            crmAnalytics: 'advanced',
+
+            // Tools
+            autoTagging: true,
+            appointmentBooking: true,
+            bulkMarketing: false,
+            excelExport: true,
+            customBranding: false,
+            commentReply: true,
             prioritySupport: false,
         },
         enabledTools: [
@@ -81,11 +107,24 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxShops: 1,
         price: { mnt: 149000, usd: 44 },
         features: {
+            // AI Core
             toolCalling: true,
             vision: true,
             memory: false,
             salesIntelligence: false,
-            paymentCheck: false,
+
+            // Modules
+            cartSystem: 'basic',
+            paymentIntegration: false,
+            crmAnalytics: 'basic',
+
+            // Tools
+            autoTagging: false,
+            appointmentBooking: false,
+            bulkMarketing: false,
+            excelExport: false,
+            customBranding: false,
+            commentReply: false,
             prioritySupport: false,
         },
         enabledTools: [
@@ -104,11 +143,24 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxShops: 3,
         price: { mnt: 349000, usd: 103 },
         features: {
+            // AI Core
             toolCalling: true,
             vision: true,
             memory: true,
             salesIntelligence: true,
-            paymentCheck: false,
+
+            // Modules
+            cartSystem: 'full',
+            paymentIntegration: true,
+            crmAnalytics: 'advanced',
+
+            // Tools
+            autoTagging: true,
+            appointmentBooking: false,
+            bulkMarketing: false,
+            excelExport: true,
+            customBranding: false,
+            commentReply: true,
             prioritySupport: false,
         },
         enabledTools: [
@@ -133,11 +185,24 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxShops: 1000, // Effectively unlimited
         price: { mnt: 999000, usd: 294 },
         features: {
+            // AI Core
             toolCalling: true,
             vision: true,
             memory: true,
             salesIntelligence: true,
-            paymentCheck: true,
+
+            // Modules
+            cartSystem: 'full',
+            paymentIntegration: true,
+            crmAnalytics: 'full',
+
+            // Tools
+            autoTagging: true,
+            appointmentBooking: true,
+            bulkMarketing: true,
+            excelExport: true,
+            customBranding: true,
+            commentReply: true,
             prioritySupport: true,
         },
         enabledTools: [

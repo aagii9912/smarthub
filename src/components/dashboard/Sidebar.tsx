@@ -16,11 +16,21 @@ import {
     Bot,
     CreditCard,
     BarChart3,
-    MessageCircle,
+    Lock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeatures } from '@/hooks/useFeatures';
+import { toast } from 'sonner';
 
-const menuItems = [
+interface MenuItem {
+    name: string;
+    href: string;
+    icon: any;
+    tour: string;
+    feature?: string;
+}
+
+const menuItems: MenuItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, tour: 'dashboard' },
     { name: 'Products', href: '/dashboard/products', icon: Package, tour: 'products' },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart, tour: 'orders' },
@@ -28,8 +38,8 @@ const menuItems = [
 
     { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot, tour: 'ai-settings' },
     { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard, tour: 'payments' },
-    { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart, tour: 'carts' },
-    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3, tour: 'reports' },
+    { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart, tour: 'carts', feature: 'cart_system' },
+    { name: 'Reports', href: '/dashboard/reports', icon: BarChart3, tour: 'reports', feature: 'crm_analytics' },
 ];
 
 const bottomMenuItems = [
@@ -41,6 +51,7 @@ export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const pathname = usePathname();
     const { shop } = useAuth();
+    const { hasFeature, isPaidPlan, plan, usage, limits } = useFeatures();
 
     return (
         <aside
@@ -99,6 +110,42 @@ export function Sidebar() {
                 <ul className="space-y-1">
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href;
+                        // @ts-ignore
+                        const isLocked = item.feature && !hasFeature(item.feature);
+
+                        const LinkContent = (
+                            <>
+                                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#a1a1aa] group-hover:text-white'
+                                    }`} />
+                                {!collapsed && (
+                                    <div className="flex-1 flex items-center justify-between">
+                                        <span className="font-medium text-sm">{item.name}</span>
+                                        {isLocked && <Lock className="w-3 h-3 text-[#a1a1aa]" />}
+                                    </div>
+                                )}
+                            </>
+                        );
+
+                        if (isLocked) {
+                            return (
+                                <li key={item.name}>
+                                    <button
+                                        onClick={() => {
+                                            toast.error(`This feature requires a higher plan`, {
+                                                action: {
+                                                    label: 'Upgrade',
+                                                    onClick: () => window.location.href = '/dashboard/subscription'
+                                                }
+                                            });
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-[#a1a1aa] hover:bg-[#2a2d2b] cursor-not-allowed opacity-70"
+                                    >
+                                        {LinkContent}
+                                    </button>
+                                </li>
+                            );
+                        }
+
                         return (
                             <li key={item.name}>
                                 <Link
@@ -109,9 +156,7 @@ export function Sidebar() {
                                         : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'
                                         }`}
                                 >
-                                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#a1a1aa] group-hover:text-white'
-                                        }`} />
-                                    {!collapsed && <span className="font-medium text-sm">{item.name}</span>}
+                                    {LinkContent}
                                 </Link>
                             </li>
                         );
@@ -119,25 +164,63 @@ export function Sidebar() {
                 </ul>
             </nav>
 
-            {/* Pro Badge */}
-            {!collapsed && (
+            {/* Pro Badge - Only show if on Free/Trial plans */}
+            {!collapsed && !isPaidPlan && (
                 <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="text-white font-semibold text-sm">Syncly</span>
-                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded">Pro</span>
+                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded">Starter</span>
                     </div>
                     <ul className="text-xs text-[#a1a1aa] space-y-1">
-                        <li>• Advanced analytics</li>
+                        <li>• Basic analytics</li>
                         <li>• AI-assistant</li>
-                        <li>• 24/7 support</li>
+                        <li>• Email support</li>
                     </ul>
                     <div className="mt-3 text-[#65c51a] font-semibold text-sm">
-                        ₮99,000 / month
+                        ₮149,000 / month
                     </div>
                     <Link href="/dashboard/subscription">
                         <button className="w-full mt-3 py-2 bg-[#65c51a] text-white font-medium rounded-lg text-sm hover:bg-[#56a816] transition-colors">
                             Upgrade now
                         </button>
+                    </Link>
+                </div>
+            )}
+
+            {!collapsed && isPaidPlan && (
+                <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg border border-[#65c51a]/30">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium text-sm">Current Plan</span>
+                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded uppercase">{plan.slug}</span>
+                    </div>
+
+                    {/* Message Usage */}
+                    <div className="mb-3">
+                        <div className="flex justify-between text-xs text-[#a1a1aa] mb-1">
+                            <span>Messages</span>
+                            <span>
+                                {usage?.messages_count || 0} / {
+                                    limits?.max_messages === -1
+                                        ? '∞'
+                                        : (limits?.max_messages || 0)
+                                }
+                            </span>
+                        </div>
+                        <div className="h-1.5 bg-[#3a3d3b] rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-[#65c51a] rounded-full transition-all duration-500"
+                                style={{
+                                    width: `${limits?.max_messages === -1 ? 5 : Math.min(
+                                        ((usage?.messages_count || 0) / (limits?.max_messages || 1)) * 100,
+                                        100
+                                    )}%`
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <Link href="/dashboard/subscription" className="text-xs text-[#65c51a] hover:underline">
+                        Manage subscription
                     </Link>
                 </div>
             )}
