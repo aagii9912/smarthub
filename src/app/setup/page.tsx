@@ -99,7 +99,20 @@ function SetupContent() {
     });
 
     const pageData = await pageRes.json();
-    if (!pageRes.ok) throw new Error(pageData.error);
+
+    // Auto-reconnect if session expired
+    if (!pageRes.ok) {
+      if (pageData.code === 'SESSION_EXPIRED') {
+        // Clear pages and redirect to Facebook OAuth
+        setFbPages([]);
+        setError('Session дууссан байна. Дахин холбож байна...');
+        setTimeout(() => {
+          window.location.href = '/api/auth/facebook';
+        }, 1500);
+        return;
+      }
+      throw new Error(pageData.error);
+    }
 
     // Save token to state for AI step
     if (pageData.page?.access_token) {
