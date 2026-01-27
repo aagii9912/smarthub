@@ -12,7 +12,7 @@ interface StatsCardProps {
     iconColor?: string;
 }
 
-export function StatsCard({ title, value, change, icon: Icon, iconColor = 'bg-[#65c51a]' }: StatsCardProps) {
+export function StatsCard({ title, value, change, icon: Icon, iconColor = 'bg-gold' }: StatsCardProps) {
     return (
         <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 active:scale-[0.98] transition-transform">
             <div className="flex items-start justify-between">

@@ -73,7 +73,7 @@ export function MobileNav() {
                                         href={item.href}
                                         onClick={() => setShowMore(false)}
                                         className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${isActiveItem(item.href)
-                                            ? 'bg-[#65c51a]/10 text-[#65c51a]'
+                                            ? 'bg-gold/10 text-gold'
                                             : 'hover:bg-gray-50 text-gray-600'
                                             }`}
                                     >
@@ -97,17 +97,17 @@ export function MobileNav() {
                                 <Link
                                     href={item.href}
                                     className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${isActive
-                                        ? 'text-[#65c51a]'
+                                        ? 'text-gold'
                                         : 'text-gray-500'
                                         }`}
                                 >
-                                    <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-[#65c51a]/10' : ''}`}>
+                                    <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gold/10' : ''}`}>
                                         <item.icon
                                             className="w-6 h-6"
                                             strokeWidth={isActive ? 2.5 : 2}
                                         />
                                     </div>
-                                    <span className={`text-xs font-medium ${isActive ? 'text-[#65c51a]' : ''}`}>
+                                    <span className={`text-xs font-medium ${isActive ? 'text-gold' : ''}`}>
                                         {item.name}
                                     </span>
                                 </Link>
@@ -120,14 +120,14 @@ export function MobileNav() {
                         <button
                             onClick={() => setShowMore(!showMore)}
                             className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${showMore || isMoreActive
-                                ? 'text-[#65c51a]'
+                                ? 'text-gold'
                                 : 'text-gray-500'
                                 }`}
                         >
-                            <div className={`p-2 rounded-xl transition-all ${showMore || isMoreActive ? 'bg-[#65c51a]/10' : ''}`}>
+                            <div className={`p-2 rounded-xl transition-all ${showMore || isMoreActive ? 'bg-gold/10' : ''}`}>
                                 <Menu className="w-6 h-6" strokeWidth={showMore || isMoreActive ? 2.5 : 2} />
                             </div>
-                            <span className={`text-xs font-medium ${showMore || isMoreActive ? 'text-[#65c51a]' : ''}`}>
+                            <span className={`text-xs font-medium ${showMore || isMoreActive ? 'text-gold' : ''}`}>
                                 Бусад
                             </span>
                         </button>

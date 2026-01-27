@@ -23,6 +23,10 @@ export interface Shop {
   description?: string | null;
   ai_emotion?: string | null;
   ai_instructions?: string | null;
+  // Instagram Integration
+  instagram_business_account_id?: string | null;
+  instagram_access_token?: string | null;
+  instagram_username?: string | null;
 }
 
 interface AuthContextType {

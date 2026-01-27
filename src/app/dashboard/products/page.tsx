@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import ProductForm from '@/components/dashboard/products/ProductForm';
 
 export default function ProductsPage() {
     // TanStack Query hooks
@@ -18,6 +19,12 @@ export default function ProductsPage() {
     const deleteProduct = useDeleteProduct();
     const queryClient = useQueryClient();
     const { user } = useAuth();
+
+    // Imported Component (Dynamic)
+    // import ProductForm from '@/components/dashboard/products/ProductForm';
+    // but we use direct import via File API above logic
+    // We already moved it, so we need to add the import statement at the top
+
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -426,206 +433,11 @@ export default function ProductsPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Төрөл сонгох */}
-                            <div className="flex p-1 bg-gray-100 rounded-xl w-fit">
-                                <button
-                                    type="button"
-                                    onClick={() => setProductType('physical')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === 'physical' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                                >
-                                    <Box className="w-4 h-4" /> Бараа
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setProductType('service')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === 'service' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                                >
-                                    <Layers className="w-4 h-4" /> Үйлчилгээ
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setProductType('appointment')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === 'appointment' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                                >
-                                    <Calendar className="w-4 h-4" /> Цаг захиалга
-                                </button>
-                            </div>
-
-                            <div className="flex gap-6">
-                                {/* Зураг оруулах */}
-                                <div className="w-32 h-32 flex-shrink-0">
-                                    <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-500 transition-colors relative overflow-hidden group bg-gray-50">
-                                        {imagePreview ? (
-                                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                                                <Upload className="w-6 h-6" />
-                                                <span className="text-xs">Зураг</span>
-                                            </div>
-                                        )}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleImageSelect}
-                                            className="absolute inset-0 opacity-0 cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 space-y-4">
-                                    <Input
-                                        name="name"
-                                        label="Нэр"
-                                        placeholder={productType === 'physical' ? "Барааны нэр" : productType === 'service' ? "Үйлчилгээний нэр" : "Цаг захиалгын нэр"}
-                                        defaultValue={editingProduct?.name}
-                                        required
-                                    />
-                                    <div className={`grid gap-4 ${productType === 'physical' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                                        <Input
-                                            name="price"
-                                            label="Үнэ (₮)"
-                                            type="number"
-                                            placeholder="0"
-                                            defaultValue={editingProduct?.price}
-                                            required
-                                        />
-                                        {productType === 'physical' && (
-                                            <Input
-                                                name="stock"
-                                                label="Үлдэгдэл"
-                                                type="number"
-                                                placeholder="0"
-                                                defaultValue={editingProduct?.stock || ''}
-                                            />
-                                        )}
-                                        <Input
-                                            name="discount"
-                                            label="Хямдрал (%)"
-                                            type="number"
-                                            placeholder="0"
-                                            defaultValue={editingProduct?.discount_percent || ''}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <Textarea
-                                name="description"
-                                label="Тайлбар"
-                                placeholder="Дэлгэрэнгүй тайлбар"
-                                rows={3}
-                                defaultValue={editingProduct?.description || ''}
-                            />
-
-                            {/* Appointment-specific fields */}
-                            {productType === 'appointment' && (
-                                <div className="space-y-4 p-4 bg-violet-50 rounded-xl border border-violet-200">
-                                    <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-violet-600" />
-                                        Цаг захиалгын тохиргоо
-                                    </h4>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Үргэлжлэх хугацаа</label>
-                                            <select
-                                                name="duration"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                                defaultValue={editingProduct?.duration_minutes || 60}
-                                            >
-                                                <option value="30">30 минут</option>
-                                                <option value="60">1 цаг</option>
-                                                <option value="90">1.5 цаг</option>
-                                                <option value="120">2 цаг</option>
-                                                <option value="180">3 цаг</option>
-                                                <option value="240">4 цаг</option>
-                                            </select>
-                                        </div>
-                                        <Input
-                                            name="maxBookings"
-                                            label="Өдөрт хамгийн олон"
-                                            type="number"
-                                            placeholder="10"
-                                            defaultValue={editingProduct?.max_bookings_per_day || 10}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Боломжтой өдрүүд</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {[
-                                                { value: 'mon', label: 'Да' },
-                                                { value: 'tue', label: 'Мя' },
-                                                { value: 'wed', label: 'Лх' },
-                                                { value: 'thu', label: 'Пү' },
-                                                { value: 'fri', label: 'Ба' },
-                                                { value: 'sat', label: 'Бя' },
-                                                { value: 'sun', label: 'Ня' },
-                                            ].map(day => (
-                                                <label key={day.value} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-violet-400 has-[:checked]:bg-violet-100 has-[:checked]:border-violet-500">
-                                                    <input
-                                                        type="checkbox"
-                                                        name="availableDays"
-                                                        value={day.value}
-                                                        defaultChecked={editingProduct?.available_days?.includes(day.value) ?? ['mon', 'tue', 'wed', 'thu', 'fri'].includes(day.value)}
-                                                        className="w-4 h-4 text-violet-600 rounded"
-                                                    />
-                                                    <span className="text-sm">{day.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Эхлэх цаг</label>
-                                            <input
-                                                type="time"
-                                                name="startTime"
-                                                defaultValue={editingProduct?.start_time || '09:00'}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Дуусах цаг</label>
-                                            <input
-                                                type="time"
-                                                name="endTime"
-                                                defaultValue={editingProduct?.end_time || '18:00'}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {productType !== 'appointment' && (
-                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-                                    <Input
-                                        name="colors"
-                                        label="Өнгө / Хувилбар"
-                                        placeholder="Улаан, Хар (Таслалаар зааглана)"
-                                        defaultValue={editingProduct?.colors?.join(', ')}
-                                    />
-                                    <Input
-                                        name="sizes"
-                                        label="Хэмжээ / Хугацаа"
-                                        placeholder={productType === 'physical' ? "S, M, L" : "1 цаг, 1 сар"}
-                                        defaultValue={editingProduct?.sizes?.join(', ')}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-                                <Button variant="secondary" type="button" onClick={() => setShowModal(false)} disabled={saving}>
-                                    Цуцлах
-                                </Button>
-                                <Button type="submit" disabled={saving}>
-                                    {saving ? 'Хадгалж байна...' : (editingProduct ? 'Хадгалах' : 'Нэмэх')}
-                                </Button>
-                            </div>
-                        </form>
+                        <ProductForm
+                            product={editingProduct}
+                            onSuccess={() => { setShowModal(false); setEditingProduct(null); queryClient.invalidateQueries({ queryKey: ['products'] }); }}
+                            onCancel={() => setShowModal(false)}
+                        />
                     </div>
                 </div>
             )}

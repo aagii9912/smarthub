@@ -1,7 +1,7 @@
 /**
- * SmartHub AI Plan Configuration
+ * SmartHub AI Plan Configuration - GPT-5 Family
  * 
- * Hybrid Strategy: GPT-5 Family
+ * Strategy: Exclusive use of GPT-5 models across all tiers
  * - Trial: GPT-5 Mini (14 days)
  * - Starter: GPT-5 Nano - ₮149,000/month
  * - Pro: GPT-5 Mini - ₮349,000/month

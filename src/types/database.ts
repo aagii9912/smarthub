@@ -12,6 +12,10 @@ export interface Shop {
     bank_name?: string | null;
     account_number?: string | null;
     account_name?: string | null;
+    // Instagram Integration
+    instagram_business_account_id?: string | null;
+    instagram_access_token?: string | null;
+    instagram_username?: string | null;
 }
 
 export interface Product {
@@ -24,6 +28,8 @@ export interface Product {
     image_url: string | null;
     is_active: boolean;
     created_at: string;
+    has_variants?: boolean;
+    variants?: any[]; // Detailed type in useProducts for now
 }
 
 export interface Customer {

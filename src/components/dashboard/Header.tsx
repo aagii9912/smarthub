@@ -91,7 +91,7 @@ export function Header() {
                         onClick={() => setShowDropdown(!showDropdown)}
                         className="flex items-center gap-2 hover:bg-gray-100 rounded-xl transition-colors p-1.5 md:px-3 md:py-2"
                     >
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#65c51a] to-emerald-600 flex items-center justify-center text-white font-medium text-sm">
+                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center text-neutral-900 font-medium text-sm">
                             {firstName[0]?.toUpperCase()}
                         </div>
                         <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block" />

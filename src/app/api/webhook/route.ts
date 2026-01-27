@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
+import { verifyWebhook, sendTextMessage, sendSenderAction, sendMessageWithQuickReplies } from '@/lib/facebook/messenger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
@@ -7,8 +7,10 @@ import { getCustomerMemory } from '@/lib/ai/tools/memory';
 import { logger } from '@/lib/utils/logger';
 import {
     getShopByPageId,
+    getShopByInstagramId,
     getAIFeatures,
     getOrCreateCustomer,
+    getOrCreateInstagramCustomer,
     updateCustomerInfo,
     getChatHistory,
     saveChatHistory,
@@ -17,6 +19,7 @@ import {
     generateFallbackResponse,
     processAIResponse,
     replyToComment,
+    ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
 import type { ChatMessage } from '@/types/ai';
 
@@ -67,92 +70,110 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 
-// Handle incoming messages (POST request from Facebook)
+// Handle incoming messages (POST request from Facebook/Instagram)
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Check if this is a page event
-        if (body.object !== 'page') {
+        // Determine platform type: 'page' for Messenger, 'instagram' for Instagram
+        const platform: 'messenger' | 'instagram' = body.object === 'instagram' ? 'instagram' : 'messenger';
+
+        // Validate object type (page or instagram)
+        if (body.object !== 'page' && body.object !== 'instagram') {
             return NextResponse.json({ error: 'Invalid object type' }, { status: 400 });
         }
 
+        logger.info(`Webhook received for platform: ${platform}`);
+
         // Process each entry
         for (const entry of body.entry as WebhookEntry[]) {
-            const pageId = entry.id;
+            const accountId = entry.id; // Page ID for Messenger, or Instagram Business Account ID
 
-            // Get shop info from database
-            const shop = await getShopByPageId(pageId);
+            // Get shop based on platform
+            let shop: ShopWithProducts | null = null;
+            if (platform === 'instagram') {
+                shop = await getShopByInstagramId(accountId);
+            } else {
+                shop = await getShopByPageId(accountId);
+            }
+
             if (!shop) {
-                logger.warn(`No active shop found for page ${pageId}`);
+                logger.warn(`No active shop found for ${platform} account ${accountId}`);
                 continue;
             }
 
             // Get AI features for this shop
             const aiFeatures = await getAIFeatures(shop.id);
 
-            // Get page access token
-            const pageAccessToken = shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-            if (!pageAccessToken) {
-                logger.warn(`No access token for shop ${shop.name}`);
+            // Get access token based on platform
+            const accessToken = platform === 'instagram'
+                ? (shop.instagram_access_token || shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)
+                : (shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
+
+            if (!accessToken) {
+                logger.warn(`No access token for shop ${shop.name} on ${platform}`);
                 continue;
             }
 
-            // Process Facebook Page feed events (comments)
-            for (const change of entry.changes || []) {
-                if (change.field === 'feed' && change.value?.item === 'comment') {
-                    const commentData = change.value;
-                    const commentMessage = commentData.message || '';
-                    const commentId = commentData.comment_id;
-                    const senderId = commentData.from?.id;
+            // Process Facebook Page feed events (comments) - only for Messenger platform
+            if (platform === 'messenger') {
+                for (const change of entry.changes || []) {
+                    if (change.field === 'feed' && change.value?.item === 'comment') {
+                        const commentData = change.value;
+                        const commentMessage = commentData.message || '';
+                        const commentId = commentData.comment_id;
+                        const senderId = commentData.from?.id;
 
-                    // Don't reply to own comments (from page)
-                    if (senderId === pageId || !commentId) continue;
+                        // Don't reply to own comments (from page)
+                        if (senderId === accountId || !commentId) continue;
 
-                    logger.info(`[${shop.name}] New comment received`, {
-                        commentMessage,
-                        senderName: commentData.from?.name
-                    });
-
-                    // Check if comment is product-related and reply
-                    if (shouldReplyToComment(commentMessage)) {
-                        logger.info(`[${shop.name}] Comment is product-related, replying...`);
-                        await replyToComment(
-                            shop.id,
-                            shop.name,
-                            shop.facebook_page_username,
-                            commentId,
+                        logger.info(`[${shop.name}] New comment received`, {
                             commentMessage,
-                            pageAccessToken
-                        );
-                    } else {
-                        logger.debug(`[${shop.name}] Comment not product-related, skipping`);
+                            senderName: commentData.from?.name
+                        });
+
+                        // Check if comment is product-related and reply
+                        if (shouldReplyToComment(commentMessage)) {
+                            logger.info(`[${shop.name}] Comment is product-related, replying...`);
+                            await replyToComment(
+                                shop.id,
+                                shop.name,
+                                shop.facebook_page_username,
+                                commentId,
+                                commentMessage,
+                                accessToken
+                            );
+                        } else {
+                            logger.debug(`[${shop.name}] Comment not product-related, skipping`);
+                        }
                     }
                 }
             }
 
-            // Process messaging events
+            // Process messaging events (works for both Messenger and Instagram)
             for (const event of entry.messaging || []) {
                 const senderId = event.sender.id;
 
                 // Handle text messages
                 if (event.message?.text) {
                     const userMessage = event.message.text;
-                    logger.info(`[${shop.name}] Received message`, { userMessage, senderId });
+                    logger.info(`[${shop.name}] Received ${platform} message`, { userMessage, senderId });
 
                     // Mark Seen & Typing indicators
-                    await sendSenderAction(senderId, 'mark_seen', pageAccessToken);
-                    await sendSenderAction(senderId, 'typing_on', pageAccessToken);
+                    await sendSenderAction(senderId, 'mark_seen', accessToken);
+                    await sendSenderAction(senderId, 'typing_on', accessToken);
 
                     // Detect intent
                     const intent = detectIntent(userMessage);
                     logger.debug('Intent detected', { intent: intent.intent, confidence: intent.confidence });
 
-                    // Get or create customer
-                    let customer = await getOrCreateCustomer(shop.id, senderId, pageAccessToken);
+                    // Get or create customer based on platform
+                    let customer = platform === 'instagram'
+                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                        : await getOrCreateCustomer(shop.id, senderId, accessToken);
 
                     // Update customer info if needed
-                    customer = await updateCustomerInfo(customer, senderId, pageAccessToken, userMessage);
+                    customer = await updateCustomerInfo(customer, senderId, accessToken, userMessage);
 
                     // CHECK: Global AI Switch
                     if (shop.is_ai_active === false) {
@@ -197,6 +218,7 @@ export async function POST(request: NextRequest) {
                                     shopDescription: shop.description || undefined,
                                     aiInstructions: shop.ai_instructions || undefined,
                                     aiEmotion: shop.ai_emotion || 'friendly',
+                                    customKnowledge: shop.custom_knowledge || undefined,
                                     products: mappedProducts,
                                     customerName: customer.name || undefined,
                                     orderHistory: customer.total_orders || 0,
@@ -218,7 +240,6 @@ export async function POST(request: NextRequest) {
                             new Promise(resolve => setTimeout(resolve, 1500))
                         ]);
 
-
                         aiResponse = response.text;
                         aiQuickReplies = response.quickReplies;
                         logger.success('AI response generated', {
@@ -228,7 +249,7 @@ export async function POST(request: NextRequest) {
                         });
 
                         // Process and send product images if AI requested
-                        await processAIResponse(response, senderId, pageAccessToken);
+                        await processAIResponse(response, senderId, accessToken);
 
                     } catch (aiError) {
                         const errorMessage = aiError instanceof Error ? aiError.message : 'Unknown error';
@@ -239,102 +260,107 @@ export async function POST(request: NextRequest) {
                         aiResponse = generateFallbackResponse(intent, shop.name, shop.products);
                     }
 
-                    // Typing Off
-                    await sendSenderAction(senderId, 'typing_off', pageAccessToken);
-
-                    // Save chat history and increment message count
+                    // Save chat history
                     await saveChatHistory(shop.id, customer.id, userMessage, aiResponse, intent.intent);
 
-                    // Increment message count for plan-based limiting
-                    if (customer.id) {
-                        const newCount = await incrementMessageCount(customer.id);
-                        logger.info(`Message count for customer ${customer.id}: ${newCount}`);
-                    }
+                    // Increment message count
+                    await incrementMessageCount(customer.id);
 
-                    // Send response to Facebook (with or without quick replies)
-                    try {
-                        logger.info(`[${shop.name}] Sending response...`);
-
-                        // Check if we have quick replies from AI
-                        if (aiQuickReplies && aiQuickReplies.length > 0) {
-                            const { sendMessageWithQuickReplies } = await import('@/lib/facebook/messenger');
-                            await sendMessageWithQuickReplies({
-                                recipientId: senderId,
-                                message: aiResponse,
-                                quickReplies: aiQuickReplies.map((qr: { title: string; payload: string }) => ({
-                                    content_type: 'text' as const,
-                                    title: qr.title.substring(0, 20), // Max 20 chars
-                                    payload: qr.payload
-                                })),
-                                pageAccessToken,
-                            });
-                            logger.success('Message with quick replies sent!');
-                        } else {
-                            await sendTextMessage({
-                                recipientId: senderId,
-                                message: aiResponse,
-                                pageAccessToken,
-                            });
-                            logger.success('Message sent successfully!');
-                        }
-                    } catch (sendError) {
-                        const errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error';
-                        logger.error('Failed to send message:', { message: errorMessage });
+                    // Send the AI response via Messenger API (works for both platforms)
+                    if (aiQuickReplies && aiQuickReplies.length > 0) {
+                        await sendMessageWithQuickReplies({
+                            recipientId: senderId,
+                            message: aiResponse,
+                            pageAccessToken: accessToken,
+                            quickReplies: aiQuickReplies.map(qr => ({
+                                content_type: 'text' as const,
+                                title: qr.title,
+                                payload: qr.payload,
+                            })),
+                        });
+                    } else {
+                        await sendTextMessage({
+                            recipientId: senderId,
+                            message: aiResponse,
+                            pageAccessToken: accessToken,
+                        });
                     }
                 }
 
                 // Handle image attachments
-                // Handle image attachments
-                const attachments = event.message?.attachments;
-                if (attachments && attachments.length > 0) {
-                    const imageAttachment = attachments.find(a => a.type === 'image');
-                    if (imageAttachment?.payload?.url) {
-                        const imageUrl = imageAttachment.payload.url;
-                        logger.info(`[${shop.name}] Received image attachment`, { imageUrl });
+                else if (event.message?.attachments) {
+                    for (const attachment of event.message.attachments) {
+                        if (attachment.type === 'image' && attachment.payload?.url) {
+                            const imageUrl = attachment.payload.url;
+                            logger.info(`[${shop.name}] Received image from ${platform}`, { imageUrl });
 
-                        await sendSenderAction(senderId, 'mark_seen', pageAccessToken);
-                        await sendSenderAction(senderId, 'typing_on', pageAccessToken);
+                            // Get or create customer for image processing
+                            const customer = platform === 'instagram'
+                                ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                                : await getOrCreateCustomer(shop.id, senderId, accessToken);
 
-                        try {
-                            // Analyze image with Vision API (plan-based)
-                            const planType = getPlanTypeFromSubscription({
-                                plan: (shop as unknown as Record<string, string>).subscription_plan,
-                                status: (shop as unknown as Record<string, string>).subscription_status,
-                            });
-                            const analysis = await analyzeProductImageWithPlan(imageUrl, shop.products, planType);
-                            logger.info('Image analysis result:', analysis);
+                            // Send typing indicator
+                            await sendSenderAction(senderId, 'typing_on', accessToken);
 
-                            let responseMessage: string;
-                            if (analysis.isReceipt) {
-                                responseMessage = `💰 Төлбөрийн баримтыг хүлээж авлаа! Баярлалаа. \n\nАдмин шалгаад удахгүй баталгаажуулах болно. Түр хүлээнэ үү. 🙏`;
-                                // TODO: Notify Admin here (future improvement)
-                            } else if (analysis.matchedProduct && analysis.confidence > 0.6) {
-                                const product = shop.products.find(p => p.name === analysis.matchedProduct);
-                                if (product) {
-                                    const price = product.discount_percent
-                                        ? Math.round(product.price * (1 - product.discount_percent / 100))
-                                        : product.price;
-                                    responseMessage = `🎯 Таны зураг дээр "${product.name}" харагдаж байна!\n\n💰 Үнэ: ${price.toLocaleString()}₮\n📦 Үлдэгдэл: ${product.stock} ширхэг\n\nЗахиалах уу? 😊`;
+                            try {
+                                // Get subscription plan for image analysis
+                                const planType = getPlanTypeFromSubscription({
+                                    plan: shop.subscription_plan || 'starter',
+                                    status: shop.subscription_status || 'active',
+                                    trial_ends_at: shop.trial_ends_at || undefined,
+                                });
+
+                                // Analyze the image with shop products for matching
+                                const productsForAnalysis = shop.products.map(p => ({
+                                    id: p.id,
+                                    name: p.name,
+                                    description: p.description || undefined,
+                                }));
+                                const imageAnalysis = await analyzeProductImageWithPlan(imageUrl, productsForAnalysis, planType);
+
+                                if (imageAnalysis.matchedProduct || imageAnalysis.description) {
+                                    // Try to match with shop products
+                                    const description = imageAnalysis.description || '';
+                                    const matchedProducts = shop.products.filter(p =>
+                                        description.toLowerCase().includes(p.name.toLowerCase())
+                                    );
+
+                                    let responseMessage: string;
+                                    if (matchedProducts.length > 0) {
+                                        const product = matchedProducts[0];
+                                        responseMessage = `Зурагнаас "${product.name}" бүтээгдэхүүнийг таньлаа! 🎯\n\n` +
+                                            `💰 Үнэ: ${product.price?.toLocaleString()}₮\n` +
+                                            `📦 Үлдэгдэл: ${product.stock} ширхэг\n\n` +
+                                            `Захиалах уу? 🛒`;
+                                    } else {
+                                        responseMessage = `Зурагт: ${description}\n\n` +
+                                            `Энэ бүтээгдэхүүн бидний дэлгүүрт одоохондоо байхгүй байна. ` +
+                                            `Өөр бүтээгдэхүүн хайж байна уу? 🔍`;
+                                    }
+
+                                    await sendTextMessage({
+                                        recipientId: senderId,
+                                        message: responseMessage,
+                                        pageAccessToken: accessToken,
+                                    });
+
+                                    // Save to chat history
+                                    await saveChatHistory(shop.id, customer.id, '[Зураг илгээсэн]', responseMessage, 'IMAGE_ANALYSIS');
                                 } else {
-                                    responseMessage = `Зураг дээр ${analysis.description}. Таны хайсан бүтээгдэхүүн манайд байж магадгүй, нэрийг нь хэлнэ үү?`;
+                                    await sendTextMessage({
+                                        recipientId: senderId,
+                                        message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
+                                        pageAccessToken: accessToken,
+                                    });
                                 }
-                            } else {
-                                responseMessage = `Зураг дээр ${analysis.description}. Аль бүтээгдэхүүнийг хайж байгаагаа хэлнэ үү? 🤔`;
+                            } catch (imageError) {
+                                logger.error('Image analysis error:', { error: imageError });
+                                await sendTextMessage({
+                                    recipientId: senderId,
+                                    message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
+                                    pageAccessToken: accessToken,
+                                });
                             }
-
-                            await sendSenderAction(senderId, 'typing_off', pageAccessToken);
-                            await sendTextMessage({
-                                recipientId: senderId,
-                                message: responseMessage,
-                                pageAccessToken,
-                            });
-                        } catch (imageError) {
-                            logger.error('Image analysis error:', { error: imageError });
-                            await sendTextMessage({
-                                recipientId: senderId,
-                                message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
-                                pageAccessToken,
-                            });
                         }
                     }
                 }
@@ -348,7 +374,7 @@ export async function POST(request: NextRequest) {
                         await sendTextMessage({
                             recipientId: senderId,
                             message: `"${productName}" захиалахыг хүсч байна уу? Хэдэн ширхэг авах вэ? 🛒`,
-                            pageAccessToken,
+                            pageAccessToken: accessToken,
                         });
                     }
                 }

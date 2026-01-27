@@ -22,6 +22,10 @@ export interface ShopWithProducts {
     facebook_page_id: string;
     facebook_page_username?: string | null;
     facebook_page_access_token?: string | null;
+    // Instagram fields
+    instagram_business_account_id?: string | null;
+    instagram_access_token?: string | null;
+    instagram_username?: string | null;
     products: AIProduct[];
     notify_on_order?: boolean | null;
     notify_on_contact?: boolean | null;
@@ -32,6 +36,7 @@ export interface ShopWithProducts {
     subscription_plan?: string | null;
     subscription_status?: string | null;
     trial_ends_at?: string | null;
+    custom_knowledge?: Record<string, unknown> | null;
 }
 
 /**
@@ -46,6 +51,9 @@ export interface CustomerData {
     // Message counting fields
     message_count?: number;
     message_count_reset_at?: string | null;
+    // Platform fields
+    instagram_id?: string | null;
+    platform?: 'messenger' | 'instagram';
 }
 
 /**
@@ -99,6 +107,51 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         subscription_plan: data.subscription_plan,
         subscription_status: data.subscription_status,
         trial_ends_at: data.trial_ends_at,
+        custom_knowledge: data.custom_knowledge,
+        // Instagram fields
+        instagram_business_account_id: data.instagram_business_account_id,
+        instagram_access_token: data.instagram_access_token,
+        instagram_username: data.instagram_username,
+    };
+}
+
+/**
+ * Fetch shop data by Instagram Business Account ID
+ */
+export async function getShopByInstagramId(instagramId: string): Promise<ShopWithProducts | null> {
+    const supabase = supabaseAdmin();
+
+    const { data } = await supabase
+        .from('shops')
+        .select('*, products(*)')
+        .eq('instagram_business_account_id', instagramId)
+        .eq('is_active', true)
+        .single();
+
+    if (!data) return null;
+
+    return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        ai_instructions: data.ai_instructions,
+        ai_emotion: data.ai_emotion,
+        facebook_page_id: data.facebook_page_id,
+        facebook_page_username: data.facebook_page_username,
+        facebook_page_access_token: data.facebook_page_access_token,
+        instagram_business_account_id: data.instagram_business_account_id,
+        instagram_access_token: data.instagram_access_token,
+        instagram_username: data.instagram_username,
+        products: data.products || [],
+        notify_on_order: data.notify_on_order,
+        notify_on_contact: data.notify_on_contact,
+        notify_on_support: data.notify_on_support,
+        notify_on_cancel: data.notify_on_cancel,
+        is_ai_active: data.is_ai_active,
+        subscription_plan: data.subscription_plan,
+        subscription_status: data.subscription_status,
+        trial_ends_at: data.trial_ends_at,
+        custom_knowledge: data.custom_knowledge,
     };
 }
 
@@ -170,7 +223,84 @@ export async function getOrCreateCustomer(
         total_orders: 0,
         message_count: 0,
         message_count_reset_at: null,
+        platform: 'messenger',
     };
+}
+
+/**
+ * Get or create customer from Instagram sender ID
+ */
+export async function getOrCreateInstagramCustomer(
+    shopId: string,
+    instagramId: string,
+    accessToken: string
+): Promise<CustomerData> {
+    const supabase = supabaseAdmin();
+
+    // First check by instagram_id
+    const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('instagram_id', instagramId)
+        .eq('shop_id', shopId)
+        .single();
+
+    if (existingCustomer) {
+        return {
+            id: existingCustomer.id,
+            name: existingCustomer.name,
+            phone: existingCustomer.phone,
+            total_orders: existingCustomer.total_orders || 0,
+            ai_paused_until: existingCustomer.ai_paused_until,
+            message_count: existingCustomer.message_count || 0,
+            message_count_reset_at: existingCustomer.message_count_reset_at,
+            instagram_id: existingCustomer.instagram_id,
+            platform: 'instagram',
+        };
+    }
+
+    // Try to get Instagram username
+    const userName = await fetchInstagramUserName(instagramId, accessToken);
+
+    const { data: newCustomer } = await supabase
+        .from('customers')
+        .insert({
+            shop_id: shopId,
+            instagram_id: instagramId,
+            name: userName,
+            platform: 'instagram',
+        })
+        .select()
+        .single();
+
+    return {
+        id: newCustomer?.id || '',
+        name: userName,
+        phone: null,
+        total_orders: 0,
+        message_count: 0,
+        message_count_reset_at: null,
+        instagram_id: instagramId,
+        platform: 'instagram',
+    };
+}
+
+/**
+ * Fetch Instagram user name from Graph API
+ */
+async function fetchInstagramUserName(userId: string, accessToken: string): Promise<string | null> {
+    try {
+        const response = await fetch(
+            `https://graph.facebook.com/v19.0/${userId}?fields=username,name&access_token=${accessToken}`
+        );
+        if (response.ok) {
+            const data = await response.json();
+            return data.name || data.username || null;
+        }
+    } catch {
+        logger.warn('Could not fetch Instagram profile', { userId });
+    }
+    return null;
 }
 
 /**

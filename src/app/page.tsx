@@ -127,9 +127,9 @@ export default function Home() {
       <section className="relative overflow-hidden pt-10 pb-20 lg:pt-20 lg:pb-32">
         {/* Abstract Background Elements */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-7xl pointer-events-none opacity-40 dark:opacity-20">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-float"></div>
-          <div className="absolute top-40 right-10 w-72 h-72 bg-primary rounded-full mix-blend-multiply filter blur-3xl animate-float delay-100"></div>
-          <div className="absolute -bottom-20 left-1/3 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl animate-float delay-200"></div>
+          <div className="absolute top-20 left-10 w-72 h-72 bg-neutral-400 rounded-full mix-blend-multiply filter blur-3xl animate-float"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-gold rounded-full mix-blend-multiply filter blur-3xl animate-float delay-100"></div>
+          <div className="absolute -bottom-20 left-1/3 w-96 h-96 bg-neutral-300 rounded-full mix-blend-multiply filter blur-3xl animate-float delay-200"></div>
         </div>
 
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
@@ -162,6 +162,9 @@ export default function Home() {
 
             {/* Desktop nav */}
             <div className="hidden sm:flex gap-4">
+              <Button href="/cart" variant="ghost" size="icon">
+                <ShoppingBag className="h-5 w-5" />
+              </Button>
               <Button href="/dashboard" variant="ghost">
                 Dashboard
               </Button>
@@ -195,7 +198,7 @@ export default function Home() {
 
             <h1 className="mb-4 sm:mb-6 text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-foreground leading-tight">
               Таны бизнест зориулсан<br />
-              <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent inline-block">AI туслах</span>
+              <span className="bg-gradient-to-r from-gold via-gold-light to-gold-dark bg-clip-text text-transparent inline-block">AI туслах</span>
             </h1>
 
             <p className="mb-6 sm:mb-10 text-base sm:text-xl leading-relaxed text-muted-foreground px-4 max-w-2xl mx-auto">
@@ -213,7 +216,7 @@ export default function Home() {
                 variant="secondary"
                 size="lg"
                 onClick={() => setShowVideo(true)}
-                className="w-full sm:w-auto border border-border bg-background/50 backdrop-blur-sm hover:bg-background hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto border-2 border-neutral-300 dark:border-neutral-600 bg-white/80 dark:bg-neutral-800/80 text-neutral-900 dark:text-white backdrop-blur-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:scale-105 active:scale-95"
               >
                 <Play className="h-5 w-5 mr-2" />
                 Demo үзэх
@@ -370,7 +373,7 @@ export default function Home() {
                 <CardContent className="p-8">
                   <div className="mb-4 flex gap-1">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                      <Star key={i} className="h-5 w-5 fill-gold text-gold" />
                     ))}
                   </div>
                   <p className="mb-6 text-muted-foreground leading-relaxed">
@@ -479,23 +482,23 @@ export default function Home() {
             {/* Business Plan - Recommended */}
             <Card className="border-2 border-primary shadow-2xl shadow-primary/10 hover:scale-105 transition-transform">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-purple-600 px-4 py-1.5 text-sm font-bold text-white shadow-lg shadow-primary/30">
-                  <Sparkles className="h-4 w-4 fill-white" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-neutral-900 to-neutral-700 px-4 py-1.5 text-sm font-bold text-gold shadow-lg shadow-gold/20">
+                  <Sparkles className="h-4 w-4 fill-gold text-gold" />
                   Санал болгох
                 </span>
               </div>
 
               <CardContent className="p-8">
                 <div className="mb-6">
-                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-purple-600 shadow-lg shadow-primary/30">
-                    <Crown className="h-7 w-7 text-white" />
+                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-700 shadow-lg shadow-gold/20">
+                    <Crown className="h-7 w-7 text-gold" />
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold text-foreground">Business</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Дунд болон том бизнест</p>
 
                 <div className="mt-8">
-                  <span className="text-5xl font-black bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                  <span className="text-5xl font-black bg-gradient-to-r from-gold via-gold-light to-gold-dark bg-clip-text text-transparent">
                     {pricingPlans[billingPeriod].business.price}
                   </span>
                   <span className="text-muted-foreground font-medium">{pricingPlans[billingPeriod].business.period}</span>
@@ -524,7 +527,7 @@ export default function Home() {
 
                 <Button
                   href="/auth/register?plan=business"
-                  className="mt-8 w-full bg-gradient-to-r from-primary to-purple-600 hover:opacity-90 transition-opacity"
+                  className="mt-8 w-full bg-gradient-to-r from-neutral-900 to-neutral-700 text-gold hover:opacity-90 transition-opacity"
                   size="lg"
                 >
                   Эхлүүлэх
@@ -678,16 +681,16 @@ export default function Home() {
       {/* CTA Section */}
       <section className="relative py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-purple-600 px-8 py-16 shadow-2xl sm:px-16 sm:py-24">
+          <div className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 to-neutral-800 px-8 py-16 shadow-2xl sm:px-16 sm:py-24">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
                 Өнөөдөр эхэлцгээе
               </h2>
-              <p className="mt-4 text-lg leading-8 text-indigo-100">
+              <p className="mt-4 text-lg leading-8 text-neutral-300">
                 AI туслахыг бизнестээ нэвтрүүлж, борлуулалтаа нэмэгдүүлээрэй. 14 хоногийн үнэгүй туршилт эхлүүлнэ үү.
               </p>
               <div className="mt-8 flex items-center justify-center gap-4">
-                <Button href="/auth/register" size="lg" className="bg-white text-primary hover:bg-white/90">
+                <Button href="/auth/register" size="lg" className="bg-gold text-neutral-900 hover:bg-gold-light font-semibold">
                   Үнэгүй турших
                 </Button>
                 <Button href="/dashboard" size="lg" variant="outline" className="text-white border-white hover:bg-white/10">

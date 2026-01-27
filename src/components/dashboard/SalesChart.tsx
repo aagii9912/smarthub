@@ -89,10 +89,10 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
                     <Line
                         type="monotone"
                         dataKey="revenue"
-                        stroke="#65c51a"
+                        stroke="#D4AF37"
                         strokeWidth={2}
-                        dot={{ fill: '#65c51a', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, fill: '#65c51a' }}
+                        dot={{ fill: '#D4AF37', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, fill: '#D4AF37' }}
                     />
                 </LineChart>
             ) : (
@@ -113,7 +113,7 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
                     <Tooltip content={<CustomTooltip />} />
                     <Bar
                         dataKey="revenue"
-                        fill="#65c51a"
+                        fill="#D4AF37"
                         radius={[4, 4, 0, 0]}
                     />
                 </BarChart>

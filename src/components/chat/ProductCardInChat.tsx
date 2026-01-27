@@ -8,16 +8,71 @@ interface ProductCardInChatProps {
         description?: string;
         price: number;
         image_url?: string;
+        has_variants?: boolean;
+        variants?: any[];
     };
-    onAddToCart?: (productId: string) => void;
+    onAddToCart?: (productId: string, variantId?: string) => void;
 }
 
 export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatProps) {
+    const [selectedOptions, setSelectedOptions] = React.useState<Record<string, string>>({});
+    const [showOptions, setShowOptions] = React.useState(false);
+
+    // Check if variants exist
+    const hasVariants = product.has_variants && product.variants && product.variants.length > 0;
+
+    // Get unique option names
+    const optionNames = React.useMemo(() => {
+        if (!hasVariants) return [];
+        const names = new Set<string>();
+        product.variants?.forEach((v: any) => {
+            if (v.options) Object.keys(v.options).forEach(k => names.add(k));
+        });
+        return Array.from(names);
+    }, [product]);
+
+    // Handle option selection
+    const handleOptionSelect = (name: string, value: string) => {
+        setSelectedOptions(prev => ({ ...prev, [name]: value }));
+    };
+
+    // Find selected variant
+    const selectedVariant = React.useMemo(() => {
+        if (!hasVariants) return null;
+        if (Object.keys(selectedOptions).length !== optionNames.length) return null;
+
+        return product.variants?.find((v: any) => {
+            return Object.entries(v.options).every(([key, val]) => selectedOptions[key] === val);
+        });
+    }, [product, selectedOptions, optionNames, hasVariants]);
+
+    // Get available values for an option name (can depend on previous selections if we want to be fancy, simplified here)
+    const getValuesForOption = (name: string) => {
+        const values = new Set<string>();
+        product.variants?.forEach((v: any) => {
+            if (v.options && v.options[name]) values.add(v.options[name]);
+        });
+        return Array.from(values);
+    };
+
+    const handleAddToCart = () => {
+        if (!onAddToCart) return;
+        if (hasVariants) {
+            if (selectedVariant) {
+                onAddToCart(product.id, selectedVariant.id);
+            } else {
+                setShowOptions(true);
+            }
+        } else {
+            onAddToCart(product.id);
+        }
+    };
+
     return (
         <div className="bg-white border border-gray-100 rounded-xl overflow-hidden 
-                    shadow-sm hover:shadow-md transition max-w-[240px] mt-2 ml-10">
+                    shadow-sm hover:shadow-md transition w-[220px] shrink-0 mt-2">
             {/* Image */}
-            <div className="w-full h-24 bg-gray-50 overflow-hidden">
+            <div className="w-full h-24 bg-gray-50 overflow-hidden relative group">
                 {product.image_url ? (
                     <img
                         src={product.image_url}
@@ -29,26 +84,69 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
                         No image
                     </div>
                 )}
+
+                {/* Variant Badge */}
+                {hasVariants && (
+                    <div className="absolute top-1 right-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
+                        {product.variants?.length} options
+                    </div>
+                )}
             </div>
 
             {/* Content */}
             <div className="p-2.5">
-                <h4 className="font-medium text-gray-900 text-xs truncate">{product.name}</h4>
+                <h4 className="font-medium text-gray-900 text-xs truncate" title={product.name}>{product.name}</h4>
 
-                <div className="flex items-center justify-between mt-2">
-                    <span className="font-bold text-violet-600 text-xs">
-                        {product.price.toLocaleString()}₮
-                    </span>
+                {/* Variant Selection UI */}
+                {showOptions && hasVariants && (
+                    <div className="mt-2 space-y-2 bg-gray-50 p-2 rounded-lg border border-gray-100 mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        {optionNames.map(name => (
+                            <div key={name}>
+                                <label className="text-[10px] text-gray-500 font-medium block mb-1">{name}</label>
+                                <div className="flex flex-wrap gap-1">
+                                    {getValuesForOption(name).map(val => (
+                                        <button
+                                            key={val}
+                                            onClick={() => handleOptionSelect(name, val)}
+                                            className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors
+                                                ${selectedOptions[name] === val
+                                                    ? 'bg-violet-600 text-white border-violet-600'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'}`}
+                                        >
+                                            {val}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-50">
+                    <div className="flex flex-col">
+                        <span className="font-bold text-violet-600 text-xs">
+                            {(selectedVariant?.price || product.price).toLocaleString()}₮
+                        </span>
+                        {selectedVariant && (
+                            <span className="text-[10px] text-gray-400">
+                                {selectedVariant.name}
+                            </span>
+                        )}
+                    </div>
 
                     {onAddToCart && (
                         <button
-                            onClick={() => onAddToCart(product.id)}
-                            className="flex items-center gap-1 px-2 py-1 
-                                     bg-violet-600 text-white text-[10px] font-medium 
-                                     rounded-lg hover:bg-violet-700 transition"
+                            onClick={handleAddToCart}
+                            disabled={hasVariants && showOptions && !selectedVariant}
+                            className={`flex items-center gap-1 px-2 py-1 
+                                     text-[10px] font-medium 
+                                     rounded-lg transition
+                                     ${hasVariants && showOptions && !selectedVariant
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-violet-600 text-white hover:bg-violet-700'}`}
                         >
                             <ShoppingCart className="w-3 h-3" />
-                            Сагслах
+                            {hasVariants && !selectedVariant ? "Сонгох" : "Сагслах"}
                         </button>
                     )}
                 </div>

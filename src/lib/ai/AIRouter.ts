@@ -1,9 +1,9 @@
 /**
- * AIRouter - Routes AI requests to appropriate provider based on plan
+ * AIRouter - Routes AI requests to appropriate GPT-5 Family model
  * 
- * Hybrid Strategy:
- * - All plans use OpenAI GPT-5 family
- * - Plan determines which model (Nano, Mini, Full)
+ * Strategy:
+ * - All plans use GPT-5 Family models
+ * - Plan determines the specific model (Nano, Mini, Full)
  */
 
 import OpenAI from 'openai';
@@ -34,7 +34,7 @@ const openai = new OpenAI({
 const MODEL_MAPPING: Record<AIModel, string> = {
     'gpt-5-nano': process.env.GPT5_NANO_MODEL || 'gpt-4o-mini',
     'gpt-5-mini': process.env.GPT5_MINI_MODEL || 'gpt-4o-mini',
-    'gpt-5': process.env.GPT5_MODEL || 'gpt-4o',
+    'gpt-5': process.env.GPT5_MODEL || 'gpt-4o', // Backend flagship
 };
 
 /**
@@ -136,16 +136,17 @@ export async function routeToAI(
     let quickReplies: Array<{ title: string; payload: string }> | undefined;
 
     try {
-        logger.info(`AIRouter: Using ${planConfig.model} for ${planType} plan`);
+        // Get actual model and GPT-5 display name
+        const modelName = planConfig.model;
+        const backendModel = MODEL_MAPPING[modelName];
 
-        // Get actual model name
-        const modelName = MODEL_MAPPING[planConfig.model];
+        logger.info(`AIRouter: Routing to GPT-5 Family [${modelName}] (Backend: ${backendModel})`);
 
         // Build system prompt
         const systemPrompt = buildSystemPrompt({
             ...context,
             planFeatures: {
-                ai_model: modelName as 'gpt-4o-mini' | 'gpt-4o',
+                ai_model: modelName, // Pass GPT-5 name to PromptService
                 sales_intelligence: planConfig.features.salesIntelligence,
                 ai_memory: planConfig.features.memory,
                 max_tokens: planConfig.maxTokens,
@@ -164,10 +165,10 @@ export async function routeToAI(
             : undefined;
 
         return await retryOperation(async () => {
-            logger.info(`Sending to OpenAI ${modelName}...`);
+            logger.info(`Sending to ${modelName} (${backendModel})...`);
 
             const response = await openai.chat.completions.create({
-                model: modelName,
+                model: backendModel,
                 messages: messages,
                 max_completion_tokens: planConfig.maxTokens,
                 tools: planTools,
@@ -245,7 +246,7 @@ export async function routeToAI(
 
                 // Call OpenAI again with tool results
                 const secondResponse = await openai.chat.completions.create({
-                    model: modelName,
+                    model: backendModel,
                     messages: messages,
                     max_completion_tokens: planConfig.maxTokens,
                 });

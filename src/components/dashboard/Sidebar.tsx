@@ -55,15 +55,15 @@ export function Sidebar() {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen bg-[#111111] text-white transition-all duration-300 z-50 hidden md:flex flex-col ${collapsed ? 'w-20' : 'w-64'
+            className={`fixed left-0 top-0 h-screen bg-neutral-950 text-white transition-all duration-300 z-50 hidden md:flex flex-col ${collapsed ? 'w-20' : 'w-64'
                 }`}
         >
             {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-4 border-b border-[#2a2d2b]">
+            <div className="flex items-center justify-between h-16 px-4 border-b border-neutral-800">
                 {!collapsed && (
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-[#65c51a] flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">S</span>
+                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center">
+                            <span className="text-neutral-900 font-bold text-lg">S</span>
                         </div>
                         <span className="font-semibold text-lg text-white">
                             Syncly
@@ -71,20 +71,20 @@ export function Sidebar() {
                     </div>
                 )}
                 {collapsed && (
-                    <div className="w-9 h-9 rounded-lg bg-[#65c51a] flex items-center justify-center mx-auto">
-                        <span className="text-white font-bold text-lg">S</span>
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center mx-auto">
+                        <span className="text-neutral-900 font-bold text-lg">S</span>
                     </div>
                 )}
             </div>
 
             {/* Shop Status */}
             {!collapsed && shop && (
-                <div className="mx-3 mt-4 p-3 bg-[#2a2d2b] rounded-lg">
+                <div className="mx-3 mt-4 p-3 bg-neutral-900 rounded-lg border border-neutral-800">
                     <div className="flex items-center gap-2 text-sm">
                         {shop.facebook_page_id ? (
                             <>
-                                <div className="w-2 h-2 bg-[#65c51a] rounded-full"></div>
-                                <span className="text-[#65c51a] text-xs">Chatbot active</span>
+                                <div className="w-2 h-2 bg-gold rounded-full"></div>
+                                <span className="text-gold text-xs">Chatbot active</span>
                             </>
                         ) : (
                             <>
@@ -96,7 +96,7 @@ export function Sidebar() {
                     {!shop.facebook_page_id && (
                         <Link
                             href="/setup"
-                            className="mt-2 flex items-center gap-1 text-xs text-[#65c51a] hover:text-[#7dd93a]"
+                            className="mt-2 flex items-center gap-1 text-xs text-gold hover:text-gold-light"
                         >
                             <Facebook className="w-3 h-3" />
                             Connect
@@ -115,12 +115,12 @@ export function Sidebar() {
 
                         const LinkContent = (
                             <>
-                                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-[#a1a1aa] group-hover:text-white'
+                                <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-neutral-900' : 'text-neutral-400 group-hover:text-white'
                                     }`} />
                                 {!collapsed && (
                                     <div className="flex-1 flex items-center justify-between">
                                         <span className="font-medium text-sm">{item.name}</span>
-                                        {isLocked && <Lock className="w-3 h-3 text-[#a1a1aa]" />}
+                                        {isLocked && <Lock className="w-3 h-3 text-neutral-500" />}
                                     </div>
                                 )}
                             </>
@@ -138,7 +138,7 @@ export function Sidebar() {
                                                 }
                                             });
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-[#a1a1aa] hover:bg-[#2a2d2b] cursor-not-allowed opacity-70"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-neutral-400 hover:bg-neutral-800 cursor-not-allowed opacity-70"
                                     >
                                         {LinkContent}
                                     </button>
@@ -152,8 +152,8 @@ export function Sidebar() {
                                     href={item.href}
                                     data-tour={item.tour}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                                        ? 'bg-[#65c51a] text-white'
-                                        : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'
+                                        ? 'bg-gold text-neutral-900 font-medium'
+                                        : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
                                         }`}
                                 >
                                     {LinkContent}
@@ -166,21 +166,21 @@ export function Sidebar() {
 
             {/* Pro Badge - Only show if on Free/Trial plans */}
             {!collapsed && !isPaidPlan && (
-                <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg">
+                <div className="mx-3 mb-4 p-4 bg-neutral-900 rounded-lg border border-neutral-800">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="text-white font-semibold text-sm">Syncly</span>
-                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded">Starter</span>
+                        <span className="px-2 py-0.5 bg-gold text-neutral-900 text-xs font-bold rounded">Starter</span>
                     </div>
-                    <ul className="text-xs text-[#a1a1aa] space-y-1">
+                    <ul className="text-xs text-neutral-400 space-y-1">
                         <li>• Basic analytics</li>
                         <li>• AI-assistant</li>
                         <li>• Email support</li>
                     </ul>
-                    <div className="mt-3 text-[#65c51a] font-semibold text-sm">
+                    <div className="mt-3 text-gold font-semibold text-sm">
                         ₮149,000 / month
                     </div>
                     <Link href="/dashboard/subscription">
-                        <button className="w-full mt-3 py-2 bg-[#65c51a] text-white font-medium rounded-lg text-sm hover:bg-[#56a816] transition-colors">
+                        <button className="w-full mt-3 py-2 bg-gold text-neutral-900 font-semibold rounded-lg text-sm hover:bg-gold-light transition-colors">
                             Upgrade now
                         </button>
                     </Link>
@@ -188,15 +188,15 @@ export function Sidebar() {
             )}
 
             {!collapsed && isPaidPlan && (
-                <div className="mx-3 mb-4 p-4 bg-[#2a2d2b] rounded-lg border border-[#65c51a]/30">
+                <div className="mx-3 mb-4 p-4 bg-neutral-900 rounded-lg border border-gold/30">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-white font-medium text-sm">Current Plan</span>
-                        <span className="px-2 py-0.5 bg-[#65c51a] text-white text-xs font-medium rounded uppercase">{plan.slug}</span>
+                        <span className="px-2 py-0.5 bg-gold text-neutral-900 text-xs font-bold rounded uppercase">{plan.slug}</span>
                     </div>
 
                     {/* Message Usage */}
                     <div className="mb-3">
-                        <div className="flex justify-between text-xs text-[#a1a1aa] mb-1">
+                        <div className="flex justify-between text-xs text-neutral-400 mb-1">
                             <span>Messages</span>
                             <span>
                                 {usage?.messages_count || 0} / {
@@ -206,9 +206,9 @@ export function Sidebar() {
                                 }
                             </span>
                         </div>
-                        <div className="h-1.5 bg-[#3a3d3b] rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-[#65c51a] rounded-full transition-all duration-500"
+                                className="h-full bg-gold rounded-full transition-all duration-500"
                                 style={{
                                     width: `${limits?.max_messages === -1 ? 5 : Math.min(
                                         ((usage?.messages_count || 0) / (limits?.max_messages || 1)) * 100,
@@ -219,14 +219,14 @@ export function Sidebar() {
                         </div>
                     </div>
 
-                    <Link href="/dashboard/subscription" className="text-xs text-[#65c51a] hover:underline">
+                    <Link href="/dashboard/subscription" className="text-xs text-gold hover:text-gold-light hover:underline">
                         Manage subscription
                     </Link>
                 </div>
             )}
 
             {/* Bottom Menu */}
-            <div className="px-3 pb-4 border-t border-[#2a2d2b] pt-4">
+            <div className="px-3 pb-4 border-t border-neutral-800 pt-4">
                 <ul className="space-y-1">
                     {bottomMenuItems.map((item) => {
                         const isActive = pathname === item.href;
@@ -235,8 +235,8 @@ export function Sidebar() {
                                 <Link
                                     href={item.href}
                                     className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${isActive
-                                        ? 'bg-[#2a2d2b] text-white'
-                                        : 'text-[#a1a1aa] hover:bg-[#2a2d2b] hover:text-white'
+                                        ? 'bg-neutral-800 text-gold'
+                                        : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
                                         }`}
                                 >
                                     <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -251,7 +251,7 @@ export function Sidebar() {
             {/* Collapse button */}
             <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="absolute bottom-20 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#2a2d2b] hover:bg-[#3a3d3b] flex items-center justify-center transition-colors"
+                className="absolute bottom-20 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center transition-colors"
             >
                 {collapsed ? <ChevronRight className="w-4 h-4 text-white" /> : <ChevronLeft className="w-4 h-4 text-white" />}
             </button>

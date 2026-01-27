@@ -142,7 +142,7 @@ describe('StatsCard', () => {
                     icon={Package}
                 />
             );
-            const iconContainer = container.querySelector('.bg-\\[\\#65c51a\\]');
+            const iconContainer = container.querySelector('.bg-gold');
             expect(iconContainer).toBeInTheDocument();
         });
 

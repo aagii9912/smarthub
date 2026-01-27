@@ -99,7 +99,7 @@ export default function DashboardPage() {
                         title="Өнөөдөр"
                         value={stats.todayOrders.toString()}
                         icon={ShoppingCart}
-                        iconColor="bg-[#65c51a]"
+                        iconColor="bg-gold"
                     />
                     <StatsCard
                         title="Орлого"
@@ -107,13 +107,13 @@ export default function DashboardPage() {
                             ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
                             : `₮${stats.totalRevenue.toLocaleString()}`}
                         icon={TrendingUp}
-                        iconColor="bg-[#65c51a]"
+                        iconColor="bg-gold"
                     />
                     <StatsCard
                         title="Харилцагч"
                         value={stats.totalCustomers.toString()}
                         icon={Users}
-                        iconColor="bg-[#65c51a]"
+                        iconColor="bg-gold"
                     />
                     <StatsCard
                         title="Хүлээгдэж буй"

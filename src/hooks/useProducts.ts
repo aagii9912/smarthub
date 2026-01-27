@@ -1,5 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+
+export interface ProductVariant {
+    id: string;
+    product_id: string;
+    sku: string | null;
+    name: string;
+    options: Record<string, string>;
+    price: number | null;
+    stock: number;
+    is_active: boolean;
+}
+
 export interface Product {
     id: string;
     name: string;
@@ -13,6 +25,9 @@ export interface Product {
     colors: string[];
     sizes: string[];
     images: string[];
+    // Variant support
+    has_variants?: boolean;
+    variants?: ProductVariant[];
     // Appointment-specific fields
     duration_minutes: number | null;
     available_days: string[] | null;

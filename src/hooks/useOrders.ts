@@ -32,11 +32,15 @@ interface OrdersResponse {
     orders: OrderWithDetails[];
 }
 
-export function useOrders() {
+export function useOrders(dateRange?: { from: Date | undefined; to: Date | undefined }) {
     return useQuery({
-        queryKey: ['orders'],
+        queryKey: ['orders', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
         queryFn: async (): Promise<OrderWithDetails[]> => {
-            const res = await fetch('/api/orders', {
+            const params = new URLSearchParams();
+            if (dateRange?.from) params.set('from', dateRange.from.toISOString());
+            if (dateRange?.to) params.set('to', dateRange.to.toISOString());
+
+            const res = await fetch(`/api/dashboard/orders?${params.toString()}`, {
                 headers: {
                     'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
                 }

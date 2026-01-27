@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // Components
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
 import { FacebookStep } from '@/components/setup/FacebookStep';
+import { InstagramStep } from '@/components/setup/InstagramStep';
 import { ProductStep } from '@/components/setup/ProductStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
 
@@ -143,6 +144,23 @@ function SetupContent() {
     setStep(3);
   };
 
+  const handleManualInstagramSave = async (data: { businessAccountId: string; username: string; accessToken: string }) => {
+    const res = await fetch('/api/shop', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instagram_business_account_id: data.businessAccountId,
+        instagram_username: data.username,
+        instagram_access_token: data.accessToken
+      })
+    });
+
+    if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
+
+    await refreshShop();
+    setStep(4);
+  };
+
   const handleProductsComplete = async (products: any[]) => {
     const res = await fetch('/api/shop/products', {
       method: 'POST',
@@ -152,8 +170,8 @@ function SetupContent() {
 
     if (!res.ok) throw new Error('Бүтээгдэхүүн хадгалахад алдаа гарлаа');
 
-    // Move to AI Step instead of finishing
-    setStep(4);
+    // Move to AI Step
+    setStep(5);
   };
 
   const handleAIComplete = async (aiData: any) => {
@@ -204,7 +222,7 @@ function SetupContent() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-12">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all border ${step >= s
                 ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
@@ -212,7 +230,7 @@ function SetupContent() {
                 }`}>
                 {step > s ? <Check className="w-5 h-5" /> : s}
               </div>
-              {s < 4 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
+              {s < 5 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>
@@ -252,14 +270,27 @@ function SetupContent() {
           )}
 
           {step === 3 && (
-            <ProductStep
-              initialProducts={[]} // Could fetch existing if needed
+            <InstagramStep
+              initialData={{
+                igConnected: !!shop?.instagram_business_account_id,
+                igUsername: shop?.instagram_username || '',
+                igBusinessAccountId: shop?.instagram_business_account_id || ''
+              }}
+              onManualSave={handleManualInstagramSave}
               onBack={() => setStep(2)}
-              onComplete={handleProductsComplete}
+              onNext={() => setStep(4)}
             />
           )}
 
           {step === 4 && (
+            <ProductStep
+              initialProducts={[]}
+              onBack={() => setStep(3)}
+              onComplete={handleProductsComplete}
+            />
+          )}
+
+          {step === 5 && (
             <AISetupStep
               initialData={{
                 description: shop?.description || '',

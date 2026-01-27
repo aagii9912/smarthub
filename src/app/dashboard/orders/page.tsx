@@ -8,7 +8,7 @@ import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils/date';
 import { useOrders, OrderWithDetails } from '@/hooks/useOrders';
-import { useUpdateOrder } from '@/hooks/useUpdateOrder';
+import { useUpdateOrder, useBulkUpdateOrders } from '@/hooks/useUpdateOrder';
 import {
   Package,
   User,
@@ -35,10 +35,12 @@ const statusOptions = [
 ];
 
 export default function OrdersPage() {
-  const { data: orders = [], isLoading, refetch, isRefetching } = useOrders();
-  const { mutate: updateStatus } = useUpdateOrder();
-
   const [filter, setFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const { data: orders = [], isLoading, refetch, isRefetching } = useOrders(dateRange);
+  const { mutate: updateStatus } = useUpdateOrder();
+  const { mutate: bulkUpdateStatus } = useBulkUpdateOrders();
+
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
@@ -140,13 +142,16 @@ export default function OrdersPage() {
     }
   };
 
+  // Force table reset after bulk action
+  const [tableKey, setTableKey] = useState(0);
+
   // Bulk status update
   const handleBulkStatusUpdate = (newStatus: string) => {
-    bulkSelectedOrders.forEach((order) => {
-      updateStatus({ orderId: order.id, status: newStatus });
-    });
+    const orderIds = bulkSelectedOrders.map(o => o.id);
+    bulkUpdateStatus({ orderIds, status: newStatus });
     setShowBulkStatusModal(false);
     setBulkSelectedOrders([]);
+    setTableKey(prev => prev + 1); // Reset table selection
   };
 
   if (isLoading) {
@@ -173,6 +178,39 @@ export default function OrdersPage() {
           <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
           Шинэчлэх
         </Button>
+      </div>
+
+      {/* Date Filter */}
+      <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">Эхлэх огноо</label>
+          <input
+            type="date"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }))}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1 block">Дуусах огноо</label>
+          <input
+            type="date"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(new Date(e.target.value).setHours(23, 59, 59, 999)) : undefined }))}
+          />
+        </div>
+        {/* Active Filter Badge */}
+        {(dateRange.from || dateRange.to) && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-medium mb-1">
+            <span>Шүүлтүүр идэвхтэй</span>
+            <button onClick={() => {
+              setDateRange({ from: undefined, to: undefined });
+              // Reset inputs (hacky without refs, but okay for MVP)
+              document.querySelectorAll('input[type="date"]').forEach((el: any) => el.value = '');
+            }} className="hover:bg-violet-200 rounded-full p-0.5">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter Tabs */}
@@ -207,6 +245,7 @@ export default function OrdersPage() {
         {/* Orders DataTable - Desktop */}
         <div className="lg:col-span-2 hidden md:block">
           <DataTable
+            key={tableKey}
             columns={columns}
             data={filteredOrders}
             enableRowSelection

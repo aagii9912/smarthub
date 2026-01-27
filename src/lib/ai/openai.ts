@@ -20,15 +20,15 @@ const openai = new OpenAI({
 });
 
 /**
- * Token limits configuration by plan
- * Optimized for e-commerce sales chatbot use cases:
- * - Starter: 600 (basic product info, short responses)
- * - Pro: 1000 (detailed sales pitches, multiple products)
- * - Ultimate: 1500 (comprehensive responses, complex orders)
+ * Token limits configuration by GPT-5 Family plan
+ * Optimized for high-performance e-commerce sales:
+ * - Nano: 600
+ * - Mini: 1000
+ * - Full: 1500
  */
-const DEFAULT_MAX_TOKENS = 800;    // Fallback default
+const DEFAULT_MAX_TOKENS = 1000;   // Updated for GPT-5 Mini default
 const MIN_TOKENS = 300;           // Minimum to ensure complete responses
-const MAX_TOKENS_LIMIT = 2000;    // Safety cap to prevent runaway costs
+const MAX_TOKENS_LIMIT = 4000;    // Increased for GPT-5 context windows
 
 /**
  * Get max tokens for response based on plan
@@ -40,14 +40,20 @@ function getMaxTokens(planFeatures?: ChatContext['planFeatures']): number {
         return Math.min(Math.max(planFeatures.max_tokens, MIN_TOKENS), MAX_TOKENS_LIMIT);
     }
 
-    // Default based on model
-    if (planFeatures?.ai_model === 'gpt-4o') {
-        return 1200;  // Higher for premium model
+    // Default based on GPT-5 Family model
+    if (planFeatures?.ai_model === 'gpt-5') {
+        return 1500;
+    }
+    if (planFeatures?.ai_model === 'gpt-5-mini') {
+        return 1000;
+    }
+    if (planFeatures?.ai_model === 'gpt-5-nano') {
+        return 600;
     }
 
     // Check if sales intelligence is enabled (Pro+ plans)
     if (planFeatures?.sales_intelligence) {
-        return 1000;  // Sales responses need more tokens
+        return 1200;  // Sales responses need more tokens
     }
 
     return DEFAULT_MAX_TOKENS;
@@ -112,7 +118,7 @@ ${productList}
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini', // or 'gpt-4o' if vision needed, currently alias usually points to vision capable model or use gpt-4o
+            model: 'gpt-4o-mini', // Vision backend for GPT-5 Mini/Nano
             messages: [
                 {
                     role: 'user',
@@ -148,7 +154,7 @@ ${productList}
 }
 
 /**
- * Generate chat response using GPT-4o mini with tool calling
+ * Generate chat response using GPT-5 Family models
  */
 export async function generateChatResponse(
     message: string,
@@ -187,16 +193,20 @@ export async function generateChatResponse(
         logger.debug('System prompt prepared', { length: systemPrompt.length });
 
         return await retryOperation(async () => {
-            // Dynamic model selection based on plan
-            const aiModel = context.planFeatures?.ai_model || 'gpt-4o-mini';
-            logger.info(`Sending message to OpenAI ${aiModel}...`);
+            // Dynamic model selection (mapped to GPT-5 Family)
+            const gpt5Model = context.planFeatures?.ai_model || 'gpt-5-mini';
+
+            // Map GPT-5 names to actual backend models if needed
+            const backendModel = gpt5Model === 'gpt-5' ? 'gpt-4o' : 'gpt-4o-mini';
+
+            logger.info(`Sending message to GPT-5 Family (${gpt5Model} -> ${backendModel})...`);
 
             // Dynamic token limit based on plan
             const maxTokens = getMaxTokens(context.planFeatures);
             logger.debug('Using max_tokens:', { maxTokens, plan: context.planFeatures });
 
             const response = await openai.chat.completions.create({
-                model: aiModel,
+                model: backendModel,
                 messages: messages,
                 max_completion_tokens: maxTokens,
                 tools: AI_TOOLS,
@@ -261,9 +271,9 @@ export async function generateChatResponse(
                     }
                 }
 
-                // Call OpenAI again with tool results (use same token limit)
+                // Call OpenAI again with tool results
                 const secondResponse = await openai.chat.completions.create({
-                    model: aiModel,
+                    model: backendModel,
                     messages: messages,
                     max_completion_tokens: maxTokens,
                 });
