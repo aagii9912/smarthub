@@ -26,7 +26,11 @@ export interface ActiveCart {
 }
 
 async function fetchActiveCarts(): Promise<ActiveCart[]> {
-    const res = await fetch('/api/dashboard/active-carts');
+    const res = await fetch('/api/dashboard/active-carts', {
+        headers: {
+            'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || ''
+        }
+    });
     if (!res.ok) {
         throw new Error('Failed to fetch active carts');
     }

@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getStartOfToday, getStartOfPeriod } from '@/lib/utils/date';
+import { getStartOfPeriod } from '@/lib/utils/date';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
+import { apiError } from '@/lib/utils/api-response';
 
 export async function GET(request: NextRequest) {
   try {
     const authShop = await getClerkUserShop();
+
+    // Rate limiting (identify by shop ID or use IP fallback)
+    const identifier = authShop?.id || request.headers.get('x-forwarded-for') || 'anonymous';
+    const rateLimitResult = checkRateLimit(`stats:${identifier}`, RATE_LIMITS.dashboard);
+
+    if (!rateLimitResult.allowed) {
+      const response = apiError('Too many requests. Please try again later.', null, {
+        status: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+      });
+      // Add rate limit headers
+      const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.dashboard.maxRequests);
+      Object.entries(headers).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
 
     // Get period from query params (default: today)
     const { searchParams } = new URL(request.url);

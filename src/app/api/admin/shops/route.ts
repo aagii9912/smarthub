@@ -126,8 +126,21 @@ export async function PATCH(request: NextRequest) {
             updateData.is_active = is_active;
         }
 
+        // When plan_id changes, sync subscription_plan with the plan's slug
         if (plan_id) {
             updateData.plan_id = plan_id;
+
+            // Fetch the plan slug to keep subscription_plan in sync
+            const { data: plan } = await supabase
+                .from('plans')
+                .select('slug')
+                .eq('id', plan_id)
+                .single();
+
+            if (plan?.slug) {
+                updateData.subscription_plan = plan.slug;
+                console.log(`[Admin Shops] Syncing plan_id=${plan_id} with subscription_plan=${plan.slug}`);
+            }
         }
 
         // Shop Details
@@ -136,8 +149,10 @@ export async function PATCH(request: NextRequest) {
         if (body.phone !== undefined) updateData.phone = body.phone;
         if (body.description !== undefined) updateData.description = body.description; // Shop description
 
-        // Subscription Fields
-        if (body.subscription_plan !== undefined) updateData.subscription_plan = body.subscription_plan;
+        // Subscription Fields (only update subscription_plan if not already set by plan_id sync above)
+        if (body.subscription_plan !== undefined && !updateData.subscription_plan) {
+            updateData.subscription_plan = body.subscription_plan;
+        }
         if (body.subscription_status !== undefined) updateData.subscription_status = body.subscription_status;
         if (body.trial_ends_at !== undefined) updateData.trial_ends_at = body.trial_ends_at;
 

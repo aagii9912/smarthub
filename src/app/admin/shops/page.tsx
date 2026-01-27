@@ -411,7 +411,7 @@ export default function ShopsPage() {
             {/* Edit Shop Modal */}
             {editingShop && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
                         <div className="flex items-center justify-between p-4 border-b">
                             <h2 className="text-lg font-semibold">Edit Shop</h2>
                             <button
@@ -422,7 +422,7 @@ export default function ShopsPage() {
                             </button>
                         </div>
 
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-4 overflow-y-auto flex-1">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Дэлгүүрийн нэр *

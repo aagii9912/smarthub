@@ -7,11 +7,35 @@ interface DashboardStats {
     totalCustomers: number;
 }
 
+interface RecentOrder {
+    id: string;
+    status: string;
+    total_amount: number;
+    created_at: string;
+    customer_name: string | null;
+}
+
+interface ActiveConversation {
+    id: string;
+    customer_id: string;
+    customer_name: string | null;
+    last_message: string | null;
+    updated_at: string;
+    unread_count: number;
+}
+
+interface LowStockProduct {
+    id: string;
+    name: string;
+    stock: number;
+    reserved_stock: number;
+}
+
 interface DashboardData {
     stats: DashboardStats;
-    recentOrders: any[];
-    activeConversations: any[];
-    lowStockProducts: any[];
+    recentOrders: RecentOrder[];
+    activeConversations: ActiveConversation[];
+    lowStockProducts: LowStockProduct[];
     unansweredCount: number;
 }
 
