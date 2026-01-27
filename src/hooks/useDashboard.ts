@@ -12,23 +12,24 @@ interface RecentOrder {
     status: string;
     total_amount: number;
     created_at: string;
-    customer_name: string | null;
+    customers: { name: string } | null;
 }
 
 interface ActiveConversation {
-    id: string;
-    customer_id: string;
-    customer_name: string | null;
-    last_message: string | null;
-    updated_at: string;
-    unread_count: number;
+    customerId: string;
+    customerName: string;
+    messageCount: number;
+    lastMessage: string;
+    lastMessageAt: string;
+    lastIntent: string | null;
+    isAnswered: boolean;
 }
 
 interface LowStockProduct {
     id: string;
     name: string;
     stock: number;
-    reserved_stock: number;
+    images: string[];
 }
 
 interface DashboardData {
