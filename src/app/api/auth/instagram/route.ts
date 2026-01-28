@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
         'pages_manage_metadata',
         'instagram_basic',
         'instagram_manage_messages',
-        'instagram_business_manage_messages',
         'public_profile',
     ].join(',');
 
