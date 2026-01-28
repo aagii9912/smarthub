@@ -73,13 +73,23 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(`${origin}/setup?ig_error=pages_error`);
         }
 
+        // Debug: Log all pages data
+        console.log('Facebook Pages data:', JSON.stringify(pagesData.data, null, 2));
+
         // Filter pages that have Instagram Business Account connected
         const pagesWithInstagram: PageWithInstagram[] = (pagesData.data || [])
             .filter((page: PageWithInstagram) => page.instagram_business_account?.id)
             .slice(0, 10);
 
+        console.log('Pages with Instagram:', pagesWithInstagram.length);
+
         if (pagesWithInstagram.length === 0) {
-            return NextResponse.redirect(`${origin}/setup?ig_error=no_instagram_account`);
+            // Debug: Check if there are any pages at all
+            const allPages = pagesData.data || [];
+            console.log('Total Facebook Pages:', allPages.length);
+            console.log('Pages without IG:', allPages.map((p: any) => ({ id: p.id, name: p.name, hasIG: !!p.instagram_business_account })));
+
+            return NextResponse.redirect(`${origin}/setup?ig_error=no_instagram_account&pages=${allPages.length}`);
         }
 
         // Prepare Instagram accounts data
