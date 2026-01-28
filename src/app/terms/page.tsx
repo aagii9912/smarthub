@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-    title: 'Terms of Service | Syncly',
-    description: 'Syncly үйлчилгээний ашиглах нөхцөл',
+    title: 'Terms of Service | SmartHub',
+    description: 'SmartHub үйлчилгээний ашиглах нөхцөл',
 };
 
 export default function TermsOfServicePage() {
@@ -31,7 +31,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Үйлчилгээний тухай</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Syncly нь Facebook Messenger платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
+                            SmartHub нь Facebook Messenger болон Instagram платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
                             Манай үйлчилгээ нь бизнесүүдэд харилцагчидтай автоматаар харилцах, захиалга авах,
                             борлуулалтаа нэмэгдүүлэх боломжийг олгодог.
                         </p>
@@ -72,7 +72,7 @@ export default function TermsOfServicePage() {
                             Манай AI chatbot нь:
                         </p>
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
-                            <li>Google Gemini AI ашиглан хариулт үүсгэдэг</li>
+                            <li>SmartHub-ийн хөгжүүлсэн AI систем ашиглан хариулт үүсгэдэг</li>
                             <li>Автоматаар мессежүүдэд хариулдаг</li>
                             <li>100% үнэн зөв байхыг баталгаажуулж чаддаггүй</li>
                             <li>Эмнэлэг, хууль зүй, санхүүгийн зөвлөгөө өгөхгүй</li>
@@ -100,7 +100,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">6. Оюуны өмч</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Syncly платформ, код, дизайн, контент нь манай оюуны өмч юм. Та дараах зүйлийг хийж болохгүй:
+                            SmartHub платформ, код, дизайн, контент нь манай оюуны өмч юм. Та дараах зүйлийг хийж болохгүй:
                         </p>
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
                             <li>Манай код, систем хуулбарлах</li>
@@ -132,7 +132,7 @@ export default function TermsOfServicePage() {
                         </p>
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
                             <li><strong>Facebook/Meta:</strong> Та Facebook-ийн Terms of Service-ийг мөрдөх ёстой</li>
-                            <li><strong>Google:</strong> Gemini AI үйлчилгээний нөхцөл хамаарна</li>
+                            <li><strong>AI систем:</strong> SmartHub-ийн хөгжүүлсэн AI үйлчилгээний нөхцөл</li>
                             <li><strong>Vercel, Supabase:</strong> Тэдний үйлчилгээний нөхцөл хамаарна</li>
                         </ul>
                     </section>

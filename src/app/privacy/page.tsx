@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
                             <li><strong>Supabase:</strong> Өгөгдлийн сан, нууцлалтай, шифрлэгдсэн</li>
                             <li><strong>Vercel:</strong> Hosting үйлчилгээ, SSL сертификаттай</li>
-                            <li><strong>Google Gemini AI:</strong> AI боловсруулалт, түр хадгалалт</li>
+                            <li><strong>AI туслах:</strong> Хариулт үүсгэх боловсруулалт</li>
                         </ul>
                     </section>
 
@@ -97,7 +97,7 @@ export default function PrivacyPolicyPage() {
                         </p>
                         <ul className="list-disc pl-6 text-gray-700 dark:text-gray-300 space-y-2 mb-4">
                             <li><strong>Facebook/Meta:</strong> Messenger платформ</li>
-                            <li><strong>Google:</strong> Gemini AI үйлчилгээ</li>
+                            <li><strong>AI систем:</strong> Хариулт үүсгэх боловсруулалт</li>
                             <li><strong>Supabase:</strong> Database хостинг</li>
                             <li><strong>Vercel:</strong> Веб хостинг</li>
                         </ul>
