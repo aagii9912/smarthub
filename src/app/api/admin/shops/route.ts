@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
             updateData.is_active = is_active;
         }
 
-        // When plan_id changes, sync subscription_plan with the plan's slug
+        // When plan_id changes, sync subscription_plan with the plan's slug AND update subscriptions table
         if (plan_id) {
             updateData.plan_id = plan_id;
 
@@ -139,7 +139,49 @@ export async function PATCH(request: NextRequest) {
 
             if (plan?.slug) {
                 updateData.subscription_plan = plan.slug;
+                updateData.subscription_status = 'active'; // Activate subscription when plan is set
                 console.log(`[Admin Shops] Syncing plan_id=${plan_id} with subscription_plan=${plan.slug}`);
+            }
+
+            // Also update/create subscription in subscriptions table for UI consistency
+            // First check if subscription exists
+            const { data: existingSubscription } = await supabase
+                .from('subscriptions')
+                .select('id')
+                .eq('shop_id', id)
+                .maybeSingle();
+
+            if (existingSubscription) {
+                // Update existing subscription
+                await supabase
+                    .from('subscriptions')
+                    .update({
+                        plan_id: plan_id,
+                        status: 'active',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existingSubscription.id);
+                console.log(`[Admin Shops] Updated subscription ${existingSubscription.id} with plan_id=${plan_id}`);
+            } else {
+                // Create new subscription
+                const { data: newSub, error: subError } = await supabase
+                    .from('subscriptions')
+                    .insert({
+                        shop_id: id,
+                        plan_id: plan_id,
+                        status: 'active',
+                        billing_cycle: 'monthly',
+                        current_period_start: new Date().toISOString(),
+                        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+                    })
+                    .select()
+                    .single();
+
+                if (subError) {
+                    console.error('[Admin Shops] Failed to create subscription:', subError);
+                } else {
+                    console.log(`[Admin Shops] Created new subscription ${newSub.id} for shop ${id}`);
+                }
             }
         }
 
