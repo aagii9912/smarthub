@@ -21,8 +21,9 @@ function SetupContent() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
   const [fbPages, setFbPages] = useState([]);
+  const [igAccounts, setIgAccounts] = useState<any[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [fbToken, setFbToken] = useState<string>(''); // NEW: Store token for AI context
+  const [fbToken, setFbToken] = useState<string>(''); // Store token for AI context
 
   // Handle Facebook OAuth callback
   useEffect(() => {
@@ -35,6 +36,27 @@ function SetupContent() {
     } else if (fbSuccess && pageCount) {
       fetchAvailablePages();
       setStep(2);
+      router.replace('/setup');
+    }
+  }, [searchParams]);
+
+  // Handle Instagram OAuth callback
+  useEffect(() => {
+    const igSuccess = searchParams.get('ig_success');
+    const igError = searchParams.get('ig_error');
+    const igCount = searchParams.get('ig_count');
+
+    if (igError) {
+      const errorMessages: Record<string, string> = {
+        'no_instagram_account': 'Instagram Business Account олдсонгүй. Facebook Page-тэй холбогдсон Instagram account байгаа эсэхийг шалгана уу.',
+        'token_error': 'Access token авахад алдаа гарлаа.',
+        'pages_error': 'Facebook Page татахад алдаа гарлаа.',
+        'config_missing': 'App тохиргоо дутуу байна.',
+      };
+      setError(errorMessages[igError] || `Instagram холболт амжилтгүй: ${igError}`);
+    } else if (igSuccess && igCount) {
+      fetchInstagramAccounts();
+      setStep(3);
       router.replace('/setup');
     }
   }, [searchParams]);
@@ -71,6 +93,17 @@ function SetupContent() {
     } catch (err) {
       console.error('Error fetching pages:', err);
       setError('Facebook Page татахад алдаа гарлаа');
+    }
+  };
+
+  const fetchInstagramAccounts = async () => {
+    try {
+      const res = await fetch('/api/auth/instagram/accounts');
+      const data = await res.json();
+      if (data.accounts) setIgAccounts(data.accounts);
+    } catch (err) {
+      console.error('Error fetching Instagram accounts:', err);
+      setError('Instagram account татахад алдаа гарлаа');
     }
   };
 
@@ -170,6 +203,25 @@ function SetupContent() {
 
     if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
 
+    await refreshShop();
+    setStep(4);
+  };
+
+  const handleInstagramSelect = async (account: any) => {
+    const res = await fetch('/api/shop', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instagram_business_account_id: account.instagramId,
+        instagram_username: account.instagramUsername,
+        instagram_access_token: account.pageAccessToken
+      })
+    });
+
+    if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
+
+    // Clear the accounts list after successful selection
+    setIgAccounts([]);
     await refreshShop();
     setStep(4);
   };
@@ -289,6 +341,9 @@ function SetupContent() {
                 igUsername: shop?.instagram_username || '',
                 igBusinessAccountId: shop?.instagram_business_account_id || ''
               }}
+              igAccounts={igAccounts}
+              onConnect={() => window.location.href = '/api/auth/instagram'}
+              onSelectAccount={handleInstagramSelect}
               onManualSave={handleManualInstagramSave}
               onBack={() => setStep(2)}
               onNext={() => setStep(4)}
