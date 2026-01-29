@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
+import { canUseInstagram } from '@/lib/plan-limits';
 import {
     Store, User, Facebook, Bot, Bell, Shield,
     Save, LogOut, Loader2, Check, AlertCircle,
-    Key, Palette, Globe, CreditCard
+    Key, Palette, Globe, CreditCard, Instagram,
+    Unlink, Crown, ExternalLink
 } from 'lucide-react';
+
 
 export default function SettingsPage() {
     const { user, shop, refreshShop } = useAuth();
@@ -32,6 +35,12 @@ export default function SettingsPage() {
     const [aiEnabled, setAiEnabled] = useState(true);
     const [autoReply, setAutoReply] = useState(true);
     const [welcomeMessage, setWelcomeMessage] = useState('Сайн байна уу! Танд юугаар туслах вэ?');
+
+    // Platform disconnect state
+    const [disconnecting, setDisconnecting] = useState<'facebook' | 'instagram' | null>(null);
+
+    // Check if Instagram is available for this plan
+    const instagramAvailable = canUseInstagram((shop as any)?.subscription_plan);
 
     useEffect(() => {
         if (shop) {
@@ -76,6 +85,29 @@ export default function SettingsPage() {
 
     async function handleLogout() {
         await signOut({ redirectUrl: '/auth/login' });
+    }
+
+    async function handleDisconnect(platform: 'facebook' | 'instagram') {
+        if (!confirm(`${platform === 'facebook' ? 'Facebook' : 'Instagram'}-г салгах уу? Чатбот энэ платформд ажиллахгүй болно.`)) {
+            return;
+        }
+
+        setDisconnecting(platform);
+        try {
+            const res = await fetch('/api/shop/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform })
+            });
+
+            if (!res.ok) throw new Error('Failed to disconnect');
+            await refreshShop();
+        } catch (error) {
+            console.error('Disconnect error:', error);
+            alert('Салгахад алдаа гарлаа');
+        } finally {
+            setDisconnecting(null);
+        }
     }
 
     return (
@@ -214,27 +246,41 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Facebook className="w-5 h-5 text-blue-600" />
-                        Facebook холболт
+                        Facebook Messenger
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {shop?.facebook_page_id ? (
-                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl">
+                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                                    <Check className="w-5 h-5 text-green-600" />
+                                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                    <Check className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-green-900">{shop.facebook_page_name || 'Facebook Page'}</p>
-                                    <p className="text-sm text-green-600">Холбогдсон</p>
+                                    <p className="font-medium text-blue-900">{shop.facebook_page_name || 'Facebook Page'}</p>
+                                    <p className="text-sm text-blue-600">Messenger чатбот идэвхтэй</p>
                                 </div>
                             </div>
-                            <a
-                                href="/setup"
-                                className="text-sm text-green-700 hover:text-green-800 underline"
-                            >
-                                Өөрчлөх
-                            </a>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href="/api/auth/facebook"
+                                    className="text-sm text-blue-600 hover:text-blue-700 underline"
+                                >
+                                    Өөрчлөх
+                                </a>
+                                <button
+                                    onClick={() => handleDisconnect('facebook')}
+                                    disabled={disconnecting === 'facebook'}
+                                    className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600 disabled:opacity-50"
+                                >
+                                    {disconnecting === 'facebook' ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Unlink className="w-4 h-4" />
+                                    )}
+                                    Салгах
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
@@ -244,11 +290,103 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-amber-900">Facebook холбогдоогүй</p>
-                                    <p className="text-sm text-amber-600">Чатбот ажиллуулахын тулд холбоно уу</p>
+                                    <p className="text-sm text-amber-600">Messenger чатбот идэвхжүүлэхийн тулд холбоно уу</p>
                                 </div>
                             </div>
-                            <a href="/setup">
-                                <Button variant="secondary">Холбох</Button>
+                            <a href="/api/auth/facebook">
+                                <Button variant="secondary" className="gap-2">
+                                    <Facebook className="w-4 h-4" />
+                                    Холбох
+                                </Button>
+                            </a>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Instagram Connection */}
+            <Card className={!instagramAvailable ? 'opacity-75' : ''}>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <div className="w-5 h-5 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 rounded flex items-center justify-center">
+                            <Instagram className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        Instagram DM
+                        {!instagramAvailable && (
+                            <span className="ml-2 text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Crown className="w-3 h-3" />
+                                Pro+
+                            </span>
+                        )}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {!instagramAvailable ? (
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                    <Crown className="w-5 h-5 text-amber-500" />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-gray-900">Pro план шаардлагатай</p>
+                                    <p className="text-sm text-gray-500">Instagram DM чатбот Pro+ планд багтсан</p>
+                                </div>
+                            </div>
+                            <a href="/dashboard/subscription">
+                                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 gap-2">
+                                    <Crown className="w-4 h-4" />
+                                    Шинэчлэх
+                                </Button>
+                            </a>
+                        </div>
+                    ) : (shop as any)?.instagram_business_account_id ? (
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                                    <Check className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-purple-900">@{(shop as any).instagram_username || 'Instagram'}</p>
+                                    <p className="text-sm text-purple-600">DM чатбот идэвхтэй</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href="/api/auth/instagram"
+                                    className="text-sm text-purple-600 hover:text-purple-700 underline"
+                                >
+                                    Өөрчлөх
+                                </a>
+                                <button
+                                    onClick={() => handleDisconnect('instagram')}
+                                    disabled={disconnecting === 'instagram'}
+                                    className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600 disabled:opacity-50"
+                                >
+                                    {disconnecting === 'instagram' ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Unlink className="w-4 h-4" />
+                                    )}
+                                    Салгах
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="font-medium text-amber-900">Instagram холбогдоогүй</p>
+                                    <p className="text-sm text-amber-600">DM чатбот идэвхжүүлэхийн тулд холбоно уу</p>
+                                </div>
+                            </div>
+                            <a href="/api/auth/instagram">
+                                <Button variant="secondary" className="gap-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white hover:opacity-90 border-0">
+                                    <Instagram className="w-4 h-4" />
+                                    Холбох
+                                </Button>
                             </a>
                         </div>
                     )}

@@ -7,6 +7,8 @@ import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
+import { canAddShop } from '@/lib/plan-limits';
+
 
 export function Header() {
     const router = useRouter();
@@ -79,8 +81,14 @@ export function Header() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2 md:gap-3">
-                {/* Shop Switcher - show if user has multiple shops */}
-                {shops.length > 1 && <ShopSwitcher />}
+                {/* Shop Switcher - always show with add shop option */}
+                <ShopSwitcher
+                    onAddShop={
+                        canAddShop((shop as any)?.subscription_plan, shops.length)
+                            ? () => router.push('/setup')
+                            : undefined
+                    }
+                />
 
                 {/* Notifications */}
                 <NotificationButton />

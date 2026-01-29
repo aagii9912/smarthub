@@ -13,7 +13,10 @@ interface Customer {
     id: string;
     name: string | null;
     phone: string | null;
+    email: string | null;
     address: string | null;
+    notes: string | null;
+    tags: string[];
     total_orders: number;
     total_spent: number;
     is_vip: boolean;
@@ -49,6 +52,7 @@ export default function CustomersPage() {
         name: '',
         phone: '',
         email: '',
+        address: '',
         notes: ''
     });
 
@@ -90,6 +94,7 @@ export default function CustomersPage() {
                 name: data.customer.name || '',
                 phone: data.customer.phone || '',
                 email: data.customer.email || '',
+                address: data.customer.address || '',
                 notes: data.customer.notes || ''
             });
             setIsDetailOpen(true);
@@ -382,7 +387,7 @@ export default function CustomersPage() {
                                         </p>
                                     )}
                                 </div>
-                                <div className="col-span-2">
+                                <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">И-мэйл</label>
                                     {editMode ? (
                                         <input
@@ -390,35 +395,94 @@ export default function CustomersPage() {
                                             value={editForm.email}
                                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                                             className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="example@mail.com"
                                         />
                                     ) : (
                                         <p className="flex items-center gap-2 text-gray-900">
                                             <Mail className="w-4 h-4 text-gray-400" />
+                                            {selectedCustomer.email || '-'}
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Хаяг</label>
+                                    {editMode ? (
+                                        <input
+                                            type="text"
+                                            value={editForm.address}
+                                            onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            placeholder="Хаяг оруулах"
+                                        />
+                                    ) : (
+                                        <p className="text-gray-900">
                                             {selectedCustomer.address || '-'}
                                         </p>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Tags - Coming Soon */}
+                            {/* Tags */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                                 <div className="flex flex-wrap gap-2">
                                     {selectedCustomer.is_vip && (
                                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-amber-400 to-yellow-500 text-white">
+                                            <Crown className="w-3 h-3" />
                                             VIP
                                         </span>
                                     )}
-                                    <span className="text-sm text-gray-500">Tag feature удахгүй...</span>
+                                    {(selectedCustomer.tags || []).map((tag) => (
+                                        <span
+                                            key={tag}
+                                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${TAG_COLORS[tag] || 'bg-gray-100 text-gray-700'}`}
+                                        >
+                                            {tag}
+                                            <button
+                                                onClick={() => removeTag(selectedCustomer.id, tag)}
+                                                className="ml-1 hover:text-red-500"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {/* Add Tag Dropdown */}
+                                    <div className="relative group">
+                                        <button className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                            <Plus className="w-3 h-3" />
+                                            Tag нэмэх
+                                        </button>
+                                        <div className="absolute left-0 mt-1 py-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 hidden group-hover:block z-10">
+                                            {PREDEFINED_TAGS.filter(tag => !(selectedCustomer.tags || []).includes(tag)).map(tag => (
+                                                <button
+                                                    key={tag}
+                                                    onClick={() => addTag(selectedCustomer.id, tag)}
+                                                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                                                >
+                                                    {tag}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Notes - Coming Soon */}
+                            {/* Notes */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Тэмдэглэл</label>
-                                <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">
-                                    Тэмдэглэл feature удахгүй...
-                                </p>
+                                {editMode ? (
+                                    <textarea
+                                        value={editForm.notes}
+                                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                        rows={3}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        placeholder="Харилцагчийн тухай тэмдэглэл..."
+                                    />
+                                ) : (
+                                    <p className="text-gray-600 bg-gray-50 p-3 rounded-xl min-h-[60px]">
+                                        {selectedCustomer.notes || 'Тэмдэглэл байхгүй'}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Stats */}

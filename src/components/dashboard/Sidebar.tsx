@@ -51,7 +51,12 @@ export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const pathname = usePathname();
     const { shop } = useAuth();
-    const { hasFeature, isPaidPlan, plan, usage, limits } = useFeatures();
+    const { hasFeature, isPaidPlan, isProOrHigher, plan, usage, limits } = useFeatures();
+
+    // Debug: log plan info
+    if (typeof window !== 'undefined') {
+        console.log('[Sidebar DEBUG] plan:', plan, 'isPaidPlan:', isPaidPlan, 'hasFeature cart:', hasFeature('cart_system'));
+    }
 
     return (
         <aside
@@ -110,8 +115,18 @@ export function Sidebar() {
                 <ul className="space-y-1">
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href;
+                        // Features with locks: cart_system, crm_analytics
+                        // Allow access if:
+                        // 1. No feature requirement, OR
+                        // 2. hasFeature returns true, OR  
+                        // 3. User is on any paid plan (multiple checks)
                         // @ts-ignore
-                        const isLocked = item.feature && !hasFeature(item.feature);
+                        const featureEnabled = !item.feature || hasFeature(item.feature);
+                        // Check if user is on a paid plan using multiple methods
+                        const isOnPaidPlan = (plan?.slug && plan.slug !== 'free') || isPaidPlan;
+                        const hasCartOrReportsFeature = item.feature === 'cart_system' || item.feature === 'crm_analytics';
+                        // Never lock cart/reports for paid plan users
+                        const isLocked = hasCartOrReportsFeature ? (!featureEnabled && !isOnPaidPlan) : !featureEnabled;
 
                         const LinkContent = (
                             <>

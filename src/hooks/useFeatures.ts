@@ -49,7 +49,12 @@ interface FeaturesResponse {
     shopId?: string;
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => {
+    const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') : null;
+    return fetch(url, {
+        headers: shopId ? { 'x-shop-id': shopId } : {}
+    }).then(res => res.json());
+};
 
 export function useFeatures() {
     const { data, error, isLoading, mutate } = useSWR<FeaturesResponse>(
@@ -107,9 +112,9 @@ export function useFeatures() {
     };
 
     /**
-     * Get current plan info
+     * Get current plan info - check if plan has a valid slug
      */
-    const plan = data?.plan || { slug: 'free', name: 'Free' };
+    const plan = data?.plan?.slug ? data.plan : { slug: 'free', name: 'Free' };
 
     /**
      * Check if user is on a paid plan

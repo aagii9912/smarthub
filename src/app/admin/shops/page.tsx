@@ -24,6 +24,14 @@ interface Shop {
     trial_ends_at: string | null;
     ai_instructions: string | null;
     ai_emotion: string | null;
+    // Direct plan from plan_id
+    plans: {
+        id: string;
+        name: string;
+        slug: string;
+        price_monthly: number;
+    } | null;
+    // Subscription with nested plan
     subscriptions: Array<{
         id: string;
         status: string;
@@ -34,17 +42,6 @@ interface Shop {
             name: string;
             price_monthly: number;
         };
-        subscriptions: Array<{
-            id: string;
-            status: string;
-            billing_cycle: string;
-            current_period_end: string;
-            plans: {
-                id: string;
-                name: string;
-                price_monthly: number;
-            };
-        }>;
     }>;
 }
 
@@ -331,7 +328,16 @@ export default function ShopsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {shop.subscriptions?.[0]?.plans ? (
+                                            {shop.plans ? (
+                                                <div>
+                                                    <p className="font-medium text-gray-900">
+                                                        {shop.plans.name}
+                                                    </p>
+                                                    <p className="text-sm text-gray-500">
+                                                        ₮{shop.plans.price_monthly.toLocaleString()}/mo
+                                                    </p>
+                                                </div>
+                                            ) : shop.subscriptions?.[0]?.plans ? (
                                                 <div>
                                                     <p className="font-medium text-gray-900">
                                                         {shop.subscriptions[0].plans.name}
@@ -340,6 +346,10 @@ export default function ShopsPage() {
                                                         ₮{shop.subscriptions[0].plans.price_monthly.toLocaleString()}/mo
                                                     </p>
                                                 </div>
+                                            ) : shop.subscription_plan ? (
+                                                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-sm capitalize">
+                                                    {shop.subscription_plan}
+                                                </span>
                                             ) : (
                                                 <span className="text-gray-400">No plan</span>
                                             )}

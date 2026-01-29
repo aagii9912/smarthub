@@ -43,13 +43,18 @@ export async function GET(request: NextRequest) {
                 setup_completed,
                 created_at,
                 user_id,
-                user_id,
                 plan_id,
                 subscription_plan,
                 subscription_status,
                 trial_ends_at,
                 ai_instructions,
                 ai_emotion,
+                plans:plan_id (
+                    id,
+                    name,
+                    slug,
+                    price_monthly
+                ),
                 subscriptions (
                     id,
                     status,

@@ -138,37 +138,89 @@ export default function SubscriptionPage() {
         return planColors[slug] || planColors.starter;
     };
 
-    // Convert features object/array to displayable array
-    const getFeaturesList = (features: Record<string, unknown> | string[] | null): string[] => {
+    // Convert features object/array to displayable array with icons
+    const getFeaturesList = (features: Record<string, unknown> | string[] | null, planSlug?: string): string[] => {
         if (!features) return [];
         if (Array.isArray(features)) return features;
 
-        // Convert object to readable feature strings
-        const featureStrings: string[] = [];
-        const featureLabels: Record<string, string> = {
-            messages_per_month: 'мессеж/сар',
-            shops_limit: 'дэлгүүр',
-            max_messages: 'мессеж',
-            max_shops: 'дэлгүүр',
-            max_products: 'бүтээгдэхүүн',
-            max_customers: 'харилцагч',
-            ai_enabled: 'AI идэвхтэй',
-            comment_reply: 'Коммент хариулт',
-            analytics: 'Аналитик',
-            priority_support: 'Тусламж',
-            custom_branding: 'Брэндинг',
+        // User-friendly feature labels with icons
+        const featureLabels: Record<string, { icon: string; label: string; showValue?: boolean }> = {
+            // AI Features
+            ai_enabled: { icon: '🤖', label: 'AI идэвхтэй' },
+            ai_model: { icon: '🧠', label: 'AI загвар' },
+            ai_memory: { icon: '💭', label: 'AI санах ой' },
+            sales_intelligence: { icon: '📈', label: 'Борлуулалтын оюун ухаан' },
+
+            // Cart & CRM
+            cart_system: { icon: '🛒', label: 'Сагсны систем' },
+            crm_analytics: { icon: '📊', label: 'CRM аналитик' },
+            payment_integration: { icon: '💳', label: 'Төлбөр холболт' },
+
+            // Messaging & Support
+            comment_reply: { icon: '💬', label: 'Коммент хариулт' },
+            bulk_marketing: { icon: '📢', label: 'Масс мессеж' },
+            priority_support: { icon: '⭐', label: 'Тусламж' },
+            appointment_booking: { icon: '📅', label: 'Цаг захиалга' },
+
+            // Limits & Extras
+            max_messages: { icon: '💬', label: 'мессеж/сар', showValue: true },
+            messages_per_month: { icon: '💬', label: 'мессеж/сар', showValue: true },
+            max_shops: { icon: '🏪', label: 'дэлгүүр', showValue: true },
+            shops_limit: { icon: '🏪', label: 'дэлгүүр', showValue: true },
+            max_products: { icon: '📦', label: 'бүтээгдэхүүн', showValue: true },
+            max_customers: { icon: '👥', label: 'харилцагч', showValue: true },
+
+            // Other
+            auto_tagging: { icon: '🏷️', label: 'Авто таг' },
+            excel_export: { icon: '📥', label: 'Excel экспорт' },
+            custom_branding: { icon: '🎨', label: 'Хувийн брэнд' },
+            analytics: { icon: '📊', label: 'Аналитик' },
         };
 
+        // AI model user-friendly names
+        const aiModelNames: Record<string, string> = {
+            'gpt-4o-mini': 'Стандарт AI',
+            'gpt-4o': 'Ахисан түвшний AI',
+            'gpt-4': 'Ахисан түвшний AI',
+        };
+
+        const featureStrings: string[] = [];
+
         for (const [key, value] of Object.entries(features)) {
+            const config = featureLabels[key];
+            if (!config) continue;
+
+            // Handle AI model specially
+            if (key === 'ai_model' && typeof value === 'string') {
+                const modelName = aiModelNames[value] || value;
+                featureStrings.push(`${config.icon} ${modelName}`);
+                continue;
+            }
+
+            // Handle boolean features
             if (value === true) {
-                featureStrings.push(featureLabels[key] || key);
-            } else if (value === false) {
-                // Skip false values
-            } else if (typeof value === 'number' && value !== 0) {
-                const label = featureLabels[key] || key;
-                featureStrings.push(value === -1 ? `Хязгааргүй ${label}` : `${value} ${label}`);
-            } else if (typeof value === 'string' && value !== 'basic') {
-                featureStrings.push(`${featureLabels[key] || key}: ${value}`);
+                featureStrings.push(`${config.icon} ${config.label}`);
+            }
+            // Handle numeric limits
+            else if (typeof value === 'number' && value !== 0 && config.showValue) {
+                if (value === -1) {
+                    featureStrings.push(`${config.icon} Хязгааргүй ${config.label}`);
+                } else {
+                    featureStrings.push(`${config.icon} ${value.toLocaleString()} ${config.label}`);
+                }
+            }
+            // Handle string values for cart/crm levels
+            else if (typeof value === 'string' && value !== 'none') {
+                const levelNames: Record<string, string> = {
+                    'basic': 'Энгийн',
+                    'full': 'Бүрэн',
+                    'advanced': 'Ахисан'
+                };
+                const levelName = levelNames[value] || value;
+                // Only show if not basic or if explicitly showing
+                if (value !== 'basic' || ['cart_system', 'crm_analytics'].includes(key)) {
+                    featureStrings.push(`${config.icon} ${config.label}`);
+                }
             }
         }
 
@@ -238,74 +290,78 @@ export default function SubscriptionPage() {
                     </span>
                 </div>
 
-                {/* Plans Grid */}
+                {/* Plans Grid - Filter out free plan */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {plans.map((plan) => {
-                        const PlanIcon = getPlanIcon(plan.slug);
-                        const colors = getPlanColor(plan.slug);
-                        const price = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+                    {plans
+                        .filter(plan => plan.slug !== 'free') // Hide free plan
+                        .map((plan) => {
+                            const PlanIcon = getPlanIcon(plan.slug);
+                            const colors = getPlanColor(plan.slug);
+                            const price = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+                            // Highlight Pro/Professional as featured
+                            const isFeatured = plan.is_featured || plan.slug === 'professional' || plan.slug === 'pro';
 
-                        return (
-                            <div
-                                key={plan.id}
-                                className={`relative rounded-2xl border p-6 transition-all ${plan.is_featured
-                                    ? 'border-indigo-300 bg-white shadow-lg'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
-                                    }`}
-                            >
-                                {plan.is_featured && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-semibold text-white">
-                                            <Sparkles className="w-3 h-3" />
-                                            Санал болгох
-                                        </span>
-                                    </div>
-                                )}
 
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colors.bg}`}>
-                                    <PlanIcon className={`w-6 h-6 ${colors.text}`} />
-                                </div>
-
-                                <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-                                {plan.description && (
-                                    <p className="text-sm text-gray-500 mt-1">{plan.description}</p>
-                                )}
-
-                                <div className="mt-2 mb-4">
-                                    {price ? (
-                                        <>
-                                            <span className="text-2xl font-bold text-gray-900">
-                                                {formatCurrency(price)}
-                                            </span>
-                                            <span className="text-gray-500">/{billingPeriod === 'monthly' ? 'сар' : 'жил'}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-2xl font-bold text-gray-900">Тохиролцоно</span>
-                                    )}
-                                </div>
-
-                                <ul className="space-y-2 mb-6">
-                                    {getFeaturesList(plan.features).map((feature: string, idx: number) => (
-                                        <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
-                                            <Check className="w-4 h-4 text-green-500" />
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <Button
-                                    variant={plan.is_featured ? 'primary' : 'secondary'}
-                                    className="w-full"
-                                    onClick={() => {
-                                        setSelectedPlan(plan.slug);
-                                        setShowUpgradeModal(true);
-                                    }}
+                            return (
+                                <div
+                                    key={plan.id}
+                                    className={`relative rounded-2xl border p-6 transition-all ${isFeatured
+                                        ? 'border-indigo-300 bg-white shadow-lg scale-105'
+                                        : 'border-gray-200 bg-white hover:border-gray-300'
+                                        }`}
                                 >
-                                    {plan.slug === 'enterprise' ? 'Холбогдох' : 'Сонгох'}
-                                </Button>
-                            </div>
-                        );
-                    })}
+                                    {isFeatured && (
+                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                                                <Sparkles className="w-3 h-3" />
+                                                Санал болгох
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colors.bg}`}>
+                                        <PlanIcon className={`w-6 h-6 ${colors.text}`} />
+                                    </div>
+
+                                    <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+                                    {plan.description && (
+                                        <p className="text-sm text-gray-500 mt-1">{plan.description}</p>
+                                    )}
+
+                                    <div className="mt-2 mb-4">
+                                        {price ? (
+                                            <>
+                                                <span className="text-2xl font-bold text-gray-900">
+                                                    {formatCurrency(price)}
+                                                </span>
+                                                <span className="text-gray-500">/{billingPeriod === 'monthly' ? 'сар' : 'жил'}</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-2xl font-bold text-gray-900">Тохиролцоно</span>
+                                        )}
+                                    </div>
+
+                                    <ul className="space-y-2 mb-6">
+                                        {getFeaturesList(plan.features).map((feature: string, idx: number) => (
+                                            <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <Button
+                                        variant={isFeatured ? 'primary' : 'secondary'}
+                                        className="w-full"
+                                        onClick={() => {
+                                            setSelectedPlan(plan.slug);
+                                            setShowUpgradeModal(true);
+                                        }}
+                                    >
+                                        {plan.slug === 'enterprise' ? 'Холбогдох' : 'Сонгох'}
+                                    </Button>
+                                </div>
+                            );
+                        })}
                 </div>
             </div>
         );
@@ -417,63 +473,129 @@ export default function SubscriptionPage() {
                 </CardContent>
             </Card>
 
-            {/* Usage Stats */}
-            <Card>
-                <CardHeader>
+            {/* Usage Stats - Premium Design */}
+            <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-violet-600" />
+                        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-white" />
+                        </div>
                         Хэрэглээний статистик
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* Messages */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Мессеж</span>
-                            <span className="text-sm text-gray-500">
-                                {(usage.messages || 0).toLocaleString()} (Хязгааргүй)
-                            </span>
+                <CardContent className="pt-4">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Messages Stat Card */}
+                        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-5 border border-indigo-100">
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <p className="text-xs font-medium text-indigo-600 uppercase tracking-wide">Мессеж</p>
+                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                        {(usage.messages || 0).toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                                    <Zap className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500">Хэрэглэсэн</span>
+                                    <span className="font-medium text-indigo-600">Хязгааргүй ∞</span>
+                                </div>
+                                <div className="h-2 bg-indigo-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                                        style={{ width: '35%' }}
+                                    />
+                                </div>
+                            </div>
+                            {/* Decorative element */}
+                            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full" />
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all"
-                                style={{ width: '30%' }}
-                            />
+
+                        {/* Products Stat Card */}
+                        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-100">
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Бүтээгдэхүүн</p>
+                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                        {usage.products || 0}
+                                    </p>
+                                </div>
+                                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                    <Sparkles className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500">Лимит</span>
+                                    <span className={`font-medium ${getUsagePercent(usage.products || 0, 500) > 80 ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                        {usage.products || 0} / 500
+                                    </span>
+                                </div>
+                                <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${getUsagePercent(usage.products || 0, 500) > 80
+                                            ? 'bg-gradient-to-r from-orange-500 to-red-500'
+                                            : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                            }`}
+                                        style={{ width: `${getUsagePercent(usage.products || 0, 500)}%` }}
+                                    />
+                                </div>
+                            </div>
+                            {/* Decorative element */}
+                            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full" />
+                        </div>
+
+                        {/* Facebook Pages Stat Card */}
+                        <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Facebook хуудас</p>
+                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                        {usage.pages || 1}
+                                    </p>
+                                </div>
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                                    <Building2 className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-gray-500">Хуудас</span>
+                                    <span className="font-medium text-blue-600">{usage.pages || 1} / 3</span>
+                                </div>
+                                <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full transition-all duration-500"
+                                        style={{ width: `${getUsagePercent(usage.pages || 1, 3)}%` }}
+                                    />
+                                </div>
+                            </div>
+                            {/* Decorative element */}
+                            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full" />
                         </div>
                     </div>
 
-                    {/* Products */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Бүтээгдэхүүн</span>
-                            <span className="text-sm text-gray-500">
-                                {usage.products || 0} / 500
-                            </span>
+                    {/* Quick Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-xl">
+                        <div className="text-center">
+                            <p className="text-2xl font-bold text-gray-900">{usage.customers || 0}</p>
+                            <p className="text-xs text-gray-500 mt-1">Харилцагч</p>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full transition-all ${getUsagePercent(usage.products || 0, 500) > 80
-                                    ? 'bg-orange-500'
-                                    : 'bg-green-500'
-                                    }`}
-                                style={{ width: `${getUsagePercent(usage.products || 0, 500)}%` }}
-                            />
+                        <div className="text-center border-l border-gray-200">
+                            <p className="text-2xl font-bold text-gray-900">{usage.orders || 0}</p>
+                            <p className="text-xs text-gray-500 mt-1">Захиалга</p>
                         </div>
-                    </div>
-
-                    {/* Facebook Pages */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Facebook хуудас</span>
-                            <span className="text-sm text-gray-500">
-                                {usage.pages || 1} / 3
-                            </span>
+                        <div className="text-center border-l border-gray-200">
+                            <p className="text-2xl font-bold text-emerald-600">{usage.orders_this_month || 0}</p>
+                            <p className="text-xs text-gray-500 mt-1">Энэ сарын захиалга</p>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-blue-500 rounded-full transition-all"
-                                style={{ width: `${getUsagePercent(usage.pages || 1, 3)}%` }}
-                            />
+                        <div className="text-center border-l border-gray-200">
+                            <p className="text-2xl font-bold text-violet-600">{formatCurrency(usage.revenue_this_month || 0)}</p>
+                            <p className="text-xs text-gray-500 mt-1">Энэ сарын орлого</p>
                         </div>
                     </div>
                 </CardContent>
@@ -545,78 +667,81 @@ export default function SubscriptionPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {plans.map((plan) => {
-                            const isCurrentPlan = plan.id === subscription.plan_id;
-                            const PlanIconItem = getPlanIcon(plan.slug);
-                            const colorsItem = getPlanColor(plan.slug);
-                            const price = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+                        {plans
+                            .filter(plan => plan.slug !== 'free') // Hide free plan
+                            .map((plan) => {
+                                const isCurrentPlan = plan.id === subscription.plan_id;
+                                const PlanIconItem = getPlanIcon(plan.slug);
+                                const colorsItem = getPlanColor(plan.slug);
+                                const price = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+                                // Highlight Pro/Professional as featured
+                                const isFeaturedItem = plan.is_featured || plan.slug === 'professional' || plan.slug === 'pro';
 
-                            return (
-                                <div
-                                    key={plan.id}
-                                    className={`relative rounded-2xl border p-6 transition-all ${isCurrentPlan
-                                        ? 'border-violet-300 bg-violet-50/50'
-                                        : plan.is_featured
-                                            ? 'border-indigo-300 bg-white shadow-lg'
-                                            : 'border-gray-200 bg-white hover:border-gray-300'
-                                        }`}
-                                >
-                                    {plan.is_featured && !isCurrentPlan && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-semibold text-white">
-                                                <Sparkles className="w-3 h-3" />
-                                                Санал болгох
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colorsItem.bg}`}>
-                                        <PlanIconItem className={`w-6 h-6 ${colorsItem.text}`} />
-                                    </div>
-
-                                    <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-
-                                    <div className="mt-2 mb-4">
-                                        {price ? (
-                                            <>
-                                                <span className="text-2xl font-bold text-gray-900">
-                                                    {formatCurrency(price)}
+                                return (
+                                    <div
+                                        key={plan.id}
+                                        className={`relative rounded-2xl border p-6 transition-all ${isCurrentPlan
+                                            ? 'border-violet-300 bg-violet-50/50'
+                                            : isFeaturedItem
+                                                ? 'border-indigo-300 bg-white shadow-lg scale-105'
+                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                            }`}
+                                    >
+                                        {isFeaturedItem && !isCurrentPlan && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                                                    <Sparkles className="w-3 h-3" />
+                                                    Санал болгох
                                                 </span>
-                                                <span className="text-gray-500">/{billingPeriod === 'monthly' ? 'сар' : 'жил'}</span>
-                                            </>
+                                            </div>
+                                        )}
+
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${colorsItem.bg}`}>
+                                            <PlanIconItem className={`w-6 h-6 ${colorsItem.text}`} />
+                                        </div>
+
+                                        <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+
+                                        <div className="mt-2 mb-4">
+                                            {price ? (
+                                                <>
+                                                    <span className="text-2xl font-bold text-gray-900">
+                                                        {formatCurrency(price)}
+                                                    </span>
+                                                    <span className="text-gray-500">/{billingPeriod === 'monthly' ? 'сар' : 'жил'}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-2xl font-bold text-gray-900">Тохиролцоно</span>
+                                            )}
+                                        </div>
+
+                                        <ul className="space-y-2 mb-6">
+                                            {getFeaturesList(plan.features).map((feature: string, idx: number) => (
+                                                <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
+                                                    {feature}
+                                                </li>
+                                            ))}
+                                        </ul>
+
+                                        {isCurrentPlan ? (
+                                            <div className="w-full py-2.5 text-center text-sm font-medium text-violet-600 bg-violet-100 rounded-lg">
+                                                Одоогийн төлөвлөгөө
+                                            </div>
                                         ) : (
-                                            <span className="text-2xl font-bold text-gray-900">Тохиролцоно</span>
+                                            <Button
+                                                variant={plan.is_featured ? 'primary' : 'secondary'}
+                                                className="w-full"
+                                                onClick={() => {
+                                                    setSelectedPlan(plan.slug);
+                                                    setShowUpgradeModal(true);
+                                                }}
+                                            >
+                                                {plan.slug === 'enterprise' ? 'Холбогдох' : 'Сонгох'}
+                                            </Button>
                                         )}
                                     </div>
-
-                                    <ul className="space-y-2 mb-6">
-                                        {getFeaturesList(plan.features).map((feature: string, idx: number) => (
-                                            <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
-                                                <Check className="w-4 h-4 text-green-500" />
-                                                {feature}
-                                            </li>
-                                        ))}
-                                    </ul>
-
-                                    {isCurrentPlan ? (
-                                        <div className="w-full py-2.5 text-center text-sm font-medium text-violet-600 bg-violet-100 rounded-lg">
-                                            Одоогийн төлөвлөгөө
-                                        </div>
-                                    ) : (
-                                        <Button
-                                            variant={plan.is_featured ? 'primary' : 'secondary'}
-                                            className="w-full"
-                                            onClick={() => {
-                                                setSelectedPlan(plan.slug);
-                                                setShowUpgradeModal(true);
-                                            }}
-                                        >
-                                            {plan.slug === 'enterprise' ? 'Холбогдох' : 'Сонгох'}
-                                        </Button>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
                     </div>
                 </div>
             )}

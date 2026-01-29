@@ -36,8 +36,8 @@ export function ShopSwitcher({ onAddShop }: ShopSwitcherProps) {
         // Page will reload after switch
     };
 
-    // Don't show if only one shop
-    if (shops.length <= 1 && !onAddShop) {
+    // Don't show if no shops at all and no add option
+    if (shops.length === 0 && !onAddShop) {
         return null;
     }
 

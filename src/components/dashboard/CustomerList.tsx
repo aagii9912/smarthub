@@ -27,8 +27,8 @@ export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
             <div className="divide-y divide-gray-50">
                 {carts.map((cart) => {
                     const isActive = activeId === cart.id;
-                    const itemsNames = cart.items.map(i => i.name).slice(0, 2).join(', ');
-                    const hasMore = cart.items.length > 2;
+                    const itemsNames = cart.items.map(i => i.name).slice(0, 4).join(', ');
+                    const hasMore = cart.items.length > 4;
 
                     return (
                         <button

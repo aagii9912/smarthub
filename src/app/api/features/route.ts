@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
+import { headers } from 'next/headers';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,15 +20,20 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get shop for current user
-        const { data: shop, error: shopError } = await supabase
+        // Check for x-shop-id in headers (for multi-shop support)
+        const headerList = await headers();
+        const requestedShopId = headerList.get('x-shop-id');
+
+        // Build query for shop
+        let query = supabase
             .from('shops')
             .select(`
                 id,
                 plan_id,
+                subscription_plan,
                 enabled_features,
                 limit_overrides,
-                plans!inner (
+                plans (
                     id,
                     slug,
                     name,
@@ -35,8 +41,18 @@ export async function GET() {
                     limits
                 )
             `)
-            .eq('clerk_user_id', userId)
-            .single();
+            .eq('user_id', userId); // Use user_id, not clerk_user_id
+
+        // If specific shop requested, use it
+        if (requestedShopId) {
+            query = query.eq('id', requestedShopId);
+        }
+
+        const { data: shops, error: shopError } = await query.limit(1);
+        const shop = shops?.[0] || null;
+
+        // DEBUG: Log what we got from the database
+        console.log('[Features API DEBUG] shop:', shop?.id, 'plan_id:', shop?.plan_id, 'subscription_plan:', shop?.subscription_plan, 'plans:', shop?.plans);
 
         if (shopError || !shop) {
             // Return default free features if no shop found
@@ -70,8 +86,60 @@ export async function GET() {
             });
         }
 
+        // Try to get plan from joined data, or lookup by subscription_plan field
+        let planData = shop.plans as any;
+
+        // If no plan_id but subscription_plan exists, lookup the plan
+        if (!planData && shop.subscription_plan) {
+            const { data: planBySlug } = await supabase
+                .from('plans')
+                .select('id, slug, name, features, limits')
+                .eq('slug', shop.subscription_plan)
+                .single();
+
+            if (planBySlug) {
+                planData = planBySlug;
+            }
+        }
+
+        // Default features for paid plans without explicit plan record
+        if (!planData) {
+            const isPro = shop.subscription_plan === 'pro' || shop.subscription_plan === 'professional';
+            const isUltimate = shop.subscription_plan === 'ultimate' || shop.subscription_plan === 'enterprise';
+            const isStarter = shop.subscription_plan === 'starter';
+
+            // Default to starter features if subscription_plan is set but no plan record found
+            if (isPro || isUltimate || isStarter) {
+                planData = {
+                    slug: shop.subscription_plan,
+                    name: shop.subscription_plan?.charAt(0).toUpperCase() + shop.subscription_plan?.slice(1),
+                    features: {
+                        ai_enabled: true,
+                        ai_model: isPro || isUltimate ? 'gpt-4o' : 'gpt-4o-mini',
+                        sales_intelligence: isPro || isUltimate,
+                        ai_memory: isPro || isUltimate,
+                        cart_system: isPro || isUltimate ? 'full' : 'basic',
+                        payment_integration: isPro || isUltimate,
+                        crm_analytics: isPro || isUltimate ? 'full' : 'basic',
+                        auto_tagging: isPro || isUltimate,
+                        appointment_booking: isUltimate,
+                        bulk_marketing: isUltimate,
+                        excel_export: isPro || isUltimate,
+                        custom_branding: isUltimate,
+                        comment_reply: isPro || isUltimate,
+                        priority_support: isUltimate
+                    },
+                    limits: {
+                        max_messages: isUltimate ? -1 : (isPro ? 5000 : 1000),
+                        max_shops: isUltimate ? 5 : (isPro ? 2 : 1),
+                        max_products: -1,
+                        max_customers: -1
+                    }
+                };
+            }
+        }
+
         // Merge plan features with shop overrides (shop overrides take precedence)
-        const planData = shop.plans as any;
         const planFeatures = planData?.features || {};
         const planLimits = planData?.limits || {};
         const shopOverrides = shop.enabled_features || {};
@@ -80,12 +148,18 @@ export async function GET() {
         const effectiveFeatures = { ...planFeatures, ...shopOverrides };
         const effectiveLimits = { ...planLimits, ...limitOverrides };
 
+        // Determine plan slug - use planData first, then subscription_plan field, then 'free'
+        const planSlug = planData?.slug || shop.subscription_plan || 'free';
+        const planName = planData?.name || (shop.subscription_plan ? shop.subscription_plan.charAt(0).toUpperCase() + shop.subscription_plan.slice(1) : 'Free');
+
+        console.log('[Features API DEBUG] Final plan:', planSlug, 'planData:', !!planData, 'subscription_plan:', shop.subscription_plan);
+
         return NextResponse.json({
             features: effectiveFeatures,
             limits: effectiveLimits,
             plan: {
-                slug: planData?.slug || 'free',
-                name: planData?.name || 'Free'
+                slug: planSlug,
+                name: planName
             },
             shopId: shop.id
         });
