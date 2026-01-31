@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
             const qpayResult = await createQPayInvoice({
                 orderId: invoice.id,
                 amount,
-                description: `SmartHub ${plan.name} Plan`,
+                description: `Syncly ${plan.name} Plan`,
                 callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://smarthub-opal.vercel.app'}/api/subscription/webhook`
             });
 

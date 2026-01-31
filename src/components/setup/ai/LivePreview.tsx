@@ -27,7 +27,7 @@ export function LivePreview({ template, emotion, description }: LivePreviewProps
                     <Bot className="w-6 h-6" />
                 </div>
                 <div>
-                    <div className="font-bold text-gray-900 text-sm">SmartHub AI</div>
+                    <div className="font-bold text-gray-900 text-sm">Syncly AI</div>
                     <div className="flex items-center gap-1 text-xs text-green-500 font-medium">
                         <div className="w-2 h-2 bg-green-500 rounded-full" />
                         Active now

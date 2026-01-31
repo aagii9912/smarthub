@@ -95,7 +95,7 @@ export function PWAInstallPrompt() {
                         <Download size={18} className="text-white" />
                     </div>
                     <div className="flex-1 min-w-0 pr-4">
-                        <h3 className="text-white font-medium text-sm">SmartHub</h3>
+                        <h3 className="text-white font-medium text-sm">Syncly</h3>
                         <p className="text-white/80 text-xs">
                             {isIOS ? 'Share → Home Screen' : 'Апп суулгах'}
                         </p>

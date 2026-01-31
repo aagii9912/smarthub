@@ -19,7 +19,7 @@ export async function GET() {
         // In production, these would come from a settings table
         const settings = {
             general: {
-                site_name: 'SmartHub',
+                site_name: 'Syncly',
                 support_email: 'support@smarthub.mn',
                 default_currency: 'MNT'
             },

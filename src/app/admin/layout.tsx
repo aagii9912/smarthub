@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             `}>
                 {/* Logo */}
                 <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
-                    <span className="text-xl font-bold text-violet-400">SmartHub Admin</span>
+                    <span className="text-xl font-bold text-violet-400">Syncly Admin</span>
                     <button
                         className="lg:hidden p-2 hover:bg-gray-800 rounded-lg"
                         onClick={() => setSidebarOpen(false)}

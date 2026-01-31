@@ -12,6 +12,7 @@ import { FacebookStep } from '@/components/setup/FacebookStep';
 import { InstagramStep } from '@/components/setup/InstagramStep';
 import { ProductStep } from '@/components/setup/ProductStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
+import { SubscriptionStep } from '@/components/setup/SubscriptionStep';
 
 function SetupContent() {
   const router = useRouter();
@@ -256,7 +257,7 @@ function SetupContent() {
     // If the backend sets `setup_completed` only when products are added, we are fine.
     // But if we want to ensure, we can call a 'complete' endpoint or just redirect.
 
-    router.push('/dashboard');
+    setStep(6);
   };
 
   if (authLoading || isInitializing) {
@@ -287,7 +288,7 @@ function SetupContent() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-12">
-          {[1, 2, 3, 4, 5].map((s) => (
+          {[1, 2, 3, 4, 5, 6].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all border ${step >= s
                 ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
@@ -295,7 +296,7 @@ function SetupContent() {
                 }`}>
                 {step > s ? <Check className="w-5 h-5" /> : s}
               </div>
-              {s < 5 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
+              {s < 6 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>
@@ -369,6 +370,13 @@ function SetupContent() {
               fbPageToken={fbToken}
               onSkip={() => handleAIComplete(null)}
               onSave={handleAIComplete}
+            />
+          )}
+
+          {step === 6 && (
+            <SubscriptionStep
+              onSkip={() => router.push('/dashboard')}
+              onComplete={() => router.push('/dashboard')}
             />
           )}
         </div>

@@ -1,5 +1,5 @@
 /**
- * Invoice Generator for SmartHub
+ * Invoice Generator for Syncly
  * Generates HTML invoices for orders
  */
 
@@ -367,7 +367,7 @@ export function generateInvoiceHTML(data: InvoiceData): string {
         
         <div class="footer">
             <p>Баярлалаа! | ${shop.name}</p>
-            <p>Энэхүү нэхэмжлэх нь SmartHub системээс автоматаар үүсгэгдсэн</p>
+            <p>Энэхүү нэхэмжлэх нь Syncly системээс автоматаар үүсгэгдсэн</p>
         </div>
     </div>
     

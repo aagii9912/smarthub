@@ -47,7 +47,7 @@ export default function SwaggerUIPage() {
             <div className="max-w-7xl mx-auto py-8">
                 <header className="mb-8 px-4">
                     <h1 className="text-3xl font-bold text-gray-900">
-                        SmartHub API Documentation
+                        Syncly API Documentation
                     </h1>
                     <p className="mt-2 text-gray-600">
                         Interactive API documentation powered by OpenAPI 3.0

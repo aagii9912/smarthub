@@ -1,5 +1,5 @@
 /**
- * SmartHub AI Plan Configuration - GPT-5 Family
+ * Syncly AI Plan Configuration - GPT-5 Family
  * 
  * Strategy: Exclusive use of GPT-5 models across all tiers
  * - Trial: GPT-5 Mini (14 days)

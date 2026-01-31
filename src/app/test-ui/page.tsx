@@ -97,7 +97,7 @@ export default function UIPlaygroundPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">UI Playground</h1>
-                        <p className="text-gray-500 mt-1">SmartHub-ийн шинэ компонентуудыг турших хуудас</p>
+                        <p className="text-gray-500 mt-1">Syncly-ийн шинэ компонентуудыг турших хуудас</p>
                     </div>
                     <LiveIndicator label="System Online" />
                 </div>

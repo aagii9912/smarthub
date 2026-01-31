@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-    title: 'Data Deletion Status | SmartHub',
-    description: 'SmartHub өгөгдөл устгалтын байдал',
+    title: 'Data Deletion Status | Syncly',
+    description: 'Syncly өгөгдөл устгалтын байдал',
 };
 
 interface PageProps {
@@ -30,7 +30,7 @@ export default async function DeletionStatusPage({ searchParams }: PageProps) {
                 </h1>
 
                 <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
-                    Таны хүсэлтийн дагуу SmartHub дахь таны өгөгдөл устгагдлаа.
+                    Таны хүсэлтийн дагуу Syncly дахь таны өгөгдөл устгагдлаа.
                 </p>
 
                 {confirmationCode && (
@@ -59,7 +59,7 @@ export default async function DeletionStatusPage({ searchParams }: PageProps) {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
                     Хэрэв танд асуулт байвал{' '}
                     <Link href="/" className="text-indigo-600 hover:text-indigo-500">
-                        SmartHub
+                        Syncly
                     </Link>
                     -тай холбогдоно уу.
                 </p>

@@ -110,7 +110,7 @@ export async function sendOrderConfirmationEmail(params: {
             
             <div class="footer">
                 <p>${shopName}</p>
-                <p>Энэ имэйл нь SmartHub системээс автоматаар илгээгдсэн</p>
+                <p>Энэ имэйл нь Syncly системээс автоматаар илгээгдсэн</p>
             </div>
         </div>
     </div>

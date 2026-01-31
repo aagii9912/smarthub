@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
                     <div className="w-16 h-16 bg-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Shield className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white">SmartHub Admin</h1>
+                    <h1 className="text-2xl font-bold text-white">Syncly Admin</h1>
                     <p className="text-gray-400 mt-2">Админ нэвтрэх хэсэг</p>
                 </div>
 
@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
 
                 {/* Footer */}
                 <p className="text-center text-gray-500 text-sm mt-6">
-                    © 2024 SmartHub AI Platform
+                    © 2024 Syncly AI Platform
                 </p>
             </div>
         </div>
