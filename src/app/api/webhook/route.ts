@@ -338,15 +338,14 @@ export async function POST(request: NextRequest) {
 
                                     let responseMessage: string;
                                     if (matchedProduct) {
-                                        // Build product info with size/color if available
+                                        // Simple, clean product info
                                         const sizeInfo = matchedProduct.variants
-                                            ? `\n📏 Хэмжээ: ${matchedProduct.variants}`
+                                            ? `\n📏 ${matchedProduct.variants}`
                                             : '';
 
-                                        responseMessage = `✅ Зурагнаас "${matchedProduct.name}" бүтээгдэхүүнийг таньлаа! 🎯\n\n` +
-                                            `💰 Үнэ: ${matchedProduct.price?.toLocaleString()}₮\n` +
-                                            `📦 Үлдэгдэл: ${matchedProduct.stock} ширхэг${sizeInfo}\n\n` +
-                                            `Захиалах уу? Хэмжээ, тоо ширхгээ хэлнэ үү! 🛒`;
+                                        responseMessage = `🏷️ ${matchedProduct.name}\n` +
+                                            `💰 ${matchedProduct.price?.toLocaleString()}₮\n` +
+                                            `📦 ${matchedProduct.stock} ширхэг${sizeInfo}`;
                                     } else {
                                         // No match found - suggest similar products
                                         const suggestions = shop.products.slice(0, 3).map(p => p.name).join(', ');
