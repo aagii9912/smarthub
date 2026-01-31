@@ -80,41 +80,32 @@ export function PWAInstallPrompt() {
     if (isStandalone || !showPrompt) return null;
 
     return (
-        <div className="fixed bottom-20 left-4 right-4 md:bottom-6 md:left-auto md:right-6 md:w-80 z-50 animate-slide-up">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 shadow-2xl shadow-blue-500/25">
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 animate-slide-up max-w-[280px]">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-3 shadow-lg">
                 <button
                     onClick={handleDismiss}
-                    className="absolute top-2 right-2 p-1 text-white/70 hover:text-white transition-colors"
+                    className="absolute top-1.5 right-1.5 p-1 text-white/70 hover:text-white transition-colors"
                     aria-label="Хаах"
                 >
-                    <X size={18} />
+                    <X size={16} />
                 </button>
 
-                <div className="flex items-start gap-3">
-                    <div className="p-2 bg-white/20 rounded-xl flex-shrink-0">
-                        <Download size={24} className="text-white" />
+                <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-white/20 rounded-lg flex-shrink-0">
+                        <Download size={18} className="text-white" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold text-sm">
-                            SmartHub суулгах
-                        </h3>
-                        <p className="text-white/80 text-xs mt-0.5">
-                            {isIOS
-                                ? 'Safari дээр Share → Add to Home Screen дарна уу'
-                                : 'Утсандаа app шиг суулгаарай'}
+                    <div className="flex-1 min-w-0 pr-4">
+                        <h3 className="text-white font-medium text-sm">SmartHub</h3>
+                        <p className="text-white/80 text-xs">
+                            {isIOS ? 'Share → Home Screen' : 'Апп суулгах'}
                         </p>
                     </div>
                 </div>
 
-                {isIOS ? (
-                    <div className="mt-3 flex items-center justify-center gap-2 text-white/90 text-xs bg-white/10 rounded-lg py-2 px-3">
-                        <Share size={16} />
-                        <span>Share товч → Add to Home Screen</span>
-                    </div>
-                ) : (
+                {!isIOS && (
                     <button
                         onClick={handleInstall}
-                        className="mt-3 w-full bg-white text-blue-600 font-semibold py-2.5 px-4 rounded-xl text-sm hover:bg-blue-50 transition-colors active:scale-[0.98]"
+                        className="mt-2 w-full bg-white text-blue-600 font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-blue-50 transition-colors"
                     >
                         Суулгах
                     </button>

@@ -40,7 +40,7 @@ export default function SettingsPage() {
     const [disconnecting, setDisconnecting] = useState<'facebook' | 'instagram' | null>(null);
 
     // Check if Instagram is available for this plan
-    const instagramAvailable = canUseInstagram((shop as any)?.subscription_plan);
+    const instagramAvailable = canUseInstagram(shop?.subscription_plan);
 
     useEffect(() => {
         if (shop) {
@@ -51,9 +51,9 @@ export default function SettingsPage() {
             setAccountNumber(shop.account_number || '');
             setAccountName(shop.account_name || '');
             // Load AI settings from shop
-            setAiEnabled((shop as any).is_ai_active ?? true);
-            setAutoReply((shop as any).auto_reply ?? true);
-            setWelcomeMessage((shop as any).welcome_message || 'Сайн байна уу! Танд юугаар туслах вэ?');
+            setAiEnabled(shop.is_ai_active ?? true);
+            setAutoReply(shop.auto_reply ?? true);
+            setWelcomeMessage(shop.welcome_message || 'Сайн байна уу! Танд юугаар туслах вэ?');
         }
     }, [shop]);
 
@@ -347,14 +347,14 @@ export default function SettingsPage() {
                                 </Button>
                             </a>
                         </div>
-                    ) : (shop as any)?.instagram_business_account_id ? (
+                    ) : shop?.instagram_business_account_id ? (
                         <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                                     <Check className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-purple-900">@{(shop as any).instagram_username || 'Instagram'}</p>
+                                    <p className="font-medium text-purple-900">@{shop?.instagram_username || 'Instagram'}</p>
                                     <p className="text-sm text-purple-600">DM чатбот идэвхтэй</p>
                                 </div>
                             </div>

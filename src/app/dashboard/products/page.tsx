@@ -346,75 +346,84 @@ export default function ProductsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-secondary/30 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-secondary flex-shrink-0 overflow-hidden border border-border">
-                                                {product.images?.[0] ? (
-                                                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Package className="w-5 h-5 text-muted-foreground" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-foreground">{product.name}</p>
-                                                <p className="text-sm text-muted-foreground truncate max-w-[200px]">{product.description}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : product.type === 'appointment' ? 'bg-blue-500/10 text-blue-600 border-blue-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
-                                            {product.type === 'service' ? 'Үйлчилгээ' : product.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {(product.discount_percent || 0) > 0 ? (
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-muted-foreground line-through">₮{product.price.toLocaleString()}</span>
-                                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-medium rounded">-{product.discount_percent}%</span>
-                                                </div>
-                                                <p className="font-semibold text-red-600">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="font-semibold text-foreground">₮{product.price.toLocaleString()}</p>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {product.type === 'physical' ? (
-                                            <p className={`font-medium ${(product.stock || 0) > 0 ? 'text-foreground' : 'text-destructive'}`}>
-                                                {(product.stock || 0) > 0 ? `${product.stock} ш` : 'Дууссан'}
-                                            </p>
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">-</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.is_active ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 'bg-secondary text-muted-foreground border-border'}`}>
-                                            {product.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                                                className="p-2 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                            {filteredProducts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                        <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-500 font-medium">Бүтээгдэхүүн байхгүй</p>
+                                        <p className="text-sm text-gray-400 mt-1">Шинэ бараа нэмэхийн тулд "Шинэ нэмэх" товч дарна уу</p>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                filteredProducts.map((product) => (
+                                    <tr key={product.id} className="hover:bg-secondary/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-xl bg-secondary flex-shrink-0 overflow-hidden border border-border">
+                                                    {product.images?.[0] ? (
+                                                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Package className="w-5 h-5 text-muted-foreground" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-foreground">{product.name}</p>
+                                                    <p className="text-sm text-muted-foreground truncate max-w-[200px]">{product.description}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.type === 'service' ? 'bg-purple-500/10 text-purple-600 border-purple-200' : product.type === 'appointment' ? 'bg-blue-500/10 text-blue-600 border-blue-200' : 'bg-emerald-500/10 text-emerald-600 border-emerald-200'}`}>
+                                                {product.type === 'service' ? 'Үйлчилгээ' : product.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {(product.discount_percent || 0) > 0 ? (
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-muted-foreground line-through">₮{product.price.toLocaleString()}</span>
+                                                        <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-medium rounded">-{product.discount_percent}%</span>
+                                                    </div>
+                                                    <p className="font-semibold text-red-600">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="font-semibold text-foreground">₮{product.price.toLocaleString()}</p>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {product.type === 'physical' ? (
+                                                <p className={`font-medium ${(product.stock || 0) > 0 ? 'text-foreground' : 'text-destructive'}`}>
+                                                    {(product.stock || 0) > 0 ? `${product.stock} ш` : 'Дууссан'}
+                                                </p>
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${product.is_active ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 'bg-secondary text-muted-foreground border-border'}`}>
+                                                {product.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                                                    className="p-2 text-muted-foreground hover:text-primary hover:bg-secondary rounded-lg transition-colors"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(product.id)}
+                                                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )))}
                         </tbody>
                     </table>
                 </CardContent>

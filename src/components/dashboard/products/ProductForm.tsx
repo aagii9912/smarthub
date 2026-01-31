@@ -4,13 +4,22 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Upload, Box, Layers, Calendar, Plus, X, Trash2 } from 'lucide-react';
-import { Product, useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
+import { Product, ProductVariant, useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ProductFormProps {
     product?: Product | null;
     onSuccess: () => void;
     onCancel: () => void;
+}
+
+// Local variant type for form (before saving to DB)
+interface FormVariant {
+    name: string;
+    options: Record<string, string>;
+    price: number;
+    stock: number;
+    is_active: boolean;
 }
 
 export default function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) {
@@ -28,15 +37,28 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     // Variant State
     const [hasVariants, setHasVariants] = useState(product?.has_variants || false);
     const [optionGroups, setOptionGroups] = useState<{ name: string, values: string[] }[]>([]);
-    const [variants, setVariants] = useState<any[]>(product?.variants || []);
+    const [variants, setVariants] = useState<FormVariant[]>(
+        (product?.variants || []).map(v => ({
+            name: v.name,
+            options: v.options,
+            price: v.price ?? product?.price ?? 0,
+            stock: v.stock,
+            is_active: v.is_active
+        }))
+    );
 
     // Initial load of variants if editing
     useEffect(() => {
         if (product?.variants && product.variants.length > 0) {
             setHasVariants(true);
-            // Try to reconstruct option groups from variants if needed, or assume backend sends them
-            // For now, we'll just show the variants row
-            setVariants(product.variants);
+            // Convert ProductVariant to FormVariant
+            setVariants(product.variants.map(v => ({
+                name: v.name,
+                options: v.options,
+                price: v.price ?? product?.price ?? 0,
+                stock: v.stock,
+                is_active: v.is_active
+            })));
         }
     }, [product]);
 
@@ -45,11 +67,11 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         if (optionGroups.length === 0) return;
 
         // Cartesian product
-        const generateCombinations = (groups: typeof optionGroups, prefix: Record<string, string> = {}): any[] => {
+        const generateCombinations = (groups: typeof optionGroups, prefix: Record<string, string> = {}): Record<string, string>[] => {
             if (groups.length === 0) return [prefix];
             const first = groups[0];
             const rest = groups.slice(1);
-            let combinations: any[] = [];
+            let combinations: Record<string, string>[] = [];
 
             for (const value of first.values) {
                 const newPrefix = { ...prefix, [first.name]: value };
@@ -59,7 +81,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         };
 
         const combos = generateCombinations(optionGroups);
-        const newVariants = combos.map(options => {
+        const newVariants: FormVariant[] = combos.map(options => {
             const name = Object.values(options).join(' / ');
             // Preserve existing variant data if match found
             const existing = variants.find(v => JSON.stringify(v.options) === JSON.stringify(options));

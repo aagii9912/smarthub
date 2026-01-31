@@ -16,7 +16,15 @@ export interface Shop {
     instagram_business_account_id?: string | null;
     instagram_access_token?: string | null;
     instagram_username?: string | null;
+    // AI Settings
+    is_ai_active?: boolean;
+    auto_reply?: boolean;
+    welcome_message?: string | null;
+    // Subscription
+    subscription_plan?: string | null;
+    page_access_token?: string | null;
 }
+
 
 export interface Product {
     id: string;

@@ -16,7 +16,8 @@ import {
     Bot,
     CreditCard,
     BarChart3,
-    Lock
+    Lock,
+    AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -35,7 +36,7 @@ const menuItems: MenuItem[] = [
     { name: 'Products', href: '/dashboard/products', icon: Package, tour: 'products' },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart, tour: 'orders' },
     { name: 'Customers', href: '/dashboard/customers', icon: Users, tour: 'customers' },
-
+    { name: 'Complaints', href: '/dashboard/complaints', icon: AlertTriangle, tour: 'complaints' },
     { name: 'AI Settings', href: '/dashboard/ai-settings', icon: Bot, tour: 'ai-settings' },
     { name: 'Payments', href: '/dashboard/subscription', icon: CreditCard, tour: 'payments' },
     { name: 'Customer Carts', href: '/dashboard/inbox', icon: ShoppingCart, tour: 'carts', feature: 'cart_system' },
