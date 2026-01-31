@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyWebhook, sendTextMessage, sendSenderAction, sendMessageWithQuickReplies } from '@/lib/facebook/messenger';
-import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import { verifyWebhook, sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
-import { getCustomerMemory } from '@/lib/ai/tools/memory';
+import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import {
     getShopByPageId,
@@ -12,16 +11,10 @@ import {
     getOrCreateCustomer,
     getOrCreateInstagramCustomer,
     updateCustomerInfo,
-    getChatHistory,
-    saveChatHistory,
-    incrementMessageCount,
-    buildNotifySettings,
     generateFallbackResponse,
-    processAIResponse,
     replyToComment,
     ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
-import type { ChatMessage } from '@/types/ai';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
 
@@ -51,6 +44,47 @@ interface WebhookEntry {
         };
         postback?: { payload?: string };
     }>;
+}
+
+// Message batching: wait 5 seconds to collect multiple messages before responding
+const MESSAGE_BATCH_DELAY_SECONDS = 5;
+
+/**
+ * Add message to pending queue for batched processing
+ * Returns true if added successfully
+ */
+async function addToPendingMessages(params: {
+    shopId: string;
+    customerId: string;
+    senderId: string;
+    platform: string;
+    messageType: 'text' | 'image';
+    content?: string;
+    imageUrl?: string;
+    accessToken: string;
+}): Promise<boolean> {
+    const supabase = supabaseAdmin();
+    const processAfter = new Date(Date.now() + MESSAGE_BATCH_DELAY_SECONDS * 1000);
+
+    const { error } = await supabase.from('pending_messages').insert({
+        shop_id: params.shopId,
+        customer_id: params.customerId,
+        sender_id: params.senderId,
+        platform: params.platform,
+        message_type: params.messageType,
+        content: params.content || null,
+        image_url: params.imageUrl || null,
+        access_token: params.accessToken,
+        process_after: processAfter.toISOString(),
+        processed: false,
+    });
+
+    if (error) {
+        logger.error('Failed to add pending message:', { error });
+        return false;
+    }
+
+    return true;
 }
 
 // Verify webhook (GET request from Facebook)
@@ -187,101 +221,31 @@ export async function POST(request: NextRequest) {
                         continue;
                     }
 
-                    // Generate AI response
-                    let aiResponse: string;
-                    let aiQuickReplies: Array<{ title: string; payload: string }> | undefined;
-                    try {
-                        logger.info(`[${shop.name}] Generating AI response...`);
+                    // === MESSAGE BATCHING ===
+                    // Instead of responding immediately, add to pending queue
+                    // Cron job will batch multiple messages and respond once
+                    const added = await addToPendingMessages({
+                        shopId: shop.id,
+                        customerId: customer.id,
+                        senderId,
+                        platform,
+                        messageType: 'text',
+                        content: userMessage,
+                        accessToken,
+                    });
 
-                        // Get chat history for context
-                        const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
-
-                        // Map products to ensure null values are converted to undefined
-                        const mappedProducts = shop.products.map(p => ({
-                            ...p,
-                            discount_percent: p.discount_percent ?? undefined,
-                        }));
-
-                        // Get customer memory (preferences saved by AI)
-                        const customerMemory = customer.id
-                            ? await getCustomerMemory(customer.id)
-                            : undefined;
-
-                        // Generate response with minimum delay for typing animation
-                        const [response] = await Promise.all([
-                            routeToAI(
-                                userMessage,
-                                {
-                                    shopId: shop.id,
-                                    customerId: customer.id,
-                                    shopName: shop.name,
-                                    shopDescription: shop.description || undefined,
-                                    aiInstructions: shop.ai_instructions || undefined,
-                                    aiEmotion: shop.ai_emotion || 'friendly',
-                                    customKnowledge: shop.custom_knowledge || undefined,
-                                    products: mappedProducts,
-                                    customerName: customer.name || undefined,
-                                    orderHistory: customer.total_orders || 0,
-                                    faqs: aiFeatures.faqs,
-                                    quickReplies: aiFeatures.quickReplies,
-                                    slogans: aiFeatures.slogans,
-                                    notifySettings: buildNotifySettings(shop),
-                                    customerMemory: customerMemory || undefined,
-                                    // Add subscription for plan-based AI routing
-                                    subscription: {
-                                        plan: shop.subscription_plan || 'starter',
-                                        status: shop.subscription_status || 'active',
-                                        trial_ends_at: shop.trial_ends_at || undefined,
-                                    },
-                                    messageCount: customer.message_count || 0,
-                                },
-                                previousHistory
-                            ),
-                            new Promise(resolve => setTimeout(resolve, 1500))
-                        ]);
-
-                        aiResponse = response.text;
-                        aiQuickReplies = response.quickReplies;
-                        logger.success('AI response generated', {
-                            preview: aiResponse.substring(0, 100) + '...',
-                            hasImage: !!response.imageAction,
-                            hasQuickReplies: !!aiQuickReplies
-                        });
-
-                        // Process and send product images if AI requested
-                        await processAIResponse(response, senderId, accessToken);
-
-                    } catch (aiError) {
-                        const errorMessage = aiError instanceof Error ? aiError.message : 'Unknown error';
-                        const errorStack = aiError instanceof Error ? aiError.stack : undefined;
-                        logger.error('AI Error:', { message: errorMessage, stack: errorStack });
-
-                        // Generate fallback response based on intent
-                        aiResponse = generateFallbackResponse(intent, shop.name, shop.products);
-                    }
-
-                    // Save chat history
-                    await saveChatHistory(shop.id, customer.id, userMessage, aiResponse, intent.intent);
-
-                    // Increment message count
-                    await incrementMessageCount(customer.id);
-
-                    // Send the AI response via Messenger API (works for both platforms)
-                    if (aiQuickReplies && aiQuickReplies.length > 0) {
-                        await sendMessageWithQuickReplies({
-                            recipientId: senderId,
-                            message: aiResponse,
-                            pageAccessToken: accessToken,
-                            quickReplies: aiQuickReplies.map(qr => ({
-                                content_type: 'text' as const,
-                                title: qr.title,
-                                payload: qr.payload,
-                            })),
+                    if (added) {
+                        logger.info(`[${shop.name}] Message queued for batched processing`, {
+                            senderId,
+                            delaySeconds: MESSAGE_BATCH_DELAY_SECONDS
                         });
                     } else {
+                        // Fallback: If pending queue fails, respond immediately with fallback
+                        logger.warn(`[${shop.name}] Pending queue failed, sending fallback`);
+                        const fallback = generateFallbackResponse(intent, shop.name, shop.products);
                         await sendTextMessage({
                             recipientId: senderId,
-                            message: aiResponse,
+                            message: fallback,
                             pageAccessToken: accessToken,
                         });
                     }
@@ -302,78 +266,35 @@ export async function POST(request: NextRequest) {
                             // Send typing indicator
                             await sendSenderAction(senderId, 'typing_on', accessToken);
 
-                            try {
-                                // Get subscription plan for image analysis
-                                const planType = getPlanTypeFromSubscription({
-                                    plan: shop.subscription_plan || 'starter',
-                                    status: shop.subscription_status || 'active',
-                                    trial_ends_at: shop.trial_ends_at || undefined,
+                            // CHECK: Global AI Switch
+                            if (shop.is_ai_active === false) {
+                                logger.info(`[${shop.name}] AI is globally disabled. Skipping image.`);
+                                continue;
+                            }
+
+                            // === IMAGE BATCHING ===
+                            // Add image to pending queue for batched processing
+                            const added = await addToPendingMessages({
+                                shopId: shop.id,
+                                customerId: customer.id,
+                                senderId,
+                                platform,
+                                messageType: 'image',
+                                imageUrl,
+                                accessToken,
+                            });
+
+                            if (added) {
+                                logger.info(`[${shop.name}] Image queued for batched processing`, {
+                                    senderId,
+                                    delaySeconds: MESSAGE_BATCH_DELAY_SECONDS
                                 });
-
-                                // Analyze the image with shop products for matching
-                                const productsForAnalysis = shop.products.map(p => ({
-                                    id: p.id,
-                                    name: p.name,
-                                    description: p.description || undefined,
-                                }));
-                                const imageAnalysis = await analyzeProductImageWithPlan(imageUrl, productsForAnalysis, planType);
-
-                                if (imageAnalysis.matchedProduct || imageAnalysis.description) {
-                                    // First try exact match using AI's matchedProduct
-                                    let matchedProduct = imageAnalysis.matchedProduct
-                                        ? shop.products.find(p =>
-                                            p.name.toLowerCase() === imageAnalysis.matchedProduct!.toLowerCase() ||
-                                            p.name.toLowerCase().includes(imageAnalysis.matchedProduct!.toLowerCase()) ||
-                                            imageAnalysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
-                                        )
-                                        : undefined;
-
-                                    // Fallback: try matching from description
-                                    if (!matchedProduct && imageAnalysis.description) {
-                                        const description = imageAnalysis.description.toLowerCase();
-                                        matchedProduct = shop.products.find(p =>
-                                            description.includes(p.name.toLowerCase())
-                                        );
-                                    }
-
-                                    let responseMessage: string;
-                                    if (matchedProduct) {
-                                        // Simple, clean product info
-                                        const sizeInfo = matchedProduct.variants
-                                            ? `\n📏 ${matchedProduct.variants}`
-                                            : '';
-
-                                        responseMessage = `🏷️ ${matchedProduct.name}\n` +
-                                            `💰 ${matchedProduct.price?.toLocaleString()}₮\n` +
-                                            `📦 ${matchedProduct.stock} ширхэг${sizeInfo}`;
-                                    } else {
-                                        // No match found - suggest similar products
-                                        const suggestions = shop.products.slice(0, 3).map(p => p.name).join(', ');
-                                        responseMessage = `Зурагт: ${imageAnalysis.description}\n\n` +
-                                            `Яг энэ бараа одоохондоо байхгүй байна. \n` +
-                                            `Бидэнд: ${suggestions} гэх мэт бараа байна 😊`;
-                                    }
-
-                                    await sendTextMessage({
-                                        recipientId: senderId,
-                                        message: responseMessage,
-                                        pageAccessToken: accessToken,
-                                    });
-
-                                    // Save to chat history
-                                    await saveChatHistory(shop.id, customer.id, '[Зураг илгээсэн]', responseMessage, 'IMAGE_ANALYSIS');
-                                } else {
-                                    await sendTextMessage({
-                                        recipientId: senderId,
-                                        message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
-                                        pageAccessToken: accessToken,
-                                    });
-                                }
-                            } catch (imageError) {
-                                logger.error('Image analysis error:', { error: imageError });
+                            } else {
+                                // Fallback: If pending queue fails, send error message
+                                logger.warn(`[${shop.name}] Pending queue failed for image`);
                                 await sendTextMessage({
                                     recipientId: senderId,
-                                    message: 'Зургийг таньж чадсангүй. Бүтээгдэхүүний нэрийг бичиж өгнө үү! 📝',
+                                    message: 'Зургийг хүлээж авлаа. Түр хүлээнэ үү! 📸',
                                     pageAccessToken: accessToken,
                                 });
                             }
