@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateOrderStatusSchema, parseWithErrors, createOrderSchema } from '@/lib/validations';
+import { sendOrderStatusNotification } from '@/lib/services/OrderNotificationService';
 import { logger } from '@/lib/utils/logger';
 
 // GET all orders
@@ -183,6 +184,13 @@ export async function PATCH(request: NextRequest) {
         p_customer_id: order.customer_id,
         p_amount: order.total_amount
       });
+    }
+
+    // Send notification to customer via Facebook Messenger
+    if (order.customer_id) {
+      // Fire and forget - don't block the response
+      sendOrderStatusNotification(order.customer_id, orderId, status, shopId)
+        .catch(err => logger.error('Failed to send order notification:', { err }));
     }
 
     return NextResponse.json({

@@ -61,6 +61,40 @@ export async function sendTextMessage({ recipientId, message, pageAccessToken }:
     return response.json();
 }
 
+// Send a message using Message Tags (for notifications outside 24-hour window)
+export async function sendTaggedMessage({
+    recipientId,
+    message,
+    pageAccessToken,
+    tag = 'POST_PURCHASE_UPDATE',
+}: {
+    recipientId: string;
+    message: string;
+    pageAccessToken: string;
+    tag?: 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE' | 'ACCOUNT_UPDATE';
+}) {
+    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: { text: message },
+            messaging_type: 'MESSAGE_TAG',
+            tag: tag,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        console.error('Facebook API error (tagged message):', error);
+        throw new Error(`Failed to send tagged message: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.json();
+}
+
 export async function sendMessageWithQuickReplies({
     recipientId,
     message,

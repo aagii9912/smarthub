@@ -3,10 +3,11 @@ import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { z } from 'zod';
 import { logger } from '@/lib/utils/logger';
+import { sendBulkOrderNotifications } from '@/lib/services/OrderNotificationService';
 
 const bulkUpdateSchema = z.object({
     orderIds: z.array(z.string().uuid()),
-    status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']),
+    status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'paid']),
 });
 
 export async function POST(request: NextRequest) {
@@ -47,8 +48,10 @@ export async function POST(request: NextRequest) {
         // TODO: If 'delivered', we should theoretically update stats for all of them, 
         // but the `update_customer_stats_manual` RPC takes single ID. 
         // For bulk efficiency we might skip that or loop parallel. 
-        // Given the 'bulk' nature, triggering side effects for 50 orders might be heavy.
         // For MVP, we will only do the status update.
+
+        // Send notifications to all customers (async, non-blocking)
+        sendBulkOrderNotifications(orderIds, status, shopId);
 
         return NextResponse.json({
             success: true,
