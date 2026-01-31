@@ -359,20 +359,22 @@ export async function analyzeProductImageWithPlan(
         const modelName = MODEL_MAPPING[planConfig.model];
         const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
 
-        const prompt = `Та бол дэлгүүрийн ухаалаг туслах юм. Энэ зургийг шинжилж, хоёр зүйлийн аль нэг гэж ангилна уу:
-1. "product_inquiry": Хэрэглэгч барааны зураг явуулж, байгаа эсэхийг асууж байна.
-2. "payment_receipt": Хэрэглэгч төлбөрийн баримт явуулж байна.
+        const prompt = `Та бол онлайн дэлгүүрийн ухаалаг туслах. Хэрэглэгчийн илгээсэн зургийг шинжилж дараах бүтээгдэхүүнүүдийн жагсаалтаас ТОХИРОХ барааг олоорой.
 
-Боломжит бүтээгдэхүүнүүд:
+БҮТЭЭГДЭХҮҮНҮҮД (яг энэ нэрээр хариулна уу):
 ${productList}
 
-Зөвхөн JSON форматаар хариулна уу:
+ДААЛГАВАР:
+1. Зургийг сайтар ажиглаарай
+2. Дээрх жагсаалтаас ижил төстэй бараа байвал "matchedProduct" талбарт ЯГ ТЭР НЭРИЙГ бичнэ үү
+3. Хэрэв ямар ч бараа тохирохгүй бол matchedProduct = null
+
+JSON хариулна уу:
 {
-  "type": "product_inquiry" эсвэл "payment_receipt",
-  "matchedProduct": "Тохирсон бүтээгдэхүүний нэр эсвэл null",
+  "type": "product_inquiry",
+  "matchedProduct": "Жагсаалтаас тохирсон бүтээгдэхүүний ЯГ НЭР, эсвэл null",
   "confidence": 0.0-1.0,
-  "description": "Товч тайлбар",
-  "receiptAmount": 0
+  "description": "Зурагт юу байгаа товч тайлбар"
 }`;
 
         const response = await openai.chat.completions.create({
@@ -407,7 +409,7 @@ ${productList}
         return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
     } catch (error: unknown) {
         const err = error as { message?: string; status?: number; code?: string };
-        logger.error('Vision Error:', { 
+        logger.error('Vision Error:', {
             message: err.message,
             status: err.status,
             code: err.code,

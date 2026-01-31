@@ -319,23 +319,40 @@ export async function POST(request: NextRequest) {
                                 const imageAnalysis = await analyzeProductImageWithPlan(imageUrl, productsForAnalysis, planType);
 
                                 if (imageAnalysis.matchedProduct || imageAnalysis.description) {
-                                    // Try to match with shop products
-                                    const description = imageAnalysis.description || '';
-                                    const matchedProducts = shop.products.filter(p =>
-                                        description.toLowerCase().includes(p.name.toLowerCase())
-                                    );
+                                    // First try exact match using AI's matchedProduct
+                                    let matchedProduct = imageAnalysis.matchedProduct
+                                        ? shop.products.find(p =>
+                                            p.name.toLowerCase() === imageAnalysis.matchedProduct!.toLowerCase() ||
+                                            p.name.toLowerCase().includes(imageAnalysis.matchedProduct!.toLowerCase()) ||
+                                            imageAnalysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
+                                        )
+                                        : undefined;
+
+                                    // Fallback: try matching from description
+                                    if (!matchedProduct && imageAnalysis.description) {
+                                        const description = imageAnalysis.description.toLowerCase();
+                                        matchedProduct = shop.products.find(p =>
+                                            description.includes(p.name.toLowerCase())
+                                        );
+                                    }
 
                                     let responseMessage: string;
-                                    if (matchedProducts.length > 0) {
-                                        const product = matchedProducts[0];
-                                        responseMessage = `Зурагнаас "${product.name}" бүтээгдэхүүнийг таньлаа! 🎯\n\n` +
-                                            `💰 Үнэ: ${product.price?.toLocaleString()}₮\n` +
-                                            `📦 Үлдэгдэл: ${product.stock} ширхэг\n\n` +
-                                            `Захиалах уу? 🛒`;
+                                    if (matchedProduct) {
+                                        // Build product info with size/color if available
+                                        const sizeInfo = matchedProduct.variants
+                                            ? `\n📏 Хэмжээ: ${matchedProduct.variants}`
+                                            : '';
+
+                                        responseMessage = `✅ Зурагнаас "${matchedProduct.name}" бүтээгдэхүүнийг таньлаа! 🎯\n\n` +
+                                            `💰 Үнэ: ${matchedProduct.price?.toLocaleString()}₮\n` +
+                                            `📦 Үлдэгдэл: ${matchedProduct.stock} ширхэг${sizeInfo}\n\n` +
+                                            `Захиалах уу? Хэмжээ, тоо ширхгээ хэлнэ үү! 🛒`;
                                     } else {
-                                        responseMessage = `Зурагт: ${description}\n\n` +
-                                            `Энэ бүтээгдэхүүн бидний дэлгүүрт одоохондоо байхгүй байна. ` +
-                                            `Өөр бүтээгдэхүүн хайж байна уу? 🔍`;
+                                        // No match found - suggest similar products
+                                        const suggestions = shop.products.slice(0, 3).map(p => p.name).join(', ');
+                                        responseMessage = `Зурагт: ${imageAnalysis.description}\n\n` +
+                                            `Яг энэ бараа одоохондоо байхгүй байна. \n` +
+                                            `Бидэнд: ${suggestions} гэх мэт бараа байна 😊`;
                                     }
 
                                     await sendTextMessage({
