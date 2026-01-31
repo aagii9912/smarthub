@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -138,9 +139,13 @@ export default function Home() {
           {/* Header/Nav */}
           <nav className="mb-8 sm:mb-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary">
-                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Syncly"
+                width={36}
+                height={36}
+                className="rounded-lg"
+              />
               <span className="text-xl sm:text-2xl font-bold text-foreground">Syncly</span>
             </div>
 
@@ -741,9 +746,13 @@ export default function Home() {
           <div className="border-t border-border pt-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Sparkles className="h-4 w-4 text-primary-foreground" />
-                </div>
+                <Image
+                  src="/logo.png"
+                  alt="Syncly"
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
                 <span className="text-lg font-bold text-foreground">Syncly</span>
               </div>
               <p className="text-sm text-muted-foreground">

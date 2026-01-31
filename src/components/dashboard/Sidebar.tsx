@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
@@ -68,18 +69,26 @@ export function Sidebar() {
             <div className="flex items-center justify-between h-16 px-4 border-b border-neutral-800">
                 {!collapsed && (
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center">
-                            <span className="text-neutral-900 font-bold text-lg">S</span>
-                        </div>
+                        <Image
+                            src="/logo.png"
+                            alt="Syncly"
+                            width={36}
+                            height={36}
+                            className="rounded-lg"
+                        />
                         <span className="font-semibold text-lg text-white">
                             Syncly
                         </span>
                     </div>
                 )}
                 {collapsed && (
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center mx-auto">
-                        <span className="text-neutral-900 font-bold text-lg">S</span>
-                    </div>
+                    <Image
+                        src="/logo.png"
+                        alt="Syncly"
+                        width={36}
+                        height={36}
+                        className="rounded-lg mx-auto"
+                    />
                 )}
             </div>
 
