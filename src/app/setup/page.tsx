@@ -365,10 +365,12 @@ function SetupContent() {
 
       <div className="relative max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/10">
-              <Sparkles className="w-7 h-7 text-violet-600" />
-            </div>
+          <Link href="/" className="inline-flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Syncly"
+              className="w-12 h-12 rounded-2xl shadow-lg shadow-violet-500/10"
+            />
             <span className="text-2xl font-bold text-gray-900">Syncly</span>
           </Link>
 
