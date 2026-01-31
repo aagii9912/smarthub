@@ -37,24 +37,59 @@ export async function GET() {
             .eq('shop_id', shop.id)
             .single();
 
-        // Get usage for current period
+        // Get REAL usage stats from actual tables
         const periodStart = new Date();
         periodStart.setDate(1);
         periodStart.setHours(0, 0, 0, 0);
 
-        const { data: usage } = await supabase
-            .from('usage_logs')
-            .select('metric_type, count')
-            .eq('shop_id', shop.id)
-            .gte('created_at', periodStart.toISOString());
+        // Parallel queries for real usage counts
+        const [messagesRes, productsRes, customersRes, ordersRes, ordersThisMonthRes, revenueRes] = await Promise.all([
+            // Total messages this month from chat_history
+            supabase
+                .from('chat_history')
+                .select('id', { count: 'exact', head: true })
+                .eq('shop_id', shop.id)
+                .gte('created_at', periodStart.toISOString()),
+            // Total products
+            supabase
+                .from('products')
+                .select('id', { count: 'exact', head: true })
+                .eq('shop_id', shop.id),
+            // Total customers
+            supabase
+                .from('customers')
+                .select('id', { count: 'exact', head: true })
+                .eq('shop_id', shop.id),
+            // Total orders
+            supabase
+                .from('orders')
+                .select('id', { count: 'exact', head: true })
+                .eq('shop_id', shop.id),
+            // Orders this month
+            supabase
+                .from('orders')
+                .select('id', { count: 'exact', head: true })
+                .eq('shop_id', shop.id)
+                .gte('created_at', periodStart.toISOString()),
+            // Revenue this month
+            supabase
+                .from('orders')
+                .select('total_amount')
+                .eq('shop_id', shop.id)
+                .in('status', ['completed', 'paid', 'delivered'])
+                .gte('created_at', periodStart.toISOString()),
+        ]);
 
-        // Aggregate usage
-        const usageSummary: Record<string, number> = {};
-        if (usage) {
-            usage.forEach(u => {
-                usageSummary[u.metric_type] = (usageSummary[u.metric_type] || 0) + u.count;
-            });
-        }
+        // Build real usage summary
+        const usageSummary: Record<string, number> = {
+            messages: messagesRes.count || 0,
+            products: productsRes.count || 0,
+            customers: customersRes.count || 0,
+            orders: ordersRes.count || 0,
+            orders_this_month: ordersThisMonthRes.count || 0,
+            revenue_this_month: revenueRes.data?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0,
+            pages: 1, // Default to 1 Facebook page
+        };
 
         // Get recent invoices
         const { data: invoices } = await supabase
