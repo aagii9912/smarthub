@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useConfetti } from '@/hooks/useConfetti';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 // Components
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
@@ -15,6 +16,7 @@ import { InstagramStep } from '@/components/setup/InstagramStep';
 import { ProductStep } from '@/components/setup/ProductStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
 import { SubscriptionStep } from '@/components/setup/SubscriptionStep';
+import { PWAInstallBanner } from '@/components/setup/PWAInstallBanner';
 
 function SetupContent() {
   const router = useRouter();
@@ -42,7 +44,10 @@ function SetupContent() {
   // Confetti hook
   const { triggerSmall, triggerFinal } = useConfetti();
 
-  // Sync step with persistent storage + confetti
+  // PWA install hook
+  const { triggerPromptAfterStep } = usePWAInstall();
+
+  // Sync step with persistent storage + confetti + PWA prompt
   const setStep = (newStep: number) => {
     // Trigger confetti when advancing
     if (newStep > step) {
@@ -53,6 +58,8 @@ function SetupContent() {
         // Regular step advancement
         triggerSmall();
       }
+      // Trigger PWA install prompt after step 3
+      triggerPromptAfterStep(newStep);
     }
     setStepLocal(newStep);
     savePersistentStep(newStep);
@@ -484,6 +491,9 @@ function SetupContent() {
           )}
         </div>
       </div>
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
     </div>
   );
 }

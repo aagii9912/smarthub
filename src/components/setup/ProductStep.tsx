@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box, FileSpreadsheet } from 'lucide-react';
+import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box, FileSpreadsheet, Facebook } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProductImportModal } from './ProductImportModal';
@@ -54,6 +54,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [fbImporting, setFbImporting] = useState(false);
 
   const blobUrlsRef = useRef<Set<string>>(new Set());
 
@@ -343,7 +344,51 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
           onClick={() => setShowImportModal(true)}
           className="flex-1 py-3 border-2 border-dashed border-violet-300 text-violet-500 rounded-xl hover:border-violet-500 hover:text-violet-600 hover:bg-violet-50 transition-all flex items-center justify-center gap-2 font-medium"
         >
-          <FileSpreadsheet className="w-5 h-5" /> CSV Import
+          <FileSpreadsheet className="w-5 h-5" /> CSV
+        </button>
+        <button
+          onClick={async () => {
+            // TODO: Get FB credentials from context/props
+            setFbImporting(true);
+            try {
+              const res = await fetch('/api/facebook/products', {
+                headers: {
+                  'x-fb-page-id': '', // Will be passed from parent
+                  'x-fb-access-token': ''
+                }
+              });
+              const data = await res.json();
+              if (data.products?.length > 0) {
+                const newProducts: Product[] = data.products.map((p: any) => ({
+                  name: p.name,
+                  price: p.price.toString(),
+                  description: p.description || '',
+                  colors: '',
+                  sizes: '',
+                  type: 'physical' as const,
+                  stock: p.stock?.toString() || '10',
+                  imageUrl: p.image_url,
+                  imageFile: null
+                }));
+                setProducts(prev => [...prev.filter(p => p.name), ...newProducts]);
+              } else {
+                setError(data.message || 'Facebook Shop бүтээгдэхүүн олдсонгүй');
+              }
+            } catch (err: any) {
+              setError(err.message || 'FB Shop татахад алдаа гарлаа');
+            } finally {
+              setFbImporting(false);
+            }
+          }}
+          disabled={fbImporting}
+          className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-500 rounded-xl hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 font-medium disabled:opacity-50"
+        >
+          {fbImporting ? (
+            <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          ) : (
+            <Facebook className="w-5 h-5" />
+          )}
+          FB Shop
         </button>
       </div>
 
