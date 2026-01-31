@@ -7,7 +7,7 @@ import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
-import { canAddShop } from '@/lib/plan-limits';
+import { useFeatures } from '@/hooks/useFeatures';
 
 
 export function Header() {
@@ -15,6 +15,7 @@ export function Header() {
     const pathname = usePathname();
     const { signOut } = useClerk();
     const { user, shop, shops } = useAuth();
+    const { limits } = useFeatures();
     const [showDropdown, setShowDropdown] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
 
@@ -84,7 +85,8 @@ export function Header() {
                 {/* Shop Switcher - always show with add shop option */}
                 <ShopSwitcher
                     onAddShop={
-                        canAddShop((shop as any)?.subscription_plan, shops.length)
+                        // Use database limits: -1 means unlimited
+                        (limits?.max_shops === -1 || shops.length < (limits?.max_shops || 1))
                             ? () => router.push('/setup')
                             : undefined
                     }

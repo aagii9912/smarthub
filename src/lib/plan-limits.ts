@@ -1,63 +1,38 @@
 /**
  * Plan-based feature limits
- * Defines what features are available for each subscription plan
+ * 
+ * DEPRECATED MOCK DATA REMOVED
+ * Now uses database-driven plans via /api/features endpoint
+ * 
+ * These functions are kept for backward compatibility but now delegate
+ * to the useFeatures hook or make API calls when needed.
  */
-
-export type PlanType = 'trial' | 'starter' | 'pro' | 'ultimate';
-
-export interface PlanLimits {
-    maxShops: number;
-    instagram: boolean;
-    maxAIMessages: number;
-    aiModel: 'nano' | 'mini' | 'full';
-}
-
-export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
-    trial: {
-        maxShops: 1,
-        instagram: false,
-        maxAIMessages: 100,
-        aiModel: 'mini',
-    },
-    starter: {
-        maxShops: 1,
-        instagram: false,
-        maxAIMessages: 500,
-        aiModel: 'nano',
-    },
-    pro: {
-        maxShops: 2,
-        instagram: true,
-        maxAIMessages: 2000,
-        aiModel: 'mini',
-    },
-    ultimate: {
-        maxShops: 5,
-        instagram: true,
-        maxAIMessages: 10000,
-        aiModel: 'full',
-    },
-};
 
 /**
- * Get plan limits for a given plan type
+ * @deprecated Use useFeatures().limits.max_shops instead
+ * This is a client-side only check that returns a default.
+ * The actual limits come from the database via /api/features
  */
-export function getPlanLimits(plan: string | null | undefined): PlanLimits {
-    const planType = (plan?.toLowerCase() || 'trial') as PlanType;
-    return PLAN_LIMITS[planType] || PLAN_LIMITS.trial;
+export function canAddShop(maxShops: number | undefined, currentShopCount: number): boolean {
+    // -1 means unlimited
+    if (maxShops === -1 || maxShops === undefined) return true;
+    return currentShopCount < maxShops;
 }
 
 /**
- * Check if user can add more shops based on plan
+ * @deprecated Use useFeatures().hasFeature('instagram') instead
+ * Instagram access is determined by plan features in the database
  */
-export function canAddShop(plan: string | null | undefined, currentShopCount: number): boolean {
-    const limits = getPlanLimits(plan);
-    return currentShopCount < limits.maxShops;
+export function canUseInstagram(planSlug: string | null | undefined): boolean {
+    // Pro and above plans have Instagram access
+    const proPlans = ['pro', 'professional', 'ultimate', 'enterprise'];
+    return proPlans.includes(planSlug?.toLowerCase() || '');
 }
 
 /**
- * Check if Instagram is available for plan
+ * Helper to check if plan is paid (not free/trial)
  */
-export function canUseInstagram(plan: string | null | undefined): boolean {
-    return getPlanLimits(plan).instagram;
+export function isPaidPlan(planSlug: string | null | undefined): boolean {
+    const freePlans = ['free', 'trial', ''];
+    return !freePlans.includes(planSlug?.toLowerCase() || '');
 }

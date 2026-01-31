@@ -133,8 +133,8 @@ export async function DELETE(request: NextRequest) {
     try {
         const admin = await getAdminUser();
 
-        if (!admin || admin.role !== 'super_admin') {
-            return NextResponse.json({ error: 'Unauthorized: Super admin required' }, { status: 401 });
+        if (!admin || (admin.role !== 'super_admin' && admin.role !== 'admin')) {
+            return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
-import { canUseInstagram } from '@/lib/plan-limits';
+import { useFeatures } from '@/hooks/useFeatures';
 import {
     Store, User, Facebook, Bot, Bell, Shield,
     Save, LogOut, Loader2, Check, AlertCircle,
@@ -19,6 +19,7 @@ export default function SettingsPage() {
     const { user, shop, refreshShop } = useAuth();
     const router = useRouter();
     const { signOut } = useClerk();
+    const { plan, isProOrHigher } = useFeatures();
 
     const [loading, setLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -39,8 +40,8 @@ export default function SettingsPage() {
     // Platform disconnect state
     const [disconnecting, setDisconnecting] = useState<'facebook' | 'instagram' | null>(null);
 
-    // Check if Instagram is available for this plan
-    const instagramAvailable = canUseInstagram(shop?.subscription_plan);
+    // Check if Instagram is available for this plan (Pro or higher)
+    const instagramAvailable = isProOrHigher;
 
     useEffect(() => {
         if (shop) {
