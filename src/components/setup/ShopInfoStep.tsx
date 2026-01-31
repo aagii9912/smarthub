@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Store, ArrowRight, Building2 } from 'lucide-react';
+import { Store, ArrowRight, Building2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ShopInfoStepProps {
   initialData: {
@@ -32,8 +33,35 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      newErrors.name = 'Дэлгүүрийн нэр оруулна уу';
+    } else if (name.length < 2) {
+      newErrors.name = 'Хамгийн багадаа 2 тэмдэгт байх ёстой';
+    }
+
+    if (phone && !/^[0-9]{8}$/.test(phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Утасны дугаар 8 оронтой байх ёстой';
+    }
+
+    if (accountNumber && !/^[0-9]{8,16}$/.test(accountNumber.replace(/\s/g, ''))) {
+      newErrors.accountNumber = 'Дансны дугаар зөв биш байна';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async () => {
-    if (!name) return;
+    if (!validateForm()) {
+      toast.error('Мэдээлэл дутуу байна');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -45,8 +73,10 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
         account_number: accountNumber,
         account_name: accountName
       });
+      toast.success('Амжилттай хадгаллаа!');
     } catch (err: any) {
       setError(err.message || 'Алдаа гарлаа');
+      toast.error(err.message || 'Алдаа гарлаа');
     } finally {
       setSaving(false);
     }
@@ -74,11 +104,15 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
             placeholder="Жишээ: Миний дэлгүүр"
-            required
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
           />
+          {errors.name && (
+            <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />{errors.name}
+            </p>
+          )}
         </div>
 
         <div>
@@ -97,10 +131,15 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
             placeholder="99001122"
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
           />
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />{errors.phone}
+            </p>
+          )}
         </div>
 
         <div className="pt-4 border-t border-gray-100">

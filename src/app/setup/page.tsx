@@ -350,24 +350,47 @@ function SetupContent() {
             </div>
             <span className="text-2xl font-bold text-gray-900">Syncly</span>
           </Link>
+
+          {/* Progress Percentage */}
+          <div className="mt-4 text-center">
+            <div className="inline-flex items-center gap-2 bg-violet-50 px-4 py-2 rounded-full">
+              <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-violet-500 to-violet-600 transition-all duration-500"
+                  style={{ width: `${Math.round((step / 6) * 100)}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold text-violet-600">
+                {Math.round((step / 6) * 100)}%
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {step === 1 && "Эхлэлийг тавилаа! 🚀"}
+              {step === 2 && "Гайхалтай! Үргэлжлүүлээрэй 💪"}
+              {step === 3 && "Хагас нь дууслаа! 🎯"}
+              {step === 4 && "Бараг дууссан байна! ✨"}
+              {step === 5 && "Сүүлийн алхамууд! 🏁"}
+              {step === 6 && "Та удахгүй дуусна! 🎉"}
+            </p>
+          </div>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-4 mb-12">
+        {/* Progress Steps - Mobile Responsive */}
+        <div className="flex items-center justify-center gap-1 sm:gap-4 mb-8 sm:mb-12 px-2">
           {[1, 2, 3, 4, 5, 6].map((s) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all border ${step >= s
+            <div key={s} className="flex items-center gap-1 sm:gap-2">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all border ${step >= s
                 ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
                 : 'bg-white text-gray-400 border-gray-200'
                 }`}>
-                {step > s ? <Check className="w-5 h-5" /> : s}
+                {step > s ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : s}
               </div>
-              {s < 6 && <div className={`w-12 h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
+              {s < 6 && <div className={`w-4 sm:w-12 h-0.5 sm:h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-xl shadow-gray-200/50">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-gray-100 shadow-xl shadow-gray-200/50">
           {error && (
             <div className="mb-6 bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm text-center font-medium">
               {error}
