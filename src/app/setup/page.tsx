@@ -110,10 +110,12 @@ function SetupContent() {
       }
 
       if (shop) {
-        if (shop.setup_completed) {
+        // Only redirect to dashboard if BOTH setup_completed AND facebook connected
+        if (shop.setup_completed && shop.facebook_page_id) {
           router.push('/dashboard');
           return;
         } else if (!shop.facebook_page_id) {
+          // No Facebook connected, go to step 2
           setStepLocal(2);
           savePersistentStep(2);
         } else if (step < 3) {
