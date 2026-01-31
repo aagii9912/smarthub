@@ -86,7 +86,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Build update object (only include provided fields)
-    const updateData: Record<string, any> = {};
+    const updateData: Partial<{
+      name: string;
+      phone: string;
+      email: string;
+      notes: string;
+      tags: string[];
+    }> = {};
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
     if (email !== undefined) updateData.email = email;

@@ -9,6 +9,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Type for joined product data in cart items
+interface CartItemProduct {
+    id: string;
+    name: string;
+    image_url?: string;
+    stock: number;
+    reserved_stock: number;
+}
+
+// Helper to safely extract product data from cart item join
+function getProductData(products: unknown): CartItemProduct | null {
+    if (!products) return null;
+    // Supabase returns single relation as object, not array
+    if (Array.isArray(products)) return products[0] as CartItemProduct || null;
+    return products as CartItemProduct;
+}
+
 // GET - Get cart contents
 export async function GET(request: NextRequest) {
     try {
@@ -57,21 +74,28 @@ export async function GET(request: NextRequest) {
         if (itemsError) throw itemsError;
 
         // Calculate total
-        const { data: total } = await supabase
+        const { data: total, error: totalError } = await supabase
             .rpc('calculate_cart_total', { p_cart_id: cartId });
+
+        if (totalError) {
+            console.warn('Cart total calc error:', totalError.message);
+        }
 
         return NextResponse.json({
             cart_id: cartId,
-            items: items?.map(item => ({
-                id: item.id,
-                product_id: item.product_id,
-                name: (item.products as any)?.name || 'Unknown',
-                image_url: (item.products as any)?.image_url,
-                variant_specs: item.variant_specs,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                subtotal: item.unit_price * item.quantity
-            })) || [],
+            items: items?.map(item => {
+                const product = getProductData(item.products);
+                return {
+                    id: item.id,
+                    product_id: item.product_id,
+                    name: product?.name || 'Unknown',
+                    image_url: product?.image_url,
+                    variant_specs: item.variant_specs,
+                    quantity: item.quantity,
+                    unit_price: item.unit_price,
+                    subtotal: item.unit_price * item.quantity
+                };
+            }) || [],
             total_amount: total || 0,
             item_count: items?.length || 0
         });
@@ -259,8 +283,10 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Item not found' }, { status: 404 });
         }
 
-        const cart = item.carts as any;
-        if (cart.shop_id !== shop.id || cart.customer_id !== customerId) {
+        // Type-safe cart data extraction (Supabase !inner returns object, not array)
+        const cartData = item.carts as unknown;
+        const cart = (Array.isArray(cartData) ? cartData[0] : cartData) as { shop_id: string; customer_id: string } | null;
+        if (!cart || cart.shop_id !== shop.id || cart.customer_id !== customerId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 
@@ -270,9 +296,11 @@ export async function DELETE(request: NextRequest) {
             .delete()
             .eq('id', itemId);
 
+        // Type-safe product name extraction
+        const product = getProductData(item.products);
         return NextResponse.json({
             success: true,
-            message: `${(item.products as any)?.name || 'Бараа'} сагснаас хасагдлаа`
+            message: `${product?.name || 'Бараа'} сагснаас хасагдлаа`
         });
 
     } catch (error: any) {

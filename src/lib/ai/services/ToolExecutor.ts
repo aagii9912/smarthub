@@ -19,7 +19,11 @@ import type {
     RemoveFromCartArgs,
     CheckoutArgs,
     RememberPreferenceArgs,
-    CheckPaymentArgs, // Added
+    CheckPaymentArgs,
+    CheckOrderStatusArgs,
+    LogComplaintArgs,
+    SuggestRelatedProductsArgs,
+    UpdateOrderArgs,
     ToolName,
 } from '../tools/definitions';
 import { saveCustomerPreference } from '../tools/memory';
@@ -717,6 +721,452 @@ export async function executeCheckPaymentStatus(
 }
 
 /**
+ * #1 IMPROVEMENT: Execute check_order_status tool
+ * Allows customers to check their order status
+ */
+async function executeCheckOrderStatus(
+    args: CheckOrderStatusArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const supabase = supabaseAdmin();
+    const { orderId } = { orderId: args.order_id };
+
+    try {
+        // Build query - either specific order or recent orders
+        let query = supabase
+            .from('orders')
+            .select('id, status, total, created_at, order_items(product_name, quantity, unit_price)')
+            .eq('shop_id', context.shopId)
+            .eq('customer_id', context.customerId)
+            .order('created_at', { ascending: false });
+
+        if (orderId) {
+            query = query.eq('id', orderId);
+        } else {
+            query = query.limit(5); // Get last 5 orders
+        }
+
+        const { data: orders, error } = await query;
+
+        if (error) {
+            logger.error('Failed to fetch orders:', { error });
+            return { success: false, error: 'Захиалга хайхад алдаа гарлаа' };
+        }
+
+        if (!orders || orders.length === 0) {
+            return {
+                success: true,
+                message: 'Танд одоогоор захиалга байхгүй байна.',
+                data: { orders: [] }
+            };
+        }
+
+        // Format orders for response
+        const orderSummaries = orders.map(order => {
+            const statusLabels: Record<string, string> = {
+                pending: '⏳ Хүлээгдэж буй',
+                confirmed: '✅ Баталгаажсан',
+                processing: '📦 Бэлтгэж байна',
+                shipped: '🚚 Хүргэлтэд',
+                delivered: '✔️ Хүргэгдсэн',
+                cancelled: '❌ Цуцлагдсан'
+            };
+
+            const items = (order.order_items as any[])?.map(
+                (item: any) => `${item.product_name} x${item.quantity}`
+            ).join(', ') || '';
+
+            return {
+                id: order.id.substring(0, 8).toUpperCase(),
+                status: statusLabels[order.status] || order.status,
+                total: order.total,
+                date: new Date(order.created_at).toLocaleDateString('mn-MN'),
+                items
+            };
+        });
+
+        const summaryText = orderSummaries.map(o =>
+            `#${o.id}: ${o.status} - ${o.total?.toLocaleString()}₮ (${o.date})\n   └ ${o.items}`
+        ).join('\n\n');
+
+        return {
+            success: true,
+            message: `Таны сүүлийн захиалгууд:\n\n${summaryText}`,
+            data: { orders: orderSummaries }
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Check order status error:', { error: errorMessage });
+        return { success: false, error: 'Захиалгын статус шалгахад алдаа гарлаа' };
+    }
+}
+
+/**
+ * #2 IMPROVEMENT: Execute log_complaint tool
+ * Logs customer complaints for sentiment tracking
+ */
+async function executeLogComplaint(
+    args: LogComplaintArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const supabase = supabaseAdmin();
+
+    try {
+        // Insert complaint into database
+        const { error } = await supabase
+            .from('customer_complaints')
+            .insert({
+                shop_id: context.shopId,
+                customer_id: context.customerId,
+                complaint_type: args.complaint_type,
+                description: args.description,
+                severity: args.severity || 'medium',
+                status: 'new',
+                created_at: new Date().toISOString()
+            });
+
+        if (error) {
+            // If table doesn't exist, log and continue gracefully
+            if (error.code === '42P01') {
+                logger.warn('customer_complaints table does not exist, logging to console');
+                logger.info('Customer complaint:', {
+                    shopId: context.shopId,
+                    customerId: context.customerId,
+                    type: args.complaint_type,
+                    description: args.description,
+                    severity: args.severity
+                });
+            } else {
+                logger.error('Failed to log complaint:', { error });
+            }
+        }
+
+        // Send notification to shop owner
+        await sendPushNotification(context.shopId, {
+            title: '⚠️ Үйлчлүүлэгчийн гомдол',
+            body: `${args.complaint_type}: ${args.description}`,
+            tag: 'complaint'
+        });
+
+        logger.info('Complaint logged:', {
+            shopId: context.shopId,
+            type: args.complaint_type,
+            severity: args.severity
+        });
+
+        return {
+            success: true,
+            message: 'Таны санал хүсэлтийг хүлээн авлаа. Бид удахгүй эргэж холбогдоно.',
+            data: { logged: true }
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Log complaint error:', { error: errorMessage });
+        return { success: false, error: 'Гомдол бүртгэхэд алдаа гарлаа' };
+    }
+}
+
+/**
+ * #3 IMPROVEMENT: Execute suggest_related_products tool
+ * Suggests related products for cross-selling
+ */
+async function executeSuggestRelatedProducts(
+    args: SuggestRelatedProductsArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const { current_product_name, suggestion_type = 'complementary' } = args;
+
+    try {
+        // Find the current product
+        const currentProduct = context.products?.find(p =>
+            p.name.toLowerCase().includes(current_product_name.toLowerCase()) ||
+            current_product_name.toLowerCase().includes(p.name.toLowerCase())
+        );
+
+        if (!currentProduct) {
+            return {
+                success: true,
+                message: 'Холбогдох бараа олдсонгүй.',
+                data: { suggestions: [] }
+            };
+        }
+
+        // Find related products based on strategy
+        let suggestions: typeof context.products = [];
+
+        if (suggestion_type === 'similar') {
+            // Similar products - same type, different items
+            suggestions = context.products?.filter(p =>
+                p.id !== currentProduct.id &&
+                p.type === currentProduct.type &&
+                p.stock > 0
+            ).slice(0, 3) || [];
+        } else if (suggestion_type === 'bundle') {
+            // Bundle - lower priced items
+            const currentPrice = currentProduct.discount_percent
+                ? currentProduct.price * (1 - currentProduct.discount_percent / 100)
+                : currentProduct.price;
+            suggestions = context.products?.filter(p => {
+                const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
+                return p.id !== currentProduct.id && pPrice < currentPrice && p.stock > 0;
+            }).slice(0, 2) || [];
+        } else {
+            // Complementary - different type or random selection
+            suggestions = context.products?.filter(p =>
+                p.id !== currentProduct.id &&
+                p.type !== currentProduct.type &&
+                p.stock > 0
+            ).slice(0, 3) || [];
+
+            // Fallback to any other product if no different type exists
+            if (suggestions.length === 0) {
+                suggestions = context.products?.filter(p =>
+                    p.id !== currentProduct.id && p.stock > 0
+                ).slice(0, 3) || [];
+            }
+        }
+
+        if (suggestions.length === 0) {
+            return {
+                success: true,
+                message: 'Одоогоор санал болгох нэмэлт бараа алга.',
+                data: { suggestions: [] }
+            };
+        }
+
+        const suggestionList = suggestions.map(p => {
+            const discountedPrice = p.discount_percent
+                ? Math.round(p.price * (1 - p.discount_percent / 100))
+                : p.price;
+            return {
+                name: p.name,
+                price: discountedPrice,
+                original_price: p.discount_percent ? p.price : undefined
+            };
+        });
+
+        const suggestionText = suggestions.map(p => {
+            const discountedPrice = p.discount_percent
+                ? Math.round(p.price * (1 - p.discount_percent / 100))
+                : p.price;
+            const priceText = p.discount_percent
+                ? `~~${p.price?.toLocaleString()}₮~~ ${discountedPrice?.toLocaleString()}₮`
+                : `${discountedPrice?.toLocaleString()}₮`;
+            return `• ${p.name} - ${priceText}`;
+        }).join('\n');
+
+        return {
+            success: true,
+            message: `"${currentProduct.name}"-тэй хамт авах уу?\n\n${suggestionText}`,
+            data: { suggestions: suggestionList }
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Suggest related products error:', { error: errorMessage });
+        return { success: false, error: 'Санал болгох бараа хайхад алдаа гарлаа' };
+    }
+}
+
+/**
+ * #4 IMPROVEMENT: Execute update_order tool
+ * Allows modification of pending orders
+ */
+async function executeUpdateOrder(
+    args: UpdateOrderArgs,
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    const supabase = supabaseAdmin();
+    const { action, product_name, new_quantity, notes } = args;
+
+    try {
+        // Find the most recent pending order for this customer
+        const { data: pendingOrder, error: orderError } = await supabase
+            .from('orders')
+            .select('id, status, notes, order_items(id, product_id, product_name, quantity, unit_price)')
+            .eq('shop_id', context.shopId)
+            .eq('customer_id', context.customerId)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (orderError || !pendingOrder) {
+            return {
+                success: false,
+                error: 'Өөрчлөх боломжтой захиалга олдсонгүй. Зөвхөн "Хүлээгдэж буй" статустай захиалгыг өөрчилнө.'
+            };
+        }
+
+        const orderId = pendingOrder.id;
+
+        switch (action) {
+            case 'change_quantity': {
+                if (!product_name || !new_quantity || new_quantity < 1) {
+                    return { success: false, error: 'Барааны нэр болон шинэ тоо хэмжээг оруулна уу.' };
+                }
+
+                // Find the order item
+                const orderItems = pendingOrder.order_items as any[];
+                const item = orderItems?.find((i: any) =>
+                    i.product_name.toLowerCase().includes(product_name.toLowerCase())
+                );
+
+                if (!item) {
+                    return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
+                }
+
+                // Update quantity
+                const { error: updateError } = await supabase
+                    .from('order_items')
+                    .update({ quantity: new_quantity })
+                    .eq('id', item.id);
+
+                if (updateError) {
+                    throw updateError;
+                }
+
+                // Recalculate order total
+                const newTotal = orderItems.reduce((sum: number, i: any) => {
+                    const qty = i.id === item.id ? new_quantity : i.quantity;
+                    return sum + (i.unit_price * qty);
+                }, 0);
+
+                await supabase
+                    .from('orders')
+                    .update({ total: newTotal })
+                    .eq('id', orderId);
+
+                return {
+                    success: true,
+                    message: `✅ "${item.product_name}" тоо хэмжээг ${new_quantity} болгож өөрчиллөө. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
+                    data: { order_id: orderId, new_quantity, new_total: newTotal }
+                };
+            }
+
+            case 'remove_item': {
+                if (!product_name) {
+                    return { success: false, error: 'Хасах барааны нэрийг оруулна уу.' };
+                }
+
+                const orderItems = pendingOrder.order_items as any[];
+                const item = orderItems?.find((i: any) =>
+                    i.product_name.toLowerCase().includes(product_name.toLowerCase())
+                );
+
+                if (!item) {
+                    return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
+                }
+
+                // Remove item
+                await supabase
+                    .from('order_items')
+                    .delete()
+                    .eq('id', item.id);
+
+                // Recalculate total
+                const remainingItems = orderItems.filter((i: any) => i.id !== item.id);
+                const newTotal = remainingItems.reduce((sum: number, i: any) =>
+                    sum + (i.unit_price * i.quantity), 0
+                );
+
+                if (remainingItems.length === 0) {
+                    // Cancel the order if no items left
+                    await supabase
+                        .from('orders')
+                        .update({ status: 'cancelled', notes: 'Бүх бараа хасагдсан' })
+                        .eq('id', orderId);
+
+                    return {
+                        success: true,
+                        message: `✅ "${item.product_name}" хасагдлаа. Захиалгад бараа үлдээгүй тул цуцлагдлаа.`,
+                        data: { order_id: orderId, cancelled: true }
+                    };
+                }
+
+                await supabase
+                    .from('orders')
+                    .update({ total: newTotal })
+                    .eq('id', orderId);
+
+                return {
+                    success: true,
+                    message: `✅ "${item.product_name}" захиалгаас хасагдлаа. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
+                    data: { order_id: orderId, new_total: newTotal }
+                };
+            }
+
+            case 'update_notes': {
+                const newNotes = notes || '';
+                await supabase
+                    .from('orders')
+                    .update({ notes: newNotes })
+                    .eq('id', orderId);
+
+                return {
+                    success: true,
+                    message: `✅ Захиалгын тэмдэглэл шинэчлэгдлээ.`,
+                    data: { order_id: orderId, notes: newNotes }
+                };
+            }
+
+            case 'add_item': {
+                if (!product_name) {
+                    return { success: false, error: 'Нэмэх барааны нэрийг оруулна уу.' };
+                }
+
+                // Find product in available products
+                const quantity = new_quantity || 1;
+                const product = await getProductFromDB(context.shopId, product_name);
+
+                if (!product) {
+                    return { success: false, error: `"${product_name}" бараа олдсонгүй.` };
+                }
+
+                const unitPrice = product.discount_percent
+                    ? Math.round(product.price * (1 - product.discount_percent / 100))
+                    : product.price;
+
+                // Add order item
+                await supabase
+                    .from('order_items')
+                    .insert({
+                        order_id: orderId,
+                        product_id: product.id,
+                        product_name: product.name,
+                        quantity,
+                        unit_price: unitPrice
+                    });
+
+                // Update order total
+                const orderItems = pendingOrder.order_items as any[];
+                const currentTotal = orderItems.reduce((sum: number, i: any) =>
+                    sum + (i.unit_price * i.quantity), 0
+                );
+                const newTotal = currentTotal + (unitPrice * quantity);
+
+                await supabase
+                    .from('orders')
+                    .update({ total: newTotal })
+                    .eq('id', orderId);
+
+                return {
+                    success: true,
+                    message: `✅ "${product.name}" x${quantity} захиалгад нэмэгдлээ. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
+                    data: { order_id: orderId, added_product: product.name, quantity, new_total: newTotal }
+                };
+            }
+
+            default:
+                return { success: false, error: `Тодорхойгүй үйлдэл: ${action}` };
+        }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error('Update order error:', { error: errorMessage });
+        return { success: false, error: 'Захиалга өөрчлөхөд алдаа гарлаа' };
+    }
+}
+
+/**
  * Main tool executor - routes to appropriate handler
  */
 export async function executeTool(
@@ -748,6 +1198,15 @@ export async function executeTool(
                 return await executeRememberPreference(args as RememberPreferenceArgs, context);
             case 'check_payment_status':
                 return await executeCheckPaymentStatus(args as CheckPaymentArgs, context);
+            // New tools (Improvements #1-4)
+            case 'check_order_status':
+                return await executeCheckOrderStatus(args as CheckOrderStatusArgs, context);
+            case 'log_complaint':
+                return await executeLogComplaint(args as LogComplaintArgs, context);
+            case 'suggest_related_products':
+                return await executeSuggestRelatedProducts(args as SuggestRelatedProductsArgs, context);
+            case 'update_order':
+                return await executeUpdateOrder(args as UpdateOrderArgs, context);
             default:
                 return { success: false, error: `Unknown tool: ${toolName}` };
         }

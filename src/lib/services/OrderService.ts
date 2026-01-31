@@ -248,22 +248,37 @@ export class OrderService {
      * Reserve stock for a product
      */
     private async reserveStock(productId: string, quantity: number): Promise<void> {
+        // Try RPC first (atomic operation)
         const { error } = await this.supabase.rpc('reserve_stock', {
             p_product_id: productId,
             p_quantity: quantity,
         });
 
         if (error) {
-            // If RPC doesn't exist, use direct update
+            logger.warn('reserve_stock RPC failed, using fallback', { productId, error: error.message });
+
+            // Fallback: fetch current value then update
+            const { data: product, error: fetchError } = await this.supabase
+                .from('products')
+                .select('reserved_stock')
+                .eq('id', productId)
+                .single();
+
+            if (fetchError) {
+                logger.warn('Could not fetch product for stock reservation', { productId, error: fetchError });
+                return;
+            }
+
+            const currentReserved = product?.reserved_stock || 0;
             const { error: updateError } = await this.supabase
                 .from('products')
-                .update({
-                    reserved_stock: this.supabase.rpc('increment_reserved', { amount: quantity }),
-                })
+                .update({ reserved_stock: currentReserved + quantity })
                 .eq('id', productId);
 
             if (updateError) {
-                logger.warn('Could not reserve stock', { productId, quantity, error: updateError });
+                logger.warn('Could not reserve stock (fallback)', { productId, quantity, error: updateError });
+            } else {
+                logger.info('Stock reserved via fallback', { productId, quantity, newReserved: currentReserved + quantity });
             }
         }
     }

@@ -237,6 +237,106 @@ export const AI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
                 required: []
             }
         }
+    },
+    // Order Status Tool
+    {
+        type: 'function',
+        function: {
+            name: 'check_order_status',
+            description: 'Check the status of customer\'s orders. Use when customer asks "Захиалга минь хаана?", "Хүргэлт хэзээ?", "Order status". Returns recent orders with status.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    order_id: {
+                        type: 'string',
+                        description: 'Specific order ID if known (optional)'
+                    }
+                },
+                required: []
+            }
+        }
+    },
+    // Complaint/Feedback Logging Tool
+    {
+        type: 'function',
+        function: {
+            name: 'log_complaint',
+            description: 'Log customer complaint or negative feedback. Use when customer expresses dissatisfaction, says "муу", "асуудал", "гомдол", "сэтгэл дундуур".',
+            parameters: {
+                type: 'object',
+                properties: {
+                    complaint_type: {
+                        type: 'string',
+                        enum: ['product_quality', 'delivery', 'service', 'price', 'other'],
+                        description: 'Type of complaint'
+                    },
+                    description: {
+                        type: 'string',
+                        description: 'Brief description of the complaint'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: ['low', 'medium', 'high'],
+                        description: 'Severity level based on customer tone'
+                    }
+                },
+                required: ['complaint_type', 'description']
+            }
+        }
+    },
+    // Cross-sell / Related Products Tool
+    {
+        type: 'function',
+        function: {
+            name: 'suggest_related_products',
+            description: 'Suggest related products for cross-selling. Use AFTER customer shows interest in a product or adds to cart. Naturally suggest: "Энэтэй хамт авах уу?"',
+            parameters: {
+                type: 'object',
+                properties: {
+                    current_product_name: {
+                        type: 'string',
+                        description: 'Name of the product customer is interested in'
+                    },
+                    suggestion_type: {
+                        type: 'string',
+                        enum: ['complementary', 'similar', 'bundle'],
+                        description: 'Type of suggestion: complementary (goes with), similar (alternative), bundle (discount together)'
+                    }
+                },
+                required: ['current_product_name']
+            }
+        }
+    },
+    // Order Modification Tool
+    {
+        type: 'function',
+        function: {
+            name: 'update_order',
+            description: 'Modify a pending order. Use when customer wants to change quantity, add/remove items, or update details. Only works on pending orders.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    action: {
+                        type: 'string',
+                        enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'],
+                        description: 'Type of modification'
+                    },
+                    product_name: {
+                        type: 'string',
+                        description: 'Product to modify (for quantity/add/remove)'
+                    },
+                    new_quantity: {
+                        type: 'number',
+                        description: 'New quantity (for change_quantity)'
+                    },
+                    notes: {
+                        type: 'string',
+                        description: 'Updated notes (for update_notes)'
+                    }
+                },
+                required: ['action']
+            }
+        }
     }
 ];
 
@@ -293,6 +393,28 @@ export interface CheckPaymentArgs {
     order_id?: string;
 }
 
+export interface CheckOrderStatusArgs {
+    order_id?: string;
+}
+
+export interface LogComplaintArgs {
+    complaint_type: 'product_quality' | 'delivery' | 'service' | 'price' | 'other';
+    description: string;
+    severity?: 'low' | 'medium' | 'high';
+}
+
+export interface SuggestRelatedProductsArgs {
+    current_product_name: string;
+    suggestion_type?: 'complementary' | 'similar' | 'bundle';
+}
+
+export interface UpdateOrderArgs {
+    action: 'change_quantity' | 'add_item' | 'remove_item' | 'update_notes';
+    product_name?: string;
+    new_quantity?: number;
+    notes?: string;
+}
+
 /**
  * Union type for all tool arguments
  */
@@ -306,7 +428,11 @@ export type ToolArgs =
     | RemoveFromCartArgs
     | CheckoutArgs
     | RememberPreferenceArgs
-    | CheckPaymentArgs;
+    | CheckPaymentArgs
+    | CheckOrderStatusArgs
+    | LogComplaintArgs
+    | SuggestRelatedProductsArgs
+    | UpdateOrderArgs;
 
 /**
  * Tool names type
@@ -322,5 +448,8 @@ export type ToolName =
     | 'remove_from_cart'
     | 'checkout'
     | 'remember_preference'
-    | 'check_payment_status';
-
+    | 'check_payment_status'
+    | 'check_order_status'
+    | 'log_complaint'
+    | 'suggest_related_products'
+    | 'update_order';

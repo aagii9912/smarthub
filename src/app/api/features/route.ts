@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth } from '@clerk/nextjs/server';
 import { headers } from 'next/headers';
+import { logger } from '@/lib/utils/logger';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,7 +53,7 @@ export async function GET() {
         const shop = shops?.[0] || null;
 
         // DEBUG: Log what we got from the database
-        console.log('[Features API DEBUG] shop:', shop?.id, 'plan_id:', shop?.plan_id, 'subscription_plan:', shop?.subscription_plan, 'plans:', shop?.plans);
+        logger.debug('[Features API] shop:', { shopId: shop?.id, planId: shop?.plan_id, subscriptionPlan: shop?.subscription_plan });
 
         if (shopError || !shop) {
             // Return default free features if no shop found
@@ -152,7 +153,7 @@ export async function GET() {
         const planSlug = planData?.slug || shop.subscription_plan || 'free';
         const planName = planData?.name || (shop.subscription_plan ? shop.subscription_plan.charAt(0).toUpperCase() + shop.subscription_plan.slice(1) : 'Free');
 
-        console.log('[Features API DEBUG] Final plan:', planSlug, 'planData:', !!planData, 'subscription_plan:', shop.subscription_plan);
+        logger.debug('[Features API] Final plan:', { planSlug, hasPlanData: !!planData, subscriptionPlan: shop.subscription_plan });
 
         return NextResponse.json({
             features: effectiveFeatures,

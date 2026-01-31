@@ -50,6 +50,10 @@ export default function SettingsPage() {
             setBankName(shop.bank_name || '');
             setAccountNumber(shop.account_number || '');
             setAccountName(shop.account_name || '');
+            // Load AI settings from shop
+            setAiEnabled((shop as any).is_ai_active ?? true);
+            setAutoReply((shop as any).auto_reply ?? true);
+            setWelcomeMessage((shop as any).welcome_message || 'Сайн байна уу! Танд юугаар туслах вэ?');
         }
     }, [shop]);
 
@@ -67,7 +71,11 @@ export default function SettingsPage() {
                     phone: phone,
                     bank_name: bankName,
                     account_number: accountNumber,
-                    account_name: accountName
+                    account_name: accountName,
+                    // AI Settings
+                    is_ai_active: aiEnabled,
+                    auto_reply: autoReply,
+                    welcome_message: welcomeMessage
                 })
             });
 

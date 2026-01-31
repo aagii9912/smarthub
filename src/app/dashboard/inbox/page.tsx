@@ -205,7 +205,9 @@ export default function InboxPage() {
                                         <div>
                                             <dt className="text-gray-500 mb-1">Сүүлийн үйлдэл</dt>
                                             <dd className="text-gray-900">
-                                                {new Date(activeCart.lastActive).toLocaleString()}
+                                                {activeCart.lastActive
+                                                    ? new Date(activeCart.lastActive).toLocaleString()
+                                                    : 'N/A'}
                                             </dd>
                                         </div>
                                         <div>

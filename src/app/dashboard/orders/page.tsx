@@ -44,6 +44,9 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
+  // Controlled date inputs for proper React state management
+  const [dateFromInput, setDateFromInput] = useState('');
+  const [dateToInput, setDateToInput] = useState('');
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
@@ -186,16 +189,24 @@ export default function OrdersPage() {
           <label className="text-xs font-medium text-gray-500 mb-1 block">Эхлэх огноо</label>
           <input
             type="date"
+            value={dateFromInput}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }))}
+            onChange={(e) => {
+              setDateFromInput(e.target.value);
+              setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }));
+            }}
           />
         </div>
         <div>
           <label className="text-xs font-medium text-gray-500 mb-1 block">Дуусах огноо</label>
           <input
             type="date"
+            value={dateToInput}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(new Date(e.target.value).setHours(23, 59, 59, 999)) : undefined }))}
+            onChange={(e) => {
+              setDateToInput(e.target.value);
+              setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(new Date(e.target.value).setHours(23, 59, 59, 999)) : undefined }));
+            }}
           />
         </div>
         {/* Active Filter Badge */}
@@ -203,9 +214,10 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-medium mb-1">
             <span>Шүүлтүүр идэвхтэй</span>
             <button onClick={() => {
+              // Reset using React state (proper pattern)
+              setDateFromInput('');
+              setDateToInput('');
               setDateRange({ from: undefined, to: undefined });
-              // Reset inputs (hacky without refs, but okay for MVP)
-              document.querySelectorAll('input[type="date"]').forEach((el: any) => el.value = '');
             }} className="hover:bg-violet-200 rounded-full p-0.5">
               <X className="w-3 h-3" />
             </button>
