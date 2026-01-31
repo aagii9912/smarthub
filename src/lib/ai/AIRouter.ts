@@ -303,6 +303,30 @@ export async function routeToAI(
 }
 
 /**
+ * Download image and convert to base64 for OpenAI Vision API
+ * Facebook CDN URLs are not directly accessible by OpenAI servers
+ */
+async function downloadImageAsBase64(imageUrl: string): Promise<string> {
+    const response = await fetch(imageUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; SmartHub/1.0)',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+
+    // Detect content type from response or default to jpeg
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${base64}`;
+}
+
+/**
  * Analyze product image using vision (plan-dependent)
  */
 export async function analyzeProductImageWithPlan(
@@ -327,6 +351,11 @@ export async function analyzeProductImageWithPlan(
     }
 
     try {
+        // Download and convert image to base64 (Facebook CDN blocks OpenAI servers)
+        logger.info('Downloading image for vision analysis...', { imageUrl: imageUrl.substring(0, 80) });
+        const base64Image = await downloadImageAsBase64(imageUrl);
+        logger.info('Image downloaded successfully', { size: Math.round(base64Image.length / 1024) + 'KB' });
+
         const modelName = MODEL_MAPPING[planConfig.model];
         const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
 
@@ -353,7 +382,7 @@ ${productList}
                     role: 'user',
                     content: [
                         { type: 'text', text: prompt },
-                        { type: 'image_url', image_url: { url: imageUrl } }
+                        { type: 'image_url', image_url: { url: base64Image } }
                     ]
                 }
             ],
@@ -365,6 +394,7 @@ ${productList}
 
         if (jsonMatch) {
             const result = JSON.parse(jsonMatch[0]);
+            logger.success('Vision analysis complete', { matched: result.matchedProduct, confidence: result.confidence });
             return {
                 matchedProduct: result.matchedProduct,
                 confidence: result.confidence,
@@ -377,7 +407,7 @@ ${productList}
         return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
     } catch (error: unknown) {
         const err = error as { message?: string; status?: number; code?: string };
-        logger.error('Vision Error:', {
+        logger.error('Vision Error:', { 
             message: err.message,
             status: err.status,
             code: err.code,
