@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
     Instagram, CheckCircle, ArrowLeft, ArrowRight,
-    MessageSquare, ExternalLink, AlertCircle
+    MessageSquare, ExternalLink, AlertCircle, RefreshCw
 } from 'lucide-react';
 
 interface InstagramAccount {
@@ -46,6 +46,7 @@ export function InstagramStep({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     // Manual fields
     const [manualUsername, setManualUsername] = useState(initialData.igUsername || '');
@@ -97,9 +98,29 @@ export function InstagramStep({
             </div>
 
             {error && (
-                <div className="mb-6 bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <span>{error}</span>
+                <div className="mb-6 bg-red-50 border border-red-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-start gap-2">
+                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+                            <span className="text-red-600 text-sm">{error}</span>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setError('');
+                                setRetryCount(c => c + 1);
+                                onConnect();
+                            }}
+                            className="flex items-center gap-1.5 text-red-600 hover:text-red-700 text-sm font-medium px-3 py-1.5 bg-red-100 hover:bg-red-200 rounded-lg transition-colors shrink-0"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Дахин
+                        </button>
+                    </div>
+                    {retryCount > 0 && (
+                        <p className="text-xs text-red-500 mt-2">
+                            Оролдлого: {retryCount} удаа
+                        </p>
+                    )}
                 </div>
             )}
 

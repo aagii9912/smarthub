@@ -6,6 +6,7 @@ import { Sparkles, Check, RotateCcw, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
+import { useConfetti } from '@/hooks/useConfetti';
 
 // Components
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
@@ -38,8 +39,21 @@ function SetupContent() {
     continueFromSaved
   } = useOnboardingState();
 
-  // Sync step with persistent storage
+  // Confetti hook
+  const { triggerSmall, triggerFinal } = useConfetti();
+
+  // Sync step with persistent storage + confetti
   const setStep = (newStep: number) => {
+    // Trigger confetti when advancing
+    if (newStep > step) {
+      if (newStep === 6) {
+        // Final step - big celebration
+        triggerFinal();
+      } else {
+        // Regular step advancement
+        triggerSmall();
+      }
+    }
     setStepLocal(newStep);
     savePersistentStep(newStep);
   };
