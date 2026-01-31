@@ -22,10 +22,12 @@ import {
     AIModel,
 } from './config/plans';
 
-// Initialize OpenAI client
+// Initialize OpenAI client with timeout to avoid Vercel function limits
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
     dangerouslyAllowBrowser: true, // Needed for potential edge runtime or test env
+    timeout: 8000, // 8 seconds to stay within Vercel's 10s limit
+    maxRetries: 1, // Reduce retries to save time
 });
 
 /**
@@ -373,8 +375,14 @@ ${productList}
         }
 
         return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
-    } catch (error) {
-        logger.error('Vision Error:', { error });
+    } catch (error: unknown) {
+        const err = error as { message?: string; status?: number; code?: string };
+        logger.error('Vision Error:', {
+            message: err.message,
+            status: err.status,
+            code: err.code,
+            imageUrl: imageUrl.substring(0, 100) + '...',
+        });
         return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
     }
 }
