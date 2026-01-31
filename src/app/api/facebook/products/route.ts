@@ -3,6 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 // Facebook Shop/Catalog Products API
 // Fetches products from Facebook Commerce catalog
 
+interface FBProduct {
+    id: string;
+    name: string;
+    description?: string;
+    price?: string;
+    currency?: string;
+    image_url?: string;
+    availability?: string;
+    url?: string;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const pageId = request.headers.get('x-fb-page-id');
@@ -50,11 +61,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Transform to our product format
-        const products = (productsData.data || []).map((p: any) => ({
+        const products = (productsData.data || []).map((p: FBProduct) => ({
             id: p.id,
             name: p.name,
             description: p.description || '',
-            price: parseFloat(p.price?.replace(/[^0-9.]/g, '')) || 0,
+            price: parseFloat((p.price || '0').replace(/[^0-9.]/g, '')) || 0,
             currency: p.currency || 'MNT',
             image_url: p.image_url,
             stock: p.availability === 'in stock' ? 999 : 0,
@@ -68,10 +79,11 @@ export async function GET(request: NextRequest) {
             commerceEnabled: true
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Failed to fetch Facebook products';
         console.error('FB Shop API Error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch Facebook products' },
+            { error: message },
             { status: 500 }
         );
     }

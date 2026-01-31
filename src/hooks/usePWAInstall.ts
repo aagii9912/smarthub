@@ -26,17 +26,18 @@ export function usePWAInstall() {
             setIsInstallable(true);
         };
 
-        window.addEventListener('beforeinstallprompt', handler);
-
-        // Listen for successful install
-        window.addEventListener('appinstalled', () => {
+        const installHandler = () => {
             setIsInstalled(true);
             setIsInstallable(false);
             setDeferredPrompt(null);
-        });
+        };
+
+        window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('appinstalled', installHandler);
 
         return () => {
             window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('appinstalled', installHandler);
         };
     }, []);
 
