@@ -114,13 +114,21 @@ function SetupContent() {
         if (shop.setup_completed && shop.facebook_page_id) {
           router.push('/dashboard');
           return;
-        } else if (!shop.facebook_page_id) {
+        }
+
+        // Determine which step to show based on connection status
+        if (!shop.facebook_page_id) {
           // No Facebook connected, go to step 2
           setStepLocal(2);
           savePersistentStep(2);
-        } else if (step < 3) {
+        } else if (!shop.instagram_business_account_id) {
+          // FB connected but no IG, go to step 3
           setStepLocal(3);
           savePersistentStep(3);
+        } else if (step < 4) {
+          // FB and IG both connected, go to products step
+          setStepLocal(4);
+          savePersistentStep(4);
         }
       }
 
