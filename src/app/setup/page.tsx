@@ -2,9 +2,10 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Sparkles, Check } from 'lucide-react';
+import { Sparkles, Check, RotateCcw, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOnboardingState } from '@/hooks/useOnboardingState';
 
 // Components
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
@@ -19,12 +20,29 @@ function SetupContent() {
   const searchParams = useSearchParams();
   const { user, shop, refreshShop, loading: authLoading } = useAuth();
 
-  const [step, setStep] = useState(1);
+  const [step, setStepLocal] = useState(1);
   const [error, setError] = useState('');
   const [fbPages, setFbPages] = useState([]);
   const [igAccounts, setIgAccounts] = useState<any[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [fbToken, setFbToken] = useState<string>(''); // Store token for AI context
+  const [fbToken, setFbToken] = useState<string>('');
+  const [showResumeModal, setShowResumeModal] = useState(false);
+
+  // Progress persistence hook
+  const {
+    step: savedStep,
+    isLoaded: stateLoaded,
+    hasExistingState,
+    setStep: savePersistentStep,
+    clearState,
+    continueFromSaved
+  } = useOnboardingState();
+
+  // Sync step with persistent storage
+  const setStep = (newStep: number) => {
+    setStepLocal(newStep);
+    savePersistentStep(newStep);
+  };
 
   // Handle Facebook OAuth callback
   useEffect(() => {
@@ -64,7 +82,7 @@ function SetupContent() {
 
   // Initial redirect logic based on shop state
   useEffect(() => {
-    if (!authLoading && isInitializing) {
+    if (!authLoading && stateLoaded && isInitializing) {
       if (!user) {
         router.push('/auth/login');
         return;
@@ -73,18 +91,24 @@ function SetupContent() {
       if (shop) {
         if (shop.setup_completed) {
           router.push('/dashboard');
+          return;
         } else if (!shop.facebook_page_id) {
-          setStep(2);
+          setStepLocal(2);
+          savePersistentStep(2);
         } else if (step < 3) {
-          // If FB connected but setup not done, go to step 3
-          // Note: We might miss fbToken here if reloading. 
-          // That's acceptable, user can just skip "Fetch from FB"
-          setStep(3);
+          setStepLocal(3);
+          savePersistentStep(3);
         }
       }
+
+      // Check for saved progress
+      if (hasExistingState && savedStep > 1) {
+        setShowResumeModal(true);
+      }
+
       setIsInitializing(false);
     }
-  }, [authLoading, shop, user, isInitializing]);
+  }, [authLoading, stateLoaded, shop, user, isInitializing, hasExistingState, savedStep]);
 
   const fetchAvailablePages = async () => {
     try {
@@ -275,6 +299,48 @@ function SetupContent() {
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-violet-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50" />
       </div>
+
+      {/* Resume Modal */}
+      {showResumeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <RotateCcw className="w-7 h-7 text-violet-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Үргэлжлүүлэх үү?</h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Та өмнө нь алхам {savedStep} хүртэл хийсэн байна
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setStepLocal(savedStep);
+                  continueFromSaved();
+                  setShowResumeModal(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                Үргэлжлүүлэх (Алхам {savedStep})
+              </button>
+              <button
+                onClick={() => {
+                  clearState();
+                  setStepLocal(1);
+                  setShowResumeModal(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Шинээр эхлэх
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative max-w-2xl mx-auto">
         <div className="text-center mb-8">

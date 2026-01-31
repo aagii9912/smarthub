@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box } from 'lucide-react';
+import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProductImportModal } from './ProductImportModal';
 
 interface Product {
   name: string;
@@ -52,6 +53,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const blobUrlsRef = useRef<Set<string>>(new Set());
 
@@ -74,6 +76,28 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
       stock: '10',
       imageFile: null
     }]);
+  };
+
+  // Handle CSV import
+  const handleImport = async (importedProducts: { name: string; price: number; description?: string; image_url?: string }[]) => {
+    const newProducts: Product[] = importedProducts.map(p => ({
+      name: p.name,
+      price: p.price.toString(),
+      description: p.description || '',
+      colors: '',
+      sizes: '',
+      type: 'physical' as const,
+      stock: '10',
+      imageUrl: p.image_url,
+      imageFile: null
+    }));
+
+    // Replace empty product with imported ones, or append
+    if (products.length === 1 && !products[0].name && !products[0].price) {
+      setProducts(newProducts);
+    } else {
+      setProducts([...products, ...newProducts]);
+    }
   };
 
   const updateProduct = (index: number, field: keyof Product, value: any) => {
@@ -307,12 +331,28 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
         ))}
       </div>
 
-      <button
-        onClick={addProduct}
-        className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 font-medium"
-      >
-        <Plus className="w-5 h-5" /> Дахиад нэмэх
-      </button>
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        <button
+          onClick={addProduct}
+          className="flex-1 py-3 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 font-medium"
+        >
+          <Plus className="w-5 h-5" /> Нэмэх
+        </button>
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="flex-1 py-3 border-2 border-dashed border-violet-300 text-violet-500 rounded-xl hover:border-violet-500 hover:text-violet-600 hover:bg-violet-50 transition-all flex items-center justify-center gap-2 font-medium"
+        >
+          <FileSpreadsheet className="w-5 h-5" /> CSV Import
+        </button>
+      </div>
+
+      {/* Import Modal */}
+      <ProductImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImport={handleImport}
+      />
 
       <div className="flex gap-4">
         <button
