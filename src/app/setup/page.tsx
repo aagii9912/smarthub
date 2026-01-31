@@ -131,6 +131,18 @@ function SetupContent() {
     }
   }, [authLoading, stateLoaded, shop, user, isInitializing, hasExistingState, savedStep]);
 
+  // Auto-fetch pages/accounts when entering step 2 or 3
+  useEffect(() => {
+    if (!isInitializing) {
+      if (step === 2 && fbPages.length === 0 && !shop?.facebook_page_id) {
+        fetchAvailablePages();
+      }
+      if (step === 3 && igAccounts.length === 0 && !shop?.instagram_business_account_id) {
+        fetchInstagramAccounts();
+      }
+    }
+  }, [step, isInitializing]);
+
   const fetchAvailablePages = async () => {
     try {
       const res = await fetch('/api/auth/facebook/pages');
