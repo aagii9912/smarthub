@@ -34,7 +34,8 @@ export async function GET() {
                 auto_suspend: true
             },
             ai: {
-                default_model: 'gpt-4o-mini',
+                default_provider: 'gemini' as const,
+                default_model: 'gemini-2.5-flash',
                 max_tokens: 4096,
                 temperature: 0.7
             }

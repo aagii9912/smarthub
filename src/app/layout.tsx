@@ -49,7 +49,8 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+    shortcut: "/icon-192.png",
   },
   other: {
     // Disable auto-zoom on input focus for iOS

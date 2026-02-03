@@ -37,6 +37,7 @@ const MODEL_MAPPING: Record<AIModel, string> = {
     'gpt-5-nano': process.env.GPT5_NANO_MODEL || 'gpt-4o-mini',
     'gpt-5-mini': process.env.GPT5_MINI_MODEL || 'gpt-4o-mini',
     'gpt-5': process.env.GPT5_MODEL || 'gpt-4o', // Backend flagship
+    'gemini-2.5-flash': 'gemini-2.5-flash', // Direct mapping for Gemini
 };
 
 /**
@@ -49,6 +50,7 @@ export interface RouterChatContext extends ChatContext {
         trial_ends_at?: string;
     };
     messageCount?: number;
+    aiProvider?: 'openai' | 'gemini'; // AI provider selection
 }
 
 /**
@@ -328,6 +330,7 @@ async function downloadImageAsBase64(imageUrl: string): Promise<string> {
 
 /**
  * Analyze product image using vision (plan-dependent)
+ * Now uses Gemini 2.5 Flash for faster and cheaper vision analysis
  */
 export async function analyzeProductImageWithPlan(
     imageUrl: string,
@@ -351,15 +354,58 @@ export async function analyzeProductImageWithPlan(
     }
 
     try {
-        // Download and convert image to base64 (Facebook CDN blocks OpenAI servers)
-        logger.info('Downloading image for vision analysis...', { imageUrl: imageUrl.substring(0, 80) });
-        const base64Image = await downloadImageAsBase64(imageUrl);
-        logger.info('Image downloaded successfully', { size: Math.round(base64Image.length / 1024) + 'KB' });
+        // Use Gemini for vision (faster and cheaper)
+        const { GeminiProvider } = await import('./providers/GeminiProvider');
+        const geminiVision = new GeminiProvider('gemini-2.5-flash');
 
-        const modelName = MODEL_MAPPING[planConfig.model];
-        const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
+        // Check if Gemini is available, fallback to OpenAI if not
+        if (!geminiVision.isAvailable()) {
+            logger.warn('Gemini not available for vision, falling back to OpenAI');
+            // Fallback to existing OpenAI logic
+            const base64Image = await downloadImageAsBase64(imageUrl);
+            const modelName = MODEL_MAPPING[planConfig.model];
+            const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
 
-        const prompt = `Та бол онлайн дэлгүүрийн ухаалаг туслах. Хэрэглэгчийн илгээсэн зургийг шинжилж дараах бүтээгдэхүүнүүдийн жагсаалтаас ТОХИРОХ барааг олоорой.
+            const response = await openai.chat.completions.create({
+                model: modelName,
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: buildVisionPrompt(productList) },
+                            { type: 'image_url', image_url: { url: base64Image } }
+                        ]
+                    }
+                ],
+                max_completion_tokens: 500,
+            });
+
+            return parseVisionResponse(response.choices[0]?.message?.content || '');
+        }
+
+        logger.info('Using Gemini 2.5 Flash for vision analysis...');
+        const result = await geminiVision.analyzeImage(imageUrl, products as any);
+
+        logger.success('Gemini Vision analysis complete', { matched: result.matchedProduct, confidence: result.confidence });
+        return result;
+
+    } catch (error: unknown) {
+        const err = error as { message?: string; status?: number; code?: string };
+        logger.error('Vision Error:', {
+            message: err.message,
+            status: err.status,
+            code: err.code,
+            imageUrl: imageUrl.substring(0, 100) + '...',
+        });
+        return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
+    }
+}
+
+/**
+ * Build vision prompt for product matching
+ */
+function buildVisionPrompt(productList: string): string {
+    return `Та бол онлайн дэлгүүрийн ухаалаг туслах. Хэрэглэгчийн илгээсэн зургийг шинжилж дараах бүтээгдэхүүнүүдийн жагсаалтаас ТОХИРОХ барааг олоорой.
 
 БҮТЭЭГДЭХҮҮНҮҮД (яг энэ нэрээр хариулна уу):
 ${productList}
@@ -376,47 +422,30 @@ JSON хариулна уу:
   "confidence": 0.0-1.0,
   "description": "Зурагт юу байгаа товч тайлбар"
 }`;
+}
 
-        const response = await openai.chat.completions.create({
-            model: modelName,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        { type: 'text', text: prompt },
-                        { type: 'image_url', image_url: { url: base64Image } }
-                    ]
-                }
-            ],
-            max_completion_tokens: 500,
-        });
-
-        const responseText = response.choices[0]?.message?.content || '';
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-        if (jsonMatch) {
-            const result = JSON.parse(jsonMatch[0]);
-            logger.success('Vision analysis complete', { matched: result.matchedProduct, confidence: result.confidence });
-            return {
-                matchedProduct: result.matchedProduct,
-                confidence: result.confidence,
-                description: result.description,
-                isReceipt: result.type === 'payment_receipt',
-                receiptAmount: result.receiptAmount
-            };
-        }
-
-        return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
-    } catch (error: unknown) {
-        const err = error as { message?: string; status?: number; code?: string };
-        logger.error('Vision Error:', {
-            message: err.message,
-            status: err.status,
-            code: err.code,
-            imageUrl: imageUrl.substring(0, 100) + '...',
-        });
-        return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
+/**
+ * Parse vision response JSON
+ */
+function parseVisionResponse(responseText: string): {
+    matchedProduct: string | null;
+    confidence: number;
+    description: string;
+    isReceipt?: boolean;
+    receiptAmount?: number;
+} {
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        return {
+            matchedProduct: result.matchedProduct,
+            confidence: result.confidence,
+            description: result.description,
+            isReceipt: result.type === 'payment_receipt',
+            receiptAmount: result.receiptAmount
+        };
     }
+    return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
 }
 
 // Re-export types

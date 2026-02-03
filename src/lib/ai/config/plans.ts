@@ -9,8 +9,8 @@
  */
 
 export type PlanType = 'trial' | 'starter' | 'pro' | 'ultimate';
-export type AIProvider = 'openai';
-export type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5';
+export type AIProvider = 'openai' | 'gemini';
+export type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gemini-2.5-flash';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -325,6 +325,7 @@ export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
     'gpt-5-nano': 'GPT-5 Nano',
     'gpt-5-mini': 'GPT-5 Mini',
     'gpt-5': 'GPT-5',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash',
 };
 
 /**

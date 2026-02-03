@@ -32,6 +32,7 @@ interface SettingsData {
         auto_suspend: boolean;
     };
     ai: {
+        default_provider: 'openai' | 'gemini';
         default_model: string;
         max_tokens: number;
         temperature: number;
@@ -190,8 +191,8 @@ export default function AdminSettingsPage() {
                 <button
                     onClick={() => setActiveTab('general')}
                     className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'general'
-                            ? 'border-violet-600 text-violet-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-violet-600 text-violet-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     <Settings className="w-4 h-4 inline mr-2" />
@@ -200,8 +201,8 @@ export default function AdminSettingsPage() {
                 <button
                     onClick={() => setActiveTab('admins')}
                     className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'admins'
-                            ? 'border-violet-600 text-violet-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                        ? 'border-violet-600 text-violet-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
                 >
                     <Users className="w-4 h-4 inline mr-2" />
@@ -309,7 +310,23 @@ export default function AdminSettingsPage() {
                                 <Bot className="w-5 h-5 text-violet-600" />
                                 AI тохиргоо
                             </h3>
-                            <div className="grid gap-4 md:grid-cols-3">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">AI Provider</label>
+                                    <select
+                                        value={settings.ai.default_provider}
+                                        onChange={(e) => setSettings({ ...settings, ai: { ...settings.ai, default_provider: e.target.value as 'openai' | 'gemini' } })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                    >
+                                        <option value="gemini">🚀 Gemini 2.5 Flash (Хямд, Хурдан)</option>
+                                        <option value="openai">🤖 OpenAI GPT (Premium)</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {settings.ai.default_provider === 'gemini'
+                                            ? '💰 ~97% хямд • 1M context • Үнэгүй tier'
+                                            : '⭐ Premium чанар • GPT-4o backend'}
+                                    </p>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
                                     <select
@@ -317,9 +334,14 @@ export default function AdminSettingsPage() {
                                         onChange={(e) => setSettings({ ...settings, ai: { ...settings.ai, default_model: e.target.value } })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                                     >
-                                        <option value="gpt-4o-mini">GPT-4o Mini</option>
-                                        <option value="gpt-4o">GPT-4o</option>
-                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                        {settings.ai.default_provider === 'gemini' ? (
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        ) : (
+                                            <>
+                                                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                                <option value="gpt-4o">GPT-4o</option>
+                                            </>
+                                        )}
                                     </select>
                                 </div>
                                 <div>
