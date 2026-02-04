@@ -21,13 +21,13 @@ export function AIMonitor() {
                     title="AI Харилцаа"
                     value="156"
                     icon={Bot}
-                    iconColor="bg-violet-500"
+                    iconColor="purple"
                 />
                 <StatsCard
                     title="Авт. шийдвэрлэлт"
                     value="92%"
                     icon={Zap}
-                    iconColor="bg-amber-500"
+                    iconColor="warning"
                 />
             </div>
 

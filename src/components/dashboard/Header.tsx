@@ -69,7 +69,7 @@ export function Header() {
     };
 
     return (
-        <header className="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
+        <header className="h-12 md:h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-5 sticky top-0 z-40">
             {/* Left: Title or Greeting */}
             <div className="flex-1 min-w-0">
                 {getHeaderTitle()}

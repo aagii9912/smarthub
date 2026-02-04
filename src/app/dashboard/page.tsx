@@ -94,12 +94,12 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
                     <StatsCard
                         title="Өнөөдөр"
                         value={stats.todayOrders.toString()}
                         icon={ShoppingCart}
-                        iconColor="bg-gold"
+                        iconColor="brand"
                     />
                     <StatsCard
                         title="Орлого"
@@ -107,24 +107,24 @@ export default function DashboardPage() {
                             ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
                             : `₮${stats.totalRevenue.toLocaleString()}`}
                         icon={TrendingUp}
-                        iconColor="bg-gold"
+                        iconColor="blue"
                     />
                     <StatsCard
                         title="Харилцагч"
                         value={stats.totalCustomers.toString()}
                         icon={Users}
-                        iconColor="bg-gold"
+                        iconColor="purple"
                     />
                     <StatsCard
                         title="Хүлээгдэж буй"
                         value={stats.pendingOrders.toString()}
                         icon={Clock}
-                        iconColor="bg-[#f59e0b]"
+                        iconColor="warning"
                     />
                 </div>
 
                 {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
                     {/* Recent Orders */}
                     <div className="lg:col-span-2">
                         <Card>

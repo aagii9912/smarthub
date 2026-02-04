@@ -89,25 +89,25 @@ export function MobileNav() {
 
             {/* Bottom Navigation */}
             <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 pb-safe block md:hidden">
-                <ul className="flex justify-around items-stretch h-[72px]">
+                <ul className="flex justify-around items-stretch h-[56px]">
                     {primaryNavItems.map((item) => {
                         const isActive = isActiveItem(item.href);
                         return (
                             <li key={item.name} className="flex-1">
                                 <Link
                                     href={item.href}
-                                    className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${isActive
-                                        ? 'text-gold'
+                                    className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all active:scale-95 ${isActive
+                                        ? 'text-primary'
                                         : 'text-gray-500'
                                         }`}
                                 >
-                                    <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-gold/10' : ''}`}>
+                                    <div className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-primary/10' : ''}`}>
                                         <item.icon
-                                            className="w-6 h-6"
+                                            className="w-5 h-5"
                                             strokeWidth={isActive ? 2.5 : 2}
                                         />
                                     </div>
-                                    <span className={`text-xs font-medium ${isActive ? 'text-gold' : ''}`}>
+                                    <span className={`text-[10px] font-medium ${isActive ? 'text-primary' : ''}`}>
                                         {item.name}
                                     </span>
                                 </Link>
@@ -119,15 +119,15 @@ export function MobileNav() {
                     <li className="flex-1">
                         <button
                             onClick={() => setShowMore(!showMore)}
-                            className={`flex flex-col items-center justify-center w-full h-full gap-1.5 transition-all active:scale-95 ${showMore || isMoreActive
-                                ? 'text-gold'
+                            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all active:scale-95 ${showMore || isMoreActive
+                                ? 'text-primary'
                                 : 'text-gray-500'
                                 }`}
                         >
-                            <div className={`p-2 rounded-xl transition-all ${showMore || isMoreActive ? 'bg-gold/10' : ''}`}>
-                                <Menu className="w-6 h-6" strokeWidth={showMore || isMoreActive ? 2.5 : 2} />
+                            <div className={`p-1.5 rounded-lg transition-all ${showMore || isMoreActive ? 'bg-primary/10' : ''}`}>
+                                <Menu className="w-5 h-5" strokeWidth={showMore || isMoreActive ? 2.5 : 2} />
                             </div>
-                            <span className={`text-xs font-medium ${showMore || isMoreActive ? 'text-gold' : ''}`}>
+                            <span className={`text-[10px] font-medium ${showMore || isMoreActive ? 'text-primary' : ''}`}>
                                 Бусад
                             </span>
                         </button>

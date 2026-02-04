@@ -59,7 +59,7 @@ export function FeedbackWidget() {
     ];
 
     return (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-[72px] md:bottom-6 right-3 md:right-6 z-40 md:z-50">
             {/* Expanded Form */}
             {isExpanded && (
                 <div className="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
@@ -90,8 +90,8 @@ export function FeedbackWidget() {
                                         type="button"
                                         onClick={() => setFeedback(f => ({ ...f, type: type.id }))}
                                         className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${feedback.type === type.id
-                                                ? 'border-violet-500 bg-violet-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-violet-500 bg-violet-50'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <type.icon className={`w-5 h-5 ${type.color}`} />
@@ -144,8 +144,8 @@ export function FeedbackWidget() {
                     if (!isOpen) setIsExpanded(false);
                 }}
                 className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${isOpen
-                        ? 'bg-gray-900 rotate-45'
-                        : 'bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-xl hover:scale-105'
+                    ? 'bg-gray-900 rotate-45'
+                    : 'bg-gradient-to-r from-violet-500 to-purple-600 hover:shadow-xl hover:scale-105'
                     }`}
             >
                 {isOpen ? (

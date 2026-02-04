@@ -22,10 +22,13 @@
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
-  /* Gold accent colors - Royal Gold theme */
-  --color-gold: #D4AF37;
-  --color-gold-light: #F4E4BA;
-  --color-gold-dark: #9A7B2E;
+  /* Syncly Brand Colors - Blue-Purple Gradient */
+  --color-gold: #4A7CE7;
+  --color-gold-light: #7BA3F0;
+  --color-gold-dark: #3A5BB8;
+  --color-brand-blue: #4A7CE7;
+  --color-brand-purple: #904EA0;
+  --color-brand-light: #F0F4FF;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
