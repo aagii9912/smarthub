@@ -43,9 +43,9 @@ export function Header() {
         const path = pathname || '';
         if (path === '/dashboard' || path === '/dashboard/') {
             return (
-                <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">
+                <h1 className="text-sm md:text-base font-semibold text-foreground truncate max-w-[180px] md:max-w-none">
                     <span className="hidden sm:inline">Сайн байна уу, {fullName}!</span>
-                    <span className="sm:hidden">Сайн уу, {firstName}!</span>
+                    <span className="sm:hidden">Сайн уу!</span>
                 </h1>
             );
         }
@@ -69,12 +69,12 @@ export function Header() {
     };
 
     return (
-        <header className="h-12 md:h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-5 sticky top-0 z-40">
+        <header className="h-12 md:h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-3 md:px-5 sticky top-0 z-40">
             {/* Left: Title or Greeting */}
             <div className="flex-1 min-w-0">
                 {getHeaderTitle()}
                 {shop && (pathname === '/dashboard' || pathname === '/dashboard/') && (
-                    <p className="text-xs text-gray-500 truncate hidden sm:block">
+                    <p className="text-xs text-muted-foreground truncate hidden sm:block">
                         {shop.name}
                     </p>
                 )}

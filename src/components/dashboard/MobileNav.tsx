@@ -88,7 +88,7 @@ export function MobileNav() {
             )}
 
             {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 pb-safe block md:hidden">
+            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pb-safe block md:hidden">
                 <ul className="flex justify-around items-stretch h-[56px]">
                     {primaryNavItems.map((item) => {
                         const isActive = isActiveItem(item.href);

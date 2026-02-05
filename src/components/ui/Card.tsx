@@ -10,9 +10,9 @@ export function Card({ children, className = '', hover = false, variant = 'defau
     const baseStyles = 'rounded-xl md:rounded-2xl transition-all duration-300';
 
     const variantStyles = {
-        default: 'bg-white border border-slate-200/80 shadow-sm',
-        glass: 'glass backdrop-blur-xl bg-white/75 border border-white/50',
-        elevated: 'bg-white border border-slate-200/80 shadow-lg',
+        default: 'bg-white dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700/80 shadow-sm',
+        glass: 'glass backdrop-blur-xl bg-white/75 dark:bg-gray-800/75 border border-white/50 dark:border-gray-700/50',
+        elevated: 'bg-white dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700/80 shadow-lg',
     };
 
     const hoverStyles = hover
@@ -30,7 +30,7 @@ export function Card({ children, className = '', hover = false, variant = 'defau
 }
 
 export function CardHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-    return <div className={`px-3.5 md:px-5 py-3 md:py-4 border-b border-slate-100 ${className}`}>{children}</div>;
+    return <div className={`px-3.5 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-gray-700 ${className}`}>{children}</div>;
 }
 
 export function CardContent({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -38,6 +38,6 @@ export function CardContent({ children, className = '' }: { children: React.Reac
 }
 
 export function CardTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-    return <h3 className={`text-sm md:text-base lg:text-lg font-semibold text-slate-900 ${className}`}>{children}</h3>;
+    return <h3 className={`text-sm md:text-base lg:text-lg font-semibold text-foreground ${className}`}>{children}</h3>;
 }
 
