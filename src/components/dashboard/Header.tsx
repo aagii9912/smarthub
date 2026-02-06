@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
-import { User, LogOut, Settings, ChevronDown, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 import { useFeatures } from '@/hooks/useFeatures';
-import { useSyncStatus } from '@/hooks/useSyncStatus';
+import { SyncIndicator } from '@/components/ui/SyncIndicator';
 
 
 export function Header() {
@@ -17,7 +17,6 @@ export function Header() {
     const { signOut } = useClerk();
     const { user, shop, shops } = useAuth();
     const { limits } = useFeatures();
-    const { status: syncStatus, isConnected } = useSyncStatus();
     const [showDropdown, setShowDropdown] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
 
@@ -95,16 +94,7 @@ export function Header() {
                 />
 
                 {/* Sync Status Indicator */}
-                <div
-                    className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors"
-                    title={isConnected ? 'Холбогдсон' : 'Холбогдоогүй'}
-                >
-                    {isConnected ? (
-                        <Wifi className="w-4 h-4 text-emerald-500" />
-                    ) : (
-                        <WifiOff className="w-4 h-4 text-red-400" />
-                    )}
-                </div>
+                <SyncIndicator />
 
                 {/* Notifications */}
                 <NotificationButton />

@@ -1,21 +1,58 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Debounce helper to prevent excessive invalidations
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): T {
+    let timeoutId: NodeJS.Timeout;
+    return ((...args: Parameters<T>) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    }) as T;
+}
+
+interface LowStockProduct {
+    id: string;
+    name: string;
+    stock_quantity: number;
+}
+
 export function useRealtimeNotifications() {
     const { shop } = useAuth();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const lowStockThreshold = 5; // Alert when stock falls below this
+
+    // Debounced invalidation functions for performance
+    const debouncedInvalidateOrders = useCallback(
+        debounce(() => {
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        }, 500),
+        [queryClient]
+    );
+
+    const debouncedInvalidateProducts = useCallback(
+        debounce(() => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+        }, 500),
+        [queryClient]
+    );
+
+    const debouncedInvalidateCustomers = useCallback(
+        debounce(() => {
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }, 500),
+        [queryClient]
+    );
 
     useEffect(() => {
         if (!shop?.id) return;
-
-        // Realtime notifications subscription active for shop
 
         const channel = supabase
             .channel(`shop-updates-${shop.id}`)
@@ -36,8 +73,7 @@ export function useRealtimeNotifications() {
                     duration: 10000,
                 });
 
-                // Invalidate orders query to refresh UI
-                queryClient.invalidateQueries({ queryKey: ['orders'] });
+                debouncedInvalidateOrders();
 
                 // Play notification sound
                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -49,20 +85,68 @@ export function useRealtimeNotifications() {
                 schema: 'public',
                 table: 'orders',
                 filter: `shop_id=eq.${shop.id}`
-            }, (payload) => {
-                // Invalidate orders query to keep UI in sync
-                queryClient.invalidateQueries({ queryKey: ['orders'] });
-                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            }, () => {
+                debouncedInvalidateOrders();
             })
-            // 🛒 Product Changes (INSERT, UPDATE, DELETE)
+            // 🛒 Product Changes with Low Stock Alert
             .on('postgres_changes', {
                 event: '*',
                 schema: 'public',
                 table: 'products',
                 filter: `shop_id=eq.${shop.id}`
+            }, (payload) => {
+                debouncedInvalidateProducts();
+
+                // Low stock alert for updates
+                if (payload.eventType === 'UPDATE' && payload.new) {
+                    const product = payload.new as LowStockProduct;
+                    if (product.stock_quantity <= lowStockThreshold && product.stock_quantity > 0) {
+                        toast.warning('⚠️ Бага нөөц', {
+                            description: `${product.name}: ${product.stock_quantity} ширхэг үлдсэн`,
+                            action: {
+                                label: 'Нэмэх',
+                                onClick: () => router.push(`/dashboard/products`)
+                            },
+                            duration: 8000,
+                        });
+                    } else if (product.stock_quantity === 0) {
+                        toast.error('🚫 Нөөц дууссан!', {
+                            description: `${product.name} дууссан`,
+                            action: {
+                                label: 'Нэмэх',
+                                onClick: () => router.push(`/dashboard/products`)
+                            },
+                            duration: 10000,
+                        });
+                    }
+                }
+            })
+            // 👤 Customer Changes (NEW, UPDATE)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'customers',
+                filter: `shop_id=eq.${shop.id}`
+            }, (payload) => {
+                debouncedInvalidateCustomers();
+
+                // New customer notification
+                if (payload.eventType === 'INSERT' && payload.new) {
+                    toast.info('👤 Шинэ харилцагч', {
+                        description: payload.new.name || 'Нэргүй харилцагч',
+                        duration: 5000
+                    });
+                }
+            })
+            // 🛍️ Active Carts - Real-time shopping tracking
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'carts',
+                filter: `shop_id=eq.${shop.id}`
             }, () => {
-                // Invalidate products query to refresh UI
-                queryClient.invalidateQueries({ queryKey: ['products'] });
+                queryClient.invalidateQueries({ queryKey: ['carts'] });
+                queryClient.invalidateQueries({ queryKey: ['active-carts'] });
             })
             // 💬 New Messages
             .on('postgres_changes', {
@@ -81,7 +165,6 @@ export function useRealtimeNotifications() {
                         }
                     });
 
-                    // Invalidate conversations
                     queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
                     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
@@ -93,6 +176,5 @@ export function useRealtimeNotifications() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [shop?.id, router, queryClient]);
+    }, [shop?.id, router, queryClient, debouncedInvalidateOrders, debouncedInvalidateProducts, debouncedInvalidateCustomers]);
 }
-

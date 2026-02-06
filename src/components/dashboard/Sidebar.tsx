@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatures } from '@/hooks/useFeatures';
 import { toast } from 'sonner';
+import { VersionBadge } from '@/components/ui/VersionBadge';
 
 interface MenuItem {
     name: string;
@@ -273,14 +274,7 @@ export function Sidebar() {
                 </ul>
                 {/* Version Badge */}
                 <div className={`mt-3 pt-3 border-t border-neutral-800 ${collapsed ? 'text-center' : 'px-3'}`}>
-                    {collapsed ? (
-                        <span className="text-[10px] text-neutral-600 font-mono">v1.2</span>
-                    ) : (
-                        <div className="flex items-center gap-2 text-xs text-neutral-500">
-                            <span className="px-2 py-0.5 bg-neutral-800 rounded text-[10px] font-mono">v1.2.0</span>
-                            <span className="text-neutral-600">Syncly</span>
-                        </div>
-                    )}
+                    <VersionBadge collapsed={collapsed} />
                 </div>
             </div>
 
