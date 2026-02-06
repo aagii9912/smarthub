@@ -26,20 +26,42 @@ const CHANGELOG = [
 export function VersionBadge({ collapsed = false, showChangelog = true, className = '' }: VersionBadgeProps) {
     const [showModal, setShowModal] = useState(false);
     const [isNew, setIsNew] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
         // Check if user has seen this version
-        const seenVersion = localStorage.getItem('syncly_seen_version');
-        if (seenVersion !== APP_VERSION) {
-            setIsNew(true);
+        if (typeof window !== 'undefined') {
+            const seenVersion = localStorage.getItem('syncly_seen_version');
+            if (seenVersion !== APP_VERSION) {
+                setIsNew(true);
+            }
         }
     }, []);
 
     const handleClick = () => {
         setShowModal(true);
         setIsNew(false);
-        localStorage.setItem('syncly_seen_version', APP_VERSION);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('syncly_seen_version', APP_VERSION);
+        }
     };
+
+    // Prevent hydration mismatch
+    if (!isMounted) {
+        return collapsed ? (
+            <span className={`text-[10px] text-neutral-500 text-center ${className}`}>
+                v{APP_VERSION.split('.').slice(0, 2).join('.')}
+            </span>
+        ) : (
+            <div className={`flex items-center gap-2 text-xs text-neutral-500 ${className}`}>
+                <span className="px-2 py-0.5 bg-neutral-800 rounded text-[10px] font-mono">
+                    v{APP_VERSION}
+                </span>
+                <span className="text-neutral-600">Syncly</span>
+            </div>
+        );
+    }
 
     if (collapsed) {
         return (
