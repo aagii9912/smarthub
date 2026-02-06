@@ -82,6 +82,10 @@ export function MobileNav() {
                                     </Link>
                                 ))}
                             </div>
+                            {/* Version Info */}
+                            <div className="px-4 py-2 border-t border-gray-100 text-center">
+                                <span className="text-[10px] text-gray-400 font-mono">Syncly v1.2.0</span>
+                            </div>
                         </div>
                     </div>
                 </div>

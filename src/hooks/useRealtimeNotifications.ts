@@ -5,11 +5,12 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { formatTimeAgo } from '@/lib/utils/date';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useRealtimeNotifications() {
     const { shop } = useAuth();
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (!shop?.id) return;
@@ -35,9 +36,33 @@ export function useRealtimeNotifications() {
                     duration: 10000,
                 });
 
+                // Invalidate orders query to refresh UI
+                queryClient.invalidateQueries({ queryKey: ['orders'] });
+
                 // Play notification sound
                 const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                 audio.play().catch(() => { /* Audio autoplay blocked */ });
+            })
+            // 📦 Order Status Updates
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'orders',
+                filter: `shop_id=eq.${shop.id}`
+            }, (payload) => {
+                // Invalidate orders query to keep UI in sync
+                queryClient.invalidateQueries({ queryKey: ['orders'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            })
+            // 🛒 Product Changes (INSERT, UPDATE, DELETE)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'products',
+                filter: `shop_id=eq.${shop.id}`
+            }, () => {
+                // Invalidate products query to refresh UI
+                queryClient.invalidateQueries({ queryKey: ['products'] });
             })
             // 💬 New Messages
             .on('postgres_changes', {
@@ -56,6 +81,9 @@ export function useRealtimeNotifications() {
                         }
                     });
 
+                    // Invalidate conversations
+                    queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
                     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
                     audio.play().catch(() => { /* Audio autoplay blocked */ });
                 }
@@ -65,5 +93,6 @@ export function useRealtimeNotifications() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [shop?.id, router]);
+    }, [shop?.id, router, queryClient]);
 }
+

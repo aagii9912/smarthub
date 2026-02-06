@@ -90,8 +90,12 @@ export function ShopSwitcher({ onAddShop }: ShopSwitcherProps) {
                         <div className="p-2 border-t border-border">
                             <button
                                 onClick={() => {
+                                    console.log('[ShopSwitcher] Add shop clicked, onAddShop:', typeof onAddShop);
                                     setIsOpen(false);
-                                    onAddShop();
+                                    if (onAddShop) {
+                                        console.log('[ShopSwitcher] Calling onAddShop...');
+                                        onAddShop();
+                                    }
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-2 text-primary hover:bg-primary/5 rounded-lg transition-colors"
                             >

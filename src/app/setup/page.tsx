@@ -31,6 +31,9 @@ function SetupContent() {
   const [fbToken, setFbToken] = useState<string>('');
   const [showResumeModal, setShowResumeModal] = useState(false);
 
+  // Check if we're creating a new shop
+  const isNewShopMode = searchParams.get('new') === 'true';
+
   // Progress persistence hook
   const {
     step: savedStep,
@@ -110,6 +113,15 @@ function SetupContent() {
       }
 
       if (shop) {
+        // If creating a new shop, skip redirect and start fresh
+        if (isNewShopMode) {
+          // Clear any existing state to start completely fresh
+          clearState();
+          setStepLocal(1);
+          setIsInitializing(false);
+          return;
+        }
+
         // Only redirect to dashboard if BOTH setup_completed AND facebook connected
         if (shop.setup_completed && shop.facebook_page_id) {
           router.push('/dashboard');
