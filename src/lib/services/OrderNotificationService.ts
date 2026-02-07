@@ -49,11 +49,11 @@ export async function sendOrderStatusNotification(
         // Get shop's page access token
         const { data: shop } = await supabase
             .from('shops')
-            .select('page_access_token')
+            .select('facebook_page_access_token')
             .eq('id', shopId)
             .single();
 
-        if (!shop?.page_access_token) {
+        if (!shop?.facebook_page_access_token) {
             logger.warn(`[OrderNotification] Shop ${shopId} has no page access token`);
             return { success: false, error: 'No page access token' };
         }
@@ -72,7 +72,7 @@ export async function sendOrderStatusNotification(
         await sendTaggedMessage({
             recipientId: customer.facebook_id,
             message,
-            pageAccessToken: shop.page_access_token,
+            pageAccessToken: shop.facebook_page_access_token,
             tag: 'POST_PURCHASE_UPDATE',
         });
 

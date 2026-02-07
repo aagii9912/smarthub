@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getClerkUserShop } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
+import { sendOrderStatusNotification } from '@/lib/services/OrderNotificationService';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: Request) {
   try {
@@ -30,7 +32,6 @@ export async function GET(request: Request) {
       query = query.gte('created_at', from);
     }
     if (to) {
-      // Add passing of end of day if only date is provided, but assuming ISO string from frontend
       query = query.lte('created_at', to);
     }
 
@@ -59,10 +60,10 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { id, status } = body;
 
-    // Verify order belongs to shop
+    // Verify order belongs to shop and get customer_id
     const { data: existingOrder } = await supabase
       .from('orders')
-      .select('id')
+      .select('id, customer_id, status')
       .eq('id', id)
       .eq('shop_id', shopId)
       .single();
@@ -79,6 +80,19 @@ export async function PATCH(request: Request) {
       .single();
 
     if (error) throw error;
+
+    // Send notification to customer via Facebook Messenger (non-blocking)
+    if (existingOrder.customer_id && status !== existingOrder.status) {
+      sendOrderStatusNotification(existingOrder.customer_id, id, status, shopId)
+        .then((result) => {
+          if (result.success) {
+            logger.info(`Order ${id} status → ${status}: customer notified`);
+          }
+        })
+        .catch((err) => {
+          logger.warn(`Order notification failed (non-critical):`, { error: String(err) });
+        });
+    }
 
     return NextResponse.json({ order: data });
   } catch (error) {
