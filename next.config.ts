@@ -6,18 +6,53 @@ const analyze = withBundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version || '1.2.0',
-  },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**', // Allow images from any source (Supabase, etc.)
+        hostname: '*.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.fbcdn.net', // Facebook CDN
+      },
+      {
+        protocol: 'https',
+        hostname: '*.cdninstagram.com', // Instagram CDN
+      },
+      {
+        protocol: 'https',
+        hostname: 'scontent*.xx.fbcdn.net', // Facebook content
       },
     ],
   },
-  // CSP headers removed temporarily to debug connection issues
+  headers: async () => [
+    {
+      source: '/(.*)',
+      headers: [
+        {
+          key: 'X-Frame-Options',
+          value: 'DENY',
+        },
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        {
+          key: 'Referrer-Policy',
+          value: 'strict-origin-when-cross-origin',
+        },
+        {
+          key: 'X-XSS-Protection',
+          value: '1; mode=block',
+        },
+        {
+          key: 'Permissions-Policy',
+          value: 'camera=(), microphone=(), geolocation=()',
+        },
+      ],
+    },
+  ],
 };
 
 export default analyze(nextConfig);

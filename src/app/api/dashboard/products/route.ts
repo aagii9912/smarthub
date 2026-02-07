@@ -8,7 +8,7 @@ export async function GET() {
     const authShop = await getClerkUserShop();
 
     if (!authShop) {
-      return NextResponse.json({ products: [] });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = supabaseAdmin();

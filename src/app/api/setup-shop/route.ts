@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getClerkUser, supabaseAdmin } from '@/lib/auth/clerk-auth';
 
 export async function GET(request: NextRequest) {
+    // SEC-6: Require authentication
+    const userId = await getClerkUser();
+    if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin();
     const searchParams = request.nextUrl.searchParams;
     const envPageId = process.env.FACEBOOK_PAGE_ID;
     const pageId = searchParams.get('pageId') || envPageId;

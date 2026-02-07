@@ -23,7 +23,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatures } from '@/hooks/useFeatures';
 import { toast } from 'sonner';
-import { VersionBadge } from '@/components/ui/VersionBadge';
 
 interface MenuItem {
     name: string;
@@ -272,10 +271,6 @@ export function Sidebar() {
                         );
                     })}
                 </ul>
-                {/* Version Badge */}
-                <div className={`mt-3 pt-3 border-t border-neutral-800 ${collapsed ? 'text-center' : 'px-3'}`}>
-                    <VersionBadge collapsed={collapsed} />
-                </div>
             </div>
 
             {/* Collapse button */}

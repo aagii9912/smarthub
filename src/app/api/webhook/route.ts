@@ -21,8 +21,37 @@ import {
     replyToComment,
     ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
+import crypto from 'crypto';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
+
+/**
+ * SEC-8: Verify Facebook X-Hub-Signature-256
+ */
+function verifyFacebookSignature(rawBody: string, signature: string | null): boolean {
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (!appSecret) {
+        logger.warn('FACEBOOK_APP_SECRET not configured');
+        return false;
+    }
+    if (!signature || !signature.startsWith('sha256=')) return false;
+
+    const expectedHash = crypto
+        .createHmac('sha256', appSecret)
+        .update(rawBody)
+        .digest('hex');
+
+    const receivedHash = signature.replace('sha256=', '');
+
+    try {
+        return crypto.timingSafeEqual(
+            Buffer.from(expectedHash),
+            Buffer.from(receivedHash)
+        );
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Facebook webhook entry type
@@ -72,7 +101,16 @@ export async function GET(request: NextRequest) {
 // Handle incoming messages (POST request from Facebook/Instagram)
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        // SEC-8: Verify Facebook X-Hub-Signature-256
+        const rawBody = await request.text();
+        const signature = request.headers.get('x-hub-signature-256');
+
+        if (!verifyFacebookSignature(rawBody, signature)) {
+            logger.warn('Invalid Facebook webhook signature');
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        }
+
+        const body = JSON.parse(rawBody);
 
         // Determine platform type: 'page' for Messenger, 'instagram' for Instagram
         const platform: 'messenger' | 'instagram' = body.object === 'instagram' ? 'instagram' : 'messenger';
@@ -363,8 +401,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'ok' });
     } catch (error) {
         logger.error('Webhook error:', { error });
+        // SEC-9: Mask internal error details in production
+        const errorMessage = process.env.NODE_ENV === 'production'
+            ? 'Internal server error'
+            : error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json({
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
         }, { status: 500 });
     }
 }

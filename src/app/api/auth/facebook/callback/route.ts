@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   const error = searchParams.get('error');
+  const state = searchParams.get('state');
   const origin = request.nextUrl.origin;
 
   // Handle error from Facebook
@@ -12,6 +13,15 @@ export async function GET(request: NextRequest) {
     const errorReason = searchParams.get('error_reason') || 'Unknown error';
     return NextResponse.redirect(`${origin}/setup?fb_error=${encodeURIComponent(errorReason)}`);
   }
+
+  // SEC-4: Verify CSRF state token
+  const cookieStore = await cookies();
+  const savedState = cookieStore.get('fb_oauth_state')?.value;
+  if (!state || !savedState || state !== savedState) {
+    return NextResponse.redirect(`${origin}/setup?fb_error=csrf_validation_failed`);
+  }
+  // Clear the state cookie
+  cookieStore.delete('fb_oauth_state');
 
   if (!code) {
     return NextResponse.redirect(`${origin}/setup?fb_error=no_code`);

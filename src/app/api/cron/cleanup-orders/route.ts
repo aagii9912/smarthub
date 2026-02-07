@@ -10,11 +10,11 @@ export const dynamic = 'force-dynamic';
  * Can be called by Vercel Cron or Supabase Edge Functions.
  */
 export async function GET(request: NextRequest) {
-    // Optional: Verify Authorization header if needed for security
-    // const authHeader = request.headers.get('authorization');
-    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    //     return new NextResponse('Unauthorized', { status: 401 });
-    // }
+    // SEC-7: Verify Authorization header for cron security
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return new NextResponse('Unauthorized', { status: 401 });
+    }
 
     const supabase = supabaseAdmin();
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
@@ -35,41 +35,49 @@ export async function GET(request: NextRequest) {
 
         logger.info(`Found ${expiredOrders.length} expired orders to clean up.`);
 
-        // 2. Proccess each order
+        // 2. Process all orders (PERF-2: batch instead of N+1)
         let successCount = 0;
 
+        // Collect all stock restoration operations
+        const stockUpdates: Array<{ productId: string; quantity: number }> = [];
         for (const order of expiredOrders) {
-            // Restore Stock
             if (order.order_items && order.order_items.length > 0) {
                 for (const item of order.order_items) {
-                    // Get current product state
-                    const { data: product } = await supabase
-                        .from('products')
-                        .select('reserved_stock')
-                        .eq('id', item.product_id)
-                        .single();
-
-                    if (product) {
-                        const newReserved = Math.max(0, (product.reserved_stock || 0) - item.quantity);
-                        await supabase
-                            .from('products')
-                            .update({ reserved_stock: newReserved })
-                            .eq('id', item.product_id);
-                    }
+                    stockUpdates.push({ productId: item.product_id, quantity: item.quantity });
                 }
             }
-
-            // Update Order Status
-            const { error: updateError } = await supabase
-                .from('orders')
-                .update({
-                    status: 'cancelled',
-                    notes: 'Auto-expired: Payment not received in 30 mins'
-                })
-                .eq('id', order.id);
-
-            if (!updateError) successCount++;
         }
+
+        // Batch restore stock using Promise.all
+        if (stockUpdates.length > 0) {
+            await Promise.all(stockUpdates.map(async ({ productId, quantity }) => {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('reserved_stock')
+                    .eq('id', productId)
+                    .single();
+
+                if (product) {
+                    const newReserved = Math.max(0, (product.reserved_stock || 0) - quantity);
+                    await supabase
+                        .from('products')
+                        .update({ reserved_stock: newReserved })
+                        .eq('id', productId);
+                }
+            }));
+        }
+
+        // Batch cancel all expired orders
+        const orderIds = expiredOrders.map(o => o.id);
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                status: 'cancelled',
+                notes: 'Auto-expired: Payment not received in 30 mins'
+            })
+            .in('id', orderIds);
+
+        successCount = updateError ? 0 : orderIds.length;
 
         return NextResponse.json({
             success: true,

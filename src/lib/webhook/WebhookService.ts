@@ -334,8 +334,9 @@ export async function updateCustomerInfo(
     const updatedCustomer = { ...customer };
 
     // Extract phone from message if not saved
+    // ARCH-3: Improved regex for Mongolian phone numbers (8 digits, starts with 8/9/7/6)
     if (!customer.phone) {
-        const phoneMatch = message.match(/(\d{8})/);
+        const phoneMatch = message.match(/\b([89765]\d{7})\b/);
         if (phoneMatch) {
             await supabase
                 .from('customers')

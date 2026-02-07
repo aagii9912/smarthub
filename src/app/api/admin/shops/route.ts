@@ -12,15 +12,13 @@ import { logger } from '@/lib/utils/logger';
 // GET - List all shops with subscription info
 export async function GET(request: NextRequest) {
     try {
-        const { userId } = await auth();
         const admin = await getAdminUser();
 
-        logger.debug('[Admin Shops API]', { userId, admin: admin?.email });
-
-        // For now, allow if user is authenticated (will add strict admin check later)
-        if (!userId) {
-            return NextResponse.json({ error: 'Unauthorized - Not logged in' }, { status: 401 });
+        if (!admin) {
+            return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
         }
+
+        logger.debug('[Admin Shops API]', { admin: admin.email });
 
         const { searchParams } = new URL(request.url);
         const page = parseInt(searchParams.get('page') || '1');

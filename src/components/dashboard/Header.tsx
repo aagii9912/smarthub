@@ -3,12 +3,11 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useClerk } from '@clerk/nextjs';
-import { LogOut, Settings, ChevronDown } from 'lucide-react';
+import { User, LogOut, Settings, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 import { useFeatures } from '@/hooks/useFeatures';
-import { SyncIndicator } from '@/components/ui/SyncIndicator';
 
 
 export function Header() {
@@ -92,9 +91,6 @@ export function Header() {
                             : undefined
                     }
                 />
-
-                {/* Sync Status Indicator */}
-                <SyncIndicator />
 
                 {/* Notifications */}
                 <NotificationButton />

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 // Facebook OAuth - Start
 export async function GET(request: NextRequest) {
@@ -16,11 +17,12 @@ export async function GET(request: NextRequest) {
   const permissions = [
     'pages_show_list',
     'pages_messaging',
-    // 'pages_read_engagement', // Removed due to invalid scope error
     'pages_manage_metadata',
     'public_profile',
-    // 'email' // Removed due to invalid scope error
   ].join(',');
+
+  // SEC-4: Generate CSRF state token
+  const state = crypto.randomUUID();
 
   // Build Facebook OAuth URL
   const fbAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
@@ -28,8 +30,18 @@ export async function GET(request: NextRequest) {
   fbAuthUrl.searchParams.set('redirect_uri', redirectUri);
   fbAuthUrl.searchParams.set('scope', permissions);
   fbAuthUrl.searchParams.set('response_type', 'code');
-  // fbAuthUrl.searchParams.set('state', crypto.randomUUID()); // Түр зуур хасав
+  fbAuthUrl.searchParams.set('state', state);
 
-  return NextResponse.redirect(fbAuthUrl.toString());
+  // Store state in cookie for callback verification
+  const response = NextResponse.redirect(fbAuthUrl.toString());
+  response.cookies.set('fb_oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 600, // 10 minutes
+    path: '/',
+  });
+
+  return response;
 }
 

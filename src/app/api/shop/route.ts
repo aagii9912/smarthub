@@ -160,10 +160,31 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
     }
 
-    // Update shop
+    // Whitelist allowed fields to prevent mass assignment (SEC-5)
+    const ALLOWED_FIELDS = [
+      'name', 'owner_name', 'phone', 'description',
+      'ai_instructions', 'ai_emotion', 'is_ai_active',
+      'notify_on_order', 'notify_on_contact', 'notify_on_support', 'notify_on_cancel',
+      'facebook_page_id', 'facebook_page_name', 'facebook_page_username',
+      'facebook_page_access_token',
+      'instagram_business_account_id', 'instagram_access_token', 'instagram_username',
+    ] as const;
+
+    const sanitizedUpdate: Record<string, unknown> = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (body[key] !== undefined) {
+        sanitizedUpdate[key] = body[key];
+      }
+    }
+
+    if (Object.keys(sanitizedUpdate).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    // Update shop with sanitized data
     const { data: updatedShop, error } = await supabase
       .from('shops')
-      .update(body)
+      .update(sanitizedUpdate)
       .eq('id', shop.id)
       .select()
       .single();
