@@ -100,6 +100,33 @@ export async function POST(request: NextRequest) {
                 throw new Error('Failed to update payment');
             }
 
+            // Deduct actual stock from products after payment confirmed
+            const { data: orderItems } = await supabase
+                .from('order_items')
+                .select('product_id, quantity')
+                .eq('order_id', payment.order_id);
+
+            if (orderItems && orderItems.length > 0) {
+                await Promise.all(orderItems.map(async (item) => {
+                    const { data: product } = await supabase
+                        .from('products')
+                        .select('stock, reserved_stock')
+                        .eq('id', item.product_id)
+                        .single();
+
+                    if (product) {
+                        const newStock = Math.max(0, (product.stock || 0) - item.quantity);
+                        const newReserved = Math.max(0, (product.reserved_stock || 0) - item.quantity);
+
+                        await supabase
+                            .from('products')
+                            .update({ stock: newStock, reserved_stock: newReserved })
+                            .eq('id', item.product_id);
+                    }
+                }));
+                logger.info('Stock deducted for order:', { orderId: payment.order_id, items: orderItems.length });
+            }
+
             // Trigger will auto-update order status
             logger.success('Payment confirmed:', {
                 payment_id: payment.id,

@@ -696,6 +696,31 @@ export async function executeCheckPaymentStatus(
                         .update({ status: 'paid' })
                         .eq('id', order.id);
 
+                    // Deduct actual stock from products
+                    const { data: orderItems } = await supabase
+                        .from('order_items')
+                        .select('product_id, quantity')
+                        .eq('order_id', order.id);
+
+                    if (orderItems) {
+                        for (const item of orderItems) {
+                            const { data: prod } = await supabase
+                                .from('products')
+                                .select('stock, reserved_stock')
+                                .eq('id', item.product_id)
+                                .single();
+                            if (prod) {
+                                await supabase
+                                    .from('products')
+                                    .update({
+                                        stock: Math.max(0, (prod.stock || 0) - item.quantity),
+                                        reserved_stock: Math.max(0, (prod.reserved_stock || 0) - item.quantity)
+                                    })
+                                    .eq('id', item.product_id);
+                            }
+                        }
+                    }
+
                     verifiedOrderIds.push(order.id);
                     verifiedCount++;
                 }

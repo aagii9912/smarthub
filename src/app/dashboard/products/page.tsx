@@ -319,9 +319,14 @@ export default function ProductsPage() {
                                             {product.type === 'service' ? 'Үйлчилгээ' : product.type === 'appointment' ? 'Цаг захиалга' : 'Бараа'}
                                         </span>
                                         {product.type === 'physical' && (
-                                            <span className={`text-xs ${(product.stock || 0) > 0 ? 'text-muted-foreground' : 'text-destructive'}`}>
-                                                {(product.stock || 0) > 0 ? `Үлдэгдэл: ${product.stock}` : 'Дууссан'}
-                                            </span>
+                                            (() => {
+                                                const available = (product.stock || 0) - (product.reserved_stock || 0);
+                                                return (
+                                                    <span className={`text-xs ${available > 0 ? 'text-muted-foreground' : 'text-destructive'}`}>
+                                                        {available > 0 ? `Үлдэгдэл: ${available}` : 'Дууссан'}
+                                                    </span>
+                                                );
+                                            })()
                                         )}
                                     </div>
                                 </div>
@@ -394,9 +399,14 @@ export default function ProductsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             {product.type === 'physical' ? (
-                                                <p className={`font-medium ${(product.stock || 0) > 0 ? 'text-foreground' : 'text-destructive'}`}>
-                                                    {(product.stock || 0) > 0 ? `${product.stock} ш` : 'Дууссан'}
-                                                </p>
+                                                (() => {
+                                                    const available = (product.stock || 0) - (product.reserved_stock || 0);
+                                                    return (
+                                                        <p className={`font-medium ${available > 0 ? 'text-foreground' : 'text-destructive'}`}>
+                                                            {available > 0 ? `${available} ш` : 'Дууссан'}
+                                                        </p>
+                                                    );
+                                                })()
                                             ) : (
                                                 <span className="text-muted-foreground text-sm">-</span>
                                             )}
