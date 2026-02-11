@@ -105,7 +105,7 @@ export function PWAInstallPrompt() {
                 {!isIOS && (
                     <button
                         onClick={handleInstall}
-                        className="mt-2 w-full bg-white text-blue-600 font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-blue-50 transition-colors"
+                        className="mt-2 w-full bg-[#0F0B2E] text-blue-600 font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-blue-50 transition-colors"
                     >
                         Суулгах
                     </button>

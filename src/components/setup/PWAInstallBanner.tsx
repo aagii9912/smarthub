@@ -58,7 +58,7 @@ export function PWAInstallBanner({ onDismiss }: PWAInstallBannerProps) {
                     </button>
                     <button
                         onClick={handleInstall}
-                        className="flex-1 py-2.5 bg-white text-violet-600 font-semibold rounded-xl hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-sm"
+                        className="flex-1 py-2.5 bg-[#0F0B2E] text-violet-600 font-semibold rounded-xl hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-sm"
                     >
                         <Download className="w-4 h-4" />
                         Суулгах

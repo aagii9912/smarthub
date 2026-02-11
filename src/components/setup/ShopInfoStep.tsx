@@ -21,9 +21,10 @@ interface ShopInfoStepProps {
     account_number?: string;
     account_name?: string;
   }) => Promise<void>;
+  onPreviewUpdate?: (data: Record<string, string>) => void;
 }
 
-export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
+export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoStepProps) {
   const [name, setName] = useState(initialData.name || '');
   const [ownerName, setOwnerName] = useState(initialData.owner_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
@@ -104,9 +105,9 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
           <input
             type="text"
             value={name}
-            onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); }}
+            onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); onPreviewUpdate?.({ name: e.target.value }); }}
             placeholder="Жишээ: Миний дэлгүүр"
-            className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+            className={`w-full px-4 py-3 bg-[#0F0B2E] border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
@@ -120,9 +121,9 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
           <input
             type="text"
             value={ownerName}
-            onChange={(e) => setOwnerName(e.target.value)}
+            onChange={(e) => { setOwnerName(e.target.value); onPreviewUpdate?.({ owner_name: e.target.value }); }}
             placeholder="Таны нэр"
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
           />
         </div>
 
@@ -131,9 +132,9 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); }}
+            onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); onPreviewUpdate?.({ phone: e.target.value }); }}
             placeholder="99001122"
-            className={`w-full px-4 py-3 bg-white border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+            className={`w-full px-4 py-3 bg-[#0F0B2E] border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
           />
           {errors.phone && (
             <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
@@ -154,9 +155,9 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
               <input
                 type="text"
                 value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
+                onChange={(e) => { setBankName(e.target.value); onPreviewUpdate?.({ bank_name: e.target.value }); }}
                 placeholder="Хаан банк"
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
             <div>
@@ -164,9 +165,9 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
               <input
                 type="text"
                 value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
+                onChange={(e) => { setAccountNumber(e.target.value); onPreviewUpdate?.({ account_number: e.target.value }); }}
                 placeholder="5000000000"
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
             <div>
@@ -176,7 +177,7 @@ export function ShopInfoStep({ initialData, onNext }: ShopInfoStepProps) {
                 value={accountName}
                 onChange={(e) => setAccountName(e.target.value)}
                 placeholder="Эзэмшигчийн нэр"
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
               />
             </div>
           </div>

@@ -137,7 +137,7 @@ export function OnboardingTour() {
 
             {/* Tooltip */}
             <div
-                className="fixed z-50 w-80 bg-white rounded-2xl shadow-2xl border border-violet-100 overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300"
+                className="fixed z-50 w-80 bg-[#0F0B2E] rounded-2xl shadow-2xl border border-violet-100 overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300"
                 style={{ top: position.top, left: position.left }}
             >
                 {/* Header */}

@@ -29,8 +29,8 @@ interface SalesChartProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-                <p className="font-medium text-sm text-gray-900">{label}</p>
+            <div className="bg-[#0F0B2E] p-3 rounded-lg shadow-lg border border-white/[0.08]">
+                <p className="font-medium text-sm text-white">{label}</p>
                 <p className="text-primary font-semibold">
                     ₮{Number(payload[0].value).toLocaleString()}
                 </p>
@@ -57,8 +57,8 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
 
     if (chartData.length === 0) {
         return (
-            <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-lg">
-                <p className="text-gray-500">Өгөгдөл байхгүй</p>
+            <div className="flex items-center justify-center h-[300px] bg-[#0F0B2E] rounded-lg">
+                <p className="text-white/50">Өгөгдөл байхгүй</p>
             </div>
         );
     }
@@ -89,10 +89,10 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
                     <Line
                         type="monotone"
                         dataKey="revenue"
-                        stroke="#D4AF37"
+                        stroke="#4A7CE7"
                         strokeWidth={2}
-                        dot={{ fill: '#D4AF37', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, fill: '#D4AF37' }}
+                        dot={{ fill: '#4A7CE7', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, fill: '#4A7CE7' }}
                     />
                 </LineChart>
             ) : (
@@ -113,7 +113,7 @@ export function SalesChart({ data, type = 'line', height = 300 }: SalesChartProp
                     <Tooltip content={<CustomTooltip />} />
                     <Bar
                         dataKey="revenue"
-                        fill="#D4AF37"
+                        fill="#4A7CE7"
                         radius={[4, 4, 0, 0]}
                     />
                 </BarChart>

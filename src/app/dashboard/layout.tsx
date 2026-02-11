@@ -15,12 +15,17 @@ export default function DashboardLayout({
     useRealtimeNotifications();
 
     return (
+        <div className="min-h-screen bg-[#09090b] relative">
+            {/* Subtle gradient mesh */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-500/[0.03] via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-violet-500/[0.03] via-transparent to-transparent" />
+            </div>
 
-        <div className="min-h-screen bg-[#f8f9fa]">
             <Sidebar />
-            <div className="md:ml-64 transition-all duration-300 min-h-screen flex flex-col">
+            <div className="md:ml-[260px] transition-all duration-300 min-h-screen flex flex-col relative">
                 <Header />
-                <main className="flex-1 p-3 md:p-5 lg:p-8 pb-20 md:pb-6 dashboard-content">
+                <main className="flex-1 px-4 md:px-6 lg:px-8 pb-20 md:pb-8 pt-2">
                     {children}
                 </main>
             </div>

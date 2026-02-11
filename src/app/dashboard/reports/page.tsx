@@ -60,53 +60,40 @@ export default function ReportsPage() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
-                <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-5">
+                <div className="h-6 w-48 bg-[#0F0B2E] rounded animate-pulse" />
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse" />
+                        <div key={i} className="h-28 bg-[#0F0B2E] rounded-lg animate-pulse border border-white/[0.08]" />
                     ))}
                 </div>
-                <div className="h-80 bg-gray-100 rounded-xl animate-pulse" />
+                <div className="h-80 bg-[#0F0B2E] rounded-lg animate-pulse border border-white/[0.08]" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <BarChart3 className="w-6 h-6 text-primary" />
-                        Тайлан & Статистик
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Бизнесийн дэлгэрэнгүй тайлан, анализ
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={() => refetch()}
-                        disabled={isRefetching}
-                        variant="secondary"
-                        size="sm"
-                    >
-                        <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-                        Шинэчлэх
-                    </Button>
-                </div>
+        <div className="space-y-5">
+            {/* Toolbar */}
+            <div className="flex items-center justify-end gap-2">
+                <button
+                    onClick={() => refetch()}
+                    disabled={isRefetching}
+                    className="p-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors"
+                >
+                    <RefreshCw className={`w-3.5 h-3.5 text-white/40 ${isRefetching ? 'animate-spin' : ''}`} />
+                </button>
             </div>
 
             {/* Period Filter */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-1">
                 {periodOptions.map((option) => (
                     <button
                         key={option.value}
                         onClick={() => setPeriod(option.value as Period)}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${period === option.value
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        className={`px-3 py-1.5 rounded-md font-medium text-[12px] transition-all tracking-[-0.01em] ${period === option.value
+                            ? 'bg-[#1C1650] text-foreground'
+                            : 'text-white/40 hover:bg-[#0F0B2E]'
                             }`}
                     >
                         {option.label}
@@ -136,143 +123,107 @@ export default function ReportsPage() {
             )}
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Sales Chart */}
-                <Card className="lg:col-span-2">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-primary" />
-                            Борлуулалтын график
-                        </CardTitle>
-                        <div className="flex gap-1">
+                <div className="lg:col-span-2 bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08]">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                            <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Борлуулалтын график</span>
+                        </div>
+                        <div className="flex gap-0.5">
                             <button
                                 onClick={() => setChartType('line')}
-                                className={`px-3 py-1 text-xs rounded-md ${chartType === 'line' ? 'bg-primary text-white' : 'bg-gray-100'
+                                className={`px-2.5 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors ${chartType === 'line'
+                                    ? 'bg-[#1C1650] text-foreground font-medium'
+                                    : 'text-white/40 hover:text-foreground'
                                     }`}
                             >
                                 Line
                             </button>
                             <button
                                 onClick={() => setChartType('bar')}
-                                className={`px-3 py-1 text-xs rounded-md ${chartType === 'bar' ? 'bg-primary text-white' : 'bg-gray-100'
+                                className={`px-2.5 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors ${chartType === 'bar'
+                                    ? 'bg-[#1C1650] text-foreground font-medium'
+                                    : 'text-white/40 hover:text-foreground'
                                     }`}
                             >
                                 Bar
                             </button>
                         </div>
-                    </CardHeader>
-                    <CardContent>
+                    </div>
+                    <div className="p-5">
                         <SalesChart
                             data={data?.chartData || []}
                             type={chartType}
                             height={350}
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
                 {/* Order Status */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5 text-primary" />
-                            Захиалгын төлөв
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {data && Object.entries(data.orderStatus).map(([status, count]) => (
-                                <div key={status} className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600 capitalize">
-                                        {translateStatus(status)}
-                                    </span>
-                                    <span className={`
-                    px-2 py-0.5 rounded-full text-xs font-medium
-                    ${status === 'delivered' ? 'bg-green-100 text-green-700' : ''}
-                    ${status === 'pending' ? 'bg-yellow-100 text-yellow-700' : ''}
-                    ${status === 'cancelled' ? 'bg-red-100 text-red-700' : ''}
-                    ${status === 'processing' || status === 'confirmed' ? 'bg-blue-100 text-blue-700' : ''}
-                    ${status === 'shipped' ? 'bg-purple-100 text-purple-700' : ''}
-                  `}>
-                                        {count}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+                    <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
+                        <ShoppingCart className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                        <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Захиалгын төлөв</span>
+                    </div>
+                    <div className="p-5 space-y-3">
+                        {data && Object.entries(data.orderStatus).map(([status, count]) => (
+                            <div key={status} className="flex items-center justify-between">
+                                <span className="text-[13px] text-white/50 tracking-[-0.01em]">
+                                    {translateStatus(status)}
+                                </span>
+                                <span className="text-[13px] font-semibold text-foreground tabular-nums">
+                                    {count as number}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Best Sellers */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                        <Trophy className="w-5 h-5 text-yellow-500" />
-                        Эрэлттэй бүтээгдэхүүн (Top 10)
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
+                    <Trophy className="w-4 h-4 text-[#4A7CE7]" strokeWidth={1.5} />
+                    <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Эрэлттэй бүтээгдэхүүн (Top 10)</span>
+                </div>
+                <div className="p-5">
                     <BestSellersTable products={data?.bestSellers || []} />
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
-            {/* Export Section - Requires excel_export feature */}
+            {/* Export Section */}
             <FeatureGate feature="excel_export">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                            Excel Экспорт
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <button
-                                onClick={() => handleExport('orders')}
-                                disabled={exporting !== null}
-                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <ShoppingCart className="w-5 h-5 text-blue-600" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="font-medium text-gray-900">Захиалгууд</p>
-                                    <p className="text-xs text-gray-500">Бүх захиалгын жагсаалт</p>
-                                </div>
-                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'orders' ? 'animate-bounce' : ''}`} />
-                            </button>
-
-                            <button
-                                onClick={() => handleExport('products')}
-                                disabled={exporting !== null}
-                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <Package className="w-5 h-5 text-purple-600" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="font-medium text-gray-900">Бүтээгдэхүүн</p>
-                                    <p className="text-xs text-gray-500">Бүх барааны жагсаалт</p>
-                                </div>
-                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'products' ? 'animate-bounce' : ''}`} />
-                            </button>
-
-                            <button
-                                onClick={() => handleExport('sales')}
-                                disabled={exporting !== null}
-                                className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <TrendingUp className="w-5 h-5 text-green-600" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="font-medium text-gray-900">Борлуулалт</p>
-                                    <p className="text-xs text-gray-500">Сүүлийн 30 хоногийн</p>
-                                </div>
-                                <Download className={`w-4 h-4 ml-auto text-gray-400 ${exporting === 'sales' ? 'animate-bounce' : ''}`} />
-                            </button>
+                <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+                    <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
+                        <FileSpreadsheet className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                        <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Excel Экспорт</span>
+                    </div>
+                    <div className="p-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {[
+                                { type: 'orders' as const, label: 'Захиалгууд', desc: 'Бүх захиалгын жагсаалт', icon: ShoppingCart },
+                                { type: 'products' as const, label: 'Бүтээгдэхүүн', desc: 'Бүх барааны жагсаалт', icon: Package },
+                                { type: 'sales' as const, label: 'Борлуулалт', desc: 'Сүүлийн 30 хоногийн', icon: TrendingUp },
+                            ].map((item) => (
+                                <button
+                                    key={item.type}
+                                    onClick={() => handleExport(item.type)}
+                                    disabled={exporting !== null}
+                                    className="flex items-center gap-3 p-4 bg-[#0D0928] hover:bg-[#0F0B2E] rounded-md border border-white/[0.04] transition-colors disabled:opacity-50 text-left"
+                                >
+                                    <item.icon className="w-5 h-5 text-white/20 shrink-0" strokeWidth={1.5} />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{item.label}</p>
+                                        <p className="text-[11px] text-white/40">{item.desc}</p>
+                                    </div>
+                                    <Download className={`w-3.5 h-3.5 text-white/20 shrink-0 ${exporting === item.type ? 'animate-bounce' : ''}`} />
+                                </button>
+                            ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </FeatureGate>
         </div>
     );

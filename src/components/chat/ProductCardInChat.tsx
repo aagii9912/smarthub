@@ -69,7 +69,7 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
     };
 
     return (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden 
+        <div className="bg-[#0F0B2E] border border-gray-100 rounded-xl overflow-hidden 
                     shadow-sm hover:shadow-md transition w-[220px] shrink-0 mt-2">
             {/* Image */}
             <div className="w-full h-24 bg-gray-50 overflow-hidden relative group">
@@ -111,7 +111,7 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
                                             className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors
                                                 ${selectedOptions[name] === val
                                                     ? 'bg-violet-600 text-white border-violet-600'
-                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'}`}
+                                                    : 'bg-[#0F0B2E] text-gray-600 border-gray-200 hover:border-violet-300'}`}
                                         >
                                             {val}
                                         </button>

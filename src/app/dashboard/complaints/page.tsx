@@ -3,14 +3,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import {
     AlertTriangle,
     MessageSquare,
     CheckCircle,
     Clock,
-    Filter,
     Search,
     XCircle,
     Package,
@@ -37,25 +34,25 @@ interface Complaint {
     };
 }
 
-const complaintTypeLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    product_quality: { label: 'Барааны чанар', icon: <Package className="w-4 h-4" />, color: 'text-orange-600 bg-orange-50' },
-    delivery: { label: 'Хүргэлт', icon: <Truck className="w-4 h-4" />, color: 'text-blue-600 bg-blue-50' },
-    service: { label: 'Үйлчилгээ', icon: <HeadphonesIcon className="w-4 h-4" />, color: 'text-purple-600 bg-purple-50' },
-    price: { label: 'Үнэ', icon: <DollarSign className="w-4 h-4" />, color: 'text-green-600 bg-green-50' },
-    other: { label: 'Бусад', icon: <MoreHorizontal className="w-4 h-4" />, color: 'text-gray-600 bg-gray-50' },
+const complaintTypeLabels: Record<string, { label: string; icon: React.ReactNode }> = {
+    product_quality: { label: 'Барааны чанар', icon: <Package className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    delivery: { label: 'Хүргэлт', icon: <Truck className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    service: { label: 'Үйлчилгээ', icon: <HeadphonesIcon className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    price: { label: 'Үнэ', icon: <DollarSign className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    other: { label: 'Бусад', icon: <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={1.5} /> },
 };
 
-const severityLabels: Record<string, { label: string; color: string }> = {
-    low: { label: 'Бага', color: 'text-gray-600 bg-gray-100' },
-    medium: { label: 'Дунд', color: 'text-yellow-600 bg-yellow-50' },
-    high: { label: 'Өндөр', color: 'text-red-600 bg-red-50' },
+const severityLabels: Record<string, { label: string }> = {
+    low: { label: 'Бага' },
+    medium: { label: 'Дунд' },
+    high: { label: 'Өндөр' },
 };
 
-const statusLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    new: { label: 'Шинэ', icon: <AlertTriangle className="w-4 h-4" />, color: 'text-red-600 bg-red-50' },
-    in_progress: { label: 'Шийдвэрлэж байна', icon: <Clock className="w-4 h-4" />, color: 'text-yellow-600 bg-yellow-50' },
-    resolved: { label: 'Шийдэгдсэн', icon: <CheckCircle className="w-4 h-4" />, color: 'text-green-600 bg-green-50' },
-    dismissed: { label: 'Хаагдсан', icon: <XCircle className="w-4 h-4" />, color: 'text-gray-600 bg-gray-100' },
+const statusLabels: Record<string, { label: string; icon: React.ReactNode }> = {
+    new: { label: 'Шинэ', icon: <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    in_progress: { label: 'Шийдвэрлэж байна', icon: <Clock className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    resolved: { label: 'Шийдэгдсэн', icon: <CheckCircle className="w-3.5 h-3.5" strokeWidth={1.5} /> },
+    dismissed: { label: 'Хаагдсан', icon: <XCircle className="w-3.5 h-3.5" strokeWidth={1.5} /> },
 };
 
 export default function ComplaintsPage() {
@@ -111,171 +108,136 @@ export default function ComplaintsPage() {
     };
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Гомдлууд</h1>
-                <p className="text-gray-500 mt-1">Харилцагчдын санал хүсэлт, гомдлууд</p>
-            </div>
-
+        <div className="space-y-5">
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                    { label: 'Нийт', value: stats.total, icon: MessageSquare },
+                    { label: 'Шинэ', value: stats.new, icon: AlertTriangle, highlight: stats.new > 0 },
+                    { label: 'Шийдвэрлэж буй', value: stats.inProgress, icon: Clock },
+                    { label: 'Шийдэгдсэн', value: stats.resolved, icon: CheckCircle },
+                ].map((stat) => (
+                    <div key={stat.label} className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] p-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-gray-100 rounded-lg">
-                                <MessageSquare className="w-5 h-5 text-gray-600" />
-                            </div>
+                            <stat.icon className="w-4 h-4 text-white/20" strokeWidth={1.5} />
                             <div>
-                                <p className="text-2xl font-bold">{stats.total}</p>
-                                <p className="text-sm text-gray-500">Нийт</p>
+                                <p className={`text-xl font-semibold tabular-nums tracking-[-0.02em] ${stat.highlight ? 'text-red-500' : 'text-foreground'}`}>
+                                    {stat.value}
+                                </p>
+                                <p className="text-[11px] text-white/40 tracking-[-0.01em]">{stat.label}</p>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-red-50 rounded-lg">
-                                <AlertTriangle className="w-5 h-5 text-red-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-red-600">{stats.new}</p>
-                                <p className="text-sm text-gray-500">Шинэ</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-yellow-50 rounded-lg">
-                                <Clock className="w-5 h-5 text-yellow-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-yellow-600">{stats.inProgress}</p>
-                                <p className="text-sm text-gray-500">Шийдвэрлэж буй</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-50 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-green-600">{stats.resolved}</p>
-                                <p className="text-sm text-gray-500">Шийдэгдсэн</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                ))}
             </div>
 
             {/* Filters */}
-            <Card>
-                <CardContent className="p-4">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Хайх..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Filter className="w-4 h-4 text-gray-400" />
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-                            >
-                                <option value="all">Бүгд</option>
-                                <option value="new">Шинэ</option>
-                                <option value="in_progress">Шийдвэрлэж буй</option>
-                                <option value="resolved">Шийдэгдсэн</option>
-                                <option value="dismissed">Хаагдсан</option>
-                            </select>
-                        </div>
+            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] p-4">
+                <div className="flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
+                        <input
+                            type="text"
+                            placeholder="Хайх..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em] placeholder:text-white/30"
+                        />
                     </div>
-                </CardContent>
-            </Card>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em]"
+                    >
+                        <option value="all">Бүгд</option>
+                        <option value="new">Шинэ</option>
+                        <option value="in_progress">Шийдвэрлэж буй</option>
+                        <option value="resolved">Шийдэгдсэн</option>
+                        <option value="dismissed">Хаагдсан</option>
+                    </select>
+                </div>
+            </div>
 
             {/* Complaints List */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Гомдлын жагсаалт</CardTitle>
-                </CardHeader>
-                <CardContent>
+            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
+                    <AlertTriangle className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                    <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Гомдлын жагсаалт</span>
+                </div>
+                <div>
                     {isLoading ? (
-                        <div className="text-center py-8 text-gray-500">Уншиж байна...</div>
+                        <div className="text-center py-8 text-[13px] text-white/40">Уншиж байна...</div>
                     ) : filteredComplaints.length === 0 ? (
-                        <div className="text-center py-8">
-                            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">Гомдол байхгүй байна</p>
-                            <p className="text-sm text-gray-400 mt-1">AI чатбот харилцагчдаас гомдол хүлээн авахад энд харагдана</p>
+                        <div className="text-center py-12">
+                            <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" strokeWidth={1.5} />
+                            <p className="text-[13px] text-white/40 tracking-[-0.01em]">Гомдол байхгүй байна</p>
+                            <p className="text-[11px] text-white/30 mt-1">AI чатбот харилцагчдаас гомдол хүлээн авахад энд харагдана</p>
                         </div>
                     ) : (
-                        <div className="divide-y divide-gray-100">
+                        <div className="divide-y divide-white/[0.04]">
                             {filteredComplaints.map((complaint) => {
                                 const typeInfo = complaintTypeLabels[complaint.complaint_type] || complaintTypeLabels.other;
                                 const severityInfo = severityLabels[complaint.severity] || severityLabels.medium;
                                 const statusInfo = statusLabels[complaint.status] || statusLabels.new;
 
                                 return (
-                                    <div key={complaint.id} className="py-4 first:pt-0 last:pb-0">
+                                    <div key={complaint.id} className="px-5 py-4 hover:bg-[#0D0928] transition-colors">
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${typeInfo.color}`}>
+                                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-[#151040] text-foreground">
                                                         {typeInfo.icon}
                                                         {typeInfo.label}
                                                     </span>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${severityInfo.color}`}>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${complaint.severity === 'high'
+                                                        ? 'bg-red-900/20 text-red-400'
+                                                        : complaint.severity === 'medium'
+                                                            ? 'bg-blue-900/20 text-blue-400'
+                                                            : 'bg-[#151040] text-white/50'
+                                                        }`}>
                                                         {severityInfo.label}
                                                     </span>
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${complaint.status === 'new'
+                                                        ? 'bg-red-900/20 text-red-400'
+                                                        : complaint.status === 'resolved'
+                                                            ? 'bg-emerald-900/20 text-emerald-400'
+                                                            : 'bg-[#151040] text-white/50'
+                                                        }`}>
                                                         {statusInfo.icon}
                                                         {statusInfo.label}
                                                     </span>
                                                 </div>
-                                                <p className="text-gray-900 mb-1">{complaint.description}</p>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                <p className="text-[13px] text-foreground mb-1 tracking-[-0.01em]">{complaint.description}</p>
+                                                <div className="flex items-center gap-4 text-[12px] text-white/40">
                                                     <span>{complaint.customers?.name || 'Үл мэдэгдэх'}</span>
                                                     <span>{new Date(complaint.created_at).toLocaleDateString('mn-MN')}</span>
                                                 </div>
                                             </div>
                                             {complaint.status !== 'resolved' && complaint.status !== 'dismissed' && (
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 shrink-0">
                                                     {complaint.status === 'new' && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
+                                                        <button
                                                             onClick={() => updateStatusMutation.mutate({
                                                                 id: complaint.id,
                                                                 status: 'in_progress'
                                                             })}
                                                             disabled={updateStatusMutation.isPending}
+                                                            className="px-3 py-1.5 text-[12px] font-medium border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors text-foreground tracking-[-0.01em]"
                                                         >
                                                             Хүлээн авах
-                                                        </Button>
+                                                        </button>
                                                     )}
-                                                    <Button
-                                                        size="sm"
+                                                    <button
                                                         onClick={() => updateStatusMutation.mutate({
                                                             id: complaint.id,
                                                             status: 'resolved',
                                                             resolution_notes: 'Шийдэгдсэн'
                                                         })}
                                                         disabled={updateStatusMutation.isPending}
+                                                        className="px-3 py-1.5 text-[12px] font-medium bg-[#4A7CE7] text-white rounded-md hover:bg-[#3A6BD4] transition-colors tracking-[-0.01em]"
                                                     >
                                                         Шийдсэн
-                                                    </Button>
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -284,8 +246,8 @@ export default function ComplaintsPage() {
                             })}
                         </div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }

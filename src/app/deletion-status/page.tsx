@@ -15,7 +15,7 @@ export default async function DeletionStatusPage({ searchParams }: PageProps) {
     const confirmationCode = params.id;
 
     return (
-        <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+        <div className="min-h-screen bg-[#0F0B2E] dark:bg-gray-950 flex items-center justify-center">
             <div className="mx-auto max-w-lg px-6 py-16 text-center">
                 <div className="mb-8">
                     <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">

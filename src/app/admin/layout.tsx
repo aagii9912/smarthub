@@ -166,7 +166,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {/* Main content */}
             <div className="lg:pl-64">
                 {/* Top bar */}
-                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
+                <header className="h-16 bg-[#0F0B2E] border-b border-gray-200 flex items-center justify-between px-4 lg:px-8">
                     <button
                         className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
                         onClick={() => setSidebarOpen(true)}

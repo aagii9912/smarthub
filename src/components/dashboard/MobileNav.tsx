@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -14,25 +14,23 @@ import {
     Settings,
     Bot,
     CreditCard,
-    FileText,
-    MessageCircle,
+    AlertTriangle,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// Main nav items (4 essential)
 const primaryNavItems = [
     { name: 'Нүүр', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Захиалга', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Тайлан', href: '/dashboard/reports', icon: BarChart3 },
 ];
 
-// Secondary nav items (in More menu)
 const secondaryNavItems = [
     { name: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Package },
     { name: 'Харилцагч', href: '/dashboard/customers', icon: Users },
-
+    { name: 'Гомдол', href: '/dashboard/complaints', icon: AlertTriangle },
     { name: 'Сагс', href: '/dashboard/inbox', icon: ShoppingCart },
     { name: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
-    { name: 'Захиалга', href: '/dashboard/subscription', icon: CreditCard },
+    { name: 'Төлбөр', href: '/dashboard/subscription', icon: CreditCard },
     { name: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -44,41 +42,51 @@ export function MobileNav() {
         return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
     };
 
-    const isMoreActive = secondaryNavItems.some(item => isActiveItem(item.href));
+    const isMoreActive = secondaryNavItems.some((item) => isActiveItem(item.href));
 
     return (
         <>
             {/* More Menu Overlay */}
             {showMore && (
                 <div className="fixed inset-0 z-40 md:hidden" onClick={() => setShowMore(false)}>
-                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
                     <div
-                        className="absolute bottom-[72px] left-4 right-4 bg-white rounded-2xl shadow-2xl overflow-hidden"
+                        className="absolute bottom-20 left-3 right-3 rounded-2xl overflow-hidden animate-fade-in-up bg-[#1a1a20]/90 backdrop-blur-2xl border border-white/[0.08] shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-2">
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                                <span className="font-semibold text-gray-900">Бусад</span>
+                            <div className="flex items-center justify-between px-4 py-3">
+                                <span className="font-bold text-foreground text-sm tracking-[-0.03em]">Бусад</span>
                                 <button
                                     onClick={() => setShowMore(false)}
-                                    className="p-2 rounded-full hover:bg-gray-100"
+                                    className="p-2 rounded-xl hover:bg-[#151040] transition-colors"
                                 >
-                                    <X className="w-5 h-5 text-gray-500" />
+                                    <X className="w-4 h-4 text-white/40" />
                                 </button>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 p-3">
+                            <div className="grid grid-cols-3 gap-1.5 p-3 pt-0">
                                 {secondaryNavItems.map((item) => (
                                     <Link
-                                        key={item.name}
+                                        key={item.href}
                                         href={item.href}
                                         onClick={() => setShowMore(false)}
-                                        className={`flex flex-col items-center gap-2 p-4 rounded-xl transition-all ${isActiveItem(item.href)
-                                            ? 'bg-gold/10 text-gold'
-                                            : 'hover:bg-gray-50 text-gray-600'
-                                            }`}
+                                        className={cn(
+                                            'flex flex-col items-center gap-2 p-3.5 rounded-xl transition-all duration-200',
+                                            isActiveItem(item.href)
+                                                ? 'bg-gradient-to-b from-blue-500/10 to-violet-500/5 text-foreground border border-blue-500/20'
+                                                : 'hover:bg-[#0F0B2E] text-white/40'
+                                        )}
                                     >
-                                        <item.icon className="w-6 h-6" />
-                                        <span className="text-xs font-medium text-center">{item.name}</span>
+                                        <item.icon
+                                            className={cn(
+                                                'w-5 h-5',
+                                                isActiveItem(item.href) && 'text-blue-500'
+                                            )}
+                                            strokeWidth={isActiveItem(item.href) ? 2 : 1.5}
+                                        />
+                                        <span className="text-[10px] font-medium text-center leading-tight tracking-[-0.01em]">
+                                            {item.name}
+                                        </span>
                                     </Link>
                                 ))}
                             </div>
@@ -87,52 +95,69 @@ export function MobileNav() {
                 </div>
             )}
 
-            {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 pb-safe block md:hidden">
-                <ul className="flex justify-around items-stretch h-[56px]">
-                    {primaryNavItems.map((item) => {
-                        const isActive = isActiveItem(item.href);
-                        return (
-                            <li key={item.name} className="flex-1">
-                                <Link
-                                    href={item.href}
-                                    className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all active:scale-95 ${isActive
-                                        ? 'text-primary'
-                                        : 'text-gray-500'
-                                        }`}
-                                >
-                                    <div className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-primary/10' : ''}`}>
-                                        <item.icon
-                                            className="w-5 h-5"
-                                            strokeWidth={isActive ? 2.5 : 2}
-                                        />
-                                    </div>
-                                    <span className={`text-[10px] font-medium ${isActive ? 'text-primary' : ''}`}>
-                                        {item.name}
-                                    </span>
-                                </Link>
-                            </li>
-                        );
-                    })}
+            {/* Bottom Navigation Bar */}
+            <nav className="fixed bottom-3 left-3 right-3 z-50 block md:hidden">
+                <div className="bg-[#141418]/70 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-lg">
+                    <ul className="flex justify-around items-stretch h-[58px]">
+                        {primaryNavItems.map((item) => {
+                            const isActive = isActiveItem(item.href);
+                            return (
+                                <li key={item.href} className="flex-1">
+                                    <Link
+                                        href={item.href}
+                                        className={cn(
+                                            'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
+                                            isActive ? 'text-foreground' : 'text-white/30'
+                                        )}
+                                    >
+                                        <div className="relative">
+                                            {isActive && (
+                                                <span className="absolute inset-[-6px] bg-blue-500/10 rounded-xl" />
+                                            )}
+                                            <item.icon
+                                                className={cn('w-5 h-5 relative', isActive && 'text-blue-500')}
+                                                strokeWidth={isActive ? 2 : 1.5}
+                                            />
+                                        </div>
+                                        <span className={cn(
+                                            'text-[10px] tracking-[-0.01em]',
+                                            isActive ? 'font-bold text-blue-600 text-blue-400' : 'font-medium'
+                                        )}>
+                                            {item.name}
+                                        </span>
+                                    </Link>
+                                </li>
+                            );
+                        })}
 
-                    {/* More Button */}
-                    <li className="flex-1">
-                        <button
-                            onClick={() => setShowMore(!showMore)}
-                            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-all active:scale-95 ${showMore || isMoreActive
-                                ? 'text-primary'
-                                : 'text-gray-500'
-                                }`}
-                        >
-                            <div className={`p-1.5 rounded-lg transition-all ${showMore || isMoreActive ? 'bg-primary/10' : ''}`}>
-                                <Menu className="w-5 h-5" strokeWidth={showMore || isMoreActive ? 2.5 : 2} />
-                            </div>
-                            <span className={`text-[10px] font-medium ${showMore || isMoreActive ? 'text-primary' : ''}`}>
-                                Бусад
-                            </span>
-                        </button>
-                    </li>
-                </ul>
+                        {/* More Button */}
+                        <li className="flex-1">
+                            <button
+                                onClick={() => setShowMore(!showMore)}
+                                className={cn(
+                                    'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
+                                    showMore || isMoreActive ? 'text-foreground' : 'text-white/30'
+                                )}
+                            >
+                                <div className="relative">
+                                    {(showMore || isMoreActive) && (
+                                        <span className="absolute inset-[-6px] bg-blue-500/10 rounded-xl" />
+                                    )}
+                                    <Menu
+                                        className={cn('w-5 h-5 relative', (showMore || isMoreActive) && 'text-blue-500')}
+                                        strokeWidth={showMore || isMoreActive ? 2 : 1.5}
+                                    />
+                                </div>
+                                <span className={cn(
+                                    'text-[10px] tracking-[-0.01em]',
+                                    (showMore || isMoreActive) ? 'font-bold text-blue-600 text-blue-400' : 'font-medium'
+                                )}>
+                                    Бусад
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
             </nav>
         </>
     );

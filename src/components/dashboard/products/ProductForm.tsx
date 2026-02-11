@@ -204,7 +204,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Type Selection */}
-            <div className="flex p-1 bg-gray-100 rounded-xl w-fit">
+            <div className="flex p-1 bg-[#151040] rounded-xl w-fit">
                 {[
                     { type: 'physical', label: 'Бараа', icon: Box },
                     { type: 'service', label: 'Үйлчилгээ', icon: Layers },
@@ -214,7 +214,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                         key={item.type}
                         type="button"
                         onClick={() => setProductType(item.type as any)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === item.type ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === item.type ? 'bg-[#0F0B2E] text-white shadow-sm' : 'text-white/50 hover:text-white'}`}
                     >
                         <item.icon className="w-4 h-4" /> {item.label}
                     </button>
@@ -224,11 +224,11 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             <div className="flex gap-6">
                 {/* Image Upload */}
                 <div className="w-32 h-32 flex-shrink-0">
-                    <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-500 transition-colors relative overflow-hidden group bg-gray-50">
+                    <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-500 transition-colors relative overflow-hidden group bg-[#0F0B2E]">
                         {imagePreview ? (
                             <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                            <div className="w-full h-full flex flex-col items-center justify-center text-white/40 gap-2">
                                 <Upload className="w-6 h-6" />
                                 <span className="text-xs">Зураг</span>
                             </div>
@@ -256,7 +256,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
             {/* Appointment Settings (Stripped down for brevity, logic exists in original) */}
             {productType === 'appointment' && (
-                <div className="p-4 bg-violet-50 rounded-xl border border-violet-200">
+                <div className="p-4 bg-violet-500/10 rounded-xl border border-violet-200">
                     <p className="text-sm font-medium text-violet-800">Цаг захиалгын тохиргоо (Хэвийн)</p>
                     {/* ... Add Appointment fields back if needed, preserving existing functionality ... */}
                     <input type="hidden" name="duration" value="60" />
@@ -265,7 +265,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
             {/* VARIANTS SECTION */}
             {productType === 'physical' && (
-                <div className="pt-4 border-t border-gray-100">
+                <div className="pt-4 border-t border-white/[0.08]">
                     <div className="flex items-center justify-between mb-4">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -274,15 +274,15 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                 onChange={(e) => setHasVariants(e.target.checked)}
                                 className="w-4 h-4 text-violet-600 rounded"
                             />
-                            <span className="font-medium text-gray-900">Олон төрөл/хувилбартай (Өнгө, Размер)</span>
+                            <span className="font-medium text-white">Олон төрөл/хувилбартай (Өнгө, Размер)</span>
                         </label>
                     </div>
 
                     {hasVariants ? (
                         <div className="space-y-4">
                             {/* Option Groups Builder */}
-                            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
-                                <h4 className="font-medium text-gray-900">Хувилбарууд үүсгэх</h4>
+                            <div className="p-4 bg-[#0F0B2E] rounded-xl border border-white/[0.08] space-y-3">
+                                <h4 className="font-medium text-white">Хувилбарууд үүсгэх</h4>
                                 {optionGroups.map((group, idx) => (
                                     <div key={idx} className="flex gap-2 items-start">
                                         <div className="w-1/3">
@@ -306,7 +306,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                         <button
                                             type="button"
                                             onClick={() => removeOptionGroup(idx)}
-                                            className="mt-2 p-2 text-gray-400 hover:text-red-500"
+                                            className="mt-2 p-2 text-white/40 hover:text-red-500"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -322,9 +322,9 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
                             {/* Generated Variants Table */}
                             {variants.length > 0 && (
-                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                <div className="border border-white/[0.08] rounded-lg overflow-hidden">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-gray-50">
+                                        <thead className="bg-[#0F0B2E]">
                                             <tr>
                                                 <th className="px-4 py-2 text-left">Хувилбар</th>
                                                 <th className="px-4 py-2 text-left">Үнэ (₮)</th>
@@ -387,7 +387,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-4 border-t border-white/[0.08]">
                 <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>Цуцлах</Button>
                 <Button type="submit" disabled={saving}>{saving ? 'Хадгалж байна...' : 'Хадгалах'}</Button>
             </div>

@@ -243,7 +243,7 @@ export default function PlansPage() {
                                     </button>
                                     <button
                                         onClick={() => deletePlan(plan.id)}
-                                        className="p-1.5 hover:bg-red-50 rounded-lg"
+                                        className="p-1.5 hover:bg-red-900/10 rounded-lg"
                                     >
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                     </button>
@@ -301,7 +301,7 @@ export default function PlansPage() {
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="bg-[#0F0B2E] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-100">
                             <h2 className="text-xl font-bold text-gray-900">
                                 {editingPlan ? 'Edit Plan' : 'Create New Plan'}

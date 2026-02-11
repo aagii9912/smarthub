@@ -50,7 +50,7 @@ export function RevenueStats({
             label: 'Шинэ харилцагч',
             value: newCustomers.toString(),
             icon: Users,
-            color: 'bg-orange-500',
+            color: 'bg-violet-500/100',
         },
     ];
 
@@ -61,7 +61,7 @@ export function RevenueStats({
                 return (
                     <div
                         key={stat.label}
-                        className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"
+                        className="bg-[#0F0B2E] rounded-xl p-4 border border-white/[0.08] shadow-sm"
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className={`w-10 h-10 ${stat.color} bg-opacity-10 rounded-lg flex items-center justify-center`}>
@@ -79,8 +79,8 @@ export function RevenueStats({
                                 </div>
                             )}
                         </div>
-                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                        <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
+                        <p className="text-2xl font-bold text-white">{stat.value}</p>
+                        <p className="text-sm text-white/50 mt-1">{stat.label}</p>
                     </div>
                 );
             })}

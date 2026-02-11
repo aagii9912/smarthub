@@ -48,7 +48,7 @@ export default function HelpPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/setup"
-            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
+            className="bg-[#0F0B2E] rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
               <Facebook className="w-6 h-6 text-blue-600" />
@@ -62,7 +62,7 @@ export default function HelpPage() {
 
           <Link
             href="/dashboard/products"
-            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
+            className="bg-[#0F0B2E] rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
             <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4">
               <Package className="w-6 h-6 text-emerald-600" />
@@ -76,7 +76,7 @@ export default function HelpPage() {
 
           <Link
             href="/dashboard"
-            className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
+            className="bg-[#0F0B2E] rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border border-gray-100 group"
           >
             <div className="w-12 h-12 bg-violet-100 rounded-xl flex items-center justify-center mb-4">
               <Sparkles className="w-6 h-6 text-violet-600" />
@@ -97,7 +97,7 @@ export default function HelpPage() {
           {faqs.map((faq, index) => (
             <details
               key={index}
-              className="group bg-white rounded-xl border border-gray-200 overflow-hidden"
+              className="group bg-[#0F0B2E] rounded-xl border border-gray-200 overflow-hidden"
             >
               <summary className="px-6 py-4 cursor-pointer flex items-center justify-between hover:bg-gray-50">
                 <span className="font-medium text-gray-900">{faq.question}</span>
@@ -121,7 +121,7 @@ export default function HelpPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="mailto:support@syncly.mn"
-              className="flex items-center gap-2 px-6 py-3 bg-white rounded-xl shadow hover:shadow-lg transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-[#0F0B2E] rounded-xl shadow hover:shadow-lg transition-all"
             >
               <Mail className="w-5 h-5 text-violet-600" />
               <span className="font-medium text-gray-900">support@syncly.mn</span>

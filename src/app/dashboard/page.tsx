@@ -4,11 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActionCenter } from '@/components/dashboard/ActionCenter';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { OrderStatusBadge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Dropdown, DropdownItem } from '@/components/ui/Dropdown';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard } from '@/hooks/useDashboard';
 import { formatTimeAgo } from '@/lib/utils/date';
@@ -20,10 +20,18 @@ import {
     Clock,
     ArrowRight,
     RefreshCw,
-    Facebook,
     Calendar,
     ChevronDown,
+    Sparkles,
+    Activity,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const timeFilterOptions = [
+    { value: 'today' as const, label: 'Өнөөдөр' },
+    { value: 'week' as const, label: '7 хоног' },
+    { value: 'month' as const, label: 'Сар' },
+];
 
 export default function DashboardPage() {
     const { user, shop, loading: authLoading } = useAuth();
@@ -45,135 +53,130 @@ export default function DashboardPage() {
         await refetch();
     };
 
+    const currentFilterLabel = timeFilterOptions.find((o) => o.value === timeFilter)?.label || 'Өнөөдөр';
+
     return (
         <PullToRefresh onRefresh={handleRefresh}>
-            <div className="space-y-4 md:space-y-6">
-                {/* Page Title */}
-                {/* Page Title */}
-                {/* Compact Action Toolbar */}
-                <div className="flex items-center justify-end gap-2 mb-2">
-                    {/* Time Filter Dropdown */}
-                    <div className="relative">
-                        <button
-                            onClick={() => document.getElementById('time-filter-dropdown')?.classList.toggle('hidden')}
-                            onBlur={() => setTimeout(() => document.getElementById('time-filter-dropdown')?.classList.add('hidden'), 200)}
-                            className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            {timeFilter === 'today' ? 'Өнөөдөр' : timeFilter === 'week' ? '7 хоног' : 'Сар'}
-                            <ChevronDown className="w-3 h-3 text-gray-400" />
-                        </button>
-                        <div id="time-filter-dropdown" className="hidden absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-100 z-10 overflow-hidden">
-                            {[
-                                { value: 'today', label: 'Өнөөдөр' },
-                                { value: 'week', label: '7 хоног' },
-                                { value: 'month', label: 'Сар' },
-                            ].map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => setTimeFilter(option.value as 'today' | 'week' | 'month')}
-                                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${timeFilter === option.value ? 'text-primary font-medium bg-primary/5' : 'text-gray-700'}`}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
+            <div className="space-y-6 max-w-[1400px] mx-auto">
+                {/* ─── Toolbar ─── */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-[12px] font-semibold text-emerald-600 text-emerald-400">Идэвхтэй</span>
                         </div>
                     </div>
 
-                    {/* Refresh Button */}
-                    <Button
-                        onClick={() => refetch()}
-                        disabled={isRefetching}
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-9 p-0 bg-white border border-gray-200"
-                        title="Шинэчлэх"
-                    >
-                        <RefreshCw className={`w-4 h-4 text-gray-600 ${isRefetching ? 'animate-spin' : ''}`} />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Dropdown
+                            align="right"
+                            trigger={
+                                <button className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/50 bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    {currentFilterLabel}
+                                    <ChevronDown className="w-3 h-3" />
+                                </button>
+                            }
+                        >
+                            {timeFilterOptions.map((option) => (
+                                <DropdownItem
+                                    key={option.value}
+                                    onClick={() => setTimeFilter(option.value)}
+                                    className={timeFilter === option.value ? 'bg-blue-500/10 text-blue-600 text-blue-400 font-semibold' : ''}
+                                >
+                                    {option.label}
+                                </DropdownItem>
+                            ))}
+                        </Dropdown>
+
+                        <button
+                            onClick={() => refetch()}
+                            disabled={isRefetching}
+                            className="p-2 bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200"
+                            title="Шинэчлэх"
+                        >
+                            <RefreshCw className={cn('w-3.5 h-3.5 text-white/40', isRefetching && 'animate-spin')} />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-4">
-                    <StatsCard
-                        title="Өнөөдөр"
-                        value={stats.todayOrders.toString()}
-                        icon={ShoppingCart}
-                        iconColor="brand"
-                    />
+                {/* ─── Stats Grid ─── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <StatsCard title="Өнөөдөр" value={stats.todayOrders.toString()} icon={ShoppingCart} iconColor="gold" />
                     <StatsCard
                         title="Орлого"
-                        value={stats.totalRevenue >= 1000000
-                            ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
-                            : `₮${stats.totalRevenue.toLocaleString()}`}
+                        value={
+                            stats.totalRevenue >= 1000000
+                                ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
+                                : `₮${stats.totalRevenue.toLocaleString()}`
+                        }
                         icon={TrendingUp}
                         iconColor="blue"
                     />
-                    <StatsCard
-                        title="Харилцагч"
-                        value={stats.totalCustomers.toString()}
-                        icon={Users}
-                        iconColor="purple"
-                    />
-                    <StatsCard
-                        title="Хүлээгдэж буй"
-                        value={stats.pendingOrders.toString()}
-                        icon={Clock}
-                        iconColor="warning"
-                    />
+                    <StatsCard title="Харилцагч" value={stats.totalCustomers.toString()} icon={Users} iconColor="purple" />
+                    <StatsCard title="Хүлээгдэж буй" value={stats.pendingOrders.toString()} icon={Clock} iconColor="warning" />
                 </div>
 
-                {/* Main Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-                    {/* Recent Orders */}
+                {/* ─── Bento Grid ─── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+                    {/* Recent Orders — spans 2 cols */}
                     <div className="lg:col-span-2">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between py-3 md:py-4">
-                                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                                    <Package className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                                    Сүүлийн захиалгууд
-                                </CardTitle>
+                        <div className="rounded-2xl bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] overflow-hidden transition-all duration-300 hover:border-[#4A7CE7]/20">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 flex items-center justify-center">
+                                        <Package className="w-4 h-4 text-violet-500" strokeWidth={1.5} />
+                                    </div>
+                                    <div>
+                                        <span className="text-[14px] font-bold text-foreground tracking-[-0.02em]">Сүүлийн захиалгууд</span>
+                                    </div>
+                                </div>
                                 <Link href="/dashboard/orders">
-                                    <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
-                                        Бүгдийг <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-1" />
-                                    </Button>
+                                    <span className="text-[12px] text-white/40 hover:text-blue-500 transition-colors flex items-center gap-1.5 font-medium">
+                                        Бүгдийг <ArrowRight className="w-3.5 h-3.5" />
+                                    </span>
                                 </Link>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <div className="divide-y divide-border">
-                                    {recentOrders.length > 0 ? recentOrders.slice(0, 5).map((order: any) => {
+                            </div>
+                            <div className="divide-y divide-white/[0.06]">
+                                {recentOrders.length > 0 ? (
+                                    recentOrders.slice(0, 5).map((order: any) => {
                                         const customerName = order.customers?.name || 'Харилцагч';
                                         const productName = order.order_items?.[0]?.products?.name || 'Бүтээгдэхүүн';
                                         return (
                                             <Link
                                                 key={order.id}
                                                 href="/dashboard/orders"
-                                                className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between hover:bg-secondary/20 transition-colors block"
+                                                className="px-5 py-3.5 flex items-center justify-between hover:bg-[#0D0928] transition-colors"
                                             >
-                                                <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
-                                                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0">
-                                                        <Package className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                                                <div className="flex items-center gap-3.5 overflow-hidden">
+                                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.04] from-white/[0.08] to-white/[0.04] flex items-center justify-center shrink-0">
+                                                        <Package className="w-4 h-4 text-white/25" strokeWidth={1.5} />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-medium text-sm md:text-base text-[#111111] truncate">{productName}</p>
-                                                        <p className="text-xs text-[#6c757d] truncate">{customerName} • {formatTimeAgo(order.created_at)}</p>
+                                                        <p className="font-semibold text-[13px] text-foreground truncate tracking-[-0.01em]">{productName}</p>
+                                                        <p className="text-[11px] text-white/40 truncate mt-0.5">
+                                                            {customerName} • {formatTimeAgo(order.created_at)}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1 pl-2">
-                                                    <p className="font-semibold text-sm md:text-base text-[#111111]">₮{Number(order.total_amount).toLocaleString()}</p>
+                                                <div className="flex flex-col items-end gap-1.5 pl-3">
+                                                    <p className="font-bold text-[13px] text-foreground tabular-nums tracking-[-0.02em]">
+                                                        ₮{Number(order.total_amount).toLocaleString()}
+                                                    </p>
                                                     <OrderStatusBadge status={order.status} />
                                                 </div>
                                             </Link>
                                         );
-                                    }) : (
-                                        <div className="px-6 py-12 text-center text-muted-foreground">
-                                            <ShoppingCart className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3 text-muted-foreground/50" />
-                                            <p>Захиалга байхгүй</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    })
+                                ) : (
+                                    <EmptyState
+                                        icon={<ShoppingCart className="h-6 w-6" />}
+                                        title="Захиалга байхгүй"
+                                        description="Захиалга ирсэн тохиолдолд энд харагдана"
+                                    />
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Action Center */}

@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatsCardProps {
     title: string;
@@ -9,41 +12,128 @@ interface StatsCardProps {
         isPositive: boolean;
     };
     icon: LucideIcon;
-    iconColor?: 'brand' | 'blue' | 'purple' | 'success' | 'warning';
+    iconColor?: 'brand' | 'blue' | 'purple' | 'success' | 'warning' | 'gold';
+}
+
+const gradients: Record<string, { bg: string; icon: string; glow: string }> = {
+    brand: {
+        bg: 'from-violet-500/10 to-indigo-500/10',
+        icon: 'text-violet-500',
+        glow: 'shadow-violet-500/20',
+    },
+    blue: {
+        bg: 'from-blue-500/10 to-cyan-500/10',
+        icon: 'text-blue-500',
+        glow: 'shadow-blue-500/20',
+    },
+    purple: {
+        bg: 'from-purple-500/10 to-pink-500/10',
+        icon: 'text-purple-500',
+        glow: 'shadow-purple-500/20',
+    },
+    success: {
+        bg: 'from-emerald-500/10 to-teal-500/10',
+        icon: 'text-emerald-500',
+        glow: 'shadow-emerald-500/20',
+    },
+    warning: {
+        bg: 'from-blue-500/10 to-violet-500/10',
+        icon: 'text-blue-500',
+        glow: 'shadow-blue-500/20',
+    },
+    gold: {
+        bg: 'from-blue-500/10 to-yellow-500/10',
+        icon: 'text-blue-500',
+        glow: 'shadow-blue-500/20',
+    },
+};
+
+function useAnimatedNumber(target: number, duration: number = 800) {
+    const [value, setValue] = useState(0);
+    const prevRef = useRef(0);
+
+    useEffect(() => {
+        const start = prevRef.current;
+        const diff = target - start;
+        if (diff === 0) return;
+
+        const startTime = performance.now();
+        const step = (now: number) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // ease-out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(start + diff * eased);
+            setValue(current);
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                prevRef.current = target;
+            }
+        };
+        requestAnimationFrame(step);
+    }, [target, duration]);
+
+    return value;
 }
 
 export function StatsCard({ title, value, change, icon: Icon, iconColor = 'brand' }: StatsCardProps) {
-    const iconStyles = {
-        brand: 'bg-gradient-to-br from-[#4A7CE7] to-[#904EA0] shadow-lg shadow-[#4A7CE7]/20',
-        blue: 'bg-gradient-to-br from-[#4A7CE7] to-[#3A5BB8] shadow-lg shadow-[#4A7CE7]/20',
-        purple: 'bg-gradient-to-br from-[#904EA0] to-[#6B2D7B] shadow-lg shadow-[#904EA0]/20',
-        success: 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20',
-        warning: 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/20',
-    };
+    const colors = gradients[iconColor] || gradients.brand;
+
+    // Parse numeric value for animation
+    const numericMatch = String(value).match(/^[₮]?([\d,.]+)/);
+    const numericValue = numericMatch ? parseFloat(numericMatch[1].replace(/,/g, '')) : 0;
+    const animatedNum = useAnimatedNumber(numericValue);
+    const prefix = String(value).startsWith('₮') ? '₮' : '';
+    const suffix = String(value).replace(/^[₮]?[\d,.]+/, '');
+
+    // Format the animated number like the original
+    const displayValue = numericMatch
+        ? `${prefix}${animatedNum.toLocaleString()}${suffix}`
+        : value;
 
     return (
-        <div className="group relative overflow-hidden bg-white dark:bg-gray-800/90 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200/80 dark:border-gray-700/80 p-3.5 md:p-5 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 hover:-translate-y-1 cursor-pointer">
-            {/* Subtle gradient overlay on hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#4A7CE7]/0 to-[#904EA0]/0 group-hover:from-[#4A7CE7]/3 group-hover:to-[#904EA0]/3 transition-all duration-300" />
+        <div className={cn(
+            'group relative rounded-2xl p-4 md:p-5 transition-all duration-300',
+            'bg-[#0F0B2E] backdrop-blur-sm',
+            'border border-white/[0.08]',
+            'hover:border-[#4A7CE7]/30',
+            'hover:-translate-y-0.5 hover:shadow-lg',
+        )}>
+            {/* Hover gradient border effect */}
+            <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-blue-500/[0.05] to-transparent" />
 
             <div className="relative flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1 md:mb-2 truncate">{title}</p>
-                    <p className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">{value}</p>
+                    <p className="text-[11px] font-semibold text-white/35 uppercase tracking-[0.08em] mb-3">
+                        {title}
+                    </p>
+                    <p className="text-2xl md:text-[28px] font-bold text-foreground tracking-[-0.03em] tabular-nums leading-none">
+                        {displayValue}
+                    </p>
                     {change && (
-                        <p className={`text-xs md:text-sm mt-1.5 md:mt-2.5 flex items-center gap-1 font-medium ${change.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                            <span className={`inline-flex items-center justify-center w-4 h-4 md:w-5 md:h-5 rounded-full text-[10px] md:text-xs ${change.isPositive ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-rose-100 dark:bg-rose-900/50'}`}>
-                                {change.isPositive ? '↑' : '↓'}
-                            </span>
+                        <div className={cn(
+                            'mt-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-semibold',
+                            change.isPositive
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : 'bg-red-500/10 text-red-400'
+                        )}>
+                            <span>{change.isPositive ? '↑' : '↓'}</span>
                             <span>{Math.abs(change.value)}%</span>
-                        </p>
+                        </div>
                     )}
                 </div>
-                <div className={`w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-lg md:rounded-xl ${iconStyles[iconColor]} flex items-center justify-center text-white flex-shrink-0 transition-transform duration-300 group-hover:scale-105`}>
-                    <Icon className="w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7" strokeWidth={1.5} />
+
+                {/* Gradient icon container */}
+                <div className={cn(
+                    'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
+                    'bg-gradient-to-br transition-shadow duration-300',
+                    colors.bg,
+                    `group-hover:${colors.glow}`
+                )}>
+                    <Icon className={cn('w-5 h-5', colors.icon)} strokeWidth={1.5} />
                 </div>
             </div>
         </div>
     );
 }
-

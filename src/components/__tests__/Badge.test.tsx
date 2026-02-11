@@ -36,8 +36,8 @@ describe('Badge', () => {
         it('applies warning variant styling', () => {
             render(<Badge variant="warning">Warning</Badge>);
             const badge = screen.getByText('Warning');
-            expect(badge.className).toContain('bg-amber-500/10');
-            expect(badge.className).toContain('text-amber-600');
+            expect(badge.className).toContain('bg-blue-500/10');
+            expect(badge.className).toContain('text-blue-600');
         });
 
         it('applies danger variant styling', () => {
@@ -149,7 +149,7 @@ describe('OrderStatusBadge', () => {
         it('uses warning variant for pending', () => {
             render(<OrderStatusBadge status="pending" />);
             const badge = screen.getByText('Хүлээгдэж буй');
-            expect(badge.className).toContain('bg-amber-500/10');
+            expect(badge.className).toContain('bg-blue-500/10');
         });
 
         it('uses info variant for confirmed', () => {

@@ -180,7 +180,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                             onClick={() => setEmotion(e.value)}
                                             className={`p-4 rounded-xl border text-left transition-all ${emotion === e.value
                                                     ? 'bg-violet-600 text-white border-violet-600 shadow-md transform scale-[1.02]'
-                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-violet-200'
+                                                    : 'bg-[#0F0B2E] text-gray-600 border-gray-200 hover:border-violet-200'
                                                 }`}
                                         >
                                             <div className="mb-2">
@@ -218,7 +218,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                 </div>
 
                 {/* Footer Actions */}
-                <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100 bg-white sticky bottom-0 py-4">
+                <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100 bg-[#0F0B2E] sticky bottom-0 py-4">
                     {currentStep === 0 ? (
                         <Button variant="ghost" onClick={onSkip} className="text-gray-500 px-0 hover:bg-transparent">
                             Алгасах

@@ -43,7 +43,7 @@ export default function SwaggerUIPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-[#0F0B2E]">
             <div className="max-w-7xl mx-auto py-8">
                 <header className="mb-8 px-4">
                     <h1 className="text-3xl font-bold text-gray-900">

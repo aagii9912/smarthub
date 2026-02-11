@@ -106,13 +106,13 @@ export function SmartInsights({ bestSellers, revenue, period }: SmartInsightsPro
                         className={`flex items-start gap-3 p-3 rounded-lg ${insight.type === 'success' ? 'bg-green-50 text-green-800' :
                                 insight.type === 'warning' ? 'bg-orange-50 text-orange-800' :
                                     insight.type === 'tip' ? 'bg-blue-50 text-blue-800' :
-                                        'bg-white text-gray-700'
+                                        'bg-[#0F0B2E] text-white/70'
                             }`}
                     >
                         <span className={`mt-0.5 ${insight.type === 'success' ? 'text-green-600' :
                                 insight.type === 'warning' ? 'text-orange-600' :
                                     insight.type === 'tip' ? 'text-blue-600' :
-                                        'text-gray-500'
+                                        'text-white/50'
                             }`}>
                             {insight.icon}
                         </span>

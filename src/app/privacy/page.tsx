@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicyPage() {
     return (
-        <div className="min-h-screen bg-white dark:bg-gray-950">
+        <div className="min-h-screen bg-[#0F0B2E] dark:bg-gray-950">
             <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
                 {/* Header */}
                 <div className="mb-12">
@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Танилцуулга</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Syncly ("бид", "манай") нь таны хувийн мэдээллийн нууцлалыг хамгаалахыг эрхэмлэдэг.
+                            Syncly ("бид", "манай") нь MM LINE TRACKING LLC-ийн бүтээгдэхүүн бөгөөд таны хувийн мэдээллийн нууцлалыг хамгаалахыг эрхэмлэдэг.
                             Энэхүү Нууцлалын бодлого нь манай үйлчилгээг ашиглах явцад бидний цуглуулж, ашиглаж,
                             хадгалдаг мэдээллийн талаар тайлбарладаг.
                         </p>
@@ -143,8 +143,9 @@ export default function PrivacyPolicyPage() {
                             Нууцлалын бодлоготой холбоотой асуулт байвал:
                         </p>
                         <ul className="list-none text-gray-700 dark:text-gray-300 space-y-2">
-                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">smarthub.vercel.app</Link></li>
-                            <li><strong>Facebook:</strong> Framebrone хуудас</li>
+                            <li><strong>Компани:</strong> MM LINE TRACKING LLC</li>
+                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">syncly.mn</Link></li>
+                            <li><strong>И-мэйл:</strong> info@syncly.mn</li>
                         </ul>
                     </section>
 

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsOfServicePage() {
     return (
-        <div className="min-h-screen bg-white dark:bg-gray-950">
+        <div className="min-h-screen bg-[#0F0B2E] dark:bg-gray-950">
             <div className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
                 {/* Header */}
                 <div className="mb-12">
@@ -31,7 +31,7 @@ export default function TermsOfServicePage() {
                     <section className="mb-12">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">1. Үйлчилгээний тухай</h2>
                         <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Syncly нь Facebook Messenger болон Instagram платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
+                            Syncly нь MM LINE TRACKING LLC-ийн бүтээгдэхүүн бөгөөд Facebook Messenger болон Instagram платформ дээр ажилладаг AI чатбот үйлчилгээ юм.
                             Манай үйлчилгээ нь бизнесүүдэд харилцагчидтай автоматаар харилцах, захиалга авах,
                             борлуулалтаа нэмэгдүүлэх боломжийг олгодог.
                         </p>
@@ -177,8 +177,9 @@ export default function TermsOfServicePage() {
                             Асуулт, санал байвал:
                         </p>
                         <ul className="list-none text-gray-700 dark:text-gray-300 space-y-2">
-                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">smarthub.vercel.app</Link></li>
-                            <li><strong>Facebook:</strong> Framebrone хуудас</li>
+                            <li><strong>Компани:</strong> MM LINE TRACKING LLC</li>
+                            <li><strong>Вэб:</strong> <Link href="/" className="text-indigo-600 hover:text-indigo-500">syncly.mn</Link></li>
+                            <li><strong>И-мэйл:</strong> info@syncly.mn</li>
                             <li><strong>Privacy Policy:</strong> <Link href="/privacy" className="text-indigo-600 hover:text-indigo-500">/privacy</Link></li>
                         </ul>
                     </section>

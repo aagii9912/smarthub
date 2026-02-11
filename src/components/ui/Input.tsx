@@ -1,49 +1,122 @@
-import React from 'react';
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+import { X, Search } from 'lucide-react';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    label?: string;
+/* ─── Base Input ─── */
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     error?: string;
-    helperText?: string;
+    label?: string;
+    leftIcon?: ReactNode;
+    rightIcon?: ReactNode;
 }
 
-export function Input({ label, error, helperText, className = '', ...props }: InputProps) {
-    return (
-        <div className="w-full">
-            {label && (
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {label}
-                </label>
-            )}
-            <input
-                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-gray-900 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent ${error ? 'border-red-300 focus:ring-red-500' : 'border-gray-200 hover:border-gray-300'
-                    } ${className}`}
-                {...props}
-            />
-            {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
-            {helperText && !error && <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>}
+const Input = forwardRef<HTMLInputElement, InputProps>(
+    ({ className, type, error, label, leftIcon, rightIcon, ...props }, ref) => (
+        <div className="relative w-full">
+            {label && <label className="block text-sm font-medium text-foreground/70 mb-1">{label}</label>}
+            <div className="relative">
+                {leftIcon && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                        {leftIcon}
+                    </div>
+                )}
+                <input
+                    type={type}
+                    className={cn(
+                        'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground',
+                        'placeholder:text-muted-foreground',
+                        'focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-foreground/30',
+                        'disabled:cursor-not-allowed disabled:opacity-50',
+                        'transition-colors duration-200',
+                        leftIcon && 'pl-10',
+                        rightIcon && 'pr-10',
+                        error && 'border-destructive focus:ring-destructive/20',
+                        className
+                    )}
+                    ref={ref}
+                    {...props}
+                />
+                {rightIcon && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        {rightIcon}
+                    </div>
+                )}
+            </div>
+            {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         </div>
-    );
+    )
+);
+Input.displayName = 'Input';
+
+/* ─── Search Input ─── */
+interface SearchInputProps extends Omit<InputProps, 'leftIcon'> {
+    onClear?: () => void;
 }
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-    label?: string;
+const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
+    ({ className, onClear, value, ...props }, ref) => (
+        <Input
+            ref={ref}
+            type="search"
+            leftIcon={<Search className="h-4 w-4" />}
+            rightIcon={
+                value ? (
+                    <button
+                        type="button"
+                        onClick={onClear}
+                        className="hover:text-foreground transition-colors cursor-pointer"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                ) : undefined
+            }
+            value={value}
+            className={cn('h-9', className)}
+            {...props}
+        />
+    )
+);
+SearchInput.displayName = 'SearchInput';
+
+/* ─── Textarea ─── */
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     error?: string;
+    label?: string;
 }
 
-export function Textarea({ label, error, className = '', ...props }: TextareaProps) {
-    return (
-        <div className="w-full">
-            {label && (
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {label}
-                </label>
-            )}
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+    ({ className, error, label, ...props }, ref) => (
+        <div>
+            {label && <label className="block text-sm font-medium text-foreground/70 mb-1">{label}</label>}
             <textarea
-                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-gray-900 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none ${error ? 'border-red-300 focus:ring-red-500' : 'border-gray-200 hover:border-gray-300'
-                    } ${className}`}
+                className={cn(
+                    'flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground',
+                    'placeholder:text-muted-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-foreground/30',
+                    'disabled:cursor-not-allowed disabled:opacity-50',
+                    'resize-y transition-colors duration-200',
+                    error && 'border-destructive focus:ring-destructive/20',
+                    className
+                )}
+                ref={ref}
                 {...props}
             />
-            {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
+            {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         </div>
-    );
-}
+    )
+);
+Textarea.displayName = 'Textarea';
+
+/* ─── Label ─── */
+const Label = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
+    ({ className, ...props }, ref) => (
+        <label
+            ref={ref}
+            className={cn('text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70', className)}
+            {...props}
+        />
+    )
+);
+Label.displayName = 'Label';
+
+export { Input, SearchInput, Textarea, Label };

@@ -67,7 +67,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="mn">
+      <html lang="mn" className="dark">
         <body
           className={`${inter.variable} ${playfair.variable} ${geistMono.variable} antialiased`}
         >

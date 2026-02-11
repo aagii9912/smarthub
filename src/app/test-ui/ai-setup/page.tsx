@@ -27,7 +27,7 @@ export default function TestAISetupPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="max-w-4xl w-full bg-white rounded-3xl p-8 shadow-xl">
+            <div className="max-w-4xl w-full bg-[#0F0B2E] rounded-3xl p-8 shadow-xl">
                 <AISetupStep
                     initialData={{
                         description: '',

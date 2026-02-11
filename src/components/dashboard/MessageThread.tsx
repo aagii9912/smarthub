@@ -64,22 +64,22 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
     };
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full bg-[#0F0B2E]">
             {/* Header - hidden on mobile when parent provides it */}
             {!hideHeader && (
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
                     <div>
-                        <h3 className="font-bold text-gray-900">{customerName}</h3>
+                        <h3 className="font-bold text-white">{customerName}</h3>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Online</span>
+                            <span className="text-[10px] text-white/50 uppercase tracking-wider">Online</span>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-gray-50/30">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-[#0D0928]">
                 {messages.map((msg) => {
                     const isIncoming = msg.role === 'user';
                     return (
@@ -87,17 +87,17 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
                             <div className={`max-w-[70%] group`}>
                                 <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm
                                     ${isIncoming
-                                        ? 'bg-white border border-gray-100 text-gray-900 rounded-bl-md'
+                                        ? 'bg-[#0F0B2E] border border-white/[0.08] text-white rounded-bl-md'
                                         : 'bg-violet-600 text-white rounded-br-md'}`}
                                 >
                                     {msg.content}
                                 </div>
                                 <div className={`flex items-center gap-1 mt-1 px-1 ${isIncoming ? 'justify-start' : 'justify-end'}`}>
-                                    <span className="text-[10px] text-gray-400">
+                                    <span className="text-[10px] text-white/40">
                                         {formatMessageTime(msg.created_at)}
                                     </span>
                                     {!isIncoming && (
-                                        msg.status === 'read' ? <CheckCheck className="w-3 h-3 text-violet-400" /> : <Check className="w-3 h-3 text-gray-300" />
+                                        msg.status === 'read' ? <CheckCheck className="w-3 h-3 text-violet-400" /> : <Check className="w-3 h-3 text-white/30" />
                                     )}
                                 </div>
                             </div>
@@ -108,13 +108,13 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
             </div>
 
             {/* Quick Replies / Templates */}
-            <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-gray-50">
+            <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-white/[0.04]">
                 {['Баталгаажлаа', 'Бэлдэж байна', 'Хүргэлтэнд гарлаа'].map(temp => (
                     <button
                         key={temp}
                         onClick={() => onReply(temp)}
                         disabled={isLoading}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-violet-100 hover:text-violet-600 rounded-full text-[11px] font-medium text-gray-500 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 bg-[#151040] hover:bg-violet-500/15 hover:text-violet-600 rounded-full text-[11px] font-medium text-white/50 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {temp}
                     </button>
@@ -122,15 +122,15 @@ export function MessageThread({ messages, customerName, onReply, hideHeader = fa
             </div>
 
             {/* Input */}
-            <form onSubmit={handleSubmit} className="p-4 border-t border-gray-100">
-                <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-1.5 border border-gray-100">
+            <form onSubmit={handleSubmit} className="p-4 border-t border-white/[0.08]">
+                <div className="flex items-center gap-2 bg-[#0F0B2E] rounded-xl px-3 py-1.5 border border-white/[0.08]">
                     <input
                         type="text"
                         value={reply}
                         onChange={(e) => setReply(e.target.value)}
                         placeholder={isLoading ? "Илгээж байна..." : "Хариу бичих..."}
                         disabled={isLoading}
-                        className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-gray-400 disabled:cursor-not-allowed"
+                        className="flex-1 bg-transparent border-none outline-none text-sm py-2 placeholder:text-white/40 disabled:cursor-not-allowed"
                     />
                     <button
                         type="submit"

@@ -22,7 +22,7 @@ interface CartItemCardProps {
 
 export function CartItemCard({ item, onUpdateQuantity, onRemove }: CartItemCardProps) {
     return (
-        <div className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100">
+        <div className="flex gap-3 p-3 bg-[#0F0B2E] rounded-xl border border-gray-100">
             {/* Image */}
             <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                 {item.image_url ? (

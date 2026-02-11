@@ -36,7 +36,7 @@ export function MessageBubble({ message, onAddToCart }: MessageBubbleProps) {
               px-4 py-2.5 rounded-2xl
               ${isUser
                             ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-md shadow-md shadow-violet-500/10'
-                            : 'bg-white border border-gray-100 text-gray-900 rounded-bl-md shadow-sm'
+                            : 'bg-[#0F0B2E] border border-gray-100 text-gray-900 rounded-bl-md shadow-sm'
                         }
             `}>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">

@@ -22,7 +22,7 @@ export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSend
     const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return (
-        <Card className="shadow-sm border-violet-100 bg-gradient-to-br from-white to-violet-50/30">
+        <Card className="shadow-sm border-white/[0.08] bg-[#0F0B2E]">
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <ShoppingCart className="w-4 h-4 text-violet-600" />
@@ -35,13 +35,13 @@ export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSend
                         <div className="space-y-2 mb-4">
                             {items.map((item) => (
                                 <div key={item.id} className="flex justify-between text-xs">
-                                    <span className="text-gray-600">{item.name} <span className="text-gray-400">x{item.quantity}</span></span>
-                                    <span className="font-semibold text-gray-900">{(item.price * item.quantity).toLocaleString()}₮</span>
+                                    <span className="text-white/60">{item.name} <span className="text-white/40">x{item.quantity}</span></span>
+                                    <span className="font-semibold text-white">{(item.price * item.quantity).toLocaleString()}₮</span>
                                 </div>
                             ))}
                         </div>
-                        <div className="pt-3 border-t border-violet-100 flex justify-between items-center mb-4">
-                            <span className="text-xs font-medium text-gray-500">Нийт:</span>
+                        <div className="pt-3 border-t border-white/[0.08] flex justify-between items-center mb-4">
+                            <span className="text-xs font-medium text-white/50">Нийт:</span>
                             <span className="text-lg font-black text-violet-600">{total.toLocaleString()}₮</span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -67,8 +67,8 @@ export function ActiveCartWidget({ customerName, items, onConvertToOrder, onSend
                         </div>
                     </>
                 ) : (
-                    <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                        <p className="text-xs text-gray-400">Сагс хоосон байна</p>
+                    <div className="py-8 text-center bg-[#0D0928] rounded-xl border border-dashed border-white/[0.08]">
+                        <p className="text-xs text-white/40">Сагс хоосон байна</p>
                     </div>
                 )}
             </CardContent>

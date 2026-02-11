@@ -12,7 +12,7 @@ interface CustomerListProps {
 export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
     if (carts.length === 0) {
         return (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 p-6 text-center">
+            <div className="h-full flex flex-col items-center justify-center text-white/40 p-6 text-center">
                 <ShoppingCart className="w-12 h-12 mb-3 text-gray-200" />
                 <p className="text-sm font-medium">Одоогоор сагс хоосон байна</p>
             </div>
@@ -21,11 +21,11 @@ export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
 
     return (
         <div className="h-full overflow-y-auto">
-            <div className="p-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900">Идэвхтэй Сагс ({carts.length})</h3>
+            <div className="p-4 border-b border-white/[0.08]">
+                <h3 className="font-bold text-white">Идэвхтэй Сагс ({carts.length})</h3>
             </div>
             <div className="divide-y divide-gray-50">
-                {carts.map((cart) => {
+                {Array.from(new Map(carts.map(c => [c.id, c])).values()).map((cart) => {
                     const isActive = activeId === cart.id;
                     const itemsNames = cart.items.map(i => i.name).slice(0, 4).join(', ');
                     const hasMore = cart.items.length > 4;
@@ -35,8 +35,8 @@ export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
                             key={cart.id}
                             onClick={() => onSelect(cart.id)}
                             className={cn(
-                                "w-full p-4 flex items-center gap-3 transition-colors text-left hover:bg-gray-50",
-                                isActive && "bg-violet-50 hover:bg-violet-50"
+                                "w-full p-4 flex items-center gap-3 transition-colors text-left hover:bg-[#0F0B2E]",
+                                isActive && "bg-violet-500/10 hover:bg-violet-500/10"
                             )}
                         >
                             {/* Avatar */}
@@ -54,17 +54,17 @@ export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-0.5">
-                                    <h4 className={cn("text-sm font-semibold truncate", isActive ? "text-violet-700" : "text-gray-900")}>
+                                    <h4 className={cn("text-sm font-semibold truncate", isActive ? "text-violet-700" : "text-white")}>
                                         {cart.customer.name}
                                     </h4>
-                                    <span className="text-xs font-medium text-gray-500">
+                                    <span className="text-xs font-medium text-white/50">
                                         {new Date(cart.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-500 truncate mb-1">
+                                <p className="text-xs text-white/50 truncate mb-1">
                                     {cart.items.length > 0 ? (
                                         <>
-                                            <span className="text-gray-700 font-medium">{cart.items.length} бараа:</span> {itemsNames}{hasMore ? '...' : ''}
+                                            <span className="text-white/70 font-medium">{cart.items.length} бараа:</span> {itemsNames}{hasMore ? '...' : ''}
                                         </>
                                     ) : (
                                         <span className="italic">Сагс хоосон</span>
@@ -77,7 +77,7 @@ export function CustomerList({ carts, activeId, onSelect }: CustomerListProps) {
                                 </div>
                             </div>
 
-                            <ChevronRight className={cn("w-4 h-4", isActive ? "text-violet-500" : "text-gray-300")} />
+                            <ChevronRight className={cn("w-4 h-4", isActive ? "text-violet-500" : "text-white/30")} />
                         </button>
                     );
                 })}

@@ -71,7 +71,7 @@ export function ChatContainer({
                             key={reply.id}
                             onClick={() => onSendMessage(reply.text)}
                             className="flex-shrink-0 px-4 py-2 
-                         bg-white border border-gray-100 rounded-xl 
+                         bg-[#0F0B2E] border border-gray-100 rounded-xl 
                          text-xs font-medium text-gray-700 hover:border-violet-200 hover:text-violet-600 transition shadow-sm"
                         >
                             {reply.icon && <span className="mr-1.5">{reply.icon}</span>}

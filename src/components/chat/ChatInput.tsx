@@ -19,7 +19,7 @@ export function ChatInput({ onSend, disabled, placeholder = 'Мессеж бич
     };
 
     return (
-        <form onSubmit={handleSubmit} className="p-3 bg-white border-t border-gray-100 sticky bottom-0">
+        <form onSubmit={handleSubmit} className="p-3 bg-[#0F0B2E] border-t border-gray-100 sticky bottom-0">
             <div className="flex items-center gap-2 bg-gray-50 rounded-2xl px-3 py-1.5 border border-gray-100">
                 {/* Attachment buttons */}
                 <button

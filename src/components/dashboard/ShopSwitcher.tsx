@@ -55,7 +55,7 @@ export function ShopSwitcher({ onAddShop }: ShopSwitcherProps) {
             </button>
 
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-border z-50 overflow-hidden">
+                <div className="absolute top-full right-0 mt-2 w-64 bg-[#0F0B2E] rounded-xl shadow-xl border border-border z-50 overflow-hidden">
                     <div className="p-2 border-b border-border">
                         <p className="text-xs text-muted-foreground px-2">Миний дэлгүүрүүд</p>
                     </div>

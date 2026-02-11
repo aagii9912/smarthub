@@ -2,14 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Sparkles, Check, RotateCcw, Play } from 'lucide-react';
+import { Check, RotateCcw, Play, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useConfetti } from '@/hooks/useConfetti';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { cn } from '@/lib/utils';
 
-// Components
+// Setup components
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
 import { FacebookStep } from '@/components/setup/FacebookStep';
 import { InstagramStep } from '@/components/setup/InstagramStep';
@@ -17,6 +18,16 @@ import { ProductStep } from '@/components/setup/ProductStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
 import { SubscriptionStep } from '@/components/setup/SubscriptionStep';
 import { PWAInstallBanner } from '@/components/setup/PWAInstallBanner';
+import { SetupPreview } from '@/components/setup/SetupPreview';
+
+const stepLabels = [
+  'Дэлгүүр',
+  'Facebook',
+  'Instagram',
+  'Бараа',
+  'AI',
+  'Төлбөр',
+];
 
 function SetupContent() {
   const router = useRouter();
@@ -31,10 +42,17 @@ function SetupContent() {
   const [fbToken, setFbToken] = useState<string>('');
   const [showResumeModal, setShowResumeModal] = useState(false);
 
-  // Check if we're creating a new shop
+  // Preview data state
+  const [previewShopName, setPreviewShopName] = useState('');
+  const [previewOwnerName, setPreviewOwnerName] = useState('');
+  const [previewPhone, setPreviewPhone] = useState('');
+  const [previewBankName, setPreviewBankName] = useState('');
+  const [previewAccountNumber, setPreviewAccountNumber] = useState('');
+  const [previewProducts, setPreviewProducts] = useState<Array<{ name: string; price?: number }>>([]);
+  const [previewAiEmotion, setPreviewAiEmotion] = useState('');
+
   const isNewShopMode = searchParams.get('new') === 'true';
 
-  // Progress persistence hook
   const {
     step: savedStep,
     isLoaded: stateLoaded,
@@ -44,24 +62,16 @@ function SetupContent() {
     continueFromSaved
   } = useOnboardingState();
 
-  // Confetti hook
   const { triggerSmall, triggerFinal } = useConfetti();
-
-  // PWA install hook
   const { triggerPromptAfterStep } = usePWAInstall();
 
-  // Sync step with persistent storage + confetti + PWA prompt
   const setStep = (newStep: number) => {
-    // Trigger confetti when advancing
     if (newStep > step) {
       if (newStep === 6) {
-        // Final step - big celebration
         triggerFinal();
       } else {
-        // Regular step advancement
         triggerSmall();
       }
-      // Trigger PWA install prompt after step 3
       triggerPromptAfterStep(newStep);
     }
     setStepLocal(newStep);
@@ -91,7 +101,7 @@ function SetupContent() {
 
     if (igError) {
       const errorMessages: Record<string, string> = {
-        'no_instagram_account': 'Instagram Business Account олдсонгүй. Facebook Page-тэй холбогдсон Instagram account байгаа эсэхийг шалгана уу.',
+        'no_instagram_account': 'Instagram Business Account олдсонгүй.',
         'token_error': 'Access token авахад алдаа гарлаа.',
         'pages_error': 'Facebook Page татахад алдаа гарлаа.',
         'config_missing': 'App тохиргоо дутуу байна.',
@@ -104,7 +114,7 @@ function SetupContent() {
     }
   }, [searchParams]);
 
-  // Initial redirect logic based on shop state
+  // Initial redirect logic
   useEffect(() => {
     if (!authLoading && stateLoaded && isInitializing) {
       if (!user) {
@@ -113,38 +123,35 @@ function SetupContent() {
       }
 
       if (shop) {
-        // If creating a new shop, skip redirect and start fresh
         if (isNewShopMode) {
-          // Clear any existing state to start completely fresh
           clearState();
           setStepLocal(1);
           setIsInitializing(false);
           return;
         }
 
-        // Only redirect to dashboard if BOTH setup_completed AND facebook connected
         if (shop.setup_completed && shop.facebook_page_id) {
           router.push('/dashboard');
           return;
         }
 
-        // Determine which step to show based on connection status
+        // Sync preview state from shop
+        setPreviewShopName(shop.name || '');
+        setPreviewOwnerName(shop.owner_name || '');
+        setPreviewPhone(shop.phone || '');
+
         if (!shop.facebook_page_id) {
-          // No Facebook connected, go to step 2
           setStepLocal(2);
           savePersistentStep(2);
         } else if (!shop.instagram_business_account_id) {
-          // FB connected but no IG, go to step 3
           setStepLocal(3);
           savePersistentStep(3);
         } else if (step < 4) {
-          // FB and IG both connected, go to products step
           setStepLocal(4);
           savePersistentStep(4);
         }
       }
 
-      // Check for saved progress
       if (hasExistingState && savedStep > 1) {
         setShowResumeModal(true);
       }
@@ -153,7 +160,7 @@ function SetupContent() {
     }
   }, [authLoading, stateLoaded, shop, user, isInitializing, hasExistingState, savedStep]);
 
-  // Auto-fetch pages/accounts when entering step 2 or 3
+  // Auto-fetch pages/accounts
   useEffect(() => {
     if (!isInitializing) {
       if (step === 2 && fbPages.length === 0 && !shop?.facebook_page_id) {
@@ -188,7 +195,6 @@ function SetupContent() {
   };
 
   const handleShopSave = async (data: any) => {
-    // Always use POST - API handles upsert logic
     const res = await fetch('/api/shop', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -199,6 +205,13 @@ function SetupContent() {
       const errData = await res.json();
       throw new Error(errData.error || 'Хадгалахад алдаа гарлаа');
     }
+
+    // Sync preview
+    setPreviewShopName(data.name || '');
+    setPreviewOwnerName(data.owner_name || '');
+    setPreviewPhone(data.phone || '');
+    setPreviewBankName(data.bank_name || '');
+    setPreviewAccountNumber(data.account_number || '');
 
     await refreshShop();
     setStep(2);
@@ -213,10 +226,8 @@ function SetupContent() {
 
     const pageData = await pageRes.json();
 
-    // Auto-reconnect if session expired
     if (!pageRes.ok) {
       if (pageData.code === 'SESSION_EXPIRED') {
-        // Clear pages and redirect to Facebook OAuth
         setFbPages([]);
         setError('Session дууссан байна. Дахин холбож байна...');
         setTimeout(() => {
@@ -227,7 +238,6 @@ function SetupContent() {
       throw new Error(pageData.error);
     }
 
-    // Save token to state for AI step
     if (pageData.page?.access_token) {
       setFbToken(pageData.page.access_token);
     }
@@ -249,7 +259,6 @@ function SetupContent() {
   };
 
   const handleManualFacebookSave = async (data: any) => {
-    // Save token to state for AI step
     if (data.accessToken) {
       setFbToken(data.accessToken);
     }
@@ -300,7 +309,6 @@ function SetupContent() {
 
     if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
 
-    // Clear the accounts list after successful selection
     setIgAccounts([]);
     await refreshShop();
     setStep(4);
@@ -314,57 +322,41 @@ function SetupContent() {
     });
 
     if (!res.ok) throw new Error('Бүтээгдэхүүн хадгалахад алдаа гарлаа');
-
-    // Move to AI Step
     setStep(5);
   };
 
   const handleAIComplete = async (aiData: any) => {
-    // Save AI settings
     if (aiData) {
       await fetch('/api/shop', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(aiData)
       });
+      if (aiData.ai_emotion) setPreviewAiEmotion(aiData.ai_emotion);
     }
-
-    // Mark setup as completed (if not already handled by backend on product save, 
-    // but usually we want a flag. Assuming shop.setup_completed is handled or we enforce it here)
-    // Actually, let's ensure we mark it complete or redirect. 
-    // Current logic checks `shop.setup_completed` in useEffect.
-    // If the backend sets `setup_completed` only when products are added, we are fine.
-    // But if we want to ensure, we can call a 'complete' endpoint or just redirect.
-
     setStep(6);
   };
 
   if (authLoading || isInitializing) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-600/30 border-t-violet-600 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="w-10 h-10 border-3 border-white/10 border-t-blue-400 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 relative overflow-hidden">
-      {/* Background decorations - subtle for light mode */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-violet-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50" />
-      </div>
-
-      {/* Resume Modal */}
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#09090b] flex flex-col lg:flex-row relative">
+      {/* ═══════════ Resume Modal ═══════════ */}
       {showResumeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
+          <div className="bg-white dark:bg-[#1a1a20] rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-black/[0.06] dark:border-white/[0.08]">
             <div className="text-center mb-6">
-              <div className="w-14 h-14 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <RotateCcw className="w-7 h-7 text-violet-600" />
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500/10 to-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <RotateCcw className="w-7 h-7 text-blue-500" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">Үргэлжлүүлэх үү?</h3>
-              <p className="text-sm text-gray-500 mt-2">
+              <h3 className="text-lg font-bold text-foreground">Үргэлжлүүлэх үү?</h3>
+              <p className="text-sm text-white/40 mt-2">
                 Та өмнө нь алхам {savedStep} хүртэл хийсэн байна
               </p>
             </div>
@@ -376,7 +368,7 @@ function SetupContent() {
                   continueFromSaved();
                   setShowResumeModal(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"
               >
                 <Play className="w-4 h-4" />
                 Үргэлжлүүлэх (Алхам {savedStep})
@@ -387,7 +379,7 @@ function SetupContent() {
                   setStepLocal(1);
                   setShowResumeModal(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 border border-white/[0.08] hover:border-black/[0.15] dark:hover:border-white/[0.15] text-foreground font-medium py-3 px-4 rounded-xl transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 Шинээр эхлэх
@@ -397,135 +389,185 @@ function SetupContent() {
         </div>
       )}
 
-      <div className="relative max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3">
+      {/* ═══════════ LEFT: Form ═══════════ */}
+      <div className="w-full lg:w-1/2 min-h-screen flex flex-col relative">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-6 py-5">
+          <Link href="/" className="inline-flex items-center gap-2.5">
             <img
               src="/logo.png"
               alt="Syncly"
-              className="w-12 h-12 rounded-2xl shadow-lg shadow-violet-500/10"
+              className="w-9 h-9 rounded-xl shadow-lg shadow-violet-500/10"
             />
-            <span className="text-2xl font-bold text-gray-900">Syncly</span>
+            <span className="text-lg font-bold text-foreground tracking-[-0.02em]">Syncly</span>
           </Link>
+          <span className="text-[12px] font-medium text-white/30">
+            {step}/6
+          </span>
+        </div>
 
-          {/* Progress Percentage */}
-          <div className="mt-4 text-center">
-            <div className="inline-flex items-center gap-2 bg-violet-50 px-4 py-2 rounded-full">
-              <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-violet-500 to-violet-600 transition-all duration-500"
-                  style={{ width: `${Math.round((step / 6) * 100)}%` }}
-                />
-              </div>
-              <span className="text-sm font-semibold text-violet-600">
-                {Math.round((step / 6) * 100)}%
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {step === 1 && "Эхлэлийг тавилаа! 🚀"}
-              {step === 2 && "Гайхалтай! Үргэлжлүүлээрэй 💪"}
-              {step === 3 && "Хагас нь дууслаа! 🎯"}
-              {step === 4 && "Бараг дууссан байна! ✨"}
-              {step === 5 && "Сүүлийн алхамууд! 🏁"}
-              {step === 6 && "Та удахгүй дуусна! 🎉"}
-            </p>
+        {/* Progress bar */}
+        <div className="px-6">
+          <div className="h-1 bg-black/[0.06] dark:bg-[#151040] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-400 to-violet-500 rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${Math.round((step / 6) * 100)}%` }}
+            />
           </div>
         </div>
 
-        {/* Progress Steps - Mobile Responsive */}
-        <div className="flex items-center justify-center gap-1 sm:gap-4 mb-8 sm:mb-12 px-2">
-          {[1, 2, 3, 4, 5, 6].map((s) => (
-            <div key={s} className="flex items-center gap-1 sm:gap-2">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-semibold transition-all border ${step >= s
-                ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/30'
-                : 'bg-white text-gray-400 border-gray-200'
-                }`}>
-                {step > s ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : s}
+        {/* Step pills */}
+        <div className="flex items-center gap-1.5 px-6 py-4 overflow-x-auto no-scrollbar">
+          {stepLabels.map((label, i) => {
+            const s = i + 1;
+            const isActive = s === step;
+            const isDone = s < step;
+            return (
+              <div
+                key={s}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all duration-300 shrink-0',
+                  isActive
+                    ? 'bg-gradient-to-r from-blue-500/15 to-violet-500/15 text-blue-600 text-blue-400 border border-blue-500/20'
+                    : isDone
+                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      : 'bg-[#0F0B2E] text-white/25 border border-transparent'
+                )}
+              >
+                {isDone ? (
+                  <Check className="w-3 h-3" />
+                ) : (
+                  <span className="w-4 h-4 rounded-full bg-black/[0.06] dark:bg-[#151040] flex items-center justify-center text-[9px]">
+                    {s}
+                  </span>
+                )}
+                <span className="hidden sm:inline">{label}</span>
               </div>
-              {s < 6 && <div className={`w-4 sm:w-12 h-0.5 sm:h-1 rounded ${step > s ? 'bg-violet-600' : 'bg-gray-200'}`} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-gray-100 shadow-xl shadow-gray-200/50">
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-100 rounded-xl p-4 text-red-600 text-sm text-center font-medium">
-              {error}
-            </div>
-          )}
+        {/* Form content */}
+        <div className="flex-1 px-6 pb-8 overflow-y-auto">
+          <div className="max-w-lg mx-auto">
+            {error && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 text-red-500 text-red-400 text-[13px] text-center font-medium">
+                {error}
+              </div>
+            )}
 
-          {step === 1 && (
-            <ShopInfoStep
-              initialData={{
-                name: shop?.name || '',
-                owner_name: shop?.owner_name || user?.fullName || '',
-                phone: shop?.phone || ''
-              }}
-              onNext={handleShopSave}
-            />
-          )}
+            {step === 1 && (
+              <ShopInfoStep
+                initialData={{
+                  name: shop?.name || '',
+                  owner_name: shop?.owner_name || user?.fullName || '',
+                  phone: shop?.phone || ''
+                }}
+                onNext={handleShopSave}
+                onPreviewUpdate={(data: any) => {
+                  if (data.name !== undefined) setPreviewShopName(data.name);
+                  if (data.owner_name !== undefined) setPreviewOwnerName(data.owner_name);
+                  if (data.phone !== undefined) setPreviewPhone(data.phone);
+                  if (data.bank_name !== undefined) setPreviewBankName(data.bank_name);
+                  if (data.account_number !== undefined) setPreviewAccountNumber(data.account_number);
+                }}
+              />
+            )}
 
-          {step === 2 && (
-            <FacebookStep
-              initialData={{
-                fbConnected: !!shop?.facebook_page_id,
-                fbPageName: shop?.facebook_page_name || '',
-                fbPageId: shop?.facebook_page_id || ''
-              }}
-              fbPages={fbPages}
-              onConnect={() => window.location.href = '/api/auth/facebook'}
-              onSelectPage={handleFacebookSelect}
-              onManualSave={handleManualFacebookSave}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
-            />
-          )}
+            {step === 2 && (
+              <FacebookStep
+                initialData={{
+                  fbConnected: !!shop?.facebook_page_id,
+                  fbPageName: shop?.facebook_page_name || '',
+                  fbPageId: shop?.facebook_page_id || ''
+                }}
+                fbPages={fbPages}
+                onConnect={() => window.location.href = '/api/auth/facebook'}
+                onSelectPage={handleFacebookSelect}
+                onManualSave={handleManualFacebookSave}
+                onBack={() => setStep(1)}
+                onNext={() => setStep(3)}
+              />
+            )}
 
-          {step === 3 && (
-            <InstagramStep
-              initialData={{
-                igConnected: !!shop?.instagram_business_account_id,
-                igUsername: shop?.instagram_username || '',
-                igBusinessAccountId: shop?.instagram_business_account_id || ''
-              }}
-              igAccounts={igAccounts}
-              onConnect={() => window.location.href = '/api/auth/instagram'}
-              onSelectAccount={handleInstagramSelect}
-              onManualSave={handleManualInstagramSave}
-              onBack={() => setStep(2)}
-              onNext={() => setStep(4)}
-            />
-          )}
+            {step === 3 && (
+              <InstagramStep
+                initialData={{
+                  igConnected: !!shop?.instagram_business_account_id,
+                  igUsername: shop?.instagram_username || '',
+                  igBusinessAccountId: shop?.instagram_business_account_id || ''
+                }}
+                igAccounts={igAccounts}
+                onConnect={() => window.location.href = '/api/auth/instagram'}
+                onSelectAccount={handleInstagramSelect}
+                onManualSave={handleManualInstagramSave}
+                onBack={() => setStep(2)}
+                onNext={() => setStep(4)}
+              />
+            )}
 
-          {step === 4 && (
-            <ProductStep
-              initialProducts={[]}
-              onBack={() => setStep(3)}
-              onComplete={handleProductsComplete}
-            />
-          )}
+            {step === 4 && (
+              <ProductStep
+                initialProducts={[]}
+                onBack={() => setStep(3)}
+                onComplete={handleProductsComplete}
+              />
+            )}
 
-          {step === 5 && (
-            <AISetupStep
-              initialData={{
-                description: shop?.description || '',
-                ai_emotion: shop?.ai_emotion || '',
-                ai_instructions: shop?.ai_instructions || ''
-              }}
-              fbPageId={shop?.facebook_page_id || undefined}
-              fbPageToken={fbToken}
-              onSkip={() => handleAIComplete(null)}
-              onSave={handleAIComplete}
-            />
-          )}
+            {step === 5 && (
+              <AISetupStep
+                initialData={{
+                  description: shop?.description || '',
+                  ai_emotion: shop?.ai_emotion || '',
+                  ai_instructions: shop?.ai_instructions || ''
+                }}
+                fbPageId={shop?.facebook_page_id || undefined}
+                fbPageToken={fbToken}
+                onSkip={() => handleAIComplete(null)}
+                onSave={handleAIComplete}
+              />
+            )}
 
-          {step === 6 && (
-            <SubscriptionStep
-              onSkip={() => router.push('/dashboard')}
-              onComplete={() => router.push('/dashboard')}
-            />
-          )}
+            {step === 6 && (
+              <SubscriptionStep
+                onSkip={() => router.push('/dashboard')}
+                onComplete={() => router.push('/dashboard')}
+              />
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* ═══════════ RIGHT: Live Preview ═══════════ */}
+      <div className="hidden lg:flex w-1/2 min-h-screen bg-[#09090b] relative overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-violet-500/[0.05] rounded-full blur-[120px]" />
+          <div className="absolute bottom-1/4 left-1/3 w-[300px] h-[300px] bg-blue-500/[0.04] rounded-full blur-[80px]" />
+        </div>
+
+        {/* Grid pattern */}
+        <div className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundSize: '40px 40px'
+          }}
+        />
+
+        <SetupPreview
+          step={step}
+          shopName={previewShopName}
+          ownerName={previewOwnerName}
+          phone={previewPhone}
+          bankName={previewBankName}
+          accountNumber={previewAccountNumber}
+          fbPageName={shop?.facebook_page_name || ''}
+          fbConnected={!!shop?.facebook_page_id}
+          igUsername={shop?.instagram_username || ''}
+          igConnected={!!shop?.instagram_business_account_id}
+          products={previewProducts}
+          aiEmotion={previewAiEmotion}
+        />
       </div>
 
       {/* PWA Install Banner */}
@@ -537,8 +579,8 @@ function SetupContent() {
 export default function SetupPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-500/30 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <div className="w-10 h-10 border-3 border-white/10 border-t-blue-400 rounded-full animate-spin" />
       </div>
     }>
       <SetupContent />

@@ -44,7 +44,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
             <div
                 ref={sheetRef}
                 className="absolute bottom-0 left-0 right-0 
-                   bg-white rounded-t-[2.5rem] 
+                   bg-[#0F0B2E] rounded-t-[2.5rem] 
                    max-h-[92vh] overflow-hidden
                    animate-in slide-in-from-bottom duration-500 shadow-2xl"
             >

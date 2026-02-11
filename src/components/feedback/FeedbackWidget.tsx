@@ -62,7 +62,7 @@ export function FeedbackWidget() {
         <div className="fixed bottom-[72px] md:bottom-6 right-3 md:right-6 z-40 md:z-50">
             {/* Expanded Form */}
             {isExpanded && (
-                <div className="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+                <div className="absolute bottom-16 right-0 w-80 bg-[#0F0B2E] rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-3 flex items-center justify-between">
                         <span className="text-white font-medium">Санал хүсэлт</span>
@@ -165,7 +165,7 @@ export function FeedbackWidget() {
                                 setFeedback(f => ({ ...f, type: type.id }));
                                 setIsExpanded(true);
                             }}
-                            className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                            className="flex items-center gap-3 px-4 py-2.5 bg-[#0F0B2E] rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105"
                             style={{ animationDelay: `${i * 50}ms` }}
                         >
                             <type.icon className={`w-5 h-5 ${type.color}`} />

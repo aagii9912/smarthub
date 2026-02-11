@@ -22,7 +22,7 @@ export function LivePreview({ template, emotion, description }: LivePreviewProps
     return (
         <div className="bg-gray-100 rounded-3xl p-4 min-h-[300px] lg:min-h-[500px] relative border border-gray-200 shadow-inner overflow-hidden sticky top-0">
             {/* Chat Header */}
-            <div className="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3 mb-6">
+            <div className="bg-[#0F0B2E] rounded-xl p-3 shadow-sm flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full flex items-center justify-center text-white">
                     <Bot className="w-6 h-6" />
                 </div>
@@ -43,7 +43,7 @@ export function LivePreview({ template, emotion, description }: LivePreviewProps
                     </div>
                 </div>
                 <div className="flex justify-start animate-in fade-in slide-in-from-left duration-300">
-                    <div className="bg-white text-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 text-sm shadow-md max-w-[85%] border border-gray-100">
+                    <div className="bg-[#0F0B2E] text-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 text-sm shadow-md max-w-[85%] border border-gray-100">
                         {previewMessage}
                         <div className="mt-2 text-xs text-gray-400">
                             (Энэ бол {emotionLabel} тохиргоо)
@@ -61,7 +61,7 @@ export function LivePreview({ template, emotion, description }: LivePreviewProps
             </div>
 
             <div className="absolute bottom-4 left-4 right-4">
-                <div className="bg-white rounded-full h-10 shadow-sm border border-gray-200 flex items-center px-4 text-gray-400 text-sm">
+                <div className="bg-[#0F0B2E] rounded-full h-10 shadow-sm border border-gray-200 flex items-center px-4 text-gray-400 text-sm">
                     Зурвас бичих...
                 </div>
             </div>

@@ -126,7 +126,7 @@ export default function UIPlaygroundPage() {
                             <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Toast Lab</h2>
                             <div className="grid grid-cols-2 gap-2">
                                 <Button size="sm" variant="secondary" onClick={() => toast.success('Амжилттай!')}>Success</Button>
-                                <Button size="sm" variant="danger" onClick={() => toast.error('Алдаа!')}>Error</Button>
+                                <Button size="sm" variant="destructive" onClick={() => toast.error('Алдаа!')}>Error</Button>
                                 <Button size="sm" variant="primary" onClick={() => toast.info('Мэдээлэл')}>Info</Button>
                                 <Button size="sm" variant="ghost" onClick={() => {
                                     const id = toast.loading('Уншиж байна...');

@@ -90,7 +90,7 @@ export function InstagramStep({
     return (
         <div className="space-y-6">
             <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Instagram className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Instagram холбох</h2>
@@ -148,7 +148,7 @@ export function InstagramStep({
                                 disabled={saving}
                                 className={`w-full p-4 rounded-xl border transition-all flex items-center gap-3 ${selectedAccountId === account.instagramId
                                     ? 'bg-purple-50 border-purple-200 ring-2 ring-purple-500/20'
-                                    : 'bg-white border-gray-200 hover:border-purple-300 hover:shadow-md'
+                                    : 'bg-[#0F0B2E] border-gray-200 hover:border-purple-300 hover:shadow-md'
                                     }`}
                             >
                                 {account.profilePicture ? (
@@ -180,7 +180,7 @@ export function InstagramStep({
                     {/* One-Click Connect Button */}
                     <button
                         onClick={onConnect}
-                        className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-700 hover:via-pink-700 hover:to-orange-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-purple-500/20"
+                        className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-violet-500 hover:from-purple-700 hover:via-pink-700 hover:to-orange-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-purple-500/20"
                     >
                         <Instagram className="w-6 h-6" />
                         Instagram-ээр холбох
@@ -191,7 +191,7 @@ export function InstagramStep({
                             <div className="w-full border-t border-gray-200"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-4 bg-white text-gray-500">эсвэл</span>
+                            <span className="px-4 bg-[#0F0B2E] text-gray-500">эсвэл</span>
                         </div>
                     </div>
 
@@ -202,12 +202,12 @@ export function InstagramStep({
                         </summary>
                         <div className="mt-4 space-y-4 pt-4 border-t border-gray-100">
                             {/* Requirements Alert */}
-                            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                                <h3 className="text-amber-800 font-medium mb-2 flex items-center gap-2">
+                            <div className="bg-amber-50 border border-blue-100 rounded-xl p-4">
+                                <h3 className="text-blue-800 font-medium mb-2 flex items-center gap-2">
                                     <AlertCircle className="w-5 h-5" />
                                     Шаардлага
                                 </h3>
-                                <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
+                                <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                                     <li>Instagram Business эсвэл Creator Account байх</li>
                                     <li>Facebook Page-тэй холбогдсон байх</li>
                                     <li>Meta Developer аппд Instagram Messaging идэвхжүүлсэн байх</li>
@@ -252,21 +252,21 @@ export function InstagramStep({
                                     value={manualUsername}
                                     onChange={(e) => setManualUsername(e.target.value)}
                                     placeholder="Instagram username (@ -гүй)"
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                                 />
                                 <input
                                     type="text"
                                     value={manualBusinessId}
                                     onChange={(e) => setManualBusinessId(e.target.value)}
                                     placeholder="Instagram Business Account ID"
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                                 />
                                 <textarea
                                     value={manualToken}
                                     onChange={(e) => setManualToken(e.target.value)}
                                     placeholder="Instagram Access Token (Page Access Token ашиглаж болно)"
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm font-mono transition-all"
+                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm font-mono transition-all"
                                 />
                                 <button
                                     onClick={handleManualSubmit}

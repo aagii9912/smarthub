@@ -77,12 +77,12 @@ export function AIMonitor() {
                     </div>
                     <div className="flex items-center gap-4 mt-4 justify-center">
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-                            <span className="text-[10px] font-medium text-gray-500 uppercase">AI Automated</span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-violet-500/100" />
+                            <span className="text-[10px] font-medium text-white/50 uppercase">AI Automated</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                            <span className="text-[10px] font-medium text-gray-500 uppercase">Human Handoff</span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                            <span className="text-[10px] font-medium text-white/50 uppercase">Human Handoff</span>
                         </div>
                     </div>
                 </CardContent>

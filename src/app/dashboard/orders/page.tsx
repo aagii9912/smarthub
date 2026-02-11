@@ -44,7 +44,6 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
-  // Controlled date inputs for proper React state management
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
 
@@ -54,14 +53,13 @@ export default function OrdersPage() {
     ? orders
     : orders.filter(o => o.status === filter);
 
-  // Define columns for DataTable
   const columns: ColumnDef<OrderWithDetails, unknown>[] = useMemo(() => [
     createSelectColumn<OrderWithDetails>(),
     {
       accessorKey: 'id',
       header: 'ID',
       cell: ({ row }) => (
-        <span className="text-sm text-gray-500 font-mono">
+        <span className="text-[13px] text-white/40 font-mono tracking-[-0.01em]">
           #{row.original.id.slice(0, 8)}
         </span>
       ),
@@ -81,12 +79,12 @@ export default function OrdersPage() {
       cell: ({ row }) => (
         <div className="space-y-0.5">
           {row.original.order_items.slice(0, 2).map((item, idx) => (
-            <p key={idx} className="text-sm font-medium text-gray-900">
+            <p key={idx} className="text-[13px] font-medium text-foreground tracking-[-0.01em]">
               {item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}
             </p>
           ))}
           {row.original.order_items.length > 2 && (
-            <p className="text-xs text-gray-400">+{row.original.order_items.length - 2} бусад</p>
+            <p className="text-[11px] text-white/30">+{row.original.order_items.length - 2} бусад</p>
           )}
         </div>
       ),
@@ -96,8 +94,8 @@ export default function OrdersPage() {
       header: 'Харилцагч',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-700">
+          <User className="w-3.5 h-3.5 text-white/20" strokeWidth={1.5} />
+          <span className="text-[13px] text-foreground tracking-[-0.01em]">
             {row.original.customers?.name || 'Нэргүй'}
           </span>
         </div>
@@ -107,15 +105,15 @@ export default function OrdersPage() {
       accessorKey: 'total_amount',
       header: ({ column }) => (
         <button
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 text-[11px] uppercase tracking-[0.05em] text-white/40"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Дүн
-          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </button>
       ),
       cell: ({ row }) => (
-        <p className="font-semibold text-gray-900">
+        <p className="font-semibold text-[13px] text-foreground tabular-nums tracking-[-0.01em]">
           ₮{Number(row.original.total_amount).toLocaleString()}
         </p>
       ),
@@ -124,20 +122,19 @@ export default function OrdersPage() {
       accessorKey: 'created_at',
       header: ({ column }) => (
         <button
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 text-[11px] uppercase tracking-[0.05em] text-white/40"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Огноо
-          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {column.getIsSorted() === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </button>
       ),
       cell: ({ row }) => (
-        <span className="text-sm text-gray-500">{formatDate(row.original.created_at)}</span>
+        <span className="text-[13px] text-white/40 tracking-[-0.01em]">{formatDate(row.original.created_at)}</span>
       ),
     },
   ], []);
 
-  // Bulk action handler
   const handleBulkAction = (selectedRows: OrderWithDetails[], action: string) => {
     if (action === 'status') {
       setBulkSelectedOrders(selectedRows);
@@ -145,52 +142,52 @@ export default function OrdersPage() {
     }
   };
 
-  // Force table reset after bulk action
   const [tableKey, setTableKey] = useState(0);
 
-  // Bulk status update
   const handleBulkStatusUpdate = (newStatus: string) => {
     const orderIds = bulkSelectedOrders.map(o => o.id);
     bulkUpdateStatus({ orderIds, status: newStatus });
     setShowBulkStatusModal(false);
     setBulkSelectedOrders([]);
-    setTableKey(prev => prev + 1); // Reset table selection
+    setTableKey(prev => prev + 1);
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-lg text-muted-foreground">Ачааллаж байна...</div>
+        <div className="text-[13px] text-white/40 tracking-[-0.01em]">Ачааллаж байна...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header Actions - Title removed */}
+    <div className="space-y-5">
+      {/* Toolbar */}
       <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="secondary"
-          className="h-9"
+        <button
+          className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium text-white/50 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors tracking-[-0.01em]"
           onClick={() => window.open('/api/orders/export', '_blank')}
         >
-          <FileSpreadsheet className="w-4 h-4 mr-2" />
-          Export Excel
-        </Button>
-        <Button onClick={() => refetch()} disabled={isRefetching} className="h-9">
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-          Шинэчлэх
-        </Button>
+          <FileSpreadsheet className="w-3.5 h-3.5" strokeWidth={1.5} />
+          Export
+        </button>
+        <button
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="p-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-white/40 ${isRefetching ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       {/* Date Filter */}
-      <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-wrap gap-4 items-end bg-[#0F0B2E] p-4 rounded-lg border border-white/[0.08]">
         <div>
-          <label className="text-xs font-medium text-gray-500 mb-1 block">Эхлэх огноо</label>
+          <label className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-1 block">Эхлэх огноо</label>
           <input
             type="date"
             value={dateFromInput}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em]"
             onChange={(e) => {
               setDateFromInput(e.target.value);
               setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }));
@@ -198,27 +195,25 @@ export default function OrdersPage() {
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-gray-500 mb-1 block">Дуусах огноо</label>
+          <label className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-1 block">Дуусах огноо</label>
           <input
             type="date"
             value={dateToInput}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="px-3 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em]"
             onChange={(e) => {
               setDateToInput(e.target.value);
               setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(new Date(e.target.value).setHours(23, 59, 59, 999)) : undefined }));
             }}
           />
         </div>
-        {/* Active Filter Badge */}
         {(dateRange.from || dateRange.to) && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-medium mb-1">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4A7CE7]/10 text-[#4A7CE7] rounded-md text-[11px] font-medium mb-0.5">
             <span>Шүүлтүүр идэвхтэй</span>
             <button onClick={() => {
-              // Reset using React state (proper pattern)
               setDateFromInput('');
               setDateToInput('');
               setDateRange({ from: undefined, to: undefined });
-            }} className="hover:bg-violet-200 rounded-full p-0.5">
+            }} className="hover:bg-[#4A7CE7]/20 rounded p-0.5 transition-colors">
               <X className="w-3 h-3" />
             </button>
           </div>
@@ -226,12 +221,12 @@ export default function OrdersPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+      <div className="flex gap-1 overflow-x-auto pb-2 no-scrollbar">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${filter === 'all'
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+          className={`px-3 py-1.5 rounded-md font-medium text-[12px] whitespace-nowrap transition-all tracking-[-0.01em] ${filter === 'all'
+            ? 'bg-[#1C1650] text-foreground'
+            : 'text-white/40 hover:bg-[#0F0B2E]'
             }`}
         >
           Бүгд ({orders.length})
@@ -242,9 +237,9 @@ export default function OrdersPage() {
             <button
               key={status.value}
               onClick={() => setFilter(status.value)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${filter === status.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+              className={`px-3 py-1.5 rounded-md font-medium text-[12px] whitespace-nowrap transition-all tracking-[-0.01em] ${filter === status.value
+                ? 'bg-[#1C1650] text-foreground'
+                : 'text-white/40 hover:bg-[#0F0B2E]'
                 }`}
             >
               {status.label} ({count})
@@ -253,7 +248,7 @@ export default function OrdersPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Orders DataTable - Desktop */}
         <div className="lg:col-span-2 hidden md:block">
           <DataTable
@@ -270,57 +265,57 @@ export default function OrdersPage() {
         </div>
 
         {/* Orders List - Mobile Cards */}
-        <div className="lg:col-span-2 md:hidden space-y-4">
+        <div className="lg:col-span-2 md:hidden space-y-3">
           {filteredOrders.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p>Захиалга байхгүй байна</p>
-              </CardContent>
-            </Card>
+            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] py-12 text-center">
+              <Package className="w-10 h-10 mx-auto mb-4 text-white/15" strokeWidth={1.5} />
+              <p className="text-[13px] text-white/40 tracking-[-0.01em]">Захиалга байхгүй байна</p>
+            </div>
           ) : (
             filteredOrders.map((order) => (
-              <Card
+              <div
                 key={order.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${selectedOrderId === order.id ? 'ring-2 ring-violet-500' : ''
+                className={`bg-[#0F0B2E] rounded-lg border cursor-pointer transition-colors ${selectedOrderId === order.id
+                  ? 'border-[#4A7CE7]/40'
+                  : 'border-white/[0.08] hover:border-[#4A7CE7]/20'
                   }`}
                 onClick={() => setSelectedOrderId(order.id)}
               >
-                <CardContent className="p-4">
+                <div className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <OrderStatusBadge status={order.status} />
-                        <span className="text-sm text-gray-500">
+                        <span className="text-[11px] text-white/30 font-mono">
                           #{order.id.slice(0, 8)}
                         </span>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {order.order_items.map((item, idx) => (
-                          <p key={idx} className="font-medium text-gray-900">
+                          <p key={idx} className="font-medium text-[13px] text-foreground tracking-[-0.01em]">
                             {item.products?.name || 'Бүтээгдэхүүн'} x{item.quantity}
                           </p>
                         ))}
                       </div>
-                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 mt-3 text-[12px] text-white/40">
                         <span className="flex items-center gap-1">
-                          <User className="w-4 h-4" />
+                          <User className="w-3.5 h-3.5" strokeWidth={1.5} />
                           {order.customers?.name || 'Харилцагч'}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-3.5 h-3.5" strokeWidth={1.5} />
                           {formatDate(order.created_at)}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-base font-semibold text-foreground tabular-nums tracking-[-0.02em]">
                         ₮{Number(order.total_amount).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -328,37 +323,32 @@ export default function OrdersPage() {
         {/* Order Detail */}
         <div className="lg:col-span-1">
           {selectedOrder ? (
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Захиалгын дэлгэрэнгүй</span>
-                  <OrderStatusBadge status={selectedOrder.status} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <div className="sticky top-6 bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
+                <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Дэлгэрэнгүй</span>
+                <OrderStatusBadge status={selectedOrder.status} />
+              </div>
+              <div className="p-5 space-y-5">
                 {/* Customer Info */}
-                <div className="space-y-3">
-                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Харилцагч
-                  </h3>
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                    <p className="font-medium">{selectedOrder.customers?.name || 'Нэр оруулаагүй'}</p>
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">Харилцагч</h3>
+                  <div className="bg-[#0F0B2E] rounded-md p-3 space-y-2">
+                    <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{selectedOrder.customers?.name || 'Нэр оруулаагүй'}</p>
                     {selectedOrder.customers?.phone && (
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
+                      <p className="text-[12px] text-white/40 flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5" strokeWidth={1.5} />
                         {selectedOrder.customers.phone}
                       </p>
                     )}
                     {(selectedOrder.delivery_address || selectedOrder.customers?.address) && (
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
+                      <p className="text-[12px] text-white/40 flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5" strokeWidth={1.5} />
                         {selectedOrder.delivery_address || selectedOrder.customers?.address}
                       </p>
                     )}
                     {selectedOrder.customers?.facebook_id && (
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
+                      <p className="text-[12px] text-white/40 flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5" strokeWidth={1.5} />
                         Messenger
                       </p>
                     )}
@@ -366,29 +356,26 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Order Items */}
-                <div className="space-y-3">
-                  <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    Бүтээгдэхүүнүүд
-                  </h3>
-                  <div className="space-y-2">
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">Бүтээгдэхүүн</h3>
+                  <div className="space-y-1.5">
                     {selectedOrder.order_items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-gray-50 rounded-lg p-3">
+                      <div key={idx} className="flex justify-between items-center bg-[#0F0B2E] rounded-md p-3">
                         <div>
-                          <p className="font-medium">{item.products?.name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{item.products?.name}</p>
+                          <p className="text-[11px] text-white/40">
                             ₮{Number(item.unit_price).toLocaleString()} x {item.quantity}
                           </p>
                         </div>
-                        <p className="font-semibold">
+                        <p className="font-semibold text-[13px] tabular-nums tracking-[-0.01em]">
                           ₮{(Number(item.unit_price) * item.quantity).toLocaleString()}
                         </p>
                       </div>
                     ))}
                   </div>
-                  <div className="border-t pt-3 flex justify-between items-center">
-                    <span className="font-medium">Нийт дүн:</span>
-                    <span className="text-xl font-bold text-violet-600">
+                  <div className="border-t border-white/[0.08] pt-3 flex justify-between items-center">
+                    <span className="font-medium text-[13px] tracking-[-0.01em]">Нийт дүн:</span>
+                    <span className="text-lg font-semibold text-foreground tracking-[-0.02em]">
                       ₮{Number(selectedOrder.total_amount).toLocaleString()}
                     </span>
                   </div>
@@ -397,17 +384,17 @@ export default function OrdersPage() {
                 {/* Notes */}
                 {selectedOrder.notes && (
                   <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Тэмдэглэл</h3>
-                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                    <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">Тэмдэглэл</h3>
+                    <p className="text-[13px] text-white/60 bg-[#0F0B2E] rounded-md p-3 tracking-[-0.01em]">
                       {selectedOrder.notes}
                     </p>
                   </div>
                 )}
 
                 {/* Status Update */}
-                <div className="space-y-3">
-                  <h3 className="font-medium text-gray-900">Статус өөрчлөх</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">Статус өөрчлөх</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
                     {statusOptions.map((status) => {
                       const Icon = status.icon;
                       const isActive = selectedOrder.status === status.value;
@@ -420,12 +407,12 @@ export default function OrdersPage() {
                             updateStatus({ orderId: selectedOrder.id, status: status.value });
                           }}
                           disabled={isActive}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                            ? 'bg-violet-100 text-violet-700 cursor-default'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          className={`flex items-center gap-2 px-3 py-2 rounded-md text-[12px] font-medium transition-all tracking-[-0.01em] ${isActive
+                            ? 'bg-[#4A7CE7]/10 text-[#4A7CE7] cursor-default'
+                            : 'bg-[#0F0B2E] text-white/50 hover:bg-[#151040]'
                             }`}
                         >
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
                           {status.label}
                         </button>
                       );
@@ -434,40 +421,38 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Timestamps */}
-                <div className="text-xs text-gray-400 space-y-1 pt-4 border-t">
+                <div className="text-[11px] text-white/30 space-y-1 pt-4 border-t border-white/[0.08]">
                   <p>Үүсгэсэн: {formatDate(selectedOrder.created_at)}</p>
                   <p>Шинэчилсэн: {formatDate(selectedOrder.updated_at)}</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            <Card>
-              <CardContent className="py-12 text-center text-gray-500">
-                <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>Захиалга сонгоно уу</p>
-              </CardContent>
-            </Card>
+            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] py-12 text-center">
+              <Package className="w-10 h-10 mx-auto mb-4 text-white/10" strokeWidth={1.5} />
+              <p className="text-[13px] text-white/40 tracking-[-0.01em]">Захиалга сонгоно уу</p>
+            </div>
           )}
         </div>
       </div>
 
       {/* Bulk Status Update Modal */}
       {showBulkStatusModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 m-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#141414] rounded-lg border border-white/[0.08] w-full max-w-md p-6 m-4">
+            <h2 className="text-base font-semibold text-foreground mb-4 tracking-[-0.02em]">
               {bulkSelectedOrders.length} захиалгын төлөв өөрчлөх
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {statusOptions.map((status) => {
                 const Icon = status.icon;
                 return (
                   <button
                     key={status.value}
                     onClick={() => handleBulkStatusUpdate(status.value)}
-                    className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-violet-100 hover:text-violet-700 transition-colors font-medium"
+                    className="flex items-center gap-2 px-4 py-3 rounded-md bg-[#0F0B2E] text-foreground hover:bg-[#151040] transition-colors font-medium text-[13px] tracking-[-0.01em]"
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4 text-white/30" strokeWidth={1.5} />
                     {status.label}
                   </button>
                 );
@@ -475,7 +460,7 @@ export default function OrdersPage() {
             </div>
             <button
               onClick={() => setShowBulkStatusModal(false)}
-              className="mt-4 w-full py-2 text-gray-500 hover:text-gray-700"
+              className="mt-4 w-full py-2 text-[13px] text-white/40 hover:text-foreground transition-colors tracking-[-0.01em]"
             >
               Цуцлах
             </button>

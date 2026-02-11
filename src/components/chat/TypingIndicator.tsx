@@ -9,7 +9,7 @@ export function TypingIndicator() {
                 <Bot className="w-4 h-4 text-white" />
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md 
+            <div className="bg-[#0F0B2E] border border-gray-100 rounded-2xl rounded-bl-md 
                       px-4 py-3 shadow-sm">
                 <div className="flex gap-1">
                     <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"
