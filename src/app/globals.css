@@ -89,9 +89,42 @@
   --header-height: 64px;
 }
 
-/* ─── Dark Mode ─── */
+/* ─── Dark Mode (class-based — used by className="dark" on html) ─── */
+.dark,
+html.dark {
+  --background: #09090B;
+  --foreground: #FAFAFA;
+  --card: #18181B;
+  --card-foreground: #FAFAFA;
+  --popover: #18181B;
+  --popover-foreground: #FAFAFA;
+  --primary: #FAFAFA;
+  --primary-foreground: #09090B;
+  --secondary: #27272A;
+  --secondary-foreground: #FAFAFA;
+  --muted: #27272A;
+  --muted-foreground: #A1A1AA;
+  --accent: #D4AF37;
+  --accent-foreground: #09090B;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+  --warning: #F59E0B;
+  --warning-foreground: #09090B;
+  --info: #3B82F6;
+  --info-foreground: #FFFFFF;
+  --border: #27272A;
+  --input: #27272A;
+  --ring: #D4AF37;
+  --gold: #D4AF37;
+  --gold-light: #E8C95F;
+  --gold-dark: #9A7B2E;
+}
+
+/* ─── Dark Mode (OS preference fallback) ─── */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #09090B;
     --foreground: #FAFAFA;
     --card: #18181B;
@@ -121,16 +154,6 @@
     --gold-light: #E8C95F;
     --gold-dark: #9A7B2E;
   }
-}
-
-/* ─── Dashboard Light Override ─── */
-.dashboard-content {
-  --background: #F8FAFC;
-  --foreground: #111111;
-  --card: #FFFFFF;
-  --card-foreground: #111111;
-  --muted-foreground: #64748B;
-  --border: #E2E8F0;
 }
 
 /* ═══════════════════════════════════════════════
