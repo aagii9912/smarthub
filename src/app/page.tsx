@@ -126,23 +126,22 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-1.5 text-[12px] font-medium text-indigo-300">
             <Sparkles className="h-3 w-3" />
-            Шинэ: Instagram DM интеграц
+            Syncly
           </div>
 
           {/* Heading */}
           <h1 className="text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.05] font-bold tracking-[-0.04em]">
-            Борлуулалтаа{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
-              AI
-            </span>
-            -гаар
+              47 захиалга.
+            </span>{" "}
+            24 цаг.
             <br />
-            автоматжуул
+            0 хүн.
           </h1>
 
           {/* Sub */}
           <p className="mt-6 text-[clamp(1rem,2vw,1.15rem)] leading-relaxed text-slate-400 max-w-xl mx-auto">
-            Facebook Messenger дээр AI чатбот ажиллуулж, захиалга хүлээн авч, харилцагчидтайгаа 24/7 холбогдоорой.
+            Messenger, Instagram дээрх мессеж бүрд хариулж, захиалга авч, төлбөр цуглуулна. Та оролцохгүй. Тоо өөрөө ярина.
           </p>
 
           {/* CTA */}
@@ -151,7 +150,7 @@ export default function LandingPage() {
               href="/auth/register"
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600 px-8 py-3.5 text-[15px] font-semibold text-white shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transition-all duration-300"
             >
-              14 хоног үнэгүй турших
+              Үнэгүй эхлэх
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
@@ -165,7 +164,7 @@ export default function LandingPage() {
 
           {/* Trust line */}
           <p className="mt-12 text-[12px] text-slate-500">
-            500+ бизнес ашиглаж байна · Картын мэдээлэл шаардлагагүй
+            5 минутад суулгана · Картгүй · Хэзээ ч цуцална
           </p>
         </div>
       </section>
