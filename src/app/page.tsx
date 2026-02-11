@@ -117,21 +117,46 @@ export default function LandingPage() {
       </nav>
 
       {/* ══════ HERO ══════ */}
-      <section className="relative pt-36 pb-20 sm:pt-44 sm:pb-28 px-6">
+      <section className="relative pt-36 pb-20 sm:pt-44 sm:pb-28 px-6 overflow-hidden">
+        {/* Floating chat bubbles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {/* Left side bubbles */}
+          <div className="chat-bubble absolute top-[18%] left-[5%] sm:left-[8%] bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/10 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-[11px] text-indigo-300/60 max-w-[160px]" style={{ animationDelay: '0s' }}>
+            Энэ хувцас хэдээр вэ?
+          </div>
+          <div className="chat-bubble absolute top-[35%] left-[2%] sm:left-[6%] bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/10 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-[11px] text-emerald-300/60 max-w-[140px]" style={{ animationDelay: '2s' }}>
+            Захиалга өгмөөр байна
+          </div>
+          <div className="chat-bubble absolute top-[55%] left-[4%] sm:left-[10%] bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/10 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-[11px] text-cyan-300/60 max-w-[130px]" style={{ animationDelay: '4s' }}>
+            Хүргэлттэй юу?
+          </div>
+
+          {/* Right side bubbles (AI replies) */}
+          <div className="chat-bubble absolute top-[22%] right-[3%] sm:right-[7%] bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/10 backdrop-blur-sm rounded-2xl rounded-br-md px-4 py-2.5 text-[11px] text-violet-300/60 max-w-[170px]" style={{ animationDelay: '1s' }}>
+            ₮45,000 · M, L, XL размертай 🎉
+          </div>
+          <div className="chat-bubble absolute top-[42%] right-[2%] sm:right-[5%] bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/10 backdrop-blur-sm rounded-2xl rounded-br-md px-4 py-2.5 text-[11px] text-amber-300/60 max-w-[150px]" style={{ animationDelay: '3s' }}>
+            QPay линк илгээлээ ✅
+          </div>
+          <div className="chat-bubble absolute top-[60%] right-[5%] sm:right-[9%] bg-gradient-to-br from-rose-500/10 to-pink-500/10 border border-rose-500/10 backdrop-blur-sm rounded-2xl rounded-br-md px-4 py-2.5 text-[11px] text-rose-300/60 max-w-[160px]" style={{ animationDelay: '5s' }}>
+            Тийм, УБ доторх хүргэлттэй 🚚
+          </div>
+        </div>
+
         <div className="mx-auto max-w-3xl text-center relative z-10">
           {/* Badge */}
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-1.5 text-[12px] font-medium text-indigo-300">
             <Zap className="h-3 w-3" />
-            Автомат борлуулалт
+            Борлуулалтын шинэ стандарт Syncly
           </div>
 
           {/* Heading */}
           <h1 className="text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.05] font-bold tracking-[-0.04em]">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
-              5x илүү захиалга.
-            </span>
+            0 ажилтан.
             <br />
-            Нэг шөнийн дотор.
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
+              5х орлогын өсөлт.
+            </span>
           </h1>
 
           {/* Sub */}
@@ -687,6 +712,25 @@ export default function LandingPage() {
         .reveal-on-scroll.revealed {
           opacity: 1;
           transform: translateY(0);
+        }
+        @keyframes float-bubble {
+          0%, 100% {
+            transform: translateY(0px) scale(1);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          50% {
+            transform: translateY(-15px) scale(1.02);
+            opacity: 0.8;
+          }
+          90% {
+            opacity: 1;
+          }
+        }
+        .chat-bubble {
+          animation: float-bubble 8s ease-in-out infinite;
         }
       `}</style>
     </div>
