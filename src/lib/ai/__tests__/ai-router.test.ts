@@ -5,7 +5,7 @@ import {
     checkMessageLimit,
     getEnabledToolsForPlan,
     PLAN_CONFIGS
-} from '../AIRouter';
+} from '../config/plans';
 
 describe('AIRouter', () => {
     describe('getPlanTypeFromSubscription', () => {
@@ -14,41 +14,25 @@ describe('AIRouter', () => {
             expect(result).toBe('starter');
         });
 
-        it('should return trial for inactive subscription', () => {
+        it('should return starter for inactive subscription', () => {
             const result = getPlanTypeFromSubscription({
                 plan: 'pro',
                 status: 'inactive'
             });
-            expect(result).toBe('trial');
+            expect(result).toBe('starter');
         });
 
         it('should return correct plan for active subscription', () => {
             expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'active' })).toBe('pro');
-            expect(getPlanTypeFromSubscription({ plan: 'ultimate', status: 'active' })).toBe('ultimate');
+            expect(getPlanTypeFromSubscription({ plan: 'enterprise', status: 'active' })).toBe('enterprise');
         });
 
-        it('should return starter for expired trial', () => {
-            const pastDate = new Date();
-            pastDate.setDate(pastDate.getDate() - 1);
-
+        it('should return starter for unknown plan', () => {
             const result = getPlanTypeFromSubscription({
-                plan: 'ultimate',
-                status: 'trial',
-                trial_ends_at: pastDate.toISOString()
+                plan: 'unknown',
+                status: 'active'
             });
             expect(result).toBe('starter');
-        });
-
-        it('should return trial for active trial', () => {
-            const futureDate = new Date();
-            futureDate.setDate(futureDate.getDate() + 1);
-
-            const result = getPlanTypeFromSubscription({
-                plan: 'ultimate',
-                status: 'trial',
-                trial_ends_at: futureDate.toISOString()
-            });
-            expect(result).toBe('trial');
         });
     });
 
@@ -64,29 +48,28 @@ describe('AIRouter', () => {
             expect(checkMessageLimit('starter', starterLimit + 1).allowed).toBe(false);
         });
 
-        it('should always allow ultimate messages', () => {
-            expect(checkMessageLimit('ultimate', 1000).allowed).toBe(true);
+        it('should always allow enterprise messages', () => {
+            expect(checkMessageLimit('enterprise', 1000).allowed).toBe(true);
         });
     });
 
     describe('getEnabledToolsForPlan', () => {
         it('should return correct tools for starter', () => {
             const tools = getEnabledToolsForPlan('starter');
-            // Starter tools: add_to_cart, view_cart, show_product_image, collect_contact_info
             expect(tools).toContain('add_to_cart');
             expect(tools).toContain('show_product_image');
-            expect(tools).not.toContain('checkout'); // Pro feature
+            expect(tools).not.toContain('checkout');
         });
 
         it('should return correct tools for pro', () => {
             const tools = getEnabledToolsForPlan('pro');
             expect(tools).toContain('add_to_cart');
             expect(tools).toContain('checkout');
-            expect(tools).not.toContain('check_payment_status'); // Ultimate feature
+            expect(tools).not.toContain('check_payment_status');
         });
 
-        it('should return all tools for ultimate', () => {
-            const tools = getEnabledToolsForPlan('ultimate');
+        it('should return all tools for enterprise', () => {
+            const tools = getEnabledToolsForPlan('enterprise');
             expect(tools).toContain('checkout');
             expect(tools).toContain('check_payment_status');
         });

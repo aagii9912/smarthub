@@ -291,7 +291,7 @@ export async function getOrCreateInstagramCustomer(
 async function fetchInstagramUserName(userId: string, accessToken: string): Promise<string | null> {
     try {
         const response = await fetch(
-            `https://graph.facebook.com/v19.0/${userId}?fields=username,name&access_token=${accessToken}`
+            `https://graph.facebook.com/v21.0/${userId}?fields=username,name&access_token=${accessToken}`
         );
         if (response.ok) {
             const data = await response.json();
@@ -569,7 +569,7 @@ export async function replyToComment(
 
     try {
         const response = await fetch(
-            `https://graph.facebook.com/v18.0/${commentId}/comments`,
+            `https://graph.facebook.com/v21.0/${commentId}/comments`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
                                 shopDescription: shop.description || undefined,
                                 aiInstructions: shop.ai_instructions || undefined,
                                 aiEmotion: (shop.ai_emotion || 'friendly') as AIEmotion,
-                                customKnowledge: undefined,
+                                customKnowledge: shop.custom_knowledge || undefined,
                                 products: mappedProducts,
                                 customerName: customer.name || undefined,
                                 orderHistory: customer.total_orders || 0,
@@ -264,7 +264,6 @@ export async function POST(request: NextRequest) {
                                 subscription: {
                                     plan: shop.subscription_plan || 'starter',
                                     status: shop.subscription_status || 'active',
-                                    trial_ends_at: shop.trial_ends_at || undefined,
                                 },
                                 messageCount: customer.message_count || 0,
                             },
@@ -325,7 +324,6 @@ export async function POST(request: NextRequest) {
                                 const planType = getPlanTypeFromSubscription({
                                     plan: shop.subscription_plan || 'starter',
                                     status: shop.subscription_status || 'active',
-                                    trial_ends_at: shop.trial_ends_at || undefined,
                                 });
 
                                 const productsForAnalysis = shop.products.map(p => ({

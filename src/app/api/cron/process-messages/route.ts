@@ -211,7 +211,6 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
             const planType = getPlanTypeFromSubscription({
                 plan: shopData.subscription_plan || 'starter',
                 status: shopData.subscription_status || 'active',
-                trial_ends_at: shopData.trial_ends_at || undefined,
             });
 
             const productsForAnalysis = shopData.products.map(p => ({
@@ -280,7 +279,6 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     subscription: {
                         plan: shopData.subscription_plan || 'starter',
                         status: shopData.subscription_status || 'active',
-                        trial_ends_at: shopData.trial_ends_at || undefined,
                     },
                     messageCount: customer.message_count || 0,
                 },

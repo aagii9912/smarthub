@@ -1,17 +1,18 @@
 /**
- * AIRouter - Routes AI requests to appropriate GPT-5 Family model
+ * AIRouter - Routes AI requests to Gemini models
  * 
  * Strategy:
- * - All plans use GPT-5 Family models
- * - Plan determines the specific model (Nano, Mini, Full)
+ * - All plans use Gemini models
+ * - Plan determines the specific model (flash-lite, flash)
+ * - Function calling via Gemini SDK's functionDeclarations
  */
 
-import OpenAI from 'openai';
+import { GoogleGenerativeAI, Content, Part, FunctionCall } from '@google/generative-ai';
 import { logger } from '@/lib/utils/logger';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
-import { AI_TOOLS, ToolName } from './tools/definitions';
+import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
 import {
     PlanType,
     getPlanConfig,
@@ -22,22 +23,15 @@ import {
     AIModel,
 } from './config/plans';
 
-// Initialize OpenAI client with timeout to avoid Vercel function limits
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY!,
-    dangerouslyAllowBrowser: true, // Needed for potential edge runtime or test env
-    timeout: 8000, // 8 seconds to stay within Vercel's 10s limit
-    maxRetries: 1, // Reduce retries to save time
-});
+// Initialize Gemini client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 /**
- * Model mapping - GPT-5 models (when available, fallback to GPT-4o family)
+ * Model mapping - Gemini models
  */
 const MODEL_MAPPING: Record<AIModel, string> = {
-    'gpt-5-nano': process.env.GPT5_NANO_MODEL || 'gpt-4o-mini',
-    'gpt-5-mini': process.env.GPT5_MINI_MODEL || 'gpt-4o-mini',
-    'gpt-5': process.env.GPT5_MODEL || 'gpt-4o', // Backend flagship
-    'gemini-2.5-flash': 'gemini-2.5-flash', // Direct mapping for Gemini
+    'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+    'gemini-2.5-flash': 'gemini-2.5-flash',
 };
 
 /**
@@ -47,10 +41,8 @@ export interface RouterChatContext extends ChatContext {
     subscription?: {
         plan?: string;
         status?: string;
-        trial_ends_at?: string;
     };
     messageCount?: number;
-    aiProvider?: 'openai' | 'gemini'; // AI provider selection
 }
 
 /**
@@ -78,9 +70,9 @@ async function retryOperation<T>(
     try {
         return await operation();
     } catch (error: unknown) {
-        const err = error as { status?: number };
-        if (retries > 0 && (err.status === 429 || err.status === 503)) {
-            logger.warn(`API rate limited, retrying in ${delay}ms... (${retries} retries left)`);
+        const errMsg = error instanceof Error ? error.message : '';
+        if (retries > 0 && (errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('429'))) {
+            logger.warn(`API rate limited/overloaded, retrying in ${delay}ms... (${retries} retries left)`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return retryOperation(operation, retries - 1, delay * 2);
         }
@@ -88,21 +80,31 @@ async function retryOperation<T>(
     }
 }
 
-
-
 /**
- * Filter tools based on plan
+ * Convert ChatMessage history to Gemini Content format
  */
-function getToolsForPlan(plan: PlanType): typeof AI_TOOLS {
-    const enabledTools = getEnabledToolsForPlan(plan);
-    return AI_TOOLS.filter((tool) => {
-        const funcTool = tool as { type: string; function: { name: string } };
-        return enabledTools.includes(funcTool.function.name as ToolName);
-    });
+function toGeminiHistory(messages: ChatMessage[]): Content[] {
+    return messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }] as Part[],
+        }));
 }
 
 /**
- * Main AI Router - generates response based on plan configuration
+ * Filter tool definitions based on plan
+ */
+function getToolsForPlan(plan: PlanType) {
+    const enabledTools = getEnabledToolsForPlan(plan);
+    const filtered = TOOL_DEFINITIONS.filter(tool =>
+        enabledTools.includes(tool.name as ToolName)
+    );
+    return getGeminiFunctionDeclarations(filtered);
+}
+
+/**
+ * Main AI Router - generates response based on plan configuration using Gemini SDK
  */
 export async function routeToAI(
     message: string,
@@ -140,55 +142,63 @@ export async function routeToAI(
     let quickReplies: Array<{ title: string; payload: string }> | undefined;
 
     try {
-        // Get actual model and GPT-5 display name
+        // Get actual model
         const modelName = planConfig.model;
-        const backendModel = MODEL_MAPPING[modelName];
+        const backendModel = MODEL_MAPPING[modelName] || 'gemini-2.5-flash';
 
-        logger.info(`AIRouter: Routing to GPT-5 Family [${modelName}] (Backend: ${backendModel})`);
+        logger.info(`AIRouter: Routing to Gemini [${modelName}] (Backend: ${backendModel})`);
 
         // Build system prompt
         const systemPrompt = buildSystemPrompt({
             ...context,
             planFeatures: {
-                ai_model: modelName, // Pass GPT-5 name to PromptService
+                ai_model: modelName,
                 sales_intelligence: planConfig.features.salesIntelligence,
                 ai_memory: planConfig.features.memory,
                 max_tokens: planConfig.maxTokens,
             },
         });
 
-        const messages: ChatMessage[] = [
-            { role: 'system', content: systemPrompt },
-            ...previousHistory,
-            { role: 'user', content: message }
-        ];
-
-        // Get tools enabled for this plan
-        const planTools = planConfig.features.toolCalling
+        // Get function declarations enabled for this plan
+        const functionDeclarations = planConfig.features.toolCalling
             ? getToolsForPlan(planType)
             : undefined;
 
-        return await retryOperation(async () => {
-            logger.info(`Sending to ${modelName} (${backendModel})...`);
+        // Convert history to Gemini format
+        const geminiHistory = toGeminiHistory(previousHistory);
 
-            const response = await openai.chat.completions.create({
+        return await retryOperation(async () => {
+            logger.info(`Sending to Gemini ${backendModel}...`);
+
+            // Create model with system instruction and tools
+            const model = genAI.getGenerativeModel({
                 model: backendModel,
-                messages: messages,
-                max_completion_tokens: planConfig.maxTokens,
-                tools: planTools,
-                tool_choice: planTools ? 'auto' : undefined,
+                systemInstruction: systemPrompt,
+                generationConfig: {
+                    temperature: 0.7,
+                    topP: 0.8,
+                    topK: 40,
+                    maxOutputTokens: planConfig.maxTokens,
+                },
+                tools: functionDeclarations && functionDeclarations.length > 0
+                    ? [{ functionDeclarations }]
+                    : undefined,
             });
 
-            const responseMessage = response.choices[0]?.message;
-            let finalResponseText = responseMessage?.content || '';
+            // Start chat with history
+            const chat = model.startChat({
+                history: geminiHistory,
+            });
 
-            // Handle Tool Calls
-            if (responseMessage?.tool_calls && planConfig.features.toolCalling) {
-                const toolCalls = responseMessage.tool_calls;
-                logger.info('AI triggered tool calls:', { count: toolCalls.length });
+            // Send message
+            let result = await chat.sendMessage(message);
+            let response = result.response;
+            let finalResponseText = response.text?.() || '';
 
-                // Add assistant's tool call message to history
-                messages.push(responseMessage as ChatMessage);
+            // Handle Function Calls
+            const functionCalls = response.functionCalls?.();
+            if (functionCalls && functionCalls.length > 0 && planConfig.features.toolCalling) {
+                logger.info('Gemini triggered function calls:', { count: functionCalls.length });
 
                 // Create tool execution context
                 const toolContext: ToolExecutionContext = {
@@ -199,78 +209,65 @@ export async function routeToAI(
                     notifySettings: context.notifySettings,
                 };
 
-                // Execute each tool call (only if enabled for plan)
-                for (const toolCall of toolCalls) {
-                    if (toolCall.type === 'function') {
-                        const functionName = toolCall.function.name as ToolName;
+                // Build function response parts
+                const functionResponseParts: Part[] = [];
 
-                        // Check if tool is enabled for this plan
-                        if (!isToolEnabledForPlan(functionName, planType)) {
-                            logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            messages.push({
-                                role: 'tool',
-                                tool_call_id: toolCall.id,
-                                content: JSON.stringify({
+                for (const fc of functionCalls) {
+                    const functionName = fc.name as ToolName;
+
+                    // Check if tool is enabled for this plan
+                    if (!isToolEnabledForPlan(functionName, planType)) {
+                        logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
+                        functionResponseParts.push({
+                            functionResponse: {
+                                name: fc.name,
+                                response: {
                                     error: 'This feature is not available on your current plan. Please upgrade to access this feature.'
-                                })
-                            } as unknown as ChatMessage);
-                            continue;
-                        }
-
-                        const args = JSON.parse(toolCall.function.arguments);
-                        logger.info(`Executing tool: ${functionName}`, args);
-
-                        const result: ToolExecutionResult = await executeTool(
-                            functionName,
-                            args,
-                            toolContext
-                        );
-
-                        if (result.imageAction) {
-                            imageAction = result.imageAction;
-                        }
-
-                        if (result.quickReplies && result.quickReplies.length > 0) {
-                            quickReplies = result.quickReplies;
-                        }
-
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        messages.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            content: JSON.stringify(
-                                result.success
-                                    ? { success: true, message: result.message, ...result.data }
-                                    : { error: result.error }
-                            )
-                        } as unknown as ChatMessage);
+                                }
+                            }
+                        });
+                        continue;
                     }
-                }
 
-                // Call OpenAI again with tool results
-                const secondResponse = await openai.chat.completions.create({
-                    model: backendModel,
-                    messages: messages,
-                    max_completion_tokens: planConfig.maxTokens,
-                });
+                    const args = (fc.args || {}) as Record<string, unknown>;
+                    logger.info(`Executing tool: ${functionName}`, args as Record<string, unknown>);
 
-                finalResponseText = secondResponse.choices[0]?.message?.content || '';
+                    const toolResult: ToolExecutionResult = await executeTool(
+                        functionName,
+                        args,
+                        toolContext
+                    );
 
-                if (secondResponse.usage) {
-                    logger.info('Token usage (post-tool):', {
-                        total_tokens: secondResponse.usage.total_tokens
+                    if (toolResult.imageAction) {
+                        imageAction = toolResult.imageAction;
+                    }
+
+                    if (toolResult.quickReplies && toolResult.quickReplies.length > 0) {
+                        quickReplies = toolResult.quickReplies;
+                    }
+
+                    functionResponseParts.push({
+                        functionResponse: {
+                            name: fc.name,
+                            response: toolResult.success
+                                ? { success: true, message: toolResult.message, ...toolResult.data }
+                                : { error: toolResult.error }
+                        }
                     });
                 }
+
+                // Send function results back to Gemini
+                const secondResult = await chat.sendMessage(functionResponseParts);
+                finalResponseText = secondResult.response.text?.() || '';
             }
 
-            // Log token usage
-            const usage = response.usage;
-            if (usage) {
+            // Log usage info
+            const usageMetadata = response.usageMetadata;
+            if (usageMetadata) {
                 logger.info('Token usage:', {
-                    prompt_tokens: usage.prompt_tokens,
-                    completion_tokens: usage.completion_tokens,
-                    total_tokens: usage.total_tokens,
+                    promptTokens: usageMetadata.promptTokenCount,
+                    candidatesTokens: usageMetadata.candidatesTokenCount,
+                    totalTokens: usageMetadata.totalTokenCount,
                 });
             }
 
@@ -285,7 +282,7 @@ export async function routeToAI(
                     model: planConfig.model,
                     messagesUsed: messageCount + 1,
                     messagesRemaining: limitCheck.remaining - 1,
-                    tokensUsed: usage?.total_tokens,
+                    tokensUsed: usageMetadata?.totalTokenCount,
                 },
             };
         });
@@ -305,32 +302,8 @@ export async function routeToAI(
 }
 
 /**
- * Download image and convert to base64 for OpenAI Vision API
- * Facebook CDN URLs are not directly accessible by OpenAI servers
- */
-async function downloadImageAsBase64(imageUrl: string): Promise<string> {
-    const response = await fetch(imageUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; SmartHub/1.0)',
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.status}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString('base64');
-
-    // Detect content type from response or default to jpeg
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    return `data:${contentType};base64,${base64}`;
-}
-
-/**
  * Analyze product image using vision (plan-dependent)
- * Now uses Gemini 2.5 Flash for faster and cheaper vision analysis
+ * Uses Gemini 2.5 Flash for vision analysis
  */
 export async function analyzeProductImageWithPlan(
     imageUrl: string,
@@ -354,33 +327,13 @@ export async function analyzeProductImageWithPlan(
     }
 
     try {
-        // Use Gemini for vision (faster and cheaper)
+        // Use GeminiProvider for vision
         const { GeminiProvider } = await import('./providers/GeminiProvider');
         const geminiVision = new GeminiProvider('gemini-2.5-flash');
 
-        // Check if Gemini is available, fallback to OpenAI if not
         if (!geminiVision.isAvailable()) {
-            logger.warn('Gemini not available for vision, falling back to OpenAI');
-            // Fallback to existing OpenAI logic
-            const base64Image = await downloadImageAsBase64(imageUrl);
-            const modelName = MODEL_MAPPING[planConfig.model];
-            const productList = products.map(p => `- ${p.name}: ${p.description || ''}`).join('\n');
-
-            const response = await openai.chat.completions.create({
-                model: modelName,
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: buildVisionPrompt(productList) },
-                            { type: 'image_url', image_url: { url: base64Image } }
-                        ]
-                    }
-                ],
-                max_completion_tokens: 500,
-            });
-
-            return parseVisionResponse(response.choices[0]?.message?.content || '');
+            logger.warn('Gemini not available for vision');
+            return { matchedProduct: null, confidence: 0, description: 'Vision API тохируулагдаагүй байна.' };
         }
 
         logger.info('Using Gemini 2.5 Flash for vision analysis...');
@@ -399,53 +352,6 @@ export async function analyzeProductImageWithPlan(
         });
         return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
     }
-}
-
-/**
- * Build vision prompt for product matching
- */
-function buildVisionPrompt(productList: string): string {
-    return `Та бол онлайн дэлгүүрийн ухаалаг туслах. Хэрэглэгчийн илгээсэн зургийг шинжилж дараах бүтээгдэхүүнүүдийн жагсаалтаас ТОХИРОХ барааг олоорой.
-
-БҮТЭЭГДЭХҮҮНҮҮД (яг энэ нэрээр хариулна уу):
-${productList}
-
-ДААЛГАВАР:
-1. Зургийг сайтар ажиглаарай
-2. Дээрх жагсаалтаас ижил төстэй бараа байвал "matchedProduct" талбарт ЯГ ТЭР НЭРИЙГ бичнэ үү
-3. Хэрэв ямар ч бараа тохирохгүй бол matchedProduct = null
-
-JSON хариулна уу:
-{
-  "type": "product_inquiry",
-  "matchedProduct": "Жагсаалтаас тохирсон бүтээгдэхүүний ЯГ НЭР, эсвэл null",
-  "confidence": 0.0-1.0,
-  "description": "Зурагт юу байгаа товч тайлбар"
-}`;
-}
-
-/**
- * Parse vision response JSON
- */
-function parseVisionResponse(responseText: string): {
-    matchedProduct: string | null;
-    confidence: number;
-    description: string;
-    isReceipt?: boolean;
-    receiptAmount?: number;
-} {
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        return {
-            matchedProduct: result.matchedProduct,
-            confidence: result.confidence,
-            description: result.description,
-            isReceipt: result.type === 'payment_receipt',
-            receiptAmount: result.receiptAmount
-        };
-    }
-    return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
 }
 
 // Re-export types

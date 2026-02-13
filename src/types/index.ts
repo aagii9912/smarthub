@@ -8,9 +8,6 @@ export * from './database';
 // AI types
 export * from './ai';
 
-// OpenAI types
-export * from './openai';
-
 // Facebook types
 export * from './facebook';
 

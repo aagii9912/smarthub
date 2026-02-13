@@ -129,7 +129,7 @@ export async function parseProductFile(buffer: Buffer, fileName: string): Promis
 
         // 2. Process with AI
         // We import dynamically to avoid circular dependencies if any
-        const { parseProductDataWithAI } = await import('@/lib/ai/openai');
+        const { parseProductDataWithAI } = await import('@/lib/ai/services/ProductParser');
         const products = await parseProductDataWithAI(content, fileName);
 
         // 3. Map to ParsedProduct interface

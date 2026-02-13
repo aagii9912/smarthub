@@ -1,348 +1,381 @@
 /**
  * AI Tool Definitions
- * Defines all available AI function calling tools for OpenAI
+ * Provider-agnostic tool definitions for function calling
+ * Exports both raw definitions and Gemini-formatted declarations
  */
 
-import OpenAI from 'openai';
+import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
+
+/**
+ * Provider-agnostic tool definition
+ */
+export interface ToolDefinition {
+    name: string;
+    description: string;
+    parameters: {
+        type: 'object';
+        properties: Record<string, {
+            type: string;
+            description: string;
+            enum?: string[];
+            items?: { type: string };
+            default?: unknown;
+        }>;
+        required: string[];
+    };
+}
 
 /**
  * All available AI tools for function calling
  */
-export const AI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+export const TOOL_DEFINITIONS: ToolDefinition[] = [
     {
-        type: 'function',
-        function: {
-            name: 'create_order',
-            description: 'Create a new order when customer explicitly says they want to buy something. Do not use for general inquiries.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    product_name: {
-                        type: 'string',
-                        description: 'Name of the product to order (fuzzy match)'
-                    },
-                    quantity: {
-                        type: 'number',
-                        description: 'Quantity to order',
-                        default: 1
-                    },
-                    color: {
-                        type: 'string',
-                        description: 'Selected color variant (optional)'
-                    },
-                    size: {
-                        type: 'string',
-                        description: 'Selected size variant (optional)'
-                    }
+        name: 'create_order',
+        description: 'Create a new order when customer explicitly says they want to buy something. Do not use for general inquiries.',
+        parameters: {
+            type: 'object',
+            properties: {
+                product_name: {
+                    type: 'string',
+                    description: 'Name of the product to order (fuzzy match)'
                 },
-                required: ['product_name', 'quantity']
-            }
+                quantity: {
+                    type: 'number',
+                    description: 'Quantity to order',
+                    default: 1
+                },
+                color: {
+                    type: 'string',
+                    description: 'Selected color variant (optional)'
+                },
+                size: {
+                    type: 'string',
+                    description: 'Selected size variant (optional)'
+                }
+            },
+            required: ['product_name', 'quantity']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'collect_contact_info',
-            description: 'Save customer contact information when they provide phone number or delivery address for an order. Use this when customer shares their phone or address.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    phone: {
-                        type: 'string',
-                        description: 'Customer phone number (8 digits for Mongolia)'
-                    },
-                    address: {
-                        type: 'string',
-                        description: 'Delivery address'
-                    },
-                    name: {
-                        type: 'string',
-                        description: 'Customer name if provided'
-                    }
+        name: 'collect_contact_info',
+        description: 'Save customer contact information when they provide phone number or delivery address for an order. Use this when customer shares their phone or address.',
+        parameters: {
+            type: 'object',
+            properties: {
+                phone: {
+                    type: 'string',
+                    description: 'Customer phone number (8 digits for Mongolia)'
                 },
-                required: []
-            }
+                address: {
+                    type: 'string',
+                    description: 'Delivery address'
+                },
+                name: {
+                    type: 'string',
+                    description: 'Customer name if provided'
+                }
+            },
+            required: []
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'request_human_support',
-            description: 'Call this when customer explicitly asks to speak to a human, operator, administrative staff, or when you cannot help them.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    reason: {
-                        type: 'string',
-                        description: 'Reason for requesting human support'
-                    }
-                },
-                required: ['reason']
-            }
+        name: 'request_human_support',
+        description: 'Call this when customer explicitly asks to speak to a human, operator, administrative staff, or when you cannot help them.',
+        parameters: {
+            type: 'object',
+            properties: {
+                reason: {
+                    type: 'string',
+                    description: 'Reason for requesting human support'
+                }
+            },
+            required: ['reason']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'cancel_order',
-            description: 'Cancel an order when customer explicitly says they want to cancel their order. This will restore the reserved stock.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    reason: {
-                        type: 'string',
-                        description: 'Reason for cancellation'
-                    }
-                },
-                required: []
-            }
+        name: 'cancel_order',
+        description: 'Cancel an order when customer explicitly says they want to cancel their order. This will restore the reserved stock.',
+        parameters: {
+            type: 'object',
+            properties: {
+                reason: {
+                    type: 'string',
+                    description: 'Reason for cancellation'
+                }
+            },
+            required: []
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'show_product_image',
-            description: 'Show product image(s) ONLY when customer asks about a SPECIFIC product by name or description (e.g. "харуулаач", "зураг", "юу шиг харагддаг вэ?"). DO NOT use for generic questions like "ямар бараа байна?" - just answer with text. Use "confirm" mode when 2-5 similar products match to ask which one they want.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    product_names: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Names of SPECIFIC products to show (1-5 max). Use EXACT names from product list.'
-                    },
-                    mode: {
-                        type: 'string',
-                        enum: ['single', 'confirm'],
-                        description: '"single" for 1 product, "confirm" to ask customer to choose between 2-5 similar products'
-                    }
+        name: 'show_product_image',
+        description: 'Show product image(s) ONLY when customer asks about a SPECIFIC product by name or description (e.g. "харуулаач", "зураг", "юу шиг харагддаг вэ?"). DO NOT use for generic questions like "ямар бараа байна?" - just answer with text. Use "confirm" mode when 2-5 similar products match to ask which one they want.',
+        parameters: {
+            type: 'object',
+            properties: {
+                product_names: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Names of SPECIFIC products to show (1-5 max). Use EXACT names from product list.'
                 },
-                required: ['product_names', 'mode']
-            }
+                mode: {
+                    type: 'string',
+                    enum: ['single', 'confirm'],
+                    description: '"single" for 1 product, "confirm" to ask customer to choose between 2-5 similar products'
+                }
+            },
+            required: ['product_names', 'mode']
         }
     },
     // Cart Tools
     {
-        type: 'function',
-        function: {
-            name: 'add_to_cart',
-            description: 'Add a product to shopping cart. Use this FIRST when customer wants to buy something. Ask to confirm checkout after.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    product_name: {
-                        type: 'string',
-                        description: 'Name of the product to add (fuzzy match)'
-                    },
-                    quantity: {
-                        type: 'number',
-                        description: 'Quantity to add',
-                        default: 1
-                    },
-                    color: {
-                        type: 'string',
-                        description: 'Color variant (optional)'
-                    },
-                    size: {
-                        type: 'string',
-                        description: 'Size variant (optional)'
-                    }
+        name: 'add_to_cart',
+        description: 'Add a product to shopping cart. Use this FIRST when customer wants to buy something. Ask to confirm checkout after.',
+        parameters: {
+            type: 'object',
+            properties: {
+                product_name: {
+                    type: 'string',
+                    description: 'Name of the product to add (fuzzy match)'
                 },
-                required: ['product_name']
-            }
+                quantity: {
+                    type: 'number',
+                    description: 'Quantity to add',
+                    default: 1
+                },
+                color: {
+                    type: 'string',
+                    description: 'Color variant (optional)'
+                },
+                size: {
+                    type: 'string',
+                    description: 'Size variant (optional)'
+                }
+            },
+            required: ['product_name']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'view_cart',
-            description: 'Show current shopping cart contents and total. Use when customer asks about their cart or wants to see what they have added.',
-            parameters: {
-                type: 'object',
-                properties: {},
-                required: []
-            }
+        name: 'view_cart',
+        description: 'Show current shopping cart contents and total. Use when customer asks about their cart or wants to see what they have added.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: []
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'remove_from_cart',
-            description: 'Remove an item from cart. Use when customer wants to remove something from their cart.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    product_name: {
-                        type: 'string',
-                        description: 'Name of the product to remove'
-                    }
-                },
-                required: ['product_name']
-            }
+        name: 'remove_from_cart',
+        description: 'Remove an item from cart. Use when customer wants to remove something from their cart.',
+        parameters: {
+            type: 'object',
+            properties: {
+                product_name: {
+                    type: 'string',
+                    description: 'Name of the product to remove'
+                }
+            },
+            required: ['product_name']
         }
     },
     {
-        type: 'function',
-        function: {
-            name: 'checkout',
-            description: 'Finalize cart and create order. Use when customer confirms they want to complete their purchase and checkout.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    notes: {
-                        type: 'string',
-                        description: 'Any special notes for the order'
-                    }
-                },
-                required: []
-            }
+        name: 'checkout',
+        description: 'Finalize cart and create order. Use when customer confirms they want to complete their purchase and checkout.',
+        parameters: {
+            type: 'object',
+            properties: {
+                notes: {
+                    type: 'string',
+                    description: 'Any special notes for the order'
+                }
+            },
+            required: []
         }
     },
     // Memory Tool
     {
-        type: 'function',
-        function: {
-            name: 'remember_preference',
-            description: 'Хэрэглэгчийн сонголтыг санах. Размер, өнгө, стиль гэх мэт хэлэхэд ашиглана.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    key: {
-                        type: 'string',
-                        description: 'Сонголтын төрөл (size, color, style, budget)'
-                    },
-                    value: {
-                        type: 'string',
-                        description: 'Санах утга'
-                    }
+        name: 'remember_preference',
+        description: 'Хэрэглэгчийн сонголтыг санах. Размер, өнгө, стиль гэх мэт хэлэхэд ашиглана.',
+        parameters: {
+            type: 'object',
+            properties: {
+                key: {
+                    type: 'string',
+                    description: 'Сонголтын төрөл (size, color, style, budget)'
                 },
-                required: ['key', 'value']
-            }
+                value: {
+                    type: 'string',
+                    description: 'Санах утга'
+                }
+            },
+            required: ['key', 'value']
         }
     },
     // Payment Tool
     {
-        type: 'function',
-        function: {
-            name: 'check_payment_status',
-            description: 'Check payment status manually. Use when customer says they paid ("Tulluu", "Shiljuullee") but AI didn\'t confirm yet.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    order_id: {
-                        type: 'string',
-                        description: 'Order ID to check (optional, if known)'
-                    }
-                },
-                required: []
-            }
+        name: 'check_payment_status',
+        description: 'Check payment status manually. Use when customer says they paid ("Tulluu", "Shiljuullee") but AI didn\'t confirm yet.',
+        parameters: {
+            type: 'object',
+            properties: {
+                order_id: {
+                    type: 'string',
+                    description: 'Order ID to check (optional, if known)'
+                }
+            },
+            required: []
         }
     },
     // Order Status Tool
     {
-        type: 'function',
-        function: {
-            name: 'check_order_status',
-            description: 'Check the status of customer\'s orders. Use when customer asks "Захиалга минь хаана?", "Хүргэлт хэзээ?", "Order status". Returns recent orders with status.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    order_id: {
-                        type: 'string',
-                        description: 'Specific order ID if known (optional)'
-                    }
-                },
-                required: []
-            }
+        name: 'check_order_status',
+        description: 'Check the status of customer\'s orders. Use when customer asks "Захиалга минь хаана?", "Хүргэлт хэзээ?", "Order status". Returns recent orders with status.',
+        parameters: {
+            type: 'object',
+            properties: {
+                order_id: {
+                    type: 'string',
+                    description: 'Specific order ID if known (optional)'
+                }
+            },
+            required: []
         }
     },
     // Complaint/Feedback Logging Tool
     {
-        type: 'function',
-        function: {
-            name: 'log_complaint',
-            description: 'Log customer complaint or negative feedback. Use when customer expresses dissatisfaction, says "муу", "асуудал", "гомдол", "сэтгэл дундуур".',
-            parameters: {
-                type: 'object',
-                properties: {
-                    complaint_type: {
-                        type: 'string',
-                        enum: ['product_quality', 'delivery', 'service', 'price', 'other'],
-                        description: 'Type of complaint'
-                    },
-                    description: {
-                        type: 'string',
-                        description: 'Brief description of the complaint'
-                    },
-                    severity: {
-                        type: 'string',
-                        enum: ['low', 'medium', 'high'],
-                        description: 'Severity level based on customer tone'
-                    }
+        name: 'log_complaint',
+        description: 'Log customer complaint or negative feedback. Use when customer expresses dissatisfaction, says "муу", "асуудал", "гомдол", "сэтгэл дундуур".',
+        parameters: {
+            type: 'object',
+            properties: {
+                complaint_type: {
+                    type: 'string',
+                    enum: ['product_quality', 'delivery', 'service', 'price', 'other'],
+                    description: 'Type of complaint'
                 },
-                required: ['complaint_type', 'description']
-            }
+                description: {
+                    type: 'string',
+                    description: 'Brief description of the complaint'
+                },
+                severity: {
+                    type: 'string',
+                    enum: ['low', 'medium', 'high'],
+                    description: 'Severity level based on customer tone'
+                }
+            },
+            required: ['complaint_type', 'description']
         }
     },
     // Cross-sell / Related Products Tool
     {
-        type: 'function',
-        function: {
-            name: 'suggest_related_products',
-            description: 'Suggest related products for cross-selling. Use AFTER customer shows interest in a product or adds to cart. Naturally suggest: "Энэтэй хамт авах уу?"',
-            parameters: {
-                type: 'object',
-                properties: {
-                    current_product_name: {
-                        type: 'string',
-                        description: 'Name of the product customer is interested in'
-                    },
-                    suggestion_type: {
-                        type: 'string',
-                        enum: ['complementary', 'similar', 'bundle'],
-                        description: 'Type of suggestion: complementary (goes with), similar (alternative), bundle (discount together)'
-                    }
+        name: 'suggest_related_products',
+        description: 'Suggest related products for cross-selling. Use AFTER customer shows interest in a product or adds to cart. Naturally suggest: "Энэтэй хамт авах уу?"',
+        parameters: {
+            type: 'object',
+            properties: {
+                current_product_name: {
+                    type: 'string',
+                    description: 'Name of the product customer is interested in'
                 },
-                required: ['current_product_name']
-            }
+                suggestion_type: {
+                    type: 'string',
+                    enum: ['complementary', 'similar', 'bundle'],
+                    description: 'Type of suggestion: complementary (goes with), similar (alternative), bundle (discount together)'
+                }
+            },
+            required: ['current_product_name']
         }
     },
     // Order Modification Tool
     {
-        type: 'function',
-        function: {
-            name: 'update_order',
-            description: 'Modify a pending order. Use when customer wants to change quantity, add/remove items, or update details. Only works on pending orders.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    action: {
-                        type: 'string',
-                        enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'],
-                        description: 'Type of modification'
-                    },
-                    product_name: {
-                        type: 'string',
-                        description: 'Product to modify (for quantity/add/remove)'
-                    },
-                    new_quantity: {
-                        type: 'number',
-                        description: 'New quantity (for change_quantity)'
-                    },
-                    notes: {
-                        type: 'string',
-                        description: 'Updated notes (for update_notes)'
-                    }
+        name: 'update_order',
+        description: 'Modify a pending order. Use when customer wants to change quantity, add/remove items, or update details. Only works on pending orders.',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'],
+                    description: 'Type of modification'
                 },
-                required: ['action']
-            }
+                product_name: {
+                    type: 'string',
+                    description: 'Product to modify (for quantity/add/remove)'
+                },
+                new_quantity: {
+                    type: 'number',
+                    description: 'New quantity (for change_quantity)'
+                },
+                notes: {
+                    type: 'string',
+                    description: 'Updated notes (for update_notes)'
+                }
+            },
+            required: ['action']
         }
     }
 ];
 
+// ============================================================
+// Gemini Function Declaration Converter
+// ============================================================
+
 /**
- * Tool argument types
+ * Map simple type strings to Gemini SchemaType
  */
+function toSchemaType(type: string): SchemaType {
+    switch (type) {
+        case 'string': return SchemaType.STRING;
+        case 'number': return SchemaType.NUMBER;
+        case 'integer': return SchemaType.INTEGER;
+        case 'boolean': return SchemaType.BOOLEAN;
+        case 'array': return SchemaType.ARRAY;
+        case 'object': return SchemaType.OBJECT;
+        default: return SchemaType.STRING;
+    }
+}
+
+/**
+ * Convert provider-agnostic definitions to Gemini FunctionDeclaration[]
+ */
+export function getGeminiFunctionDeclarations(tools: ToolDefinition[]): FunctionDeclaration[] {
+    return tools.map(tool => {
+        const properties: Record<string, any> = {};
+
+        for (const [key, prop] of Object.entries(tool.parameters.properties)) {
+            const schemaProp: any = {
+                type: toSchemaType(prop.type),
+                description: prop.description,
+            };
+            if (prop.enum) {
+                schemaProp.enum = prop.enum;
+            }
+            if (prop.items) {
+                schemaProp.items = { type: toSchemaType(prop.items.type) };
+            }
+            properties[key] = schemaProp;
+        }
+
+        return {
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties,
+                required: tool.parameters.required,
+            },
+        } as FunctionDeclaration;
+    });
+}
+
+/**
+ * Legacy compatibility: AI_TOOLS export (same shape, no OpenAI import)
+ */
+export const AI_TOOLS = TOOL_DEFINITIONS;
+
+// ============================================================
+// Tool Argument Types
+// ============================================================
+
 export interface CreateOrderArgs {
     product_name: string;
     quantity: number;

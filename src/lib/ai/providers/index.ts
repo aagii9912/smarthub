@@ -1,76 +1,45 @@
 /**
- * AI Provider Factory - Creates and manages provider instances
+ * AI Provider Factory - Gemini only
  */
 
 import type { AIProviderInterface } from './AIProvider';
-import { OpenAIProvider } from './OpenAIProvider';
 import { GeminiProvider } from './GeminiProvider';
-import type { AIProvider, AIModel } from '../config/plans';
+import type { AIModel } from '../config/plans';
 import { logger } from '@/lib/utils/logger';
 
-// Singleton instances
-let openaiProvider: OpenAIProvider | null = null;
+// Singleton instance
 let geminiProvider: GeminiProvider | null = null;
 
 /**
- * Model mapping for OpenAI (GPT-5 -> GPT-4o backend)
- */
-const OPENAI_MODEL_MAPPING: Record<string, string> = {
-    'gpt-5-nano': process.env.GPT5_NANO_MODEL || 'gpt-4o-mini',
-    'gpt-5-mini': process.env.GPT5_MINI_MODEL || 'gpt-4o-mini',
-    'gpt-5': process.env.GPT5_MODEL || 'gpt-4o',
-};
-
-/**
- * Get provider instance by type
+ * Get Gemini provider instance
  */
 export function getProvider(
-    providerType: AIProvider,
+    _providerType?: string,
     model?: AIModel
 ): AIProviderInterface {
-    if (providerType === 'gemini') {
-        // Check if Gemini is available
-        if (!process.env.GEMINI_API_KEY) {
-            logger.warn('Gemini API key not configured, falling back to OpenAI');
-            return getProvider('openai', model);
-        }
-
-        if (!geminiProvider) {
-            geminiProvider = new GeminiProvider(model || 'gemini-2.5-flash');
-        }
-        return geminiProvider;
+    if (!process.env.GEMINI_API_KEY) {
+        logger.error('GEMINI_API_KEY not configured');
+        throw new Error('GEMINI_API_KEY is required');
     }
 
-    // Default to OpenAI
-    const backendModel = model ? OPENAI_MODEL_MAPPING[model] || model : 'gpt-4o-mini';
+    const modelName = model || 'gemini-2.5-flash';
 
-    if (!openaiProvider || openaiProvider.model !== backendModel) {
-        openaiProvider = new OpenAIProvider(backendModel);
+    if (!geminiProvider || geminiProvider.model !== modelName) {
+        geminiProvider = new GeminiProvider(modelName);
     }
-    return openaiProvider;
+    return geminiProvider;
 }
 
 /**
- * Get the best available provider (prefers configured, falls back)
+ * Get the best available provider (always Gemini)
  */
 export function getBestAvailableProvider(
-    preferred: AIProvider = 'openai',
+    _preferred?: string,
     model?: AIModel
 ): AIProviderInterface {
-    const provider = getProvider(preferred, model);
-
-    if (provider.isAvailable()) {
-        return provider;
-    }
-
-    // Fallback to the other provider
-    const fallback = preferred === 'openai' ? 'gemini' : 'openai';
-    logger.warn(`${preferred} not available, falling back to ${fallback}`);
-
-    return getProvider(fallback, model);
+    return getProvider('gemini', model);
 }
 
 // Re-exports
 export type { AIProviderInterface, VisionResult, ChatOptions } from './AIProvider';
-export { OpenAIProvider } from './OpenAIProvider';
 export { GeminiProvider } from './GeminiProvider';

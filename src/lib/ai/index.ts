@@ -28,16 +28,10 @@ export {
     PLAN_DISPLAY_NAMES,
 } from './config/plans';
 
-// Legacy exports (for backward compatibility)
-export {
-    generateChatResponse,
-    analyzeProductImage,
-    parseProductDataWithAI,
-} from './openai';
-
 // Services
 export { buildSystemPrompt } from './services/PromptService';
 export { executeTool, type ToolExecutionContext, type ToolExecutionResult } from './services/ToolExecutor';
+export { parseProductDataWithAI } from './services/ProductParser';
 
 // Tools
 export { AI_TOOLS, type ToolName } from './tools/definitions';

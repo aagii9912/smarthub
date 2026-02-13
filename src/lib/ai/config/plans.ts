@@ -1,16 +1,15 @@
 /**
- * Syncly AI Plan Configuration - GPT-5 Family
+ * Syncly AI Plan Configuration - Gemini Family
  * 
- * Strategy: Exclusive use of GPT-5 models across all tiers
- * - Trial: GPT-5 Mini (14 days)
- * - Starter: GPT-5 Nano - ₮149,000/month
- * - Pro: GPT-5 Mini - ₮349,000/month
- * - Ultimate: GPT-5 - ₮999,000/month
+ * Strategy: 3 plans using Gemini models (matching landing page)
+ * - Starter: Gemini 2.5 Flash Lite - ₮179,000/сар
+ * - Pro: Gemini 2.5 Flash - ₮379,000/сар
+ * - Enterprise: Gemini 2.5 Flash - Тохиролцоно
  */
 
-export type PlanType = 'trial' | 'starter' | 'pro' | 'ultimate';
-export type AIProvider = 'openai' | 'gemini';
-export type AIModel = 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5' | 'gemini-2.5-flash';
+export type PlanType = 'starter' | 'pro' | 'enterprise';
+export type AIProvider = 'gemini';
+export type AIModel = 'gemini-2.5-flash-lite' | 'gemini-2.5-flash';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -23,11 +22,11 @@ export interface PlanAIConfig {
     model: AIModel;
     maxTokens: number;
     messagesPerMonth: number;
-    trialDays?: number;
     maxShops: number;
+    maxProducts: number;
     price: {
-        mnt: number;
-        usd: number;
+        monthly: { mnt: number; usd: number };
+        yearly: { mnt: number; usd: number };
     };
     features: {
         // AI Core
@@ -49,63 +48,26 @@ export interface PlanAIConfig {
         customBranding: boolean;
         commentReply: boolean;
         prioritySupport: boolean;
+        personalManager: boolean;
     };
     enabledTools: ToolName[];
 }
 
 /**
- * Plan configurations
+ * Plan configurations (matching landing page exactly)
  */
 export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
-    trial: {
-        provider: 'openai',
-        model: 'gpt-5-mini',
-        maxTokens: 600,
-        messagesPerMonth: 1000,
-        trialDays: 14,
-        maxShops: 1,
-        price: { mnt: 0, usd: 0 },
-        features: {
-            // AI Core
-            toolCalling: true,
-            vision: true,
-            memory: true,
-            salesIntelligence: true,
-
-            // Modules
-            cartSystem: 'full',
-            paymentIntegration: true,
-            crmAnalytics: 'advanced',
-
-            // Tools
-            autoTagging: true,
-            appointmentBooking: true,
-            bulkMarketing: false,
-            excelExport: true,
-            customBranding: false,
-            commentReply: true,
-            prioritySupport: false,
-        },
-        enabledTools: [
-            'add_to_cart',
-            'view_cart',
-            'remove_from_cart',
-            'checkout',
-            'create_order',
-            'show_product_image',
-            'collect_contact_info',
-            'request_human_support',
-            'remember_preference',
-        ],
-    },
-
     starter: {
-        provider: 'openai',
-        model: 'gpt-5-nano',
+        provider: 'gemini',
+        model: 'gemini-2.5-flash-lite',
         maxTokens: 500,
         messagesPerMonth: 2000,
         maxShops: 1,
-        price: { mnt: 149000, usd: 44 },
+        maxProducts: 50,
+        price: {
+            monthly: { mnt: 179000, usd: 53 },
+            yearly: { mnt: 1790000, usd: 527 },
+        },
         features: {
             // AI Core
             toolCalling: true,
@@ -116,7 +78,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             // Modules
             cartSystem: 'basic',
             paymentIntegration: false,
-            crmAnalytics: 'basic',
+            crmAnalytics: 'none',
 
             // Tools
             autoTagging: false,
@@ -126,22 +88,28 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             customBranding: false,
             commentReply: false,
             prioritySupport: false,
+            personalManager: false,
         },
         enabledTools: [
             'add_to_cart',
             'view_cart',
             'show_product_image',
             'collect_contact_info',
+            'check_order_status',
         ],
     },
 
     pro: {
-        provider: 'openai',
-        model: 'gpt-5-mini',
+        provider: 'gemini',
+        model: 'gemini-2.5-flash',
         maxTokens: 800,
-        messagesPerMonth: 25000,
+        messagesPerMonth: 10000,
         maxShops: 3,
-        price: { mnt: 349000, usd: 103 },
+        maxProducts: 300,
+        price: {
+            monthly: { mnt: 379000, usd: 112 },
+            yearly: { mnt: 3379000, usd: 995 },
+        },
         features: {
             // AI Core
             toolCalling: true,
@@ -162,6 +130,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             customBranding: false,
             commentReply: true,
             prioritySupport: false,
+            personalManager: false,
         },
         enabledTools: [
             'add_to_cart',
@@ -174,16 +143,23 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             'collect_contact_info',
             'request_human_support',
             'remember_preference',
+            'check_order_status',
+            'log_complaint',
+            'suggest_related_products',
         ],
     },
 
-    ultimate: {
-        provider: 'openai',
-        model: 'gpt-5',
+    enterprise: {
+        provider: 'gemini',
+        model: 'gemini-2.5-flash',
         maxTokens: 1500,
-        messagesPerMonth: 50000,
-        maxShops: 1000, // Effectively unlimited
-        price: { mnt: 999000, usd: 294 },
+        messagesPerMonth: 100000, // Effectively unlimited
+        maxShops: 1000,           // Effectively unlimited
+        maxProducts: 100000,      // Effectively unlimited
+        price: {
+            monthly: { mnt: 0, usd: 0 }, // Custom pricing
+            yearly: { mnt: 0, usd: 0 },
+        },
         features: {
             // AI Core
             toolCalling: true,
@@ -204,6 +180,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             customBranding: true,
             commentReply: true,
             prioritySupport: true,
+            personalManager: true,
         },
         enabledTools: [
             'add_to_cart',
@@ -217,6 +194,10 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             'request_human_support',
             'remember_preference',
             'check_payment_status',
+            'check_order_status',
+            'log_complaint',
+            'suggest_related_products',
+            'update_order',
         ],
     },
 };
@@ -234,31 +215,15 @@ export function getPlanConfig(plan: PlanType): PlanAIConfig {
 export function getPlanTypeFromSubscription(subscription?: {
     plan?: string;
     status?: string;
-    trial_ends_at?: string;
 }): PlanType {
-    if (!subscription || subscription.status === 'inactive') {
-        return 'trial';
-    }
-
-    // Check if still in trial period
-    if (subscription.status === 'trial' && subscription.trial_ends_at) {
-        const trialEnds = new Date(subscription.trial_ends_at);
-        if (trialEnds > new Date()) {
-            return 'trial';
-        }
-        // If trial expired, we fall through. 
-        // But we should strict check for 'active' status for paid plans below.
-    }
-
-    // Only allow Paid plans if status is Active
-    if (subscription.status !== 'active') {
-        return 'starter';
+    if (!subscription || subscription.status !== 'active') {
+        return 'starter'; // Default to starter (no trial)
     }
 
     const planName = subscription.plan?.toLowerCase();
 
-    if (planName === 'ultimate' || planName === 'enterprise') {
-        return 'ultimate';
+    if (planName === 'enterprise') {
+        return 'enterprise';
     }
     if (planName === 'pro' || planName === 'professional') {
         return 'pro';
@@ -322,9 +287,7 @@ export function checkShopLimit(
  * Model display names for UI
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
-    'gpt-5-nano': 'GPT-5 Nano',
-    'gpt-5-mini': 'GPT-5 Mini',
-    'gpt-5': 'GPT-5',
+    'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
     'gemini-2.5-flash': 'Gemini 2.5 Flash',
 };
 
@@ -332,8 +295,7 @@ export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
  * Plan display names for UI
  */
 export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
-    trial: '14-Day Trial',
     starter: 'Starter',
     pro: 'Pro',
-    ultimate: 'Ultimate',
+    enterprise: 'Enterprise',
 };

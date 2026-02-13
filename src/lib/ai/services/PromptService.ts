@@ -271,7 +271,7 @@ export function buildSystemPrompt(context: ChatContext): string {
 2. Хамааралгүй сэдэв → эелдэгээр татгалз: "Өө тэр талаар би мэдэхгүй ээ, гэхдээ манай бараануудын талаар асуух зүйл байвал..."
 3. Робот шиг биш, хүн шиг ярь.`;
 
-    // Advanced Sales Intelligence rules (Pro/Ultimate only)
+    // Advanced Sales Intelligence rules (Pro/Enterprise only)
     const salesIntelligenceRules = `ЧУХАЛ ДҮРЭМ:
 1. Хэрэглэгчийн асуултад шууд хариул. Мэндчилгээ зөвхөн хамгийн эхний мессежд.
 2. Хэрэглэгч размер/өнгө/стиль хэлвэл remember_preference tool-оор САНАЖ АВ!

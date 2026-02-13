@@ -81,31 +81,26 @@ export async function POST(request: NextRequest) {
     // Get plan type from existing shops
     const { data: userShops } = await supabase
       .from('shops')
-      .select('subscription_plan, subscription_status, trial_ends_at')
+      .select('subscription_plan, subscription_status')
       .eq('user_id', userId);
 
     // Determine effective plan - find highest tier plan among existing shops
-    let effectivePlan = 'trial';
+    let effectivePlan: ReturnType<typeof getPlanTypeFromSubscription> = 'starter';
 
     if (userShops && userShops.length > 0) {
       // Map all plans
       const plans = userShops.map(s => getPlanTypeFromSubscription({
         plan: s.subscription_plan,
         status: s.subscription_status,
-        trial_ends_at: s.trial_ends_at
       }));
 
       // Pick best plan
-      if (plans.includes('ultimate')) effectivePlan = 'ultimate';
+      if (plans.includes('enterprise')) effectivePlan = 'enterprise';
       else if (plans.includes('pro')) effectivePlan = 'pro';
-      else if (plans.includes('starter')) effectivePlan = 'starter';
-      // else fallback to trial
-    } else {
-      // No shops yet = first shop is free (Trial logic typically allows 1 shop)
-      effectivePlan = 'trial';
+      else effectivePlan = 'starter';
     }
 
-    const limitCheck = checkShopLimit(effectivePlan as any, count || 0);
+    const limitCheck = checkShopLimit(effectivePlan, count || 0);
 
     // Allow creation if limit not reached
     if (!limitCheck.allowed) {
