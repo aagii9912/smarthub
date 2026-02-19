@@ -20,25 +20,43 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import type { LandingContent } from "@/lib/landing/types";
+import { defaultLandingContent } from "@/lib/landing/defaults";
 
-// ─── Data ───
-const pricingPlans = {
-  monthly: {
-    starter: { price: "₮179,000", period: "/сар" },
-    pro: { price: "₮379,000", period: "/сар" },
-    enterprise: { price: "Тохиролцоно", period: "" },
-  },
-  yearly: {
-    starter: { price: "₮1,790,000", period: "/жил", savings: "2 сар үнэгүй" },
-    pro: { price: "₮3,379,000", period: "/жил", savings: "2 сар үнэгүй" },
-    enterprise: { price: "Тохиролцоно", period: "" },
-  },
-};
+// ─── Feature icon/color mapping ───
+const featureStyles = [
+  { icon: Bot, color: "from-indigo-500 to-blue-500", iconColor: "text-indigo-400" },
+  { icon: BarChart3, color: "from-emerald-500 to-teal-500", iconColor: "text-emerald-400" },
+  { icon: Zap, color: "from-amber-500 to-orange-500", iconColor: "text-amber-400" },
+  { icon: CreditCard, color: "from-cyan-500 to-blue-500", iconColor: "text-cyan-400" },
+  { icon: Target, color: "from-rose-500 to-pink-500", iconColor: "text-rose-400" },
+];
+
+const stepGradients = [
+  "from-indigo-500 to-blue-500",
+  "from-violet-500 to-purple-500",
+  "from-cyan-500 to-teal-500",
+];
+
+const socialProofStyles = [
+  { icon: Clock, color: "from-indigo-500 to-blue-500", iconColor: "text-indigo-400" },
+  { icon: Wallet, color: "from-emerald-500 to-teal-500", iconColor: "text-emerald-400" },
+  { icon: TrendingUp, color: "from-violet-500 to-purple-500", iconColor: "text-violet-400" },
+];
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [c, setC] = useState<LandingContent>(defaultLandingContent);
+
+  // Fetch CMS content
+  useEffect(() => {
+    fetch("/api/dashboard/landing-content")
+      .then((r) => r.json())
+      .then((data) => setC(data))
+      .catch(() => {/* use defaults */ });
+  }, []);
 
   // Scroll-triggered reveal
   useEffect(() => {
@@ -55,6 +73,12 @@ export default function LandingPage() {
     document.querySelectorAll(".reveal-on-scroll").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, []);
+
+  // Pricing helper
+  const getPlan = (plan: 'starter' | 'pro' | 'enterprise') => {
+    const p = c.pricing[plan];
+    return billingPeriod === 'monthly' ? p.monthly : p.yearly;
+  };
 
   return (
     <div className="min-h-screen bg-[#06060f] text-white antialiased overflow-x-hidden">
@@ -147,21 +171,21 @@ export default function LandingPage() {
           {/* Badge */}
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/[0.06] px-4 py-1.5 text-[12px] font-medium text-indigo-300">
             <Zap className="h-3 w-3" />
-            Борлуулалтын шинэ стандарт Syncly
+            {c.hero.badge}
           </div>
 
           {/* Heading */}
           <h1 className="text-[clamp(2.5rem,6vw,4.5rem)] leading-[1.05] font-bold tracking-[-0.04em]">
-            0 ажилтан.
+            {c.hero.headingLine1}
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
-              5х орлогын өсөлт.
+              {c.hero.headingHighlight}
             </span>
           </h1>
 
           {/* Sub */}
           <p className="mt-6 text-[clamp(1rem,2vw,1.15rem)] leading-relaxed text-slate-400 max-w-xl mx-auto">
-            Facebook, Instagram дээрх чат бүрд хариулж, захиалга, төлбөр тооцоог автоматаар хүлээн авч баталгаажуулна.
+            {c.hero.sub}
           </p>
 
           {/* CTA */}
@@ -170,24 +194,17 @@ export default function LandingPage() {
               href="/auth/register"
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600 px-8 py-3.5 text-[15px] font-semibold text-white shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transition-all duration-300"
             >
-              5x өсөлтөө эхлүүлэх
+              {c.hero.ctaText}
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </div>
-
-
         </div>
       </section>
 
       {/* ══════ METRICS BAR ══════ */}
       <section className="relative border-y border-white/[0.05] bg-white/[0.01]">
         <div className="mx-auto max-w-6xl px-6 py-12 grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-0 sm:divide-x divide-white/[0.06]">
-          {[
-            { value: "32", label: "Бизнес хэрэглэгч" },
-            { value: "28+", label: "Мессеж боловсруулсан" },
-            { value: "3,5K+", label: "Захиалга" },
-            { value: "98%", label: "Сэтгэл ханамж" },
-          ].map((stat) => (
+          {c.metrics.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center sm:px-8">
               <span className="text-2xl sm:text-3xl font-bold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400">
                 {stat.value}
@@ -202,68 +219,35 @@ export default function LandingPage() {
       <section id="features" className="relative py-24 sm:py-32 px-6">
         <div className="mx-auto max-w-6xl">
           <div className="text-center max-w-xl mx-auto reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-indigo-400">Боломжууд</p>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-indigo-400">{c.features.sectionLabel}</p>
             <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              Бизнесээ удирдахад хэрэгтэй бүх зүйл
+              {c.features.sectionTitle}
             </h2>
             <p className="mt-3 text-slate-400 text-[15px]">
-              Тусгай борлуулалч agent, бараа бүтээгдэхүүний үлдэгдэл, захиалгын мэдээлэл, тайлан, хэрэглэгчийн мэдээлэл бүгд нэг дор
+              {c.features.sectionDesc}
             </p>
           </div>
 
           {/* Grid */}
           <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                icon: Bot,
-                title: "Тусгай Борлуулагч Agent",
-                desc: "Facebook, Instagram дээр 24/7 хэрэглэгчидтэй харилцаж, бүтээгдэхүүн үйлчилгээг санал болгоно.",
-                color: "from-indigo-500 to-blue-500",
-                iconColor: "text-indigo-400",
-              },
-              {
-                icon: BarChart3,
-                title: "Хянах самбар",
-                desc: "Бараа бүтээгдэхүүний үлдэгдэл, борлуулалт, захиалгын тоон мэдээлэл, хэрэглэгчдийн бүртгэлийн мэдээллийг нэг дороос хянана.",
-                color: "from-emerald-500 to-teal-500",
-                iconColor: "text-emerald-400",
-              },
-              {
-                icon: Zap,
-                title: "5 минутын суулгалт",
-                desc: "Facebook, Instagram хуудастайгаа холбож, бүтээгдэхүүний мэдээллээ оруулаад Agent шууд ажиллаж эхэлнэ.",
-                color: "from-amber-500 to-orange-500",
-                iconColor: "text-amber-400",
-              },
-              {
-                icon: CreditCard,
-                title: "Нэгдсэн төлбөрийн систем",
-                desc: "Ганц товшилтоор шууд төлбөр хүлээн авч, захиалга автоматаар бүртгэнэ.",
-                color: "from-cyan-500 to-blue-500",
-                iconColor: "text-cyan-400",
-              },
-              {
-                icon: Target,
-                title: "CRM систем",
-                desc: "Хэрэглэгчийн мэдээллийг автоматаар бүртгэж, хүргэлтийн хаяг, санал гомдол цуглуулна.",
-                color: "from-rose-500 to-pink-500",
-                iconColor: "text-rose-400",
-              },
-            ].map((feature) => (
-              <div
-                key={feature.title}
-                className="reveal-on-scroll group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300"
-              >
-                <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500`} />
-                <div className="relative z-10">
-                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${feature.color} bg-opacity-10`}>
-                    <feature.icon className={`h-5 w-5 ${feature.iconColor}`} />
+            {c.features.items.map((feature, i) => {
+              const style = featureStyles[i % featureStyles.length];
+              return (
+                <div
+                  key={feature.title}
+                  className="reveal-on-scroll group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300"
+                >
+                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${style.color} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-500`} />
+                  <div className="relative z-10">
+                    <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br ${style.color} bg-opacity-10`}>
+                      <style.icon className={`h-5 w-5 ${style.iconColor}`} />
+                    </div>
+                    <h3 className="mt-4 text-[15px] font-semibold">{feature.title}</h3>
+                    <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{feature.desc}</p>
                   </div>
-                  <h3 className="mt-4 text-[15px] font-semibold">{feature.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{feature.desc}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -273,35 +257,16 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/[0.02] to-transparent" />
         <div className="mx-auto max-w-6xl relative z-10">
           <div className="text-center max-w-xl mx-auto reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-400">Бүртгүүлэхэд хэцүү юу?</p>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-400">{c.how_it_works.sectionLabel}</p>
             <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              Ердөө 3-н алхам
+              {c.how_it_works.sectionTitle}
             </h2>
           </div>
 
           <div className="mt-16 grid sm:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Бүртгүүлэх",
-                desc: "Бүртгэлийн мэдээллээ оруулж, Facebook, Instagram хуудастайгаа холбоно.",
-                gradient: "from-indigo-500 to-blue-500",
-              },
-              {
-                step: "02",
-                title: "Бүтээгдэхүүн нэмэх",
-                desc: "Бүтээгдэхүүн, үйлчилгээний мэдээллээ нэмж, Тусгай Борлуулагч agent-ийн тохиргоогоо хийнэ.",
-                gradient: "from-violet-500 to-purple-500",
-              },
-              {
-                step: "03",
-                title: "Борлуулалт эхлэх",
-                desc: "Тусгай Борлуулагч agent 24/7 ажиллаж, борлуулалтаа шууд хийж эхэлнэ.",
-                gradient: "from-cyan-500 to-teal-500",
-              },
-            ].map((item) => (
+            {c.how_it_works.items.map((item, i) => (
               <div key={item.step} className="reveal-on-scroll text-center group">
-                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${item.gradient} shadow-lg mb-5`}>
+                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${stepGradients[i % stepGradients.length]} shadow-lg mb-5`}>
                   <span className="text-[14px] font-bold text-white">{item.step}</span>
                 </div>
                 <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -316,63 +281,38 @@ export default function LandingPage() {
       <section className="py-24 sm:py-32 px-6">
         <div className="mx-auto max-w-4xl">
           <div className="text-center reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-emerald-400">Syncly-д нэгдсэнээр та…</p>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-emerald-400">{c.social_proof.sectionLabel}</p>
             <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              Тоо худлаа хэлдэггүй!
+              {c.social_proof.sectionTitle}
             </h2>
           </div>
 
           <div className="mt-14 grid sm:grid-cols-3 gap-5">
-            {[
-              {
-                icon: Clock,
-                category: "Цаг Хэмнэлт",
-                stat: "8+ цаг",
-                statSuffix: "/өдөр",
-                result: "Бизнесээ дараагийн түвшинд гаргахад зарцуулна",
-                color: "from-indigo-500 to-blue-500",
-                iconColor: "text-indigo-400",
-              },
-              {
-                icon: Wallet,
-                category: "Орлого өсөлт",
-                stat: "₮500K+",
-                statSuffix: "/сар",
-                result: "Бизнесээ өргөжүүлнэ",
-                color: "from-emerald-500 to-teal-500",
-                iconColor: "text-emerald-400",
-              },
-              {
-                icon: TrendingUp,
-                category: "Бүтээмж нэмэлт",
-                stat: "5x",
-                statSuffix: " илүү",
-                result: "Зардал буурна",
-                color: "from-violet-500 to-purple-500",
-                iconColor: "text-violet-400",
-              },
-            ].map((item) => (
-              <div
-                key={item.category}
-                className="reveal-on-scroll group p-7 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300 text-center"
-              >
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} bg-opacity-10 mb-4`}>
-                  <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+            {c.social_proof.items.map((item, i) => {
+              const style = socialProofStyles[i % socialProofStyles.length];
+              return (
+                <div
+                  key={item.category}
+                  className="reveal-on-scroll group p-7 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-300 text-center"
+                >
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${style.color} bg-opacity-10 mb-4`}>
+                    <style.icon className={`h-5 w-5 ${style.iconColor}`} />
+                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-2">{item.category}</p>
+                  <div className="mb-4">
+                    <p className="text-[10px] text-slate-600 mb-1">Хэмнэлт</p>
+                    <span className="text-3xl font-bold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400">
+                      {item.stat}
+                    </span>
+                    <span className="text-[13px] text-slate-500">{item.statSuffix}</span>
+                  </div>
+                  <div className="pt-4 border-t border-white/[0.06]">
+                    <p className="text-[10px] text-slate-600 mb-1">Үр дүн</p>
+                    <p className="text-[13px] text-slate-300 font-medium">{item.result}</p>
+                  </div>
                 </div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-2">{item.category}</p>
-                <div className="mb-4">
-                  <p className="text-[10px] text-slate-600 mb-1">Хэмнэлт</p>
-                  <span className="text-3xl font-bold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400">
-                    {item.stat}
-                  </span>
-                  <span className="text-[13px] text-slate-500">{item.statSuffix}</span>
-                </div>
-                <div className="pt-4 border-t border-white/[0.06]">
-                  <p className="text-[10px] text-slate-600 mb-1">Үр дүн</p>
-                  <p className="text-[13px] text-slate-300 font-medium">{item.result}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -382,9 +322,9 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent" />
         <div className="mx-auto max-w-5xl relative z-10">
           <div className="text-center reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-400">Үнийн санал</p>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-400">{c.pricing.sectionLabel}</p>
             <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              Таны бизнест санал болгох <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">үнэ</span>
+              {c.pricing.sectionTitle} <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">үнэ</span>
             </h2>
           </div>
 
@@ -417,19 +357,19 @@ export default function LandingPage() {
           <div className="mt-12 grid sm:grid-cols-3 gap-5">
             {/* Starter */}
             <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
-              <p className="text-[14px] font-semibold">Starter</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">Жижиг бизнест</p>
+              <p className="text-[14px] font-semibold">{c.pricing.starter.label}</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.starter.desc}</p>
               <div className="mt-5">
                 <span className="text-3xl font-bold tracking-[-0.02em]">
-                  {pricingPlans[billingPeriod].starter.price}
+                  {getPlan('starter').price}
                 </span>
-                <span className="text-[13px] text-slate-500">{pricingPlans[billingPeriod].starter.period}</span>
+                <span className="text-[13px] text-slate-500">{getPlan('starter').period}</span>
               </div>
-              {billingPeriod === "yearly" && pricingPlans.yearly.starter.savings && (
-                <p className="mt-1 text-[11px] text-emerald-400">{pricingPlans.yearly.starter.savings}</p>
+              {billingPeriod === "yearly" && getPlan('starter').savings && (
+                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('starter').savings}</p>
               )}
               <ul className="mt-6 space-y-3 flex-1">
-                {["1 Facebook/Instagram хуудас", "2,000 мессеж/сар", "50 бүтээгдэхүүн", "Тусгай борлуулагч Agent"].map((item) => (
+                {c.pricing.starter.features.map((item) => (
                   <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
                     <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
                   </li>
@@ -447,29 +387,27 @@ export default function LandingPage() {
             <div className="reveal-on-scroll rounded-2xl border border-indigo-500/30 bg-gradient-to-b from-indigo-500/[0.06] to-transparent p-7 sm:p-8 flex flex-col relative shadow-xl shadow-indigo-500/[0.05]">
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 rounded-t-2xl" />
               <div className="flex items-center justify-between">
-                <p className="text-[14px] font-semibold">Pro</p>
+                <p className="text-[14px] font-semibold">{c.pricing.pro.label}</p>
                 <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-300 bg-indigo-500/15 px-2.5 py-1 rounded-full">
                   Санал болгох
                 </span>
               </div>
-              <p className="text-[12px] text-slate-500 mt-0.5">Дунд бизнест</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.pro.desc}</p>
               <div className="mt-5">
                 <span className="text-3xl font-bold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-                  {pricingPlans[billingPeriod].pro.price}
+                  {getPlan('pro').price}
                 </span>
-                <span className="text-[13px] text-slate-500">{pricingPlans[billingPeriod].pro.period}</span>
+                <span className="text-[13px] text-slate-500">{getPlan('pro').period}</span>
               </div>
-              {billingPeriod === "yearly" && pricingPlans.yearly.pro.savings && (
-                <p className="mt-1 text-[11px] text-emerald-400">{pricingPlans.yearly.pro.savings}</p>
+              {billingPeriod === "yearly" && getPlan('pro').savings && (
+                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('pro').savings}</p>
               )}
               <ul className="mt-6 space-y-3 flex-1">
-                {["3 Facebook/Instagram хуудас", "10,000 мессеж/сар", "300 бүтээгдэхүүн", "Тусгай борлуулагч Agent", "QPay холболт", "Тайлан, аналитик"].map(
-                  (item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-300">
-                      <Check className="h-4 w-4 text-indigo-400 shrink-0" /> {item}
-                    </li>
-                  )
-                )}
+                {c.pricing.pro.features.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-300">
+                    <Check className="h-4 w-4 text-indigo-400 shrink-0" /> {item}
+                  </li>
+                ))}
               </ul>
               <Link
                 href="/auth/register?plan=pro"
@@ -481,21 +419,19 @@ export default function LandingPage() {
 
             {/* Enterprise */}
             <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
-              <p className="text-[14px] font-semibold">Enterprise</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">Том байгууллагуудад</p>
+              <p className="text-[14px] font-semibold">{c.pricing.enterprise.label}</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.enterprise.desc}</p>
               <div className="mt-5">
                 <span className="text-3xl font-bold tracking-[-0.02em]">
-                  {pricingPlans[billingPeriod].enterprise.price}
+                  {getPlan('enterprise').price}
                 </span>
               </div>
               <ul className="mt-6 space-y-3 flex-1">
-                {["Хязгааргүй хуудас", "Хязгааргүй бүтээгдэхүүн", "Тусгай борлуулагч Agent", "24/7 дэмжлэг", "Хувийн менежер"].map(
-                  (item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                      <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                    </li>
-                  )
-                )}
+                {c.pricing.enterprise.features.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
+                    <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
+                  </li>
+                ))}
               </ul>
               <Link
                 href="/contact"
@@ -523,20 +459,10 @@ export default function LandingPage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { name: "Facebook/Instagram хуудас", s: "1", b: "3", e: "Хязгааргүй" },
-                  { name: "Сарын мессеж", s: "2,000", b: "10,000", e: "Хязгааргүй" },
-                  { name: "Бүтээгдэхүүн", s: "50", b: "300", e: "Хязгааргүй" },
-                  { name: "Тусгай борлуулагч Agent", s: true, b: true, e: true },
-                  { name: "CRM систем", s: false, b: true, e: true },
-                  { name: "QPay төлбөр", s: false, b: true, e: true },
-                  { name: "Тайлан, аналитик", s: false, b: true, e: true },
-                  { name: "24/7 дэмжлэг", s: false, b: false, e: true },
-                  { name: "Хувийн менежер", s: false, b: false, e: true },
-                ].map((row, i) => (
-                  <tr key={row.name} className={i < 8 ? "border-b border-white/[0.04]" : ""}>
+                {c.comparison.map((row, i) => (
+                  <tr key={row.name} className={i < c.comparison.length - 1 ? "border-b border-white/[0.04]" : ""}>
                     <td className="p-4 text-slate-400">{row.name}</td>
-                    {[row.s, row.b, row.e].map((val, j) => (
+                    {[row.starter, row.pro, row.enterprise].map((val, j) => (
                       <td key={j} className="p-4 text-center">
                         {val === true ? (
                           <Check className="h-4 w-4 text-emerald-400 mx-auto" />
@@ -561,35 +487,14 @@ export default function LandingPage() {
       <section id="faq" className="py-24 sm:py-32 px-6 border-t border-white/[0.05]">
         <div className="mx-auto max-w-2xl">
           <div className="text-center reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-cyan-400">FAQ</p>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-cyan-400">{c.faq.sectionLabel}</p>
             <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              Түгээмэл асуултууд
+              {c.faq.sectionTitle}
             </h2>
           </div>
 
           <div className="mt-12 space-y-0 divide-y divide-white/[0.06] border-y border-white/[0.06]">
-            {[
-              {
-                q: "Суурилуулахад хэр удах вэ?",
-                a: "Facebook, Instagram хуудастайгаа холбоход 5 минут л хангалттай. Бүтээгдэхүүн, үйлчилгээний мэдээллээ нэмсний дараа Тусгай борлуулагч agent шууд ажиллаж эхэлнэ.",
-              },
-              {
-                q: "Тусгай борлуулагч agent хэр оновчтой, зөв хариулт өгдөг вэ?",
-                a: "Syncly тусгайлан хөгжүүлсэн загвар ашиглаж байгаа тул 95%+ нарийвчлалтай хариулт өгөх болно. Монгол хэлийг бүрэн дэмждэг.",
-              },
-              {
-                q: "Төлбөрийн ямар сонголтууд байдаг вэ?",
-                a: "QPay, дансаар шилжүүлэг хийх боломжтой. Сар бүр эсвэл жилээр төлөх сонголттой.",
-              },
-              {
-                q: "Туршилтын хугацаа байдаг уу?",
-                a: "Байхгүй.",
-              },
-              {
-                q: "Хэзээ ч цуцалж болох уу?",
-                a: "Тийм, ямар ч үед цуцалж болно. Мөн та цуцлах бол тухайн сараа дуустал ашиглах боломжтой.",
-              },
-            ].map((item, i) => (
+            {c.faq.items.map((item, i) => (
               <div key={i} className="reveal-on-scroll">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
@@ -618,24 +523,24 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/[0.04] to-transparent" />
         <div className="mx-auto max-w-2xl text-center relative z-10 reveal-on-scroll">
           <h2 className="text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-            Өнөөдөр эхэлцгээе
+            {c.cta.heading}
           </h2>
           <p className="mt-3 text-slate-400 text-[15px]">
-            5 минутад суулгаж, борлуулалтаа автоматжуулаарай.
+            {c.cta.sub}
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/auth/register"
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600 px-8 py-3.5 text-[15px] font-semibold text-white shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transition-all duration-300"
             >
-              5x өсөлтөө эхлүүлэх
+              {c.cta.buttonText}
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <a
               href="#pricing"
               className="text-[14px] text-slate-400 hover:text-white transition-colors"
             >
-              Үнэ харах →
+              {c.cta.linkText}
             </a>
           </div>
         </div>
