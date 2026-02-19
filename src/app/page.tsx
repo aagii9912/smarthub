@@ -161,7 +161,7 @@ export default function LandingPage() {
 
           {/* Sub */}
           <p className="mt-6 text-[clamp(1rem,2vw,1.15rem)] leading-relaxed text-slate-400 max-w-xl mx-auto">
-            Facebook, Instagram-ын мессеж бүрд автомат хариулж, захиалга бүртгэж, QPay-ээр төлбөр цуглуулна. Нэг ч мессеж алдахгүй.
+            Facebook, Instagram дээрх чат бүрд хариулж, захиалга, төлбөр тооцоог автоматаар хүлээн авч баталгаажуулна.
           </p>
 
           {/* CTA */}
@@ -175,10 +175,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Trust line */}
-          <p className="mt-12 text-[12px] text-slate-500">
-            Картгүй · 5 минутад суулгана · Хэзээ ч цуцална
-          </p>
+
         </div>
       </section>
 
@@ -210,7 +207,7 @@ export default function LandingPage() {
               Бизнесээ удирдахад хэрэгтэй бүх зүйл
             </h2>
             <p className="mt-3 text-slate-400 text-[15px]">
-              Нэг платформд Тусгай борлуулагч agent, захиалга, аналитик, CRM бүгд байна.
+              Тусгай борлуулалч agent, бараа бүтээгдэхүүний үлдэгдэл, захиалгын мэдээлэл, тайлан, хэрэглэгчийн мэдээлэл бүгд нэг дор
             </p>
           </div>
 
@@ -220,14 +217,14 @@ export default function LandingPage() {
               {
                 icon: Bot,
                 title: "Тусгай Борлуулагч Agent",
-                desc: "Facebook Messenger, Instagram дээр 24/7 хэрэглэгчидтэй автоматаар харилцаж, бүтээгдэхүүн, үйлчилгээний мэдээлэл өгөх, захиалга авах, төлбөр хүлээн авах болон нэмэлт бүтээгдэхүүн санал болгох ухаалаг борлуулагч agent.",
+                desc: "Facebook, Instagram дээр 24/7 хэрэглэгчидтэй харилцаж, бүтээгдэхүүн үйлчилгээг санал болгоно.",
                 color: "from-indigo-500 to-blue-500",
                 iconColor: "text-indigo-400",
               },
               {
                 icon: BarChart3,
                 title: "Хянах самбар",
-                desc: "Борлуулалт, хэрэглэгчид, захиалгын статистик нэг дэлгэцээс хянах.",
+                desc: "Бараа бүтээгдэхүүний үлдэгдэл, борлуулалт, захиалгын тоон мэдээлэл, хэрэглэгчдийн бүртгэлийн мэдээллийг нэг дороос хянана.",
                 color: "from-emerald-500 to-teal-500",
                 iconColor: "text-emerald-400",
               },
@@ -329,28 +326,28 @@ export default function LandingPage() {
             {[
               {
                 icon: Clock,
-                category: "Цаг",
+                category: "Цаг Хэмнэлт",
                 stat: "8+ цаг",
                 statSuffix: "/өдөр",
-                result: "24/7 автомат хариулт",
+                result: "Бизнесээ дараагийн түвшинд гаргахад зарцуулна",
                 color: "from-indigo-500 to-blue-500",
                 iconColor: "text-indigo-400",
               },
               {
                 icon: Wallet,
-                category: "Мөнгө",
+                category: "Орлого өсөлт",
                 stat: "₮500K+",
                 statSuffix: "/сар",
-                result: "Нэмэлт ажилтан шаардлагагүй",
+                result: "Бизнесээ өргөжүүлнэ",
                 color: "from-emerald-500 to-teal-500",
                 iconColor: "text-emerald-400",
               },
               {
                 icon: TrendingUp,
-                category: "Бүтээмж",
+                category: "Бүтээмж нэмэлт",
                 stat: "5x",
                 statSuffix: " илүү",
-                result: "Бүх мессежид хариулна",
+                result: "Зардал буурна",
                 color: "from-violet-500 to-purple-500",
                 iconColor: "text-violet-400",
               },
