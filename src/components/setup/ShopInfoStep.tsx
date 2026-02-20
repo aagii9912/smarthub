@@ -84,13 +84,13 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Store className="w-8 h-8 text-violet-600" />
+    <div className="space-y-4 flex flex-col h-full">
+      <div className="text-center mb-4 shrink-0">
+        <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <Store className="w-6 h-6 text-violet-600" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Дэлгүүрийн мэдээлэл</h2>
-        <p className="text-gray-500">Таны дэлгүүрийн үндсэн мэдээлэл</p>
+        <h2 className="text-xl font-bold text-gray-900 mb-1.5">Дэлгүүрийн мэдээлэл</h2>
+        <p className="text-sm text-gray-500">Таны дэлгүүрийн үндсэн мэдээлэл</p>
       </div>
 
       {error && (
@@ -99,105 +99,107 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3 shrink-0">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Дэлгүүрийн нэр *</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">Дэлгүүрийн нэр *</label>
           <input
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value); setErrors(prev => ({ ...prev, name: '' })); onPreviewUpdate?.({ name: e.target.value }); }}
             placeholder="Жишээ: Миний дэлгүүр"
-            className={`w-full px-4 py-3 bg-[#0F0B2E] border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+            className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm ${errors.name ? 'border-red-400 focus:ring-red-500' : 'border-gray-200'}`}
           />
           {errors.name && (
-            <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
+            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />{errors.name}
             </p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Эзэмшигчийн нэр</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">Эзэмшигчийн нэр</label>
           <input
             type="text"
             value={ownerName}
             onChange={(e) => { setOwnerName(e.target.value); onPreviewUpdate?.({ owner_name: e.target.value }); }}
             placeholder="Таны нэр"
-            className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Утасны дугаар</label>
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">Утасны дугаар</label>
           <input
             type="tel"
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({ ...prev, phone: '' })); onPreviewUpdate?.({ phone: e.target.value }); }}
             placeholder="99001122"
-            className={`w-full px-4 py-3 bg-[#0F0B2E] border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all ${errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+            className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm ${errors.phone ? 'border-red-400 focus:ring-red-500' : 'border-gray-200'}`}
           />
           {errors.phone && (
-            <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
+            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />{errors.phone}
             </p>
           )}
         </div>
 
-        <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-violet-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Дансны мэдээлэл</h3>
-            <span className="text-xs text-gray-500">(Заавал биш)</span>
+        <div className="pt-3 border-t border-gray-100 shrink-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Building2 className="w-4 h-4 text-violet-600" />
+            <h3 className="text-base font-semibold text-gray-900">Дансны мэдээлэл</h3>
+            <span className="text-[11px] text-gray-500">(Заавал биш)</span>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Банкны нэр</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Банкны нэр</label>
               <input
                 type="text"
                 value={bankName}
                 onChange={(e) => { setBankName(e.target.value); onPreviewUpdate?.({ bank_name: e.target.value }); }}
                 placeholder="Хаан банк"
-                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Дансны дугаар</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Дансны дугаар</label>
               <input
                 type="text"
                 value={accountNumber}
                 onChange={(e) => { setAccountNumber(e.target.value); onPreviewUpdate?.({ account_number: e.target.value }); }}
                 placeholder="5000000000"
-                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Дансны нэр</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Дансны нэр</label>
               <input
                 type="text"
                 value={accountName}
                 onChange={(e) => setAccountName(e.target.value)}
                 placeholder="Эзэмшигчийн нэр"
-                className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
               />
             </div>
           </div>
         </div>
       </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={!name || saving}
-        className="w-full py-4 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/30"
-      >
-        {saving ? (
-          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-        ) : (
-          <>
-            Үргэлжлүүлэх
-            <ArrowRight className="w-5 h-5" />
-          </>
-        )}
-      </button>
+      <div className="mt-auto shrink-0 pt-2">
+        <button
+          onClick={handleSubmit}
+          disabled={!name || saving}
+          className="w-full py-3.5 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/30"
+        >
+          {saving ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          ) : (
+            <>
+              Үргэлжлүүлэх
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

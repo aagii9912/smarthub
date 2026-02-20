@@ -15,7 +15,7 @@ export default function DashboardLayout({
     useRealtimeNotifications();
 
     return (
-        <div className="min-h-screen bg-[#09090b] relative">
+        <div className="dark min-h-screen bg-[#09090b] text-foreground relative">
             {/* Subtle gradient mesh */}
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-500/[0.03] via-transparent to-transparent" />

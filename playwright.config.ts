@@ -9,15 +9,14 @@ export default defineConfig({
     reporter: 'html',
     webServer: {
         command: 'npm run dev',
-        port: 3001,
+        port: 4001,
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,
     },
     use: {
-        baseURL: 'http://localhost:3001',
+        baseURL: 'http://localhost:4001',
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
-        storageState: 'playwright/.auth/user.json',
     },
     projects: [
         {

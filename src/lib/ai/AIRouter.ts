@@ -8,6 +8,7 @@
  */
 
 import { GoogleGenerativeAI, Content, Part, FunctionCall } from '@google/generative-ai';
+import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
@@ -297,6 +298,15 @@ export async function routeToAI(
             plan: planType,
             model: planConfig.model,
         });
+
+        // Track in Sentry
+        if (error instanceof Error) {
+            Sentry.captureException(error, {
+                tags: { plan: planType, model: planConfig.model },
+                extra: { message, shopId: context.shopId }
+            });
+        }
+
         throw error;
     }
 }

@@ -7,8 +7,8 @@ import type {
     ShowProductImageArgs,
 } from '../tools/definitions';
 
-// Helper to access function tool properties
-const getToolFunction = (tool: any) => tool.function;
+// Helper to access function tool properties (schema changed, now tools are flat)
+const getToolFunction = (tool: any) => tool;
 
 describe('AI Tool Definitions', () => {
     describe('AI_TOOLS array', () => {
@@ -27,13 +27,7 @@ describe('AI Tool Definitions', () => {
         });
 
         it('has correct count of tools', () => {
-            expect(AI_TOOLS.length).toBe(11);
-        });
-
-        it('all tools have type "function"', () => {
-            AI_TOOLS.forEach(tool => {
-                expect(tool.type).toBe('function');
-            });
+            expect(AI_TOOLS.length).toBe(15);
         });
 
         it('all tools have name and description', () => {

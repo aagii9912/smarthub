@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Check, RefreshCw, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
-import { LivePreview } from './ai/LivePreview';
 import { TEMPLATES, EMOTIONS, STEPS } from '@/lib/constants/ai-setup';
 
 interface AISetupStepProps {
@@ -78,22 +77,10 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
     };
 
     return (
-        <div className="flex flex-col lg:flex-row h-full min-h-[600px] gap-6">
+        <div className="flex flex-col h-full">
 
-            {/* RIGHT COLUMN (Preview) */}
-            <div className="lg:order-2 w-full lg:w-1/2 lg:sticky lg:top-8 h-fit z-10">
-                <LivePreview
-                    template={template}
-                    emotion={emotion}
-                    description={description}
-                />
-                <p className="text-center text-xs text-gray-500 mt-2 lg:hidden">
-                    ↑ Live Preview: Таны өөрчлөлт шууд энд харагдана
-                </p>
-            </div>
-
-            {/* LEFT COLUMN (Wizard Actions) */}
-            <div className="lg:order-1 w-full lg:w-1/2 flex flex-col">
+            {/* LEFT COLUMN (Wizard Actions) -> Now stacked below */}
+            <div className="w-full flex flex-col pt-2">
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Туслах</h2>
                     {/* Wizard Progress */}
@@ -125,8 +112,8 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                             key={key}
                                             onClick={() => handleTemplateChange(key)}
                                             className={`text-left p-3 rounded-xl border transition-all flex items-center justify-between ${template === key
-                                                    ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-600'
-                                                    : 'border-gray-200 hover:border-violet-200'
+                                                ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-600'
+                                                : 'border-gray-200 hover:border-violet-200'
                                                 }`}
                                         >
                                             <div>
@@ -179,8 +166,8 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                             key={e.value}
                                             onClick={() => setEmotion(e.value)}
                                             className={`p-4 rounded-xl border text-left transition-all ${emotion === e.value
-                                                    ? 'bg-violet-600 text-white border-violet-600 shadow-md transform scale-[1.02]'
-                                                    : 'bg-[#0F0B2E] text-gray-600 border-gray-200 hover:border-violet-200'
+                                                ? 'bg-violet-600 text-white border-violet-600 shadow-md transform scale-[1.02]'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:border-violet-200 shadow-sm'
                                                 }`}
                                         >
                                             <div className="mb-2">
@@ -218,7 +205,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                 </div>
 
                 {/* Footer Actions */}
-                <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100 bg-[#0F0B2E] sticky bottom-0 py-4">
+                <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100 bg-transparent sticky bottom-0 py-4">
                     {currentStep === 0 ? (
                         <Button variant="ghost" onClick={onSkip} className="text-gray-500 px-0 hover:bg-transparent">
                             Алгасах

@@ -4,6 +4,7 @@ import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import * as Sentry from '@sentry/nextjs';
 import type { ChatMessage, AIEmotion, AIProduct } from '@/types/ai';
 import {
     getShopByPageId,
@@ -110,8 +111,8 @@ export async function POST(request: NextRequest) {
                 hasSignature: !!signature,
                 signaturePrefix: signature?.substring(0, 15),
             });
-            // TODO: Strict mode - нэгэнт signature зөв ажилгүй болвол нээх:
-            // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            // SEC-8: Strict mode enabled (blocks invalid requests)
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
         const body = JSON.parse(rawBody);
@@ -403,6 +404,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'ok' });
     } catch (error) {
         logger.error('Webhook error:', { error });
+
+        // Sentry monitoring for critical webhook failures
+        if (error instanceof Error) {
+            Sentry.captureException(error);
+        }
+
         // SEC-9: Mask internal error details in production
         const errorMessage = process.env.NODE_ENV === 'production'
             ? 'Internal server error'

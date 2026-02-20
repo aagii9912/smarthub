@@ -346,17 +346,17 @@ function SetupContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#09090b] flex flex-col lg:flex-row relative">
+    <div className="h-screen overflow-hidden bg-[#FAFAFA] flex flex-col lg:flex-row relative">
       {/* ═══════════ Resume Modal ═══════════ */}
       {showResumeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
-          <div className="bg-white dark:bg-[#1a1a20] rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-black/[0.06] dark:border-white/[0.08]">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl shadow-black/10 border border-slate-200">
             <div className="text-center mb-6">
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500/10 to-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <RotateCcw className="w-7 h-7 text-blue-500" />
               </div>
-              <h3 className="text-lg font-bold text-foreground">Үргэлжлүүлэх үү?</h3>
-              <p className="text-sm text-white/40 mt-2">
+              <h3 className="text-lg font-bold text-slate-900">Үргэлжлүүлэх үү?</h3>
+              <p className="text-sm text-slate-500 mt-2">
                 Та өмнө нь алхам {savedStep} хүртэл хийсэн байна
               </p>
             </div>
@@ -371,7 +371,7 @@ function SetupContent() {
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"
               >
                 <Play className="w-4 h-4" />
-                Үргэлжлүүлэх (Алхам {savedStep})
+                Үргэлжлүүлэх ({stepLabels[savedStep - 1]})
               </button>
               <button
                 onClick={() => {
@@ -379,7 +379,7 @@ function SetupContent() {
                   setStepLocal(1);
                   setShowResumeModal(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 border border-white/[0.08] hover:border-black/[0.15] dark:hover:border-white/[0.15] text-foreground font-medium py-3 px-4 rounded-xl transition-all"
+                className="w-full flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-3 px-4 rounded-xl transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 Шинээр эхлэх
@@ -390,68 +390,52 @@ function SetupContent() {
       )}
 
       {/* ═══════════ LEFT: Form ═══════════ */}
-      <div className="w-full lg:w-1/2 min-h-screen flex flex-col relative">
+      <div className="w-full lg:w-1/2 h-full flex flex-col relative">
         {/* Top bar */}
-        <div className="flex items-center justify-between px-6 py-5">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <img
-              src="/logo.png"
-              alt="Syncly"
-              className="w-9 h-9 rounded-xl shadow-lg shadow-violet-500/10"
-            />
-            <span className="text-lg font-bold text-foreground tracking-[-0.02em]">Syncly</span>
+        <div className="flex items-center justify-between px-8 py-4 shrink-0">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-violet-500 blur opacity-20 rounded-xl"></div>
+              <img
+                src="/logo.png"
+                alt="Syncly"
+                className="w-10 h-10 rounded-xl shadow-sm relative z-10 bg-white"
+              />
+            </div>
+            <span className="text-xl font-bold text-slate-900 tracking-tight">Syncly</span>
           </Link>
-          <span className="text-[12px] font-medium text-white/30">
-            {step}/6
-          </span>
-        </div>
-
-        {/* Progress bar */}
-        <div className="px-6">
-          <div className="h-1 bg-black/[0.06] dark:bg-[#151040] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-blue-400 to-violet-500 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${Math.round((step / 6) * 100)}%` }}
-            />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+            <span className="text-sm font-semibold text-slate-700">{step}</span>
+            <span className="text-sm font-medium text-slate-400">/ 6</span>
           </div>
         </div>
 
-        {/* Step pills */}
-        <div className="flex items-center gap-1.5 px-6 py-4 overflow-x-auto no-scrollbar">
-          {stepLabels.map((label, i) => {
-            const s = i + 1;
+        {/* Minimal Progress Dots */}
+        <div className="px-8 pb-4 flex items-center justify-center gap-2 shrink-0">
+          {[1, 2, 3, 4, 5, 6].map((s) => {
             const isActive = s === step;
             const isDone = s < step;
             return (
               <div
                 key={s}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all duration-300 shrink-0',
+                  'h-2 transition-all duration-500 ease-out flex items-center justify-center overflow-hidden',
                   isActive
-                    ? 'bg-gradient-to-r from-blue-500/15 to-violet-500/15 text-blue-600 text-blue-400 border border-blue-500/20'
+                    ? 'w-10 bg-blue-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.4)]'
                     : isDone
-                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                      : 'bg-[#0F0B2E] text-white/25 border border-transparent'
+                      ? 'w-2 bg-emerald-500 rounded-full'
+                      : 'w-2 bg-slate-200 rounded-full'
                 )}
-              >
-                {isDone ? (
-                  <Check className="w-3 h-3" />
-                ) : (
-                  <span className="w-4 h-4 rounded-full bg-black/[0.06] dark:bg-[#151040] flex items-center justify-center text-[9px]">
-                    {s}
-                  </span>
-                )}
-                <span className="hidden sm:inline">{label}</span>
-              </div>
+              />
             );
           })}
         </div>
 
         {/* Form content */}
-        <div className="flex-1 px-6 pb-8 overflow-y-auto">
+        <div className="flex-1 px-6 pb-4 overflow-y-auto custom-scrollbar">
           <div className="max-w-lg mx-auto">
             {error && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 text-red-500 text-red-400 text-[13px] text-center font-medium">
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-[14px] text-center font-medium shadow-sm">
                 {error}
               </div>
             )}
@@ -538,36 +522,47 @@ function SetupContent() {
         </div>
       </div>
 
-      {/* ═══════════ RIGHT: Live Preview ═══════════ */}
-      <div className="hidden lg:flex w-1/2 min-h-screen bg-[#09090b] relative overflow-hidden">
-        {/* Gradient background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-violet-500/[0.05] rounded-full blur-[120px]" />
-          <div className="absolute bottom-1/4 left-1/3 w-[300px] h-[300px] bg-blue-500/[0.04] rounded-full blur-[80px]" />
+      {/* ═══════════ RIGHT: Live Preview (Glassmorphism UI) ═══════════ */}
+      <div className="hidden lg:flex w-1/2 h-full bg-[#0B0A10] relative overflow-hidden items-center justify-center p-6 xl:p-12">
+        {/* Dynamic Gradient background blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[20%] right-[10%] w-[600px] h-[600px] bg-violet-600/30 rounded-full blur-[140px] animate-pulse-slow mix-blend-screen" />
+          <div className="absolute bottom-[20%] left-[10%] w-[500px] h-[500px] bg-blue-600/25 rounded-full blur-[120px] mix-blend-screen" />
+          <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-500/15 rounded-full blur-[160px] transform rotate-45" />
         </div>
 
-        {/* Grid pattern */}
-        <div className="absolute inset-0 opacity-[0.015]"
+        {/* Elegant Grid pattern */}
+        <div className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
             backgroundSize: '40px 40px'
           }}
         />
 
-        <SetupPreview
-          step={step}
-          shopName={previewShopName}
-          ownerName={previewOwnerName}
-          phone={previewPhone}
-          bankName={previewBankName}
-          accountNumber={previewAccountNumber}
-          fbPageName={shop?.facebook_page_name || ''}
-          fbConnected={!!shop?.facebook_page_id}
-          igUsername={shop?.instagram_username || ''}
-          igConnected={!!shop?.instagram_business_account_id}
-          products={previewProducts}
-          aiEmotion={previewAiEmotion}
-        />
+        {/* Glassmorphism Container around Preview */}
+        <div className="relative z-10 w-full max-w-[520px] h-[95%] max-h-[820px]">
+          <div className="absolute -inset-1 bg-gradient-to-br from-white/10 to-transparent rounded-[2.5rem] blur-sm opacity-50" />
+
+          <div className="relative bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-2xl shadow-black/50 rounded-[2.5rem] p-6 pr-4 overflow-hidden h-full flex flex-col">
+            {/* Glossy top edge highlight */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50" />
+
+            <SetupPreview
+              step={step}
+              shopName={previewShopName}
+              ownerName={previewOwnerName}
+              phone={previewPhone}
+              bankName={previewBankName}
+              accountNumber={previewAccountNumber}
+              fbPageName={shop?.facebook_page_name || ''}
+              fbConnected={!!shop?.facebook_page_id}
+              igUsername={shop?.instagram_username || ''}
+              igConnected={!!shop?.instagram_business_account_id}
+              products={previewProducts}
+              aiEmotion={previewAiEmotion}
+            />
+          </div>
+        </div>
       </div>
 
       {/* PWA Install Banner */}

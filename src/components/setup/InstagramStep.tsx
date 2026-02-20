@@ -146,9 +146,9 @@ export function InstagramStep({
                                 key={account.instagramId}
                                 onClick={() => handleSelectAccount(account)}
                                 disabled={saving}
-                                className={`w-full p-4 rounded-xl border transition-all flex items-center gap-3 ${selectedAccountId === account.instagramId
+                                className={`w-full p-4 rounded-xl border transition-all flex items-center gap-3 shadow-sm ${selectedAccountId === account.instagramId
                                     ? 'bg-purple-50 border-purple-200 ring-2 ring-purple-500/20'
-                                    : 'bg-[#0F0B2E] border-gray-200 hover:border-purple-300 hover:shadow-md'
+                                    : 'bg-white border-gray-200 hover:border-purple-300 hover:shadow-md'
                                     }`}
                             >
                                 {account.profilePicture ? (
@@ -191,7 +191,7 @@ export function InstagramStep({
                             <div className="w-full border-t border-gray-200"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-4 bg-[#0F0B2E] text-gray-500">эсвэл</span>
+                            <span className="px-4 bg-[#FAFAFA] text-gray-500">эсвэл</span>
                         </div>
                     </div>
 
@@ -252,21 +252,21 @@ export function InstagramStep({
                                     value={manualUsername}
                                     onChange={(e) => setManualUsername(e.target.value)}
                                     placeholder="Instagram username (@ -гүй)"
-                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                    className="w-full px-4 py-3 bg-white shadow-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                                 />
                                 <input
                                     type="text"
                                     value={manualBusinessId}
                                     onChange={(e) => setManualBusinessId(e.target.value)}
                                     placeholder="Instagram Business Account ID"
-                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                    className="w-full px-4 py-3 bg-white shadow-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                                 />
                                 <textarea
                                     value={manualToken}
                                     onChange={(e) => setManualToken(e.target.value)}
                                     placeholder="Instagram Access Token (Page Access Token ашиглаж болно)"
                                     rows={3}
-                                    className="w-full px-4 py-3 bg-[#0F0B2E] border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm font-mono transition-all"
+                                    className="w-full px-4 py-3 bg-white shadow-sm border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm font-mono transition-all"
                                 />
                                 <button
                                     onClick={handleManualSubmit}

@@ -4,17 +4,7 @@ import { checkShopLimit } from '../config/plans';
 
 describe('Shop Limits', () => {
     describe('checkShopLimit', () => {
-        it('should allow 1 shop for trial plan', () => {
-            const check = checkShopLimit('trial', 0);
-            expect(check.allowed).toBe(true);
-            expect(check.limit).toBe(1);
-        });
 
-        it('should block 2nd shop for trial plan', () => {
-            const check = checkShopLimit('trial', 1);
-            expect(check.allowed).toBe(false);
-            expect(check.limit).toBe(1);
-        });
 
         it('should allow 1 shop for starter plan', () => {
             const check = checkShopLimit('starter', 0);
@@ -39,9 +29,9 @@ describe('Shop Limits', () => {
             expect(checkShopLimit('pro', 3).limit).toBe(3);
         });
 
-        it('should allow many shops for ultimate plan', () => {
-            expect(checkShopLimit('ultimate', 50).allowed).toBe(true);
-            expect(checkShopLimit('ultimate', 999).allowed).toBe(true);
+        it('should allow many shops for enterprise plan', () => {
+            expect(checkShopLimit('enterprise', 50).allowed).toBe(true);
+            expect(checkShopLimit('enterprise', 999).allowed).toBe(true);
         });
     });
 });

@@ -160,7 +160,7 @@ export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) 
                     className="relative inline-flex h-6 w-11 items-center rounded-full bg-violet-600 transition-colors"
                 >
                     <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-[#0F0B2E] transition-transform ${billingPeriod === 'yearly' ? 'translate-x-6' : 'translate-x-1'
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${billingPeriod === 'yearly' ? 'translate-x-6' : 'translate-x-1'
                             }`}
                     />
                 </button>
@@ -183,7 +183,7 @@ export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) 
                             key={plan.id}
                             className={`relative rounded-2xl border p-5 transition-all cursor-pointer hover:shadow-md ${isFeatured
                                 ? 'border-violet-300 bg-violet-50/50'
-                                : 'border-gray-200 bg-[#0F0B2E] hover:border-gray-300'
+                                : 'border-gray-200 bg-white hover:border-gray-300 shadow-sm'
                                 }`}
                             onClick={() => handleSelectPlan(plan.slug)}
                         >
@@ -250,7 +250,7 @@ export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) 
             {/* Payment Modal */}
             {showPaymentModal && selected && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-[#0F0B2E] rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-100">
                         {/* Header */}
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">

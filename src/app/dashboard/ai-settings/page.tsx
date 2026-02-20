@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Bot, Save, Plus, Trash2, Edit2, X, MessageSquare, Bell, BookOpen, Shield, BarChart3, Settings, Zap, Smile, Globe, Check, Loader2, ChevronRight, Hash } from 'lucide-react';
 import { toast } from 'sonner';
+import { EMOTIONS } from '@/lib/constants/ai-setup';
 
 const TABS = [
     { id: 'general', label: 'Ерөнхий', icon: Settings },
@@ -21,7 +22,8 @@ export default function AISettingsPage() {
     // General
     const [aiEnabled, setAiEnabled] = useState(true);
     const [emotion, setEmotion] = useState('friendly');
-    const [greeting, setGreeting] = useState('');
+    const [description, setDescription] = useState('');
+    const [aiInstructions, setAiInstructions] = useState('');
     // Notifications
     const [notifyOnOrder, setNotifyOnOrder] = useState(true);
     const [notifyOnContact, setNotifyOnContact] = useState(true);
@@ -62,9 +64,10 @@ export default function AISettingsPage() {
             const shopData = await shopRes.json();
             if (shopData.shop) {
                 const s = shopData.shop;
-                setAiEnabled(s.ai_enabled !== false);
+                setAiEnabled(s.is_ai_active !== false);
                 setEmotion(s.ai_emotion || 'friendly');
-                setGreeting(s.greeting_message || '');
+                setDescription(s.description || '');
+                setAiInstructions(s.ai_instructions || '');
                 setNotifyOnOrder(s.notify_on_order !== false);
                 setNotifyOnContact(s.notify_on_contact !== false);
                 setNotifyOnSupport(s.notify_on_support !== false);
@@ -82,7 +85,7 @@ export default function AISettingsPage() {
         try {
             await fetch('/api/shop', {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
-                body: JSON.stringify({ ai_enabled: aiEnabled, ai_emotion: emotion, greeting_message: greeting, notify_on_order: notifyOnOrder, notify_on_contact: notifyOnContact, notify_on_support: notifyOnSupport })
+                body: JSON.stringify({ is_ai_active: aiEnabled, ai_emotion: emotion, description, ai_instructions: aiInstructions, notify_on_order: notifyOnOrder, notify_on_contact: notifyOnContact, notify_on_support: notifyOnSupport })
             });
             toast.success('Хадгалагдлаа');
         } catch { toast.error('Алдаа гарлаа'); } finally { setSaving(false); }
@@ -136,15 +139,17 @@ export default function AISettingsPage() {
                             <button onClick={() => setAiEnabled(!aiEnabled)} className={toggleCls(aiEnabled)}><div className={toggleDot(aiEnabled)} /></button>
                         </div>
                         <div><label className={labelCls}>AI Зан төлөв</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[{ v: 'friendly', l: 'Найрсаг', e: '😊' }, { v: 'professional', l: 'Мэргэжлийн', e: '💼' }, { v: 'casual', l: 'Энгийн', e: '😎' }].map(e => (
-                                    <button key={e.v} onClick={() => setEmotion(e.v)} className={`p-3 rounded-md border text-center transition-colors ${emotion === e.v ? 'border-[#4A7CE7] bg-[#4A7CE7]/5' : 'border-white/[0.08] hover:border-[#4A7CE7]/30'}`}>
-                                        <span className="text-lg block mb-1">{e.e}</span><span className="text-[11px] text-foreground">{e.l}</span>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                {EMOTIONS.map(e => (
+                                    <button key={e.value} onClick={() => setEmotion(e.value)} className={`p-3 rounded-md border text-center flex flex-col items-center justify-center transition-colors ${emotion === e.value ? 'border-[#4A7CE7] bg-[#4A7CE7]/10' : 'border-white/[0.08] hover:border-[#4A7CE7]/30'}`}>
+                                        <e.icon className={`w-5 h-5 mb-1.5 ${emotion === e.value ? 'text-[#4A7CE7]' : 'text-white/40'}`} strokeWidth={1.5} />
+                                        <span className="text-[11px] text-foreground text-center leading-tight">{e.label}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
-                        <div><label className={labelCls}>Угтах мессеж</label><textarea value={greeting} onChange={(e) => setGreeting(e.target.value)} className={`${inputCls} resize-none`} rows={2} placeholder="Сайн байна уу! Танд юугаар туслах вэ?" /></div>
+                        <div><label className={labelCls}>Дэлгүүрийн тайлбар</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className={`${inputCls} resize-none`} rows={3} placeholder="Бид ямар үйл ажиллагаа явуулдаг вэ? Онцлог нь юу вэ?" /></div>
+                        <div><label className={labelCls}>Нарийвчилсан заавар (System Prompt)</label><textarea value={aiInstructions} onChange={(e) => setAiInstructions(e.target.value)} className={`${inputCls} resize-none font-mono`} rows={6} placeholder="AI төлөв дээр үндэслэн үүснэ" /></div>
                         <div className="flex justify-end"><button onClick={saveGeneral} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={1.5} />}Хадгалах</button></div>
                     </div>
                 </div>

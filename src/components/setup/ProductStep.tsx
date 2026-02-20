@@ -218,7 +218,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
           <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-4 shadow-sm hover:shadow-md transition-shadow">
 
             <div className="flex items-center justify-between pb-3 border-b border-gray-200">
-              <div className="flex gap-2 bg-[#0F0B2E] p-1 rounded-lg border border-gray-100">
+              <div className="flex gap-2 bg-white shadow-sm p-1 rounded-lg border border-gray-100">
                 <button
                   onClick={() => updateProduct(index, 'type', 'physical')}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${product.type === 'physical'
@@ -250,11 +250,11 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
             </div>
 
             <div className="flex gap-4">
-              <div className="w-24 h-24 bg-[#0F0B2E] rounded-lg border border-gray-200 flex-shrink-0 relative overflow-hidden group hover:border-emerald-400 transition-colors">
+              <div className="w-24 h-24 bg-white shadow-sm rounded-lg border border-gray-200 flex-shrink-0 relative overflow-hidden group hover:border-emerald-400 transition-colors">
                 {product.imageUrl ? (
                   <img src={product.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 group-hover:text-emerald-500 transition-colors">
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 group-hover:text-emerald-500 transition-colors bg-gray-50">
                     <Upload className="w-6 h-6" />
                   </div>
                 )}
@@ -273,14 +273,14 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                     value={product.name}
                     onChange={(e) => updateProduct(index, 'name', e.target.value)}
                     placeholder={product.type === 'physical' ? "Барааны нэр" : "Үйлчилгээний нэр"}
-                    className="px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                   <input
                     type="number"
                     value={product.price}
                     onChange={(e) => updateProduct(index, 'price', e.target.value)}
                     placeholder="Үнэ (₮)"
-                    className="px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    className="px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   />
                 </div>
 
@@ -291,7 +291,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                       value={product.stock}
                       onChange={(e) => updateProduct(index, 'stock', e.target.value)}
                       placeholder="Үлдэгдэл"
-                      className="px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                      className="px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     />
                   )}
                   <input
@@ -299,7 +299,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                     value={product.description}
                     onChange={(e) => updateProduct(index, 'description', e.target.value)}
                     placeholder="Тайлбар"
-                    className={`px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${product.type === 'service' ? 'col-span-2' : ''}`}
+                    className={`px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${product.type === 'service' ? 'col-span-2' : ''}`}
                   />
                 </div>
               </div>
@@ -313,7 +313,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                   value={product.colors}
                   onChange={(e) => updateProduct(index, 'colors', e.target.value)}
                   placeholder="Улаан, Хар..."
-                  className="w-full px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm focus:border-transparent transition-all"
                 />
               </div>
               <div>
@@ -323,7 +323,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
                   value={product.sizes}
                   onChange={(e) => updateProduct(index, 'sizes', e.target.value)}
                   placeholder={product.type === 'physical' ? "S, M, L..." : "1 цаг, 1 сар..."}
-                  className="w-full px-3 py-2 bg-[#0F0B2E] border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm focus:border-transparent transition-all"
+                  className="w-full px-3 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm focus:border-transparent transition-all"
                 />
               </div>
             </div>
