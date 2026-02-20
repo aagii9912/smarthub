@@ -28,16 +28,40 @@ export default function SubscriptionPage() {
             let fetchedPlans: Plan[] = [];
             if (plansRes.ok) {
                 const { plans: p } = await plansRes.json();
-                fetchedPlans = p.map((plan: any) => ({
-                    id: plan.slug,
-                    name: plan.name,
-                    price_monthly: plan.price_monthly,
-                    price_yearly: plan.price_yearly,
-                    features: plan.features || [],
-                    limits: plan.limits || { products: 9999, orders: 9999, messages: 9999 },
-                    highlighted: plan.is_featured
-                }));
-                // ensure deterministic order (e.g. by price if sort_order isn't enough although API does it)
+                fetchedPlans = p.map((plan: any) => {
+                    const feats = typeof plan.features === 'object' && plan.features ? plan.features : {};
+                    const lmt = typeof plan.limits === 'object' && plan.limits ? plan.limits : {};
+
+                    // Dynamically build string features from JSON boolean flags
+                    const mappedFeatures: string[] = [];
+                    if (lmt.max_products > 0) mappedFeatures.push(`${lmt.max_products} бараа`);
+                    else if (lmt.max_products === -1) mappedFeatures.push('Хязгааргүй бараа');
+
+                    if (lmt.max_messages > 0) mappedFeatures.push(`${lmt.max_messages} мессеж/сар`);
+                    else if (lmt.max_messages === -1) mappedFeatures.push('Хязгааргүй мессеж');
+
+                    if (feats.ai_enabled) mappedFeatures.push('AI чатбот');
+                    if (feats.shops_limit > 1) mappedFeatures.push('Бүх платформ (FB/IG)');
+                    else mappedFeatures.push('Facebook холболт');
+                    if (feats.analytics && feats.analytics !== 'none') mappedFeatures.push('Тайлан & Analytics');
+                    if (feats.priority_support) mappedFeatures.push('Priority support');
+
+                    return {
+                        id: plan.slug || plan.id,
+                        name: plan.name,
+                        price_monthly: plan.price_monthly || 0,
+                        price_yearly: plan.price_yearly || 0,
+                        features: mappedFeatures,
+                        limits: {
+                            products: lmt.max_products > 0 ? lmt.max_products : 99999,
+                            orders: lmt.max_customers > 0 ? lmt.max_customers : 99999, // fallback mapping 
+                            messages: lmt.max_messages > 0 ? lmt.max_messages : 99999
+                        },
+                        highlighted: plan.is_featured
+                    }
+                });
+
+                // Sort to keep deterministic order
                 setPlans(fetchedPlans);
             }
 
