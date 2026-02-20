@@ -67,9 +67,9 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="mn" className="dark">
+      <html lang="mn" className="font-sans">
         <body
-          className={`${inter.variable} ${playfair.variable} ${geistMono.variable} antialiased`}
+          className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
         >
           <ServiceWorkerRegistration />
           <PWAInstallPrompt />
