@@ -6,7 +6,7 @@ import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
     LayoutDashboard, Users, CreditCard, Package,
-    FileText, Settings, LogOut, ChevronRight, Menu, X
+    FileText, Settings, LogOut, ChevronRight, Menu, X, Globe
 } from 'lucide-react';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -22,6 +22,7 @@ const navItems = [
     { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { href: '/admin/invoices', label: 'Invoices', icon: FileText },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
+    { href: '/admin/landing', label: 'Landing Page', icon: Globe },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -130,8 +131,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                                        ? 'bg-violet-600 text-white'
-                                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                    ? 'bg-violet-600 text-white'
+                                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                                     }`}
                                 onClick={() => setSidebarOpen(false)}
                             >

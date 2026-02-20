@@ -47,7 +47,6 @@ const toolsMenu: MenuItem[] = [
     { name: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
     { name: 'Сагс', href: '/dashboard/inbox', icon: ShoppingCart, feature: 'cart_system' },
     { name: 'Тайлан', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
-    { name: 'Landing Page', href: '/dashboard/landing', icon: Globe },
 ];
 
 const bottomMenu: MenuItem[] = [
