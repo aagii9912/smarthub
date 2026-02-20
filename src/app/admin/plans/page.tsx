@@ -206,14 +206,14 @@ export default function PlansPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Pricing Plans</h1>
-                    <p className="text-gray-500 mt-1">Manage subscription plans and pricing</p>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pricing Plans</h1>
+                    <p className="text-sm text-gray-500 mt-1">Manage subscription plans and pricing structures.</p>
                 </div>
-                <Button onClick={openCreateModal}>
+                <Button onClick={openCreateModal} className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm transition-all sm:w-auto w-full">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Plan
                 </Button>
@@ -222,76 +222,82 @@ export default function PlansPage() {
             {/* Plans Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {plans.map((plan) => (
-                    <Card key={plan.id} className={`relative ${plan.is_featured ? 'ring-2 ring-violet-500' : ''}`}>
+                    <Card key={plan.id} className={`relative border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden transition-all duration-200 hover:shadow-md ${plan.is_featured ? 'ring-2 ring-violet-500/50 scale-[1.02]' : ''}`}>
                         {plan.is_featured && (
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-violet-600 text-white text-xs font-medium rounded-full">
+                            <div className="absolute top-0 right-0 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-bold rounded-bl-xl border-b border-l border-violet-100 uppercase tracking-wider">
                                 Popular
                             </div>
                         )}
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <Package className="w-5 h-5 text-violet-600" />
-                                    <h3 className="font-semibold text-gray-900">{plan.name}</h3>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center">
+                                        <Package className="w-5 h-5 text-violet-600" />
+                                    </div>
+                                    <h3 className="font-bold text-gray-900 text-lg">{plan.name}</h3>
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={() => openEditModal(plan)}
-                                        className="p-1.5 hover:bg-gray-100 rounded-lg"
+                                        className="p-1.5 hover:bg-violet-50 hover:text-violet-600 rounded-lg text-gray-400 transition-colors"
+                                        title="Edit plan"
                                     >
-                                        <Edit2 className="w-4 h-4 text-gray-500" />
+                                        <Edit2 className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => deletePlan(plan.id)}
-                                        className="p-1.5 hover:bg-red-900/10 rounded-lg"
+                                        className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors"
+                                        title="Delete plan"
                                     >
-                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
 
                             <div className="mb-4">
-                                <span className="text-3xl font-bold text-gray-900">
+                                <span className="text-3xl font-bold text-gray-900 tracking-tight">
                                     {plan.price_monthly === 0 ? 'Free' : formatMoney(plan.price_monthly)}
                                 </span>
                                 {plan.price_monthly > 0 && (
-                                    <span className="text-gray-500">/сар</span>
+                                    <span className="text-sm font-medium text-gray-500 ml-1">/mo</span>
                                 )}
                             </div>
 
-                            <p className="text-sm text-gray-500 mb-4">{plan.description}</p>
+                            <p className="text-sm text-gray-500 mb-6 min-h-[40px] leading-relaxed">{plan.description}</p>
 
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-green-500" />
-                                    <span>{plan.features?.messages_per_month === -1 ? 'Unlimited' : plan.features?.messages_per_month} messages</span>
+                            <div className="space-y-3 text-sm flex-1">
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 bg-green-50 rounded-full p-0.5"><Check className="w-3 h-3 text-green-600" /></div>
+                                    <span className="text-gray-600">{plan.features?.messages_per_month === -1 ? 'Unlimited' : plan.features?.messages_per_month} messages/mo</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-green-500" />
-                                    <span>{plan.features?.shops_limit === -1 ? 'Unlimited' : plan.features?.shops_limit} shop(s)</span>
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 bg-green-50 rounded-full p-0.5"><Check className="w-3 h-3 text-green-600" /></div>
+                                    <span className="text-gray-600">{plan.features?.shops_limit === -1 ? 'Unlimited' : plan.features?.shops_limit} shop(s)</span>
                                 </div>
                                 {plan.features?.comment_reply && (
-                                    <div className="flex items-center gap-2">
-                                        <Check className="w-4 h-4 text-green-500" />
-                                        <span>Comment reply</span>
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-green-50 rounded-full p-0.5"><Check className="w-3 h-3 text-green-600" /></div>
+                                        <span className="text-gray-600">Comment reply</span>
                                     </div>
                                 )}
                                 {plan.features?.priority_support && (
-                                    <div className="flex items-center gap-2">
-                                        <Check className="w-4 h-4 text-green-500" />
-                                        <span>Priority support</span>
+                                    <div className="flex items-start gap-3">
+                                        <div className="mt-0.5 bg-green-50 rounded-full p-0.5"><Check className="w-3 h-3 text-green-600" /></div>
+                                        <span className="text-gray-600 font-medium">Priority support</span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-sm">
-                                <span className={`px-2 py-0.5 rounded-full ${plan.is_active
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-500'
+                            <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between text-xs">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-md font-medium ${plan.is_active
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                    : 'bg-gray-50 text-gray-600 border border-gray-200'
                                     }`}>
-                                    {plan.is_active ? 'Active' : 'Inactive'}
+                                    {plan.is_active ? 'Active Status' : 'Inactive'}
                                 </span>
-                                <span className="text-gray-400">#{plan.sort_order}</span>
+                                <span className="text-gray-400 flex items-center gap-1">
+                                    Order: {plan.sort_order}
+                                </span>
                             </div>
                         </CardContent>
                     </Card>
@@ -300,78 +306,98 @@ export default function PlansPage() {
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#0F0B2E] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-100">
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {editingPlan ? 'Edit Plan' : 'Create New Plan'}
-                            </h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowModal(false)} />
+
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col relative z-10 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900">
+                                    {editingPlan ? 'Edit Pricing Plan' : 'Create New Plan'}
+                                </h2>
+                                <p className="text-xs text-gray-500 mt-1">Configure subscription features and limits</p>
+                            </div>
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
                             {/* Basic Info */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                        placeholder="Professional"
-                                    />
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">Plan Details</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Name *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                            placeholder="e.g. Professional"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Slug (Identifier) *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.slug}
+                                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                            placeholder="e.g. professional-tier"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
-                                    <input
-                                        type="text"
-                                        value={formData.slug}
-                                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                        placeholder="professional"
-                                    />
-                                </div>
-                            </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    rows={2}
-                                    placeholder="Best for growing businesses"
-                                />
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white resize-none"
+                                        rows={2}
+                                        placeholder="Brief text explaining who this plan is for..."
+                                    />
+                                </div>
                             </div>
 
                             {/* Pricing */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Price (MNT)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.price_monthly}
-                                        onChange={(e) => setFormData({ ...formData, price_monthly: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Yearly Price (MNT)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.price_yearly}
-                                        onChange={(e) => setFormData({ ...formData, price_yearly: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    />
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">Pricing</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Monthly Price (MNT)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.price_monthly}
+                                            onChange={(e) => setFormData({ ...formData, price_monthly: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Yearly Price (MNT)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.price_yearly}
+                                            onChange={(e) => setFormData({ ...formData, price_yearly: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Limits */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Limits (-1 = unlimited)</label>
-                                <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center justify-between">
+                                    <span>Usage Limits</span>
+                                    <span className="text-[10px] font-normal text-gray-400 normal-case bg-gray-100 px-2 py-0.5 rounded-md">Use -1 for unlimited</span>
+                                </h3>
+                                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
                                     <div>
-                                        <label className="text-xs text-gray-500">Messages/month</label>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1.5">Messages / month</label>
                                         <input
                                             type="number"
                                             value={formData.features.messages_per_month}
@@ -380,11 +406,11 @@ export default function PlansPage() {
                                                 features: { ...formData.features, messages_per_month: parseInt(e.target.value) },
                                                 limits: { ...formData.limits, max_messages: parseInt(e.target.value) }
                                             })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none"
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-gray-500">Shops</label>
+                                        <label className="text-xs font-semibold text-gray-600 block mb-1.5">Max Shops</label>
                                         <input
                                             type="number"
                                             value={formData.features.shops_limit}
@@ -393,212 +419,236 @@ export default function PlansPage() {
                                                 features: { ...formData.features, shops_limit: parseInt(e.target.value) },
                                                 limits: { ...formData.limits, max_shops: parseInt(e.target.value) }
                                             })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Features */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">AI Features</label>
-                                <div className="space-y-2 mb-4">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.ai_enabled}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, ai_enabled: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">AI Enabled</span>
-                                    </label>
-                                    <div className="flex items-center gap-2 ml-6">
-                                        <span className="text-sm text-gray-500">AI Model:</span>
-                                        <select
-                                            value={formData.features.ai_model || 'gpt-4o-mini'}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, ai_model: e.target.value }
-                                            })}
-                                            className="text-sm border rounded px-2 py-1"
-                                        >
-                                            <option value="gpt-4o-mini">GPT-4o-mini (Basic)</option>
-                                            <option value="gpt-4o">GPT-4o (Advanced)</option>
-                                        </select>
+                            {/* Features toggles */}
+                            <div className="space-y-6">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">Toggle Features</h3>
+
+                                <div>
+                                    <h4 className="text-xs font-semibold text-gray-500 mb-3 tracking-wide">AI CORE CAPABILITIES</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.ai_enabled}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, ai_enabled: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">AI Enabled</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.sales_intelligence}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, sales_intelligence: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Sales Intelligence</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.ai_memory}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, ai_memory: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">AI Memory</span>
+                                        </label>
+                                        <div className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 bg-gray-50">
+                                            <span className="text-sm font-medium text-gray-700 pl-1">AI Model:</span>
+                                            <select
+                                                value={formData.features.ai_model || 'gpt-4o-mini'}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, ai_model: e.target.value }
+                                                })}
+                                                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-violet-500/20 outline-none bg-white flex-1"
+                                            >
+                                                <option value="gpt-4o-mini">GPT-4o-mini</option>
+                                                <option value="gpt-4o">GPT-4o</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.sales_intelligence}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, sales_intelligence: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Sales Intelligence</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.ai_memory}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, ai_memory: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">AI Memory</span>
-                                    </label>
                                 </div>
 
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Business Features</label>
-                                <div className="space-y-2 mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-gray-500">Cart System:</span>
-                                        <select
-                                            value={formData.features.cart_system || 'none'}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, cart_system: e.target.value }
-                                            })}
-                                            className="text-sm border rounded px-2 py-1"
-                                        >
-                                            <option value="none">None</option>
-                                            <option value="basic">Basic</option>
-                                            <option value="full">Full</option>
-                                        </select>
+                                <div>
+                                    <h4 className="text-xs font-semibold text-gray-500 mb-3 tracking-wide">BUSINESS & MARKETING</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 bg-gray-50">
+                                            <span className="text-sm font-medium text-gray-700 pl-1">Cart System:</span>
+                                            <select
+                                                value={formData.features.cart_system || 'none'}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, cart_system: e.target.value }
+                                                })}
+                                                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-violet-500/20 outline-none bg-white flex-1"
+                                            >
+                                                <option value="none">None</option>
+                                                <option value="basic">Basic Cart</option>
+                                                <option value="full">Full E-commerce</option>
+                                            </select>
+                                        </div>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.payment_integration}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, payment_integration: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Payment Integration</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.appointment_booking}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, appointment_booking: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Appointment Booking</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.bulk_marketing}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, bulk_marketing: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Bulk Marketing</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.comment_reply}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, comment_reply: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Comment Auto-Reply</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.auto_tagging}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, auto_tagging: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Auto Tagging</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.excel_export}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, excel_export: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Excel Export</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.custom_branding}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, custom_branding: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Custom Branding</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.features.priority_support}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    features: { ...formData.features, priority_support: e.target.checked }
+                                                })}
+                                                className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">Priority Support</span>
+                                        </label>
                                     </div>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.payment_integration}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, payment_integration: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Payment Integration (QPay/Bank)</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.auto_tagging}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, auto_tagging: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Auto Tagging</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.appointment_booking}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, appointment_booking: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Appointment Booking</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.bulk_marketing}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, bulk_marketing: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Bulk Marketing</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.excel_export}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, excel_export: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Excel Export</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.comment_reply}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, comment_reply: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Comment Auto-Reply</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.custom_branding}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, custom_branding: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Custom Branding</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.features.priority_support}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                features: { ...formData.features, priority_support: e.target.checked }
-                                            })}
-                                            className="rounded"
-                                        />
-                                        <span className="text-sm">Priority Support</span>
-                                    </label>
                                 </div>
                             </div>
 
                             {/* Status */}
-                            <div className="flex items-center gap-4">
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.is_active}
-                                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                        className="rounded"
-                                    />
-                                    <span className="text-sm">Active</span>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.is_featured}
-                                        onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                                        className="rounded"
-                                    />
-                                    <span className="text-sm">Featured</span>
-                                </label>
+                            <div className="pt-4 border-t border-gray-100">
+                                <div className="flex items-center gap-6 bg-violet-50/50 p-4 rounded-xl border border-violet-100">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.is_active}
+                                                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                                className="peer sr-only"
+                                            />
+                                            <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-emerald-500 transition-colors"></div>
+                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5"></div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-gray-800">Plan is Active</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <div className="relative flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.is_featured}
+                                                onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                                                className="peer sr-only"
+                                            />
+                                            <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
+                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5"></div>
+                                        </div>
+                                        <span className="text-sm font-semibold text-gray-800">Highlight as Featured</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
-                            <Button variant="secondary" onClick={() => setShowModal(false)}>
+                        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowModal(false)}
+                                className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                            >
                                 Cancel
                             </Button>
-                            <Button onClick={savePlan} disabled={saving}>
+                            <Button
+                                onClick={savePlan}
+                                disabled={saving}
+                                className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm border-0"
+                            >
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                                 {editingPlan ? 'Save Changes' : 'Create Plan'}
                             </Button>

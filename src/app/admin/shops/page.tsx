@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
 import {
     Search, Users, ToggleLeft, ToggleRight,
-    Loader2, Edit, X, Save
+    Loader2, Edit, X, Save, Clock
 } from 'lucide-react';
 
 interface Shop {
@@ -255,73 +255,79 @@ export default function ShopsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Shops</h1>
-                    <p className="text-gray-500 mt-1">Manage all registered shops</p>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Shops Directory</h1>
+                    <p className="text-sm text-gray-500 mt-1">Manage and monitor all registered shops on the platform.</p>
                 </div>
-                <div className="text-sm text-gray-500">
-                    Total: {pagination.total} shops
+                <div className="text-sm font-medium text-gray-600 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
+                    <span className="text-gray-400 mr-2">Total Shops:</span>
+                    {pagination.total}
                 </div>
             </div>
 
             {/* Filters */}
-            <Card>
+            <Card className="border-gray-100 shadow-sm rounded-2xl bg-white">
                 <CardContent className="p-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <form onSubmit={handleSearch} className="flex-1 min-w-[200px]">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        <form onSubmit={handleSearch} className="flex-1 w-full md:w-auto">
+                            <div className="relative group">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-violet-500 transition-colors" />
                                 <input
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search shops..."
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                                    placeholder="Search by name, owner, or phone..."
+                                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none"
                                 />
                             </div>
                         </form>
 
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
-                        >
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
+                        <div className="w-full md:w-48 relative">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="w-full appearance-none px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 bg-white transition-all outline-none"
+                            >
+                                <option value="">All Statuses</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Shops Table */}
-            <Card>
+            <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden">
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shop</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50 border-b border-gray-100">
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Shop Details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subscription Plan</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined Date</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-gray-50">
                                 {shops.map((shop) => (
-                                    <tr key={shop.id} className="hover:bg-gray-50">
+                                    <tr key={shop.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
-                                                    <Users className="w-5 h-5 text-violet-600" />
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center font-medium text-gray-600 shadow-sm">
+                                                    {shop.name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-900">{shop.name}</p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="font-semibold text-gray-900 text-sm">{shop.name}</p>
+                                                    <p className="text-xs text-gray-500 mt-0.5">
                                                         {shop.owner_name || (shop.facebook_page_id ? 'FB Connected' : 'No owner')}
                                                     </p>
                                                 </div>
@@ -330,57 +336,60 @@ export default function ShopsPage() {
                                         <td className="px-6 py-4">
                                             {shop.plans ? (
                                                 <div>
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 text-sm">
                                                         {shop.plans.name}
                                                     </p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-xs text-gray-500 mt-0.5">
                                                         ₮{shop.plans.price_monthly.toLocaleString()}/mo
                                                     </p>
                                                 </div>
                                             ) : shop.subscriptions?.[0]?.plans ? (
                                                 <div>
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 text-sm">
                                                         {shop.subscriptions[0].plans.name}
                                                     </p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-xs text-gray-500 mt-0.5">
                                                         ₮{shop.subscriptions[0].plans.price_monthly.toLocaleString()}/mo
                                                     </p>
                                                 </div>
                                             ) : shop.subscription_plan ? (
-                                                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-sm capitalize">
+                                                <span className="inline-flex px-2.5 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium capitalize border border-gray-200">
                                                     {shop.subscription_plan}
                                                 </span>
                                             ) : (
-                                                <span className="text-gray-400">No plan</span>
+                                                <span className="text-xs text-gray-400 italic">No Active Plan</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <button
                                                 onClick={() => toggleShopStatus(shop)}
                                                 disabled={togglingId === shop.id}
-                                                className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${shop.is_active
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${shop.is_active
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                                                     } disabled:opacity-50`}
                                             >
                                                 {togglingId === shop.id ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                 ) : shop.is_active ? (
-                                                    <ToggleRight className="w-4 h-4" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1" />
                                                 ) : (
-                                                    <ToggleLeft className="w-4 h-4" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1" />
                                                 )}
                                                 {shop.is_active ? 'Active' : 'Inactive'}
                                             </button>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
-                                            {formatDate(shop.created_at)}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                                                <Clock className="w-4 h-4 text-gray-400" />
+                                                {formatDate(shop.created_at)}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <button
                                                 onClick={() => openEditModal(shop)}
-                                                className="p-2 hover:bg-violet-100 rounded-lg text-violet-600 transition-colors"
-                                                title="Edit shop"
+                                                className="inline-flex p-2 bg-white border border-gray-200 hover:border-violet-300 hover:bg-violet-50 rounded-lg text-gray-500 hover:text-violet-600 transition-colors shadow-sm"
+                                                title="Edit shop details"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
@@ -393,20 +402,24 @@ export default function ShopsPage() {
 
                     {/* Pagination */}
                     {pagination.pages > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                            <p className="text-sm text-gray-500">
-                                Page {pagination.page} of {pagination.pages}
+                        <div className="px-6 py-4 border-t border-gray-50 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <p className="text-sm text-gray-500 font-medium">
+                                Showing Page <span className="text-gray-900">{pagination.page}</span> of <span className="text-gray-900">{pagination.pages}</span>
                             </p>
                             <div className="flex gap-2">
                                 <Button
-                                    variant="secondary"
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                                     disabled={pagination.page <= 1}
                                     onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
                                 >
                                     Previous
                                 </Button>
                                 <Button
-                                    variant="secondary"
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
                                     disabled={pagination.page >= pagination.pages}
                                     onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
                                 >
@@ -420,76 +433,87 @@ export default function ShopsPage() {
 
             {/* Edit Shop Modal */}
             {editingShop && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#0F0B2E] rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
-                        <div className="flex items-center justify-between p-4 border-b">
-                            <h2 className="text-lg font-semibold">Edit Shop</h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setEditingShop(null)} />
+
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col relative z-10 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900">Edit Shop Details</h2>
+                                <p className="text-xs text-gray-500 mt-1">ID: {editingShop.id}</p>
+                            </div>
                             <button
                                 onClick={() => setEditingShop(null)}
-                                className="p-1 hover:bg-gray-100 rounded-lg"
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <div className="p-4 space-y-4 overflow-y-auto flex-1">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Дэлгүүрийн нэр *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.name}
-                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    placeholder="Shop name"
-                                />
-                            </div>
+                        <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
+                            {/* Basic Info */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">Basic Info</h3>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                        Дэлгүүрийн нэр *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                        placeholder="Enter shop name"
+                                    />
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Эзэмшигчийн нэр
-                                </label>
-                                <input
-                                    type="text"
-                                    value={editForm.owner_name}
-                                    onChange={(e) => setEditForm({ ...editForm, owner_name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    placeholder="Owner name"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Утасны дугаар
-                                </label>
-                                <input
-                                    type="tel"
-                                    value={editForm.phone}
-                                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                    placeholder="Phone number"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Тайлбар
-                                </label>
-                                <textarea
-                                    value={editForm.description}
-                                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                                    placeholder="Shop description"
-                                />
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-100">
-                                <h3 className="text-sm font-semibold text-gray-900 mb-3">Subscription</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                            Эзэмшигчийн нэр
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editForm.owner_name}
+                                            onChange={(e) => setEditForm({ ...editForm, owner_name: e.target.value })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                            placeholder="Owner's full name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                            Утасны дугаар
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            value={editForm.phone}
+                                            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                            placeholder="+976 00000000"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                        Тайлбар
+                                    </label>
+                                    <textarea
+                                        value={editForm.description}
+                                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                        rows={2}
+                                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white resize-none"
+                                        placeholder="Brief description of the shop..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Subscription Info */}
+                            <div className="space-y-4 pt-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">Subscription Info</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Plan</label>
                                         <select
                                             value={editForm.plan_id}
                                             onChange={(e) => {
@@ -501,23 +525,22 @@ export default function ShopsPage() {
                                                     subscription_plan: selectedPlan?.slug || editForm.subscription_plan
                                                 });
                                             }}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
                                         >
-                                            <option value="">Select Plan</option>
+                                            <option value="">Select Plan...</option>
                                             {availablePlans.map((plan) => (
                                                 <option key={plan.id} value={plan.id}>
                                                     {plan.name} ({plan.slug})
                                                 </option>
                                             ))}
                                         </select>
-                                        <p className="text-xs text-gray-500 mt-1">Slug: {editForm.subscription_plan}</p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
                                         <select
                                             value={editForm.subscription_status}
                                             onChange={(e) => setEditForm({ ...editForm, subscription_status: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
                                         >
                                             <option value="active">Active</option>
                                             <option value="trial">Trial</option>
@@ -526,55 +549,56 @@ export default function ShopsPage() {
                                         </select>
                                     </div>
                                     <div className="col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Trial Ends At</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Trial Ends At</label>
                                         <input
                                             type="date"
                                             value={editForm.trial_ends_at}
                                             onChange={(e) => setEditForm({ ...editForm, trial_ends_at: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-gray-100">
-                                <h3 className="text-sm font-semibold text-gray-900 mb-3">AI Settings</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">System Instructions</label>
-                                        <textarea
-                                            value={editForm.ai_instructions}
-                                            onChange={(e) => setEditForm({ ...editForm, ai_instructions: e.target.value })}
-                                            rows={4}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm"
-                                            placeholder="Example: You are a helpful sales assistant..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Emotion / Tone</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.ai_emotion}
-                                            onChange={(e) => setEditForm({ ...editForm, ai_emotion: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500"
-                                            placeholder="Example: Friendly, Professional, Enthusiastic"
-                                        />
-                                    </div>
+                            {/* AI Settings */}
+                            <div className="space-y-4 pt-4">
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-2">AI Preferences</h3>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">System Instructions</label>
+                                    <textarea
+                                        value={editForm.ai_instructions}
+                                        onChange={(e) => setEditForm({ ...editForm, ai_instructions: e.target.value })}
+                                        rows={3}
+                                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white resize-none"
+                                        placeholder="Example: You are a helpful sales assistant..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Emotion & Tone</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.ai_emotion}
+                                        onChange={(e) => setEditForm({ ...editForm, ai_emotion: e.target.value })}
+                                        className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                        placeholder="e.g. Friendly, Professional, Enthusiastic"
+                                    />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
+                        <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
                             <Button
-                                variant="secondary"
+                                variant="outline"
                                 onClick={() => setEditingShop(null)}
                                 disabled={saving}
+                                className="bg-white"
                             >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
+                                className="bg-violet-600 hover:bg-violet-700 text-white border-0 shadow-sm"
                             >
                                 {saving ? (
                                     <>
@@ -584,7 +608,7 @@ export default function ShopsPage() {
                                 ) : (
                                     <>
                                         <Save className="w-4 h-4 mr-2" />
-                                        Save
+                                        Save Changes
                                     </>
                                 )}
                             </Button>

@@ -94,33 +94,33 @@ export default function AdminSubscriptionsPage() {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Subscriptions</h1>
-                    <p className="text-gray-500 mt-1">Бүх subscription удирдах</p>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Subscriptions</h1>
+                    <p className="text-sm text-gray-500 mt-1">Бүх subscription удирдах</p>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card>
+            <Card className="border-gray-100 shadow-sm rounded-2xl bg-white">
                 <CardContent className="p-4">
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Дэлгүүр хайх..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all bg-gray-50 focus:bg-white"
                             />
                         </div>
                         <select
                             value={statusFilter}
                             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            className="px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all bg-gray-50 focus:bg-white cursor-pointer"
                         >
                             <option value="">Бүх статус</option>
                             <option value="active">Active</option>
@@ -133,56 +133,77 @@ export default function AdminSubscriptionsPage() {
             </Card>
 
             {/* Table */}
-            <Card>
+            <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden overflow-x-auto">
                 <CardContent className="p-0">
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
-                            <div className="animate-spin w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full" />
+                            <div className="animate-spin w-8 h-8 border-4 border-violet-600/20 border-t-violet-600 rounded-full" />
                         </div>
                     ) : filteredSubscriptions.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            Subscription олдсонгүй
+                        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                <CreditCard className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-sm font-semibold text-gray-900">Subscription олдсонгүй</h3>
+                            <p className="text-sm text-gray-500 mt-1">Одоогоор харуулах дата байхгүй байна.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b border-gray-200">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full min-w-[800px]">
+                                <thead className="bg-gray-50/50 border-b border-gray-100">
                                     <tr>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Дэлгүүр</th>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Багц</th>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Үнэ</th>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Статус</th>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Дуусах огноо</th>
-                                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Үйлдэл</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Дэлгүүр</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Багц</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Үнэ</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Статус</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Дуусах огноо</th>
+                                        <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Үйлдэл</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200">
+                                <tbody className="divide-y divide-gray-100">
                                     {filteredSubscriptions.map((sub) => (
-                                        <tr key={sub.id} className="hover:bg-gray-50">
+                                        <tr key={sub.id} className="hover:bg-gray-50/80 transition-colors group">
                                             <td className="px-6 py-4">
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{sub.shops?.name}</p>
-                                                    <p className="text-sm text-gray-500">{sub.shops?.email}</p>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-gray-900 group-hover:text-violet-600 transition-colors">{sub.shops?.name}</span>
+                                                    <span className="text-xs text-gray-500 mt-0.5">{sub.shops?.email}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-900">{sub.plans?.name}</td>
-                                            <td className="px-6 py-4 text-gray-900">
-                                                {formatMoney(sub.plans?.price_monthly || 0)}/сар
-                                            </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(sub.status)}`}>
-                                                    {getStatusIcon(sub.status)}
-                                                    {sub.status}
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
+                                                    {sub.plans?.name || '-'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500">
-                                                {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('mn-MN') : '-'}
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-gray-900 tracking-tight">
+                                                        {formatMoney(sub.plans?.price_monthly || 0)}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">/ Сар</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border border-transparent ${sub.status === 'active' ? 'bg-green-50 text-green-700 border-green-200/50' :
+                                                        sub.status === 'trialing' ? 'bg-blue-50 text-blue-700 border-blue-200/50' :
+                                                            sub.status === 'past_due' ? 'bg-yellow-50 text-yellow-700 border-yellow-200/50' :
+                                                                'bg-red-50 text-red-700 border-red-200/50'
+                                                    }`}>
+                                                    {getStatusIcon(sub.status)}
+                                                    {sub.status === 'active' ? 'Идэвхтэй' :
+                                                        sub.status === 'trialing' ? 'Туршилтын' :
+                                                            sub.status === 'past_due' ? 'Хугацаа хэтэрсэн' : 'Цуцлагдсан'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-sm text-gray-600">
+                                                    {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString('mn-MN') : '-'}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <select
                                                     value={sub.status}
                                                     onChange={(e) => updateStatus(sub.id, e.target.value)}
-                                                    className="text-sm border border-gray-200 rounded px-2 py-1"
+                                                    className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-white cursor-pointer hover:border-gray-300"
                                                 >
                                                     <option value="active">Active</option>
                                                     <option value="trialing">Trialing</option>
@@ -199,21 +220,21 @@ export default function AdminSubscriptionsPage() {
 
                     {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
                             <button
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
                                 disabled={page === 1}
-                                className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-white border border-transparent hover:border-gray-200 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
                             >
                                 <ChevronLeft className="w-4 h-4" /> Өмнөх
                             </button>
-                            <span className="text-sm text-gray-500">
-                                {page} / {totalPages}
+                            <span className="text-xs font-medium text-gray-500 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+                                Хуудас {page} / {totalPages}
                             </span>
                             <button
                                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                                 disabled={page === totalPages}
-                                className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-white border border-transparent hover:border-gray-200 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-transparent transition-all"
                             >
                                 Дараах <ChevronRight className="w-4 h-4" />
                             </button>
