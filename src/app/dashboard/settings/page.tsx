@@ -24,7 +24,7 @@ export default function SettingsPage() {
                 setShop(data.shop);
                 setShopInfo({ name: data.shop.name || '', description: data.shop.description || '', phone: data.shop.phone || '', address: data.shop.address || '', working_hours: data.shop.working_hours || '' });
                 setBankInfo({ bank_name: data.shop.bank_name || '', account_name: data.shop.account_name || '', account_number: data.shop.account_number || '' });
-                setFbConnected(!!data.shop.fb_page_id);
+                setFbConnected(!!data.shop.facebook_page_id);
                 setIgConnected(!!data.shop.instagram_business_account_id);
             }
         } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -41,7 +41,7 @@ export default function SettingsPage() {
 
     async function disconnectPlatform(platform: string) {
         try {
-            await fetch('/api/shop', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' }, body: JSON.stringify(platform === 'facebook' ? { fb_page_id: null, fb_page_access_token: null } : { instagram_business_account_id: null }) });
+            await fetch('/api/shop', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' }, body: JSON.stringify(platform === 'facebook' ? { facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null } : { instagram_business_account_id: null, instagram_account_id: null, instagram_username: null, instagram_access_token: null }) });
             if (platform === 'facebook') setFbConnected(false); else setIgConnected(false);
             toast.success(`${platform === 'facebook' ? 'Facebook' : 'Instagram'} салгагдлаа`);
         } catch { toast.error('Алдаа гарлаа'); }

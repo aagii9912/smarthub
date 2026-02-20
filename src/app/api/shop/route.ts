@@ -4,7 +4,7 @@ import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 
 // GET - Get user's shop
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getClerkUser();
 
@@ -12,15 +12,19 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    const { data: shop, error } = await supabase
-      .from('shops')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    let query = supabase.from('shops').select('*').eq('user_id', userId);
+    if (shopId) {
+      query = query.eq('id', shopId);
+    } else {
+      query = query.order('created_at', { ascending: false }).limit(1);
+    }
 
-    if (error && error.code !== 'PGRST116') {
+    const { data: shop, error } = await query.maybeSingle();
+
+    if (error) {
       throw error;
     }
 
@@ -41,32 +45,38 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, owner_name, phone } = body;
+    const { name, owner_name, phone, forceCreate } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Shop name required' }, { status: 400 });
     }
 
+    const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
     // Check if shop already exists
-    const { data: existingShop } = await supabase
-      .from('shops')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    if (!forceCreate) {
+      let query = supabase.from('shops').select('*').eq('user_id', userId);
+      if (shopId) {
+        query = query.eq('id', shopId);
+      } else {
+        query = query.order('created_at', { ascending: false }).limit(1);
+      }
 
-    if (existingShop) {
-      // Update existing shop instead of returning error
-      const { data: updatedShop, error } = await supabase
-        .from('shops')
-        .update({ name, owner_name, phone })
-        .eq('id', existingShop.id)
-        .select()
-        .single();
+      const { data: existingShop } = await query.maybeSingle();
 
-      if (error) throw error;
-      return NextResponse.json({ shop: updatedShop });
+      if (existingShop) {
+        // Update existing shop instead of returning error
+        const { data: updatedShop, error } = await supabase
+          .from('shops')
+          .update({ name, owner_name, phone })
+          .eq('id', existingShop.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return NextResponse.json({ shop: updatedShop });
+      }
     }
 
     // Check shop creation limit
@@ -142,14 +152,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+    const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
     // Get user's shop
-    const { data: shop } = await supabase
-      .from('shops')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+    let query = supabase.from('shops').select('id').eq('user_id', userId);
+    if (shopId) {
+      query = query.eq('id', shopId);
+    } else {
+      query = query.order('created_at', { ascending: false }).limit(1);
+    }
+
+    const { data: shop } = await query.maybeSingle();
 
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });

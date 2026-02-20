@@ -195,15 +195,23 @@ function SetupContent() {
   };
 
   const handleShopSave = async (data: any) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (shop?.id && !isNewShopMode) headers['x-shop-id'] = shop.id;
+
     const res = await fetch('/api/shop', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      headers,
+      body: JSON.stringify({ ...data, forceCreate: isNewShopMode })
     });
 
+    const resData = await res.json();
     if (!res.ok) {
-      const errData = await res.json();
-      throw new Error(errData.error || 'Хадгалахад алдаа гарлаа');
+      throw new Error(resData.error || 'Хадгалахад алдаа гарлаа');
+    }
+
+    // Ensure the new/updated shop is the active one
+    if (resData.shop?.id) {
+      localStorage.setItem('smarthub_active_shop_id', resData.shop.id);
     }
 
     // Sync preview
@@ -244,7 +252,10 @@ function SetupContent() {
 
     const shopRes = await fetch('/api/shop', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+      },
       body: JSON.stringify({
         facebook_page_id: pageData.page.id,
         facebook_page_name: pageData.page.name,
@@ -265,7 +276,10 @@ function SetupContent() {
 
     const res = await fetch('/api/shop', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+      },
       body: JSON.stringify({
         facebook_page_id: data.pageId,
         facebook_page_name: data.pageName,
@@ -282,7 +296,10 @@ function SetupContent() {
   const handleManualInstagramSave = async (data: { businessAccountId: string; username: string; accessToken: string }) => {
     const res = await fetch('/api/shop', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+      },
       body: JSON.stringify({
         instagram_business_account_id: data.businessAccountId,
         instagram_username: data.username,
@@ -299,7 +316,10 @@ function SetupContent() {
   const handleInstagramSelect = async (account: any) => {
     const res = await fetch('/api/shop', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+      },
       body: JSON.stringify({
         instagram_business_account_id: account.instagramId,
         instagram_username: account.instagramUsername,
@@ -317,7 +337,10 @@ function SetupContent() {
   const handleProductsComplete = async (products: any[]) => {
     const res = await fetch('/api/shop/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+      },
       body: JSON.stringify({ products })
     });
 
@@ -329,7 +352,10 @@ function SetupContent() {
     if (aiData) {
       await fetch('/api/shop', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || ''
+        },
         body: JSON.stringify(aiData)
       });
       if (aiData.ai_emotion) setPreviewAiEmotion(aiData.ai_emotion);

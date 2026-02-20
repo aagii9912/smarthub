@@ -14,7 +14,7 @@ export async function GET() {
 
         const { data: shops, error } = await supabase
             .from('shops')
-            .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, instagram_business_account_id, instagram_username, bank_name, account_number, account_name, description, ai_emotion, ai_instructions, is_ai_active, auto_reply, welcome_message, subscription_plan')
+            .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, instagram_business_account_id, instagram_username, bank_name, account_number, account_name, description, ai_emotion, ai_instructions, is_ai_active, subscription_plan')
             .eq('user_id', userId)
             .order('created_at', { ascending: true });
 
