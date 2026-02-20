@@ -4,13 +4,8 @@ import { Crown, Check, Zap, BarChart3, Package, MessageSquare, Bot, Calendar, Do
 import { toast } from 'sonner';
 
 interface Plan { id: string; name: string; price_monthly: number; price_yearly: number; features: string[]; limits: { products: number; orders: number; messages: number }; highlighted?: boolean; }
-const PLANS: Plan[] = [
-    { id: 'starter', name: 'Starter', price_monthly: 29900, price_yearly: 299000, features: ['50 бараа', '100 захиалга/сар', '500 мессеж/сар', 'AI чатбот', 'Facebook холболт'], limits: { products: 50, orders: 100, messages: 500 } },
-    { id: 'growth', name: 'Growth', price_monthly: 59900, price_yearly: 599000, features: ['200 бараа', '500 захиалга/сар', '2000 мессеж/сар', 'AI чатбот', 'Facebook + Instagram', 'Тайлан', 'Priority support'], limits: { products: 200, orders: 500, messages: 2000 }, highlighted: true },
-    { id: 'enterprise', name: 'Enterprise', price_monthly: 149900, price_yearly: 1499000, features: ['Хязгааргүй бараа', 'Хязгааргүй захиалга', 'Хязгааргүй мессеж', 'AI чатбот', 'Бүх платформ', 'Тайлан & Analytics', 'Dedicated support', 'Custom AI training'], limits: { products: 99999, orders: 99999, messages: 99999 } }
-];
-
 export default function SubscriptionPage() {
+    const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPlan, setCurrentPlan] = useState('starter');
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -25,11 +20,40 @@ export default function SubscriptionPage() {
     async function fetchData(refresh = false) {
         try {
             if (!refresh) setLoading(true);
-            const res = await fetch('/api/dashboard/subscription', { headers: { 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' } });
-            if (res.ok) { const d = await res.json(); setCurrentPlan(d.plan || 'starter'); setUsage(d.usage || { products: 0, orders: 0, messages: 0 }); setBillingHistory(d.billing_history || []); }
+            const headers = { 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' };
+            const [subRes, plansRes] = await Promise.all([
+                fetch('/api/subscription/current', { headers }),
+                fetch('/api/subscription/plans')
+            ]);
+            let fetchedPlans: Plan[] = [];
+            if (plansRes.ok) {
+                const { plans: p } = await plansRes.json();
+                fetchedPlans = p.map((plan: any) => ({
+                    id: plan.slug,
+                    name: plan.name,
+                    price_monthly: plan.price_monthly,
+                    price_yearly: plan.price_yearly,
+                    features: plan.features || [],
+                    limits: plan.limits || { products: 9999, orders: 9999, messages: 9999 },
+                    highlighted: plan.is_featured
+                }));
+                // ensure deterministic order (e.g. by price if sort_order isn't enough although API does it)
+                setPlans(fetchedPlans);
+            }
+
+            if (subRes.ok) {
+                const d = await subRes.json();
+                if (d.plan) { setCurrentPlan(d.plan.slug); }
+                setUsage(d.usage || { products: 0, orders: 0, messages: 0 });
+                setBillingHistory(d.invoices || []);
+            }
         } catch (e) { console.error(e); } finally { setLoading(false); }
     }
 
+    const safePlans = plans.length > 0 ? plans : [
+        { id: 'starter', name: 'Уншиж байна...', price_monthly: 0, price_yearly: 0, features: [], limits: { products: 0, orders: 0, messages: 0 } }
+    ];
+    const PLANS = safePlans;
     const plan = PLANS.find(p => p.id === currentPlan) || PLANS[0];
     const usageItems = [
         { label: 'Бүтээгдэхүүн', value: usage.products, max: plan.limits.products, icon: Package },
