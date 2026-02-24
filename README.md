@@ -1,22 +1,22 @@
-# SmartHub 🚀
+# Syncly 🚀
 
-**AI-powered Facebook Messenger Sales Assistant**
+**Facebook Messenger Борлуулалт болон Харилцааны Автоматжуулсан Туслах**
 
 > [!IMPORTANT]
 > **Production Ready** - Core features are fully functional. Payment integration and invoice generation recommended before launch.
 
-SmartHub нь жижиг, дунд бизнесүүдэд зориулсан ухаалаг борлуулалтын туслах систем юм. Facebook Messenger-ээр автоматаар захиалга авч, харилцагчтай харилцаж, борлуулалтын статистикийг харуулдаг.
+Syncly нь жижиг, дунд бизнесүүдэд зориулсан ухаалаг борлуулалтын систем юм. Facebook Messenger-ээр автоматаар захиалга авч, харилцагчтай харилцаж, борлуулалтын статистикийг харуулдаг.
 
 ---
 
 ## ✨ Онцлог
 
-### 🤖 AI Чат Boть
-- **OpenAI GPT-4o** ашигласан ухаалаг харилцаа (Function Calling дэмжигдсэн)
+### 🤖 Автомат Харилцааны Туслах
+- Харилцагчидтай автоматаар харилцах систем (Function Calling дэмжигдсэн)
 - Автоматаар бүтээгдэхүүний мэдээлэл өгөх
-- Захиалга автоматаар бүртгэх (AI Tools: create_order, add_to_cart, check_stock)
+- Захиалга автоматаар бүртгэх (Автомат үйлдлүүд: create_order, add_to_cart, check_stock)
 - Харилцагчийн асуултад хариулах
-- Зураг таних (Vision API)
+- Зураг таних боломж
 
 ### 📊 Dashboard
 - Real-time статистик (өнөөдрийн захиалга, орлого, харилцагч)
@@ -43,7 +43,7 @@ SmartHub нь жижиг, дунд бизнесүүдэд зориулсан у�
 - **Frontend:** Next.js 16, React 19, TypeScript
 - **Styling:** Tailwind CSS v4
 - **Database:** Supabase (PostgreSQL)
-- **AI:** OpenAI GPT-4o (Function Calling)
+- **Processing:** Advanced Language Models (Function Calling)
 - **Messenger:** Facebook Graph API
 - **Testing:** Vitest, React Testing Library
 - **Deployment:** Vercel
@@ -56,7 +56,7 @@ SmartHub нь жижиг, дунд бизнесүүдэд зориулсан у�
 
 ```bash
 git clone <your-repo>
-cd smarthub
+cd syncly
 npm install
 ```
 
@@ -75,7 +75,7 @@ FACEBOOK_PAGE_ACCESS_TOKEN=your_token
 FACEBOOK_VERIFY_TOKEN=your_verify_token
 FACEBOOK_APP_SECRET=your_app_secret
 
-# OpenAI API
+# Language Model API
 OPENAI_API_KEY=your_openai_api_key
 ```
 
@@ -100,7 +100,7 @@ npm run dev
 ## 📁 Project Structure
 
 ```
-smarthub/
+syncly/
 ├── src/
 │   ├── app/
 │   │   ├── api/              # API routes
@@ -116,7 +116,7 @@ smarthub/
 │   │   ├── dashboard/        # Dashboard components
 │   │   └── ui/               # Reusable UI components
 │   ├── lib/                  # Utilities
-│   │   ├── ai/               # Gemini AI integration
+│   │   ├── ai/               # Gemini integration
 │   │   ├── facebook/         # Messenger API
 │   │   └── supabase.ts       # Database client
 │   └── types/                # TypeScript types
@@ -139,7 +139,7 @@ smarthub/
 - [x] VIP auto-detection
 - [x] Real-time stats
 - [x] **Facebook Messenger integration**
-- [x] **AI chatbot (Gemini + OpenAI)**
+- [x] **Автомат харилцааны туслах**
 - [x] **Webhook handling**
 - [x] **Auto stock management**
 
