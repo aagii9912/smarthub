@@ -29,8 +29,8 @@ const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token
 /**
  * SEC-8: Verify Facebook X-Hub-Signature-256
  */
-function verifyFacebookSignature(rawBody: Buffer, signature: string | null): boolean {
-    const appSecret = process.env.FACEBOOK_APP_SECRET;
+function verifyFacebookSignature(rawBodyBuffer: Buffer, signature: string | null): boolean {
+    const appSecret = process.env.FACEBOOK_APP_SECRET?.trim();
     if (!appSecret) {
         logger.warn('FACEBOOK_APP_SECRET not configured');
         return false;
@@ -39,20 +39,10 @@ function verifyFacebookSignature(rawBody: Buffer, signature: string | null): boo
 
     const expectedHash = crypto
         .createHmac('sha256', appSecret)
-        .update(rawBody)
+        .update(rawBodyBuffer)
         .digest('hex');
 
     const receivedHash = signature.replace('sha256=', '');
-
-    if (expectedHash !== receivedHash) {
-        logger.warn('Signature mismatch DEBUG:', {
-            appSecretPrefix: appSecret.substring(0, 5) + '...',
-            appSecretLength: appSecret.length,
-            rawBodyLength: rawBody.length,
-            expectedHash,
-            receivedHash
-        });
-    }
 
     try {
         return crypto.timingSafeEqual(
