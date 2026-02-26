@@ -44,6 +44,16 @@ function verifyFacebookSignature(rawBody: Buffer, signature: string | null): boo
 
     const receivedHash = signature.replace('sha256=', '');
 
+    if (expectedHash !== receivedHash) {
+        logger.warn('Signature mismatch DEBUG:', {
+            appSecretPrefix: appSecret.substring(0, 5) + '...',
+            appSecretLength: appSecret.length,
+            rawBodyLength: rawBody.length,
+            expectedHash,
+            receivedHash
+        });
+    }
+
     try {
         return crypto.timingSafeEqual(
             Buffer.from(expectedHash),
