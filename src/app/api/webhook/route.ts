@@ -29,7 +29,7 @@ const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token
 /**
  * SEC-8: Verify Facebook X-Hub-Signature-256
  */
-function verifyFacebookSignature(rawBody: string, signature: string | null): boolean {
+function verifyFacebookSignature(rawBody: Buffer, signature: string | null): boolean {
     const appSecret = process.env.FACEBOOK_APP_SECRET;
     if (!appSecret) {
         logger.warn('FACEBOOK_APP_SECRET not configured');
@@ -103,10 +103,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         // SEC-8: Verify Facebook X-Hub-Signature-256
-        const rawBody = await request.text();
+        const arrayBuffer = await request.arrayBuffer();
+        const rawBodyBuffer = Buffer.from(arrayBuffer);
         const signature = request.headers.get('x-hub-signature-256');
 
-        if (!verifyFacebookSignature(rawBody, signature)) {
+        if (!verifyFacebookSignature(rawBodyBuffer, signature)) {
             logger.warn('Facebook webhook signature mismatch', {
                 hasSignature: !!signature,
                 signaturePrefix: signature?.substring(0, 15),
@@ -115,7 +116,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
-        const body = JSON.parse(rawBody);
+        const rawBodyText = rawBodyBuffer.toString('utf8');
+        const body = JSON.parse(rawBodyText);
 
         // Determine platform type: 'page' for Messenger, 'instagram' for Instagram
         const platform: 'messenger' | 'instagram' = body.object === 'instagram' ? 'instagram' : 'messenger';
