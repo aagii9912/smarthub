@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
             .from('shops')
             .update({
                 instagram_business_account_id: igAccount.id,
-                instagram_account_id: igAccount.id,
                 instagram_username: igAccount.username || '',
                 instagram_access_token: shop.facebook_page_access_token, // Page token works for IG too
             })
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             logger.error('Failed to save Instagram data', { error: updateError.message });
-            return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
+            return NextResponse.json({ error: `DB хадгалахад алдаа: ${updateError.message}` }, { status: 500 });
         }
 
         logger.success(`✅ Instagram auto-connected: @${igAccount.username} for shop ${shop.name}`);
