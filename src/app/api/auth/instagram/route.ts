@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     fbAuthUrl.searchParams.set('scope', permissions);
     fbAuthUrl.searchParams.set('response_type', 'code');
     fbAuthUrl.searchParams.set('state', state);
+    // Force full permission dialog (not just "Reconnect")
+    fbAuthUrl.searchParams.set('auth_type', 'rerequest');
 
     return NextResponse.redirect(fbAuthUrl.toString());
 }
