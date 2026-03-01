@@ -18,6 +18,9 @@ import {
     X,
     TrendingUp,
     Clock,
+    Image,
+    ChevronDown,
+    Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +39,15 @@ interface Automation {
     trigger_count: number;
     last_triggered_at: string | null;
     created_at: string;
+}
+
+interface ShopPost {
+    id: string;
+    message: string;
+    picture: string | null;
+    created_time: string;
+    platform: 'facebook' | 'instagram';
+    type: string;
 }
 
 const PLATFORM_OPTIONS = [
@@ -65,13 +77,35 @@ export default function CommentAutomationPage() {
     const [matchType, setMatchType] = useState<'contains' | 'exact'>('contains');
     const [actionType, setActionType] = useState<'send_dm' | 'reply_comment' | 'both'>('send_dm');
     const [platform, setPlatform] = useState<'facebook' | 'instagram' | 'both'>('both');
-    const [postUrl, setPostUrl] = useState('');
+    const [selectedPostId, setSelectedPostId] = useState<string>('');
+
+    // Post selector state
+    const [posts, setPosts] = useState<ShopPost[]>([]);
+    const [loadingPosts, setLoadingPosts] = useState(false);
+    const [showPostDropdown, setShowPostDropdown] = useState(false);
+    const [postSearch, setPostSearch] = useState('');
 
     const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
 
     useEffect(() => {
         fetchAutomations();
+        fetchPosts();
     }, []);
+
+    async function fetchPosts() {
+        try {
+            setLoadingPosts(true);
+            const res = await fetch('/api/dashboard/posts', {
+                headers: { 'x-shop-id': shopId },
+            });
+            const data = await res.json();
+            setPosts(data.posts || []);
+        } catch {
+            console.error('Failed to fetch posts');
+        } finally {
+            setLoadingPosts(false);
+        }
+    }
 
     async function fetchAutomations() {
         try {
@@ -96,7 +130,9 @@ export default function CommentAutomationPage() {
         setMatchType('contains');
         setActionType('send_dm');
         setPlatform('both');
-        setPostUrl('');
+        setSelectedPostId('');
+        setPostSearch('');
+        setShowPostDropdown(false);
         setEditingId(null);
         setShowForm(false);
     }
@@ -109,7 +145,7 @@ export default function CommentAutomationPage() {
         setMatchType(a.match_type);
         setActionType(a.action_type);
         setPlatform(a.platform);
-        setPostUrl(a.post_url || '');
+        setSelectedPostId(a.post_id || '');
         setEditingId(a.id);
         setShowForm(true);
     }
@@ -132,7 +168,8 @@ export default function CommentAutomationPage() {
                 action_type: actionType,
                 reply_message: replyMessage || undefined,
                 platform,
-                post_url: postUrl || undefined,
+                post_id: selectedPostId || undefined,
+                post_url: selectedPostId ? posts.find(p => p.id === selectedPostId)?.message?.slice(0, 60) : undefined,
             };
 
             const res = await fetch('/api/dashboard/comment-automations', {
@@ -280,8 +317,8 @@ export default function CommentAutomationPage() {
                                         key={p.value}
                                         onClick={() => setPlatform(p.value as typeof platform)}
                                         className={`flex-1 px-3 py-2.5 rounded-lg border text-[12px] font-medium transition-colors ${platform === p.value
-                                                ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                                                : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
+                                            ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                                            : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
                                             }`}
                                     >
                                         {p.icon} {p.label}
@@ -314,8 +351,8 @@ export default function CommentAutomationPage() {
                                 <button
                                     onClick={() => setMatchType('contains')}
                                     className={`flex-1 px-3 py-2.5 rounded-lg border text-[12px] font-medium transition-colors ${matchType === 'contains'
-                                            ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                                            : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
+                                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                                        : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
                                         }`}
                                 >
                                     Агуулсан (contains)
@@ -323,8 +360,8 @@ export default function CommentAutomationPage() {
                                 <button
                                     onClick={() => setMatchType('exact')}
                                     className={`flex-1 px-3 py-2.5 rounded-lg border text-[12px] font-medium transition-colors ${matchType === 'exact'
-                                            ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-                                            : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
+                                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                                        : 'border-white/[0.08] text-white/40 hover:border-blue-500/20'
                                         }`}
                                 >
                                     Яг таарах (exact)
@@ -345,8 +382,8 @@ export default function CommentAutomationPage() {
                                     key={a.value}
                                     onClick={() => setActionType(a.value as typeof actionType)}
                                     className={`px-3 py-3 rounded-lg border text-left transition-colors ${actionType === a.value
-                                            ? 'border-blue-500/50 bg-blue-500/10'
-                                            : 'border-white/[0.08] hover:border-blue-500/20'
+                                        ? 'border-blue-500/50 bg-blue-500/10'
+                                        : 'border-white/[0.08] hover:border-blue-500/20'
                                         }`}
                                 >
                                     <p className={`text-[12px] font-medium ${actionType === a.value ? 'text-blue-400' : 'text-white/60'}`}>{a.label}</p>
@@ -390,18 +427,122 @@ export default function CommentAutomationPage() {
                         </div>
                     )}
 
-                    {/* Post URL (optional) */}
-                    <div>
+                    {/* Post Selector */}
+                    <div className="relative">
                         <label className={labelCls}>
                             <Globe className="w-3 h-3 inline mr-1" />
-                            Пост URL (сонголттой — хоосон бол бүх пост)
+                            Пост сонгох (сонголттой — хоосон бол бүх пост)
                         </label>
-                        <input
-                            value={postUrl}
-                            onChange={e => setPostUrl(e.target.value)}
-                            className={inputCls}
-                            placeholder="https://facebook.com/... (хоосон = бүх пост)"
-                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPostDropdown(!showPostDropdown)}
+                            className={`${inputCls} flex items-center justify-between gap-2 text-left cursor-pointer`}
+                        >
+                            {selectedPostId ? (
+                                <span className="truncate flex items-center gap-2">
+                                    {(() => {
+                                        const p = posts.find(p => p.id === selectedPostId);
+                                        return p ? (
+                                            <>
+                                                <span className={`text-[10px] px-1 py-0.5 rounded ${p.platform === 'facebook' ? 'bg-blue-500/10 text-blue-400' : 'bg-pink-500/10 text-pink-400'}`}>
+                                                    {p.platform === 'facebook' ? 'FB' : 'IG'}
+                                                </span>
+                                                <span className="truncate">{p.message.slice(0, 50)}</span>
+                                            </>
+                                        ) : selectedPostId;
+                                    })()}
+                                </span>
+                            ) : (
+                                <span className="text-white/20">Бүх пост (сонгоогүй)</span>
+                            )}
+                            {loadingPosts ? (
+                                <Loader2 className="w-3.5 h-3.5 text-white/20 animate-spin shrink-0" />
+                            ) : (
+                                <ChevronDown className={`w-3.5 h-3.5 text-white/20 shrink-0 transition-transform ${showPostDropdown ? 'rotate-180' : ''}`} />
+                            )}
+                        </button>
+
+                        {showPostDropdown && (
+                            <div className="absolute z-50 mt-1 w-full bg-[#0D0928] border border-white/[0.12] rounded-lg shadow-2xl max-h-80 overflow-hidden">
+                                {/* Search */}
+                                <div className="p-2 border-b border-white/[0.06]">
+                                    <div className="relative">
+                                        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-white/20" />
+                                        <input
+                                            value={postSearch}
+                                            onChange={e => setPostSearch(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-md text-[12px] text-foreground focus:outline-none focus:border-blue-500/30 placeholder:text-white/15"
+                                            placeholder="Пост хайх..."
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* All posts option */}
+                                <div className="overflow-y-auto max-h-64">
+                                    <button
+                                        onClick={() => { setSelectedPostId(''); setShowPostDropdown(false); }}
+                                        className={`w-full px-3 py-2.5 text-left text-[12px] hover:bg-white/[0.04] transition-colors flex items-center gap-2 ${!selectedPostId ? 'bg-blue-500/5 text-blue-400' : 'text-white/50'}`}
+                                    >
+                                        <Globe className="w-4 h-4 shrink-0" />
+                                        Бүх пост (шүүлтгүй)
+                                    </button>
+
+                                    {/* Posts list */}
+                                    {posts
+                                        .filter(p => {
+                                            if (!postSearch) return true;
+                                            return p.message.toLowerCase().includes(postSearch.toLowerCase());
+                                        })
+                                        .filter(p => {
+                                            if (platform === 'both') return true;
+                                            return p.platform === platform;
+                                        })
+                                        .map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => { setSelectedPostId(p.id); setShowPostDropdown(false); setPostSearch(''); }}
+                                                className={`w-full px-3 py-2.5 text-left hover:bg-white/[0.04] transition-colors flex items-center gap-3 ${selectedPostId === p.id ? 'bg-blue-500/5' : ''}`}
+                                            >
+                                                {/* Thumbnail */}
+                                                {p.picture ? (
+                                                    <img
+                                                        src={p.picture}
+                                                        alt=""
+                                                        className="w-10 h-10 rounded-md object-cover shrink-0 border border-white/[0.06]"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-md bg-white/[0.04] flex items-center justify-center shrink-0">
+                                                        <Image className="w-4 h-4 text-white/15" />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[12px] text-foreground truncate">{p.message.slice(0, 60)}</p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${p.platform === 'facebook' ? 'bg-blue-500/10 text-blue-400' : 'bg-pink-500/10 text-pink-400'}`}>
+                                                            {p.platform === 'facebook' ? 'FB' : 'IG'}
+                                                        </span>
+                                                        <span className="text-[10px] text-white/20">
+                                                            {new Date(p.created_time).toLocaleDateString('mn-MN')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+
+                                    {posts.length === 0 && !loadingPosts && (
+                                        <div className="px-3 py-6 text-center text-[12px] text-white/20">
+                                            Пост олдсонгүй
+                                        </div>
+                                    )}
+                                    {loadingPosts && (
+                                        <div className="px-3 py-6 text-center">
+                                            <Loader2 className="w-4 h-4 animate-spin text-white/20 mx-auto" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Preview */}
@@ -459,8 +600,8 @@ export default function CommentAutomationPage() {
                                             {a.name}
                                         </h3>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${a.platform === 'facebook' ? 'bg-blue-500/10 text-blue-400' :
-                                                a.platform === 'instagram' ? 'bg-pink-500/10 text-pink-400' :
-                                                    'bg-violet-500/10 text-violet-400'
+                                            a.platform === 'instagram' ? 'bg-pink-500/10 text-pink-400' :
+                                                'bg-violet-500/10 text-violet-400'
                                             }`}>
                                             {a.platform === 'both' ? 'FB+IG' : a.platform === 'facebook' ? 'FB' : 'IG'}
                                         </span>
