@@ -28,40 +28,46 @@ import crypto from 'crypto';
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
 
 /**
- * SEC-8: Verify Facebook X-Hub-Signature-256
+ * SEC-8: Verify webhook signature using Facebook or Instagram App Secret
+ * Instagram webhooks use a separate Instagram App Secret for signing.
  */
-function verifyFacebookSignature(rawBodyBuffer: Buffer, signature: string | null): boolean {
-    const appSecret = process.env.FACEBOOK_APP_SECRET?.trim();
-    if (!appSecret) {
-        logger.warn('FACEBOOK_APP_SECRET not configured');
-        return false;
-    }
+function verifyWebhookSignature(rawBodyBuffer: Buffer, signature: string | null): boolean {
     if (!signature || !signature.startsWith('sha256=')) return false;
-
-    const expectedHash = crypto
-        .createHmac('sha256', appSecret)
-        .update(rawBodyBuffer)
-        .digest('hex');
 
     const receivedHash = signature.replace('sha256=', '');
 
-    try {
-        const match = crypto.timingSafeEqual(
-            Buffer.from(expectedHash),
-            Buffer.from(receivedHash)
-        );
-        if (!match) {
-            logger.warn('Signature hash comparison failed', {
-                expectedPrefix: expectedHash.substring(0, 10),
-                receivedPrefix: receivedHash.substring(0, 10),
-                secretLength: appSecret.length,
-                bodyLength: rawBodyBuffer.length,
-            });
-        }
-        return match;
-    } catch {
+    // Try both Facebook and Instagram app secrets
+    const secrets = [
+        { name: 'FACEBOOK_APP_SECRET', value: process.env.FACEBOOK_APP_SECRET?.trim() },
+        { name: 'INSTAGRAM_APP_SECRET', value: process.env.INSTAGRAM_APP_SECRET?.trim() },
+    ].filter(s => s.value);
+
+    if (secrets.length === 0) {
+        logger.warn('No app secrets configured (FACEBOOK_APP_SECRET / INSTAGRAM_APP_SECRET)');
         return false;
     }
+
+    for (const secret of secrets) {
+        const expectedHash = crypto
+            .createHmac('sha256', secret.value!)
+            .update(rawBodyBuffer)
+            .digest('hex');
+
+        try {
+            if (crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(receivedHash))) {
+                logger.info(`Webhook signature verified with ${secret.name}`);
+                return true;
+            }
+        } catch {
+            continue;
+        }
+    }
+
+    logger.warn('Webhook signature mismatch - no secret matched', {
+        receivedPrefix: receivedHash.substring(0, 10),
+        secretsChecked: secrets.map(s => s.name),
+    });
+    return false;
 }
 
 /**
@@ -119,14 +125,13 @@ export async function POST(request: NextRequest) {
         const rawBodyBuffer = Buffer.from(arrayBuffer);
         const signature = request.headers.get('x-hub-signature-256');
 
-        if (!verifyFacebookSignature(rawBodyBuffer, signature)) {
-            logger.warn('Facebook webhook signature mismatch - WARN ONLY MODE', {
+        if (!verifyWebhookSignature(rawBodyBuffer, signature)) {
+            logger.warn('Webhook signature verification failed', {
                 hasSignature: !!signature,
                 signaturePrefix: signature?.substring(0, 15),
-                secretPrefix: process.env.FACEBOOK_APP_SECRET?.substring(0, 6),
             });
-            // TODO: Re-enable strict mode after fixing App Secret
-            // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            // SEC-8: Strict mode - reject invalid signatures
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
         const rawBodyText = rawBodyBuffer.toString('utf8');
