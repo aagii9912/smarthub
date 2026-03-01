@@ -132,6 +132,9 @@ export async function POST(request: NextRequest) {
         const rawBodyText = rawBodyBuffer.toString('utf8');
         const body = JSON.parse(rawBodyText);
 
+        // TEMP DEBUG: Log raw webhook body (remove after fixing)
+        logger.info('🔍 RAW WEBHOOK BODY', { rawBody: rawBodyText.substring(0, 500) });
+
         // Determine platform type: 'page' for Messenger, 'instagram' for Instagram
         const platform: 'messenger' | 'instagram' = body.object === 'instagram' ? 'instagram' : 'messenger';
 
