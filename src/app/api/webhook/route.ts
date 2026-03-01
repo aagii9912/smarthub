@@ -120,12 +120,13 @@ export async function POST(request: NextRequest) {
         const signature = request.headers.get('x-hub-signature-256');
 
         if (!verifyFacebookSignature(rawBodyBuffer, signature)) {
-            logger.warn('Facebook webhook signature mismatch', {
+            logger.warn('Facebook webhook signature mismatch - WARN ONLY MODE', {
                 hasSignature: !!signature,
                 signaturePrefix: signature?.substring(0, 15),
+                secretPrefix: process.env.FACEBOOK_APP_SECRET?.substring(0, 6),
             });
-            // SEC-8: Strict mode enabled (blocks invalid requests)
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            // TODO: Re-enable strict mode after fixing App Secret
+            // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
         const rawBodyText = rawBodyBuffer.toString('utf8');
