@@ -46,10 +46,19 @@ function verifyFacebookSignature(rawBodyBuffer: Buffer, signature: string | null
     const receivedHash = signature.replace('sha256=', '');
 
     try {
-        return crypto.timingSafeEqual(
+        const match = crypto.timingSafeEqual(
             Buffer.from(expectedHash),
             Buffer.from(receivedHash)
         );
+        if (!match) {
+            logger.warn('Signature hash comparison failed', {
+                expectedPrefix: expectedHash.substring(0, 10),
+                receivedPrefix: receivedHash.substring(0, 10),
+                secretLength: appSecret.length,
+                bodyLength: rawBodyBuffer.length,
+            });
+        }
+        return match;
     } catch {
         return false;
     }
