@@ -130,7 +130,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid object type' }, { status: 400 });
         }
 
-        logger.info(`Webhook received for platform: ${platform}`);
+        logger.info(`Webhook received for platform: ${platform}`, {
+            object: body.object,
+            entryCount: body.entry?.length,
+            // Debug: log entry structure for Instagram
+            entryIds: body.entry?.map((e: WebhookEntry) => e.id),
+            hasChanges: body.entry?.map((e: WebhookEntry) => ({
+                id: e.id,
+                changesCount: e.changes?.length || 0,
+                changeFields: e.changes?.map(c => c.field),
+                messagingCount: e.messaging?.length || 0,
+            })),
+        });
 
         // Process each entry
         for (const entry of body.entry as WebhookEntry[]) {
