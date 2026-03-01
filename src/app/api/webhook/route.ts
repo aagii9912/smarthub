@@ -22,6 +22,7 @@ import {
     replyToComment,
     ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
+import { getMatchingAutomation, executeAutomation } from '@/lib/services/CommentAutomationService';
 import crypto from 'crypto';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN || 'smarthub_verify_token_2024';
@@ -64,7 +65,9 @@ interface WebhookEntry {
         value?: {
             item?: string;
             message?: string;
+            text?: string;
             comment_id?: string;
+            media_id?: string;
             post_id?: string;
             from?: { id: string; name?: string };
         };
@@ -159,37 +162,62 @@ export async function POST(request: NextRequest) {
                 continue;
             }
 
-            // Process Facebook Page feed events (comments) - only for Messenger platform
-            if (platform === 'messenger') {
-                for (const change of entry.changes || []) {
-                    if (change.field === 'feed' && change.value?.item === 'comment') {
-                        const commentData = change.value;
-                        const commentMessage = commentData.message || '';
-                        const commentId = commentData.comment_id;
-                        const senderId = commentData.from?.id;
+            // Process comment events (Facebook feed + Instagram comments)
+            for (const change of entry.changes || []) {
+                const isFbComment = platform === 'messenger' && change.field === 'feed' && change.value?.item === 'comment';
+                const isIgComment = platform === 'instagram' && change.field === 'comments';
 
-                        // Don't reply to own comments (from page)
-                        if (senderId === accountId || !commentId) continue;
+                if (isFbComment || isIgComment) {
+                    const commentData = change.value;
+                    const commentMessage = commentData?.message || commentData?.text || '';
+                    const commentId = commentData?.comment_id;
+                    const postId = commentData?.post_id || commentData?.media_id || null;
+                    const senderId = commentData?.from?.id;
 
-                        logger.info(`[${shop.name}] New comment received`, {
+                    // Don't reply to own comments (from page)
+                    if (senderId === accountId || !commentId) continue;
+
+                    const currentPlatform = platform === 'instagram' ? 'instagram' as const : 'facebook' as const;
+
+                    logger.info(`[${shop.name}] New ${currentPlatform} comment received`, {
+                        commentMessage,
+                        senderName: commentData?.from?.name,
+                        postId,
+                    });
+
+                    // 1. Check Comment Automations first (higher priority)
+                    const automation = await getMatchingAutomation(
+                        shop.id,
+                        postId,
+                        commentMessage,
+                        currentPlatform
+                    );
+
+                    if (automation) {
+                        logger.info(`[${shop.name}] Comment automation matched: "${automation.name}"`);
+                        await executeAutomation(
+                            automation,
+                            senderId!,
+                            commentId,
+                            accessToken,
+                            currentPlatform
+                        );
+                        continue; // Automation handled, skip default comment reply
+                    }
+
+                    // 2. Fallback: existing product-related comment reply (Facebook only)
+                    if (platform === 'messenger' && shouldReplyToComment(commentMessage)) {
+                        logger.info(`[${shop.name}] Comment is product-related, replying...`);
+                        await replyToComment(
+                            shop.id,
+                            shop.name,
+                            shop.facebook_page_username,
+                            commentId,
                             commentMessage,
-                            senderName: commentData.from?.name
-                        });
-
-                        // Check if comment is product-related and reply
-                        if (shouldReplyToComment(commentMessage)) {
-                            logger.info(`[${shop.name}] Comment is product-related, replying...`);
-                            await replyToComment(
-                                shop.id,
-                                shop.name,
-                                shop.facebook_page_username,
-                                commentId,
-                                commentMessage,
-                                accessToken
-                            );
-                        } else {
-                            logger.debug(`[${shop.name}] Comment not product-related, skipping`);
-                        }
+                            accessToken
+                        );
+                    } else {
+                        logger.debug(`[${shop.name}] Comment not matched, skipping`);
                     }
                 }
             }

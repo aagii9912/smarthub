@@ -20,6 +20,7 @@ import {
     Zap,
     ArrowUpRight,
     Globe,
+    MessageSquareMore,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -45,6 +46,7 @@ const mainMenu: MenuItem[] = [
 
 const toolsMenu: MenuItem[] = [
     { name: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
+    { name: 'Comment Удирдлага', href: '/dashboard/comment-automation', icon: MessageSquareMore },
     { name: 'Сагс', href: '/dashboard/inbox', icon: ShoppingCart, feature: 'cart_system' },
     { name: 'Тайлан', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
 ];
