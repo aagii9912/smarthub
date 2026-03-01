@@ -174,9 +174,10 @@ export async function POST(request: NextRequest) {
             const aiFeatures = await getAIFeatures(shop.id);
 
             // Get access token based on platform
-            const accessToken = platform === 'instagram'
-                ? (shop.instagram_access_token || shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN)
-                : (shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN);
+            // IMPORTANT: Instagram Messaging API requires the PAGE Access Token, NOT the IG content token.
+            // instagram_access_token is for reading IG content (posts, media) only.
+            // facebook_page_access_token works for both FB Messenger AND IG messaging.
+            const accessToken = shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
 
             if (!accessToken) {
                 logger.warn(`No access token for shop ${shop.name} on ${platform}`);
