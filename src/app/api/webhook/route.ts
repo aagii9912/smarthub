@@ -250,11 +250,18 @@ export async function POST(request: NextRequest) {
                 // Handle text messages
                 if (event.message?.text) {
                     const userMessage = event.message.text;
-                    logger.info(`[${shop.name}] Received ${platform} message`, { userMessage, senderId });
+                    logger.info(`[${shop.name}] Received ${platform} message`, {
+                        userMessage,
+                        senderId,
+                        tokenPrefix: accessToken.substring(0, 10),
+                        tokenSource: shop.instagram_access_token ? 'ig_token' : shop.facebook_page_access_token ? 'page_token' : 'env',
+                    });
 
-                    // Mark Seen & Typing indicators
-                    await sendSenderAction(senderId, 'mark_seen', accessToken);
-                    await sendSenderAction(senderId, 'typing_on', accessToken);
+                    // Mark Seen & Typing indicators (skip for Instagram - unsupported)
+                    if (platform !== 'instagram') {
+                        await sendSenderAction(senderId, 'mark_seen', accessToken);
+                        await sendSenderAction(senderId, 'typing_on', accessToken);
+                    }
 
                     // Detect intent
                     const intent = detectIntent(userMessage);
