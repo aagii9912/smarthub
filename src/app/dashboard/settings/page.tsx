@@ -111,7 +111,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${igConnected ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                            {igConnected ? <button onClick={() => disconnectPlatform('instagram')} className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-red-500 border border-red-500/20 rounded-md hover:bg-red-500/5 transition-colors"><Unlink className="w-3 h-3" strokeWidth={1.5} />Салгах</button> : <a href="/api/auth/instagram" className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-emerald-500 border border-emerald-500/20 rounded-md hover:bg-emerald-500/5 transition-colors"><Link2 className="w-3 h-3" strokeWidth={1.5} />Холбох</a>}
+                            {igConnected ? <button onClick={() => disconnectPlatform('instagram')} className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-red-500 border border-red-500/20 rounded-md hover:bg-red-500/5 transition-colors"><Unlink className="w-3 h-3" strokeWidth={1.5} />Салгах</button> : <a href={`/api/auth/instagram?source=settings&shop_id=${localStorage.getItem('smarthub_active_shop_id') || ''}`} className="flex items-center gap-1 px-2.5 py-1 text-[11px] text-emerald-500 border border-emerald-500/20 rounded-md hover:bg-emerald-500/5 transition-colors"><Link2 className="w-3 h-3" strokeWidth={1.5} />Холбох</a>}
                         </div>
                     </div>
                 </div>

@@ -12,6 +12,11 @@ export async function GET(request: NextRequest) {
     const origin = request.nextUrl.origin;
     const redirectUri = `${origin}/api/auth/instagram/callback`;
 
+    // Check if request comes from settings (has shop_id param)
+    const shopId = request.nextUrl.searchParams.get('shop_id') || '';
+    const source = request.nextUrl.searchParams.get('source') || 'setup';
+    const state = Buffer.from(JSON.stringify({ source, shopId })).toString('base64');
+
     // Required permissions for Instagram messaging
     const permissions = [
         'pages_show_list',
@@ -28,6 +33,7 @@ export async function GET(request: NextRequest) {
     fbAuthUrl.searchParams.set('redirect_uri', redirectUri);
     fbAuthUrl.searchParams.set('scope', permissions);
     fbAuthUrl.searchParams.set('response_type', 'code');
+    fbAuthUrl.searchParams.set('state', state);
 
     return NextResponse.redirect(fbAuthUrl.toString());
 }
