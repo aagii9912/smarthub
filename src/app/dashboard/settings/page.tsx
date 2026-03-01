@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Save, Store, Building2, CreditCard, Globe, LogOut, Trash2, AlertTriangle, Facebook, Instagram, Bot, User, Phone, Mail, MapPin, Clock, Loader2, Link2, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -8,7 +7,6 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [shop, setShop] = useState<any>(null);
-    const searchParams = useSearchParams();
 
     const [shopInfo, setShopInfo] = useState({ name: '', description: '', phone: '', address: '', working_hours: '' });
     const [bankInfo, setBankInfo] = useState({ bank_name: '', account_name: '', account_number: '' });
@@ -17,13 +15,13 @@ export default function SettingsPage() {
 
     // Handle Instagram OAuth redirect feedback
     useEffect(() => {
-        const igSuccess = searchParams.get('ig_success');
-        const igError = searchParams.get('ig_error');
+        const params = new URLSearchParams(window.location.search);
+        const igSuccess = params.get('ig_success');
+        const igError = params.get('ig_error');
         if (igSuccess) {
             toast.success('Instagram амжилттай холбогдлоо! ✅');
-            // Clean URL
             window.history.replaceState({}, '', '/dashboard/settings');
-            fetchSettings(); // Refresh to show connected status
+            fetchSettings();
         }
         if (igError) {
             const errorMessages: Record<string, string> = {
@@ -37,7 +35,7 @@ export default function SettingsPage() {
             toast.error(errorMessages[igError] || `IG холболтын алдаа: ${igError}`);
             window.history.replaceState({}, '', '/dashboard/settings');
         }
-    }, [searchParams]);
+    }, []);
 
     useEffect(() => { fetchSettings(); }, []);
 
