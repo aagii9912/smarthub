@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Save, Store, Building2, CreditCard, Globe, LogOut, Trash2, AlertTriangle, Facebook, Instagram, Bot, User, Phone, Mail, MapPin, Clock, Loader2, Link2, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -7,11 +8,36 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [shop, setShop] = useState<any>(null);
+    const searchParams = useSearchParams();
 
     const [shopInfo, setShopInfo] = useState({ name: '', description: '', phone: '', address: '', working_hours: '' });
     const [bankInfo, setBankInfo] = useState({ bank_name: '', account_name: '', account_number: '' });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
+
+    // Handle Instagram OAuth redirect feedback
+    useEffect(() => {
+        const igSuccess = searchParams.get('ig_success');
+        const igError = searchParams.get('ig_error');
+        if (igSuccess) {
+            toast.success('Instagram амжилттай холбогдлоо! ✅');
+            // Clean URL
+            window.history.replaceState({}, '', '/dashboard/settings');
+            fetchSettings(); // Refresh to show connected status
+        }
+        if (igError) {
+            const errorMessages: Record<string, string> = {
+                'no_instagram_account': 'Instagram Business Account олдсонгүй. Facebook Page-тай IG холбогдсон эсэхийг шалгана уу.',
+                'token_error': 'Token авахад алдаа гарлаа',
+                'pages_error': 'Facebook Pages уншихад алдаа гарлаа',
+                'config_missing': 'App тохиргоо дутуу',
+                'db_save_failed': 'Мэдээлэл хадгалахад алдаа',
+                'exception': 'Алдаа гарлаа, дахин оролдоно уу',
+            };
+            toast.error(errorMessages[igError] || `IG холболтын алдаа: ${igError}`);
+            window.history.replaceState({}, '', '/dashboard/settings');
+        }
+    }, [searchParams]);
 
     useEffect(() => { fetchSettings(); }, []);
 
