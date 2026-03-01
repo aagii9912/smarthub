@@ -1,4 +1,4 @@
-const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
+const GRAPH_API_URL = 'https://graph.facebook.com/v21.0';
 
 interface SendMessageOptions {
     recipientId: string;
