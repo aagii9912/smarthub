@@ -4,12 +4,12 @@
 
 import { NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/admin/auth';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { auth } from '@clerk/nextjs/server';
 
 export async function GET() {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
         const admin = await getAdminUser();
         const supabase = supabaseAdmin();
 
@@ -24,7 +24,7 @@ export async function GET() {
             .select('id, name, user_id, is_active, created_at', { count: 'exact' });
 
         return NextResponse.json({
-            clerk_user_id: userId,
+            user_id: userId,
             admin_check: admin ? { email: admin.email, role: admin.role } : null,
             admins_table: admins,
             admins_error: adminError?.message,

@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminUser } from '@/lib/admin/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { auth } from '@clerk/nextjs/server';
 import { logger } from '@/lib/utils/logger';
 
 // GET - List all shops with subscription info

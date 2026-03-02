@@ -1,7 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import type { User } from '@supabase/supabase-js';
 
 const isDev = process.env.NODE_ENV === 'development';
 const ACTIVE_SHOP_KEY = 'smarthub_active_shop_id';
@@ -57,18 +58,44 @@ const AuthContext = createContext<AuthContextType>({
   refreshShops: async () => { },
 });
 
+const supabase = createSupabaseBrowserClient();
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [shop, setShop] = useState<Shop | null>(null);
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Transform Clerk user to our format
-  const user = clerkUser ? {
-    id: clerkUser.id,
-    email: clerkUser.primaryEmailAddress?.emailAddress || '',
-    fullName: clerkUser.fullName,
+  const isSignedIn = !!supabaseUser;
+
+  // Transform Supabase user to our format
+  const user = supabaseUser ? {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    fullName: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || null,
   } : null;
+
+  // Listen for auth state changes
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSupabaseUser(session?.user ?? null);
+      setIsLoaded(true);
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSupabaseUser(session?.user ?? null);
+        setIsLoaded(true);
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Fetch all shops for user
   const fetchShops = useCallback(async () => {
@@ -146,7 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isLoaded) return;
 
       if (isSignedIn) {
-
         fetchShops().then(userShops => {
           if (isMounted) {
             initializeActiveShop(userShops);

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter, Playfair_Display } from "next/font/google";
-import { ClerkProvider } from '@clerk/nextjs';
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
@@ -66,22 +65,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="mn" className="font-sans">
-        <body
-          className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
-        >
-          <ServiceWorkerRegistration />
-          <PWAInstallPrompt />
-          <QueryProvider>
-            <AuthProvider>
-              {children}
-              <Toaster position="top-center" richColors />
-            </AuthProvider>
-          </QueryProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="mn" className="font-sans">
+      <body
+        className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
+      >
+        <ServiceWorkerRegistration />
+        <PWAInstallPrompt />
+        <QueryProvider>
+          <AuthProvider>
+            {children}
+            <Toaster position="top-center" richColors />
+          </AuthProvider>
+        </QueryProvider>
+      </body>
+    </html>
   );
 }
+
 

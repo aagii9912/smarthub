@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
     getAllAutomations,
@@ -12,7 +12,7 @@ import {
  * Helper: get shop ID for authenticated user
  */
 async function getShopId(request: NextRequest): Promise<string | null> {
-    const { userId } = await auth();
+    const userId = await getAuthUser();
     if (!userId) return null;
 
     const shopId = request.headers.get('x-shop-id');

@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +13,7 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
         const body = await request.json();
 
         const { type, message, email } = body;
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             const { data: shop } = await supabase
                 .from('shops')
                 .select('id, name')
-                .eq('clerk_user_id', userId)
+                .eq('user_id', userId)
                 .single();
 
             if (shop) {

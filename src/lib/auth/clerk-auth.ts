@@ -1,12 +1,18 @@
 import { logger } from '@/lib/utils/logger';
-import { auth } from '@clerk/nextjs/server';
-import { headers } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
+import { headers } from 'next/headers';
 
-// Get authenticated user from Clerk
-export async function getClerkUser() {
-    const { userId } = await auth();
-    return userId;
+// Get authenticated user from Supabase Auth
+export async function getAuthUser() {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+        return null;
+    }
+
+    return user.id;
 }
 
 // Create Supabase admin client (for server-side operations)
@@ -23,11 +29,10 @@ export function supabaseAdmin() {
     );
 }
 
-// Get shop for a Clerk user
-export async function getClerkUserShop() {
-    const userId = await getClerkUser();
+// Get shop for an authenticated user
+export async function getAuthUserShop() {
+    const userId = await getAuthUser();
     if (!userId) {
-        // console.log('getClerkUserShop: No userId found from Clerk');
         return null;
     }
 
@@ -51,14 +56,17 @@ export async function getClerkUserShop() {
     const { data: shops, error } = await query.limit(1);
 
     if (error) {
-        logger.error('getClerkUserShop Error:', { error });
+        logger.error('getAuthUserShop Error:', { error });
         return null;
     }
 
     if (!shops || shops.length === 0) {
-        // console.log('getClerkUserShop: No shops found for userId:', userId);
         return null;
     }
 
     return shops[0];
 }
+
+// Backward compatibility aliases
+export const getClerkUser = getAuthUser;
+export const getClerkUserShop = getAuthUserShop;

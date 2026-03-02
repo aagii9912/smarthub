@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useClerk } from '@clerk/nextjs';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { LogOut, Settings, ChevronDown, Search, Command } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationButton } from '@/components/NotificationButton';
@@ -36,7 +36,7 @@ function getGreeting(): string {
 export function Header() {
     const router = useRouter();
     const pathname = usePathname();
-    const { signOut } = useClerk();
+    const supabase = createSupabaseBrowserClient();
     const { user, shop, shops } = useAuth();
     const { limits } = useFeatures();
     const [showDropdown, setShowDropdown] = useState(false);
@@ -62,7 +62,9 @@ export function Header() {
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map((name) => caches.delete(name)));
             }
-            await signOut({ redirectUrl: '/auth/login' });
+            await supabase.auth.signOut();
+            router.push('/auth/login');
+            router.refresh();
         } catch (error) {
             console.error('Logout error:', error);
             if (typeof window !== 'undefined') window.location.href = '/auth/login';

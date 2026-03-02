@@ -3,7 +3,7 @@
  * Middleware for Super Admin access
  */
 
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
@@ -19,7 +19,7 @@ export interface AdminUser {
  */
 export async function getAdminUser(): Promise<AdminUser | null> {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
 
         if (!userId) {
             logger.debug('Admin auth: No user found');

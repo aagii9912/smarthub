@@ -1,31 +1,28 @@
 import { NextResponse } from 'next/server';
-import { getClerkUser, getClerkUserShop, supabaseAdmin } from '@/lib/auth/clerk-auth';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser, getAuthUserShop, supabaseAdmin } from '@/lib/auth/clerk-auth';
 
 export async function GET() {
     try {
-        const { userId: authUserId } = await auth();
-        const clerkUserId = await getClerkUser();
-        const shop = await getClerkUserShop();
+        const userId = await getAuthUser();
+        const shop = await getAuthUserShop();
 
         let rawShops = null;
         let queryError = null;
 
-        if (clerkUserId) {
+        if (userId) {
             const supabase = supabaseAdmin();
             const { data, error } = await supabase
                 .from('shops')
                 .select('*')
-                .eq('user_id', clerkUserId);
+                .eq('user_id', userId);
             rawShops = data;
             queryError = error;
         }
 
         return NextResponse.json({
             auth_status: {
-                auth_userId: authUserId,
-                clerk_userId: clerkUserId,
-                isAuthenticated: !!authUserId
+                user_id: userId,
+                isAuthenticated: !!userId
             },
             shop_status: {
                 shop_found: !!shop,

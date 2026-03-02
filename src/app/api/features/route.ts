@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 import { headers } from 'next/headers';
 import { logger } from '@/lib/utils/logger';
 
@@ -15,7 +15,7 @@ const supabase = createClient(
 
 export async function GET() {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

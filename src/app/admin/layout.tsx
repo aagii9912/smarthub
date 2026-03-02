@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import {
     LayoutDashboard, Users, CreditCard, Package,
@@ -28,7 +28,8 @@ const navItems = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const { isSignedIn, isLoaded } = useAuth();
+    const { isSignedIn, loading: isLoading } = useAuth();
+    const isLoaded = !isLoading;
     const [loading, setLoading] = useState(true);
     const [admin, setAdmin] = useState<{ email: string; role: string } | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { defaultLandingContent } from '@/lib/landing/defaults';
 import type { LandingContent } from '@/lib/landing/types';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/clerk-auth';
 
 // GET — Public, no auth required
 export async function GET() {
@@ -52,7 +52,7 @@ export async function GET() {
 // PUT — Requires auth (shop owner or admin)
 export async function PUT(request: NextRequest) {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
