@@ -55,6 +55,7 @@ export default function RegisterPage() {
             provider,
             options: {
                 redirectTo: `${window.location.origin}/auth/callback?redirect_url=/setup`,
+                ...(provider === 'facebook' && { scopes: 'public_profile' }),
             },
         });
         if (error) {

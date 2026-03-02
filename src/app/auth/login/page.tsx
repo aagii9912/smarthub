@@ -44,6 +44,7 @@ function LoginForm() {
             provider,
             options: {
                 redirectTo: `${window.location.origin}/auth/callback?redirect_url=${encodeURIComponent(redirectUrl)}`,
+                ...(provider === 'facebook' && { scopes: 'public_profile' }),
             },
         });
         if (error) {
