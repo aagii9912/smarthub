@@ -54,7 +54,7 @@ export async function executeCheckout(
             orderId: orderId,
             amount: cart.total_amount,
             description: `Order #${orderId.substring(0, 8)}`,
-            callbackUrl: `https://smarthub.mn/api/payment/callback/qpay`
+            callbackUrl: `https://www.syncly.mn/api/payment/callback/qpay`
         });
         if (!qpayInvoice) {
             qpayFailed = true;
