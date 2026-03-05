@@ -16,8 +16,8 @@ import crypto from 'crypto';
 // QPay API Configuration
 const QPAY_CONFIG = {
     uat: {
-        authUrl: 'https://merchant.qpay.mn/v2/auth/token',
-        apiUrl: 'https://merchant.qpay.mn/v2',
+        authUrl: 'https://merchant-sandbox.qpay.mn/v2/auth/token',
+        apiUrl: 'https://merchant-sandbox.qpay.mn/v2',
     },
     production: {
         authUrl: 'https://merchant.qpay.mn/v2/auth/token',
@@ -54,13 +54,23 @@ interface QPayInvoice {
     }[];
 }
 
+interface QPayInvoiceLine {
+    line_description: string;
+    line_quantity: string;
+    line_unit_price: string;
+    note?: string;
+}
+
 interface QPayInvoiceRequest {
     invoice_code: string;
     sender_invoice_no: string;
     invoice_receiver_code?: string;
     invoice_description: string;
-    amount: number;
+    amount?: number;
     callback_url?: string;
+    allow_partial: boolean;
+    allow_exceed: boolean;
+    lines: QPayInvoiceLine[];
 }
 
 interface QPayPaymentCheck {
@@ -137,8 +147,9 @@ export async function createQPayInvoice(params: {
     amount: number;
     description: string;
     callbackUrl?: string;
+    items?: Array<{ name: string; quantity: number; unitPrice: number }>;
 }): Promise<QPayInvoice | null> {
-    const { orderId, amount, description, callbackUrl } = params;
+    const { orderId, amount, description, callbackUrl, items } = params;
 
     // Circuit breaker check - skip if QPay is known to be down
     if (!qpayBreaker.isAllowed()) {
@@ -161,12 +172,27 @@ export async function createQPayInvoice(params: {
     try {
         const token = await getAccessToken();
 
+        // Build lines from items, or fallback to single line with total amount
+        const lines: QPayInvoiceLine[] = items && items.length > 0
+            ? items.map(item => ({
+                line_description: item.name,
+                line_quantity: item.quantity.toFixed(2),
+                line_unit_price: item.unitPrice.toFixed(2),
+            }))
+            : [{
+                line_description: description,
+                line_quantity: '1.00',
+                line_unit_price: amount.toFixed(2),
+            }];
+
         const invoiceRequest: QPayInvoiceRequest = {
             invoice_code: MERCHANT_ID,
             sender_invoice_no: orderId,
             invoice_description: description,
-            amount: amount,
             callback_url: callbackUrl,
+            allow_partial: false,
+            allow_exceed: false,
+            lines,
         };
 
         logger.info('Creating QPay invoice:', { orderId, amount });
@@ -232,6 +258,10 @@ export async function checkPaymentStatus(invoiceId: string): Promise<QPayPayment
             body: JSON.stringify({
                 object_type: 'INVOICE',
                 object_id: invoiceId,
+                offset: {
+                    page_number: 1,
+                    page_limit: 100,
+                },
             }),
         });
 
