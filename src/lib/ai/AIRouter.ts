@@ -194,12 +194,22 @@ export async function routeToAI(
             // Send message
             let result = await chat.sendMessage(message);
             let response = result.response;
-            let finalResponseText = response.text?.() || '';
+
+            // Safely extract text (text() can throw when response has only function calls)
+            let finalResponseText = '';
+            try {
+                finalResponseText = response.text?.() || '';
+            } catch (textError) {
+                logger.debug('First response text() unavailable (likely function call response)');
+            }
 
             // Handle Function Calls
             const functionCalls = response.functionCalls?.();
             if (functionCalls && functionCalls.length > 0 && planConfig.features.toolCalling) {
-                logger.info('Gemini triggered function calls:', { count: functionCalls.length });
+                logger.info('Gemini triggered function calls:', {
+                    count: functionCalls.length,
+                    names: functionCalls.map(fc => fc.name),
+                });
 
                 // Create tool execution context
                 const toolContext: ToolExecutionContext = {
@@ -259,20 +269,43 @@ export async function routeToAI(
 
                 // Send function results back to Gemini
                 const secondResult = await chat.sendMessage(functionResponseParts);
-                finalResponseText = secondResult.response.text?.() || '';
 
-                // Fallback: if Gemini returned empty, use the tool's own message
+                try {
+                    finalResponseText = secondResult.response.text?.() || '';
+                } catch (textError) {
+                    logger.warn('Second response text() threw error:', { error: String(textError) });
+                }
+
+                // Diagnostic: log what Gemini returned if empty
                 if (!finalResponseText.trim()) {
+                    const candidates = secondResult.response.candidates;
+                    logger.warn('Gemini returned empty after tool call', {
+                        candidateCount: candidates?.length,
+                        finishReason: candidates?.[0]?.finishReason,
+                        safetyRatings: candidates?.[0]?.safetyRatings?.map(r => ({ category: r.category, probability: r.probability })),
+                        partTypes: candidates?.[0]?.content?.parts?.map(p => Object.keys(p)),
+                    });
+
+                    // Fallback: use the tool's own message
                     const lastToolMessage = functionResponseParts
                         .map(p => (p.functionResponse?.response as Record<string, unknown>)?.message)
                         .filter(Boolean)
                         .pop() as string | undefined;
 
                     if (lastToolMessage) {
-                        logger.warn('Gemini returned empty response after tool call, using tool message as fallback');
+                        logger.info('Using tool message as fallback');
                         finalResponseText = lastToolMessage;
                     }
                 }
+            } else if (!finalResponseText.trim()) {
+                // No function calls and no text - log diagnostic
+                const candidates = response.candidates;
+                logger.warn('Gemini returned empty (no function calls)', {
+                    candidateCount: candidates?.length,
+                    finishReason: candidates?.[0]?.finishReason,
+                    safetyRatings: candidates?.[0]?.safetyRatings?.map(r => ({ category: r.category, probability: r.probability })),
+                    partTypes: candidates?.[0]?.content?.parts?.map(p => Object.keys(p)),
+                });
             }
 
             // Log usage info
