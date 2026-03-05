@@ -45,10 +45,27 @@ export async function POST(request: NextRequest) {
 
         if (error) throw error;
 
-        // TODO: If 'delivered', we should theoretically update stats for all of them, 
-        // but the `update_customer_stats_manual` RPC takes single ID. 
-        // For bulk efficiency we might skip that or loop parallel. 
-        // For MVP, we will only do the status update.
+        // Stock management for confirmed/cancelled status changes
+        if (status === 'confirmed' || status === 'cancelled') {
+            const { deductStockForOrder, releaseStockForOrder } = await import('@/lib/services/StockService');
+
+            // Get previous statuses to only process orders that actually changed
+            const { data: previousOrders } = await supabase
+                .from('orders')
+                .select('id, status')
+                .in('id', orderIds)
+                .eq('shop_id', shopId);
+
+            if (previousOrders) {
+                await Promise.all(previousOrders.map(async (order) => {
+                    if (status === 'confirmed' && order.status === 'pending') {
+                        await deductStockForOrder(order.id);
+                    } else if (status === 'cancelled' && order.status === 'pending') {
+                        await releaseStockForOrder(order.id);
+                    }
+                }));
+            }
+        }
 
         // Send notifications to all customers (async, non-blocking)
         sendBulkOrderNotifications(orderIds, status, shopId);

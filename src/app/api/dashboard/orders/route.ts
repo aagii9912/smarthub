@@ -81,6 +81,20 @@ export async function PATCH(request: Request) {
 
     if (error) throw error;
 
+    // Stock management based on status change
+    const { deductStockForOrder, releaseStockForOrder } = await import('@/lib/services/StockService');
+
+    if (status === 'confirmed' && existingOrder.status === 'pending') {
+      // Confirmed: deduct stock and release reservation
+      await deductStockForOrder(id);
+    } else if (status === 'cancelled' && ['pending', 'confirmed'].includes(existingOrder.status)) {
+      if (existingOrder.status === 'pending') {
+        // Cancelled from pending: just release reserved stock
+        await releaseStockForOrder(id);
+      }
+      // If cancelled from confirmed: stock already deducted, no reversal (manual adjustment needed)
+    }
+
     // Send notification to customer via Facebook Messenger (non-blocking)
     if (existingOrder.customer_id && status !== existingOrder.status) {
       sendOrderStatusNotification(existingOrder.customer_id, id, status, shopId)
