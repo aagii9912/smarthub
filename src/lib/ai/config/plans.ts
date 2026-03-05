@@ -3,13 +3,13 @@
  * 
  * Strategy: 3 plans using Gemini models (matching landing page)
  * - Starter: Gemini 2.5 Flash - ₮179,000/сар
- * - Pro: Gemini 3 Flash - ₮379,000/сар
- * - Enterprise: Gemini 3 Flash - Тохиролцоно
+ * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар
+ * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно
  */
 
 export type PlanType = 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
-export type AIModel = 'gemini-2.5-flash' | 'gemini-3-flash-preview';
+export type AIModel = 'gemini-2.5-flash' | 'gemini-3.1-flash-lite-preview';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -101,7 +101,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     pro: {
         provider: 'gemini',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 800,
         messagesPerMonth: 10000,
         maxShops: 3,
@@ -151,7 +151,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     enterprise: {
         provider: 'gemini',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 1500,
         messagesPerMonth: 100000, // Effectively unlimited
         maxShops: 1000,           // Effectively unlimited
@@ -288,7 +288,7 @@ export function checkShopLimit(
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
     'gemini-2.5-flash': 'Gemini 2.5 Flash',
-    'gemini-3-flash-preview': 'Gemini 3 Flash',
+    'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
 };
 
 /**

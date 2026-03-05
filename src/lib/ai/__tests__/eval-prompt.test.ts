@@ -150,7 +150,7 @@ describe('Prompt Quality Eval', () => {
         it('should reference memory when enabled', () => {
             const prompt = buildSystemPrompt(createTestContext({
                 planFeatures: {
-                    ai_model: 'gemini-3-flash-preview',
+                    ai_model: 'gemini-3.1-flash-lite-preview',
                     sales_intelligence: true,
                     ai_memory: true,
                     max_tokens: 800,

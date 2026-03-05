@@ -111,7 +111,7 @@ export interface ChatContext {
     customerMemory?: Record<string, string | string[] | number>;
     // Plan-based features for dynamic AI behavior
     planFeatures?: {
-        ai_model?: 'gemini-2.5-flash' | 'gemini-3-flash-preview';
+        ai_model?: 'gemini-2.5-flash' | 'gemini-3.1-flash-lite-preview';
         sales_intelligence?: boolean;
         ai_memory?: boolean;
         max_tokens?: number;  // Dynamic token limit based on plan
