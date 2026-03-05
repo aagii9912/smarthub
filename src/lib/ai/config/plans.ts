@@ -2,14 +2,14 @@
  * Syncly AI Plan Configuration - Gemini Family
  * 
  * Strategy: 3 plans using Gemini models (matching landing page)
- * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар
+ * - Starter: Gemini 2.5 Flash - ₮179,000/сар
  * - Pro: Gemini 3 Flash - ₮379,000/сар
  * - Enterprise: Gemini 3 Flash - Тохиролцоно
  */
 
 export type PlanType = 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
-export type AIModel = 'gemini-3.1-flash-lite-preview' | 'gemini-3-flash-preview';
+export type AIModel = 'gemini-2.5-flash' | 'gemini-3-flash-preview';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -59,7 +59,7 @@ export interface PlanAIConfig {
 export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     starter: {
         provider: 'gemini',
-        model: 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-2.5-flash',
         maxTokens: 500,
         messagesPerMonth: 2000,
         maxShops: 1,
@@ -287,7 +287,7 @@ export function checkShopLimit(
  * Model display names for UI
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
-    'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash',
     'gemini-3-flash-preview': 'Gemini 3 Flash',
 };
 

@@ -356,7 +356,7 @@ export default function AdminSettingsPage() {
                                         {settings.ai.default_provider === 'gemini' ? (
                                             <>
                                                 <option value="gemini-3-flash-preview">⚡ Gemini 3 Flash (Ухаалаг + Хурдан)</option>
-                                                <option value="gemini-3.1-flash-lite-preview">💰 Gemini 3.1 Flash Lite (Хямд)</option>
+                                                <option value="gemini-2.5-flash">🔥 Gemini 2.5 Flash (Тогтвортой)</option>
                                             </>
                                         ) : (
                                             <>
@@ -370,7 +370,7 @@ export default function AdminSettingsPage() {
                                             <p className="text-[11px] font-medium text-gray-600">
                                                 {settings.ai.default_model === 'gemini-3-flash-preview'
                                                     ? '🧠 Хамгийн ухаалаг + хурдан, search & grounding дэмжинэ'
-                                                    : '💰 Хямд, олон тооны мессежинд тохиромжтой'}
+                                                    : '🔥 Тогтвортой, батлагдсан загвар'}
                                             </p>
                                         </div>
                                     )}
