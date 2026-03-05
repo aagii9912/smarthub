@@ -102,6 +102,17 @@ export async function POST(request: NextRequest) {
                 callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://smarthub-opal.vercel.app'}/api/subscription/webhook`
             });
 
+            if (!qpayResult) {
+                return NextResponse.json({
+                    invoice_id: invoice.id,
+                    invoice_number: invoice.invoice_number,
+                    amount,
+                    message: 'QPay одоогоор түр ажиллахгүй байна. Дараа дахин оролдоно уу.',
+                    payment_required: true,
+                    qpay_error: true
+                });
+            }
+
             // Update invoice with QPay info
             await supabase
                 .from('invoices')

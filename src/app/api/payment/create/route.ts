@@ -70,6 +70,13 @@ export async function POST(request: NextRequest) {
                 callbackUrl,
             });
 
+            if (!qpayInvoice) {
+                return NextResponse.json({
+                    error: 'QPay одоогоор түр ажиллахгүй байна. Дансаар шилжүүлэх эсвэл түр хүлээгээд дахин оролдоно уу.',
+                    code: 'QPAY_UNAVAILABLE'
+                }, { status: 503 });
+            }
+
             // Create payment record
             const { data: payment, error: paymentError } = await supabase
                 .from('payments')
