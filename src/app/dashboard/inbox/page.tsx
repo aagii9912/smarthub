@@ -105,7 +105,10 @@ export default function InboxPage() {
         try {
             const res = await fetch('/api/dashboard/conversations/reply', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': shopId,
+                },
                 body: JSON.stringify({
                     customerId: cart.customer.id,
                     message: messageText,
