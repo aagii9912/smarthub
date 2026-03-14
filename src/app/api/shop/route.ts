@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, is_active, subscription_plan, setup_completed, created_at').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, phone, address, working_hours, bank_name, account_name, account_number, ai_emotion, ai_instructions, is_ai_active').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
