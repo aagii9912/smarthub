@@ -77,7 +77,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
             // Modules
             cartSystem: 'basic',
-            paymentIntegration: false,
+            paymentIntegration: true,
             crmAnalytics: 'none',
 
             // Tools
@@ -93,6 +93,9 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         enabledTools: [
             'add_to_cart',
             'view_cart',
+            'remove_from_cart',
+            'checkout',
+            'create_order',
             'show_product_image',
             'collect_contact_info',
             'check_order_status',
