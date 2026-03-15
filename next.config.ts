@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'scontent*.xx.fbcdn.net', // Facebook content
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com', // Product images
+      },
     ],
   },
   headers: async () => [
@@ -52,7 +56,7 @@ const nextConfig: NextConfig = {
         },
         {
           key: 'Content-Security-Policy',
-          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://vercel.live; img-src 'self' data: blob: https://*.supabase.co https://*.fbcdn.net https://*.cdninstagram.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://graph.facebook.com https://*.facebook.com https://*.sentry.io https://vercel.live; frame-src https://vercel.live;",
+          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com https://vercel.live; img-src 'self' data: blob: https://*.supabase.co https://*.fbcdn.net https://*.cdninstagram.com https://images.unsplash.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://graph.facebook.com https://*.facebook.com https://*.sentry.io https://vercel.live; frame-src https://vercel.live;",
         },
       ],
     },
