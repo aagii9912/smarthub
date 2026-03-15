@@ -62,6 +62,26 @@ export async function executeCancelOrder(
 
     return {
         success: true,
-        message: `Order #${pendingOrder.id.substring(0, 8)} cancelled. Stock restored.`
+        message: `Order #${pendingOrder.id.substring(0, 8)} cancelled. Stock restored.`,
+        actions: [
+            {
+                type: 'support_actions',
+                buttons: [
+                    {
+                        id: 'browse_products',
+                        label: '🛍️ Бараа үзэх',
+                        variant: 'primary',
+                        payload: 'BROWSE_PRODUCTS',
+                    },
+                    {
+                        id: 'human_support',
+                        label: '👤 Оператор',
+                        icon: 'human',
+                        variant: 'secondary',
+                        payload: 'REQUEST_HUMAN',
+                    },
+                ],
+            },
+        ],
     };
 }

@@ -61,7 +61,29 @@ export async function executeAddToCart(
             { title: '💳 Төлбөр төлөх', payload: 'CHECKOUT' },
             { title: '🛒 Сагс харах', payload: 'VIEW_CART' },
             { title: '🔙 Үргэлжлүүлэх', payload: 'CONTINUE_SHOPPING' }
-        ]
+        ],
+        actions: [
+            {
+                type: 'cart_actions',
+                buttons: [
+                    {
+                        id: 'checkout',
+                        label: '💳 Checkout',
+                        icon: 'checkout',
+                        variant: 'primary',
+                        payload: 'CHECKOUT',
+                    },
+                    {
+                        id: 'view_cart',
+                        label: '🛒 Сагс харах',
+                        icon: 'cart',
+                        variant: 'secondary',
+                        payload: 'VIEW_CART',
+                    },
+                ],
+                context: { cart_total: total },
+            },
+        ],
     };
 }
 
@@ -94,7 +116,35 @@ export async function executeViewCart(
             { title: '💳 Төлбөр төлөх', payload: 'CHECKOUT' },
             { title: '➕ Бараа нэмэх', payload: 'ADD_MORE' },
             { title: '🗑️ Цэвэрлэх', payload: 'CLEAR_CART' }
-        ]
+        ],
+        actions: [
+            {
+                type: 'cart_actions',
+                buttons: [
+                    {
+                        id: 'checkout',
+                        label: '💳 Checkout',
+                        icon: 'checkout',
+                        variant: 'primary',
+                        payload: 'CHECKOUT',
+                    },
+                    {
+                        id: 'add_more',
+                        label: '➕ Бараа нэмэх',
+                        icon: 'cart',
+                        variant: 'secondary',
+                        payload: 'ADD_MORE',
+                    },
+                    {
+                        id: 'clear_cart',
+                        label: '🗑️ Цэвэрлэх',
+                        icon: 'remove',
+                        variant: 'danger',
+                        payload: 'CLEAR_CART',
+                    },
+                ],
+            },
+        ],
     };
 }
 

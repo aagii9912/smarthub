@@ -173,6 +173,7 @@ export interface ChatResponse {
     text: string;
     imageAction?: ImageAction;
     quickReplies?: QuickReplyOption[];  // Optional quick reply buttons
+    actions?: ChatAction[];             // Interactive action buttons
 }
 
 // Tool execution result

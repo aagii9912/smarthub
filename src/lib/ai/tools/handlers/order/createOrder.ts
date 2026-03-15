@@ -112,6 +112,26 @@ export async function executeCreateOrder(
     return {
         success: true,
         message: `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`,
-        data: { orderId: order.id, total: dbProduct.price * quantity }
+        data: { orderId: order.id, total: dbProduct.price * quantity },
+        actions: [
+            {
+                type: 'confirmation',
+                buttons: [
+                    {
+                        id: 'checkout_now',
+                        label: '💳 Төлбөр төлөх',
+                        variant: 'primary',
+                        payload: 'CHECKOUT',
+                    },
+                    {
+                        id: 'continue',
+                        label: '🛒 Үргэлжлүүлэх',
+                        variant: 'secondary',
+                        payload: 'CONTINUE_SHOPPING',
+                    },
+                ],
+                context: { order_id: order.id },
+            },
+        ],
     };
 }

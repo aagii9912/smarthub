@@ -10,7 +10,7 @@
 
 import { logger } from '@/lib/utils/logger';
 import { z } from 'zod';
-import type { ChatContext, ImageAction } from '@/types/ai';
+import type { ChatContext, ImageAction, ChatAction } from '@/types/ai';
 import type {
     CreateOrderArgs,
     CollectContactArgs,
@@ -75,6 +75,7 @@ export interface ToolExecutionResult {
     data?: Record<string, unknown>;
     imageAction?: ImageAction;
     quickReplies?: Array<{ title: string; payload: string }>;
+    actions?: ChatAction[];
 }
 
 /**

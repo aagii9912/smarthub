@@ -69,7 +69,34 @@ export async function executeCheckOrderStatus(
         return {
             success: true,
             message: `Таны сүүлийн захиалгууд:\n\n${summaryText}`,
-            data: { orders: orderSummaries }
+            data: { orders: orderSummaries },
+            actions: [
+                {
+                    type: 'order_actions',
+                    buttons: [
+                        {
+                            id: 'cancel_order',
+                            label: '❌ Цуцлах',
+                            icon: 'cancel',
+                            variant: 'danger',
+                            payload: 'CANCEL_ORDER',
+                        },
+                        {
+                            id: 'reorder',
+                            label: '🔄 Дахин захиалах',
+                            icon: 'reorder',
+                            variant: 'secondary',
+                            payload: 'REORDER',
+                        },
+                        {
+                            id: 'human_support',
+                            label: '👤 Оператор',
+                            variant: 'ghost',
+                            payload: 'REQUEST_HUMAN',
+                        },
+                    ],
+                },
+            ],
         };
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';

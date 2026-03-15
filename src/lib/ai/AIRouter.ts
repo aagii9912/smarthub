@@ -10,7 +10,7 @@
 import { GoogleGenerativeAI, Content, Part, FunctionCall } from '@google/generative-ai';
 import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
-import type { ChatContext, ChatMessage, ChatResponse, ImageAction } from '@/types/ai';
+import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
 import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
@@ -165,6 +165,7 @@ export async function routeToAI(
 
     let imageAction: ImageAction | undefined;
     let quickReplies: Array<{ title: string; payload: string }> | undefined;
+    let actions: ChatAction[] | undefined;
 
     try {
         // Get actual model
@@ -281,6 +282,10 @@ export async function routeToAI(
                         quickReplies = toolResult.quickReplies;
                     }
 
+                    if (toolResult.actions && toolResult.actions.length > 0) {
+                        actions = [...(actions || []), ...toolResult.actions];
+                    }
+
                     functionResponseParts.push({
                         functionResponse: {
                             name: fc.name,
@@ -359,6 +364,7 @@ export async function routeToAI(
                 text: finalResponseText,
                 imageAction,
                 quickReplies,
+                actions,
                 usage: {
                     plan: planType,
                     model: planConfig.model,

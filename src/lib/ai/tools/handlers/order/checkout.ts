@@ -98,6 +98,47 @@ export async function executeCheckout(
     return {
         success: true,
         message: paymentMsg,
-        data: { order_id: orderId, qpay: qpayInvoice, bank: bankInfo, qpay_failed: qpayFailed }
+        data: { order_id: orderId, qpay: qpayInvoice, bank: bankInfo, qpay_failed: qpayFailed },
+        actions: [
+            {
+                type: 'payment_method',
+                buttons: [
+                    ...(qpayInvoice ? [{
+                        id: 'pay_qpay',
+                        label: 'QPay төлөх',
+                        icon: 'qpay',
+                        variant: 'primary' as const,
+                        payload: `OPEN_QPAY:${qpayInvoice.qpay_shorturl}`,
+                    }] : []),
+                    ...(bankInfo?.account_number ? [{
+                        id: 'pay_bank',
+                        label: 'Дансаар шилжүүлэх',
+                        icon: 'bank',
+                        variant: 'secondary' as const,
+                        payload: 'PAY_BANK',
+                    }] : []),
+                ],
+                context: { order_id: orderId },
+            },
+            {
+                type: 'order_actions',
+                buttons: [
+                    {
+                        id: 'check_payment',
+                        label: '💰 Төлбөр шалгах',
+                        variant: 'secondary' as const,
+                        payload: 'CHECK_PAYMENT',
+                    },
+                    {
+                        id: 'cancel_order',
+                        label: 'Цуцлах',
+                        icon: 'cancel',
+                        variant: 'danger' as const,
+                        payload: 'CANCEL_ORDER',
+                    },
+                ],
+                context: { order_id: orderId },
+            },
+        ],
     };
 }

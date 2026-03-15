@@ -77,7 +77,24 @@ export async function executeRequestSupport(
         });
     }
 
-    return { success: true, message: 'Support request notified.' };
+    return {
+        success: true,
+        message: 'Support request notified.',
+        actions: [
+            {
+                type: 'support_actions',
+                buttons: [
+                    {
+                        id: 'call_phone',
+                        label: '📞 Утсаар холбогдох',
+                        icon: 'phone',
+                        variant: 'secondary',
+                        payload: 'CALL_PHONE',
+                    },
+                ],
+            },
+        ],
+    };
 }
 
 export async function executeRememberPreference(
