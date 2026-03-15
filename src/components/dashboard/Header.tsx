@@ -90,7 +90,9 @@ export function Header() {
     const isDashboardRoot = path === '/dashboard' || path === '/dashboard/';
 
     return (
-        <header className="sticky top-0 z-40">
+        <header className="sticky top-0 z-40" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            {/* Safe area background for Dynamic Island/notch */}
+            <div className="absolute top-0 left-0 right-0 bg-[#09090b] md:hidden" style={{ height: 'env(safe-area-inset-top)' }} />
             {/* Glass bar */}
             <div className="mx-4 mt-3 px-4 md:px-5 h-14 rounded-2xl bg-[#141418]/70 backdrop-blur-2xl border border-white/[0.08] flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                 {/* Left: Title / Greeting */}

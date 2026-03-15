@@ -107,7 +107,7 @@ export function MobileNav() {
             )}
 
             {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-3 left-3 right-3 z-50 block md:hidden" aria-label="Гар утасны навигаци">
+            <nav className="fixed bottom-3 left-3 right-3 z-50 block md:hidden" aria-label="Гар утасны навигаци" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                 <div className="bg-[#141418]/70 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-lg">
                     <ul className="flex justify-around items-stretch h-[58px]">
                         {primaryNavItems.map((item) => {
