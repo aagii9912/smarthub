@@ -194,6 +194,22 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
+    // Clear unique fields from other shops to prevent constraint violations
+    if (sanitizedUpdate.facebook_page_id) {
+      await supabase
+        .from('shops')
+        .update({ facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null })
+        .eq('facebook_page_id', sanitizedUpdate.facebook_page_id as string)
+        .neq('id', shop.id);
+    }
+    if (sanitizedUpdate.instagram_business_account_id) {
+      await supabase
+        .from('shops')
+        .update({ instagram_business_account_id: null, instagram_access_token: null, instagram_username: null })
+        .eq('instagram_business_account_id', sanitizedUpdate.instagram_business_account_id as string)
+        .neq('id', shop.id);
+    }
+
     // Update shop with sanitized data
     const { data: updatedShop, error } = await supabase
       .from('shops')
