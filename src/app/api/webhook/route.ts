@@ -315,6 +315,8 @@ export async function POST(request: NextRequest) {
                             description: p.description || undefined,
                             price: p.price || 0,
                             stock: p.stock ?? 0,
+                            image_url: p.image_url || undefined,
+                            images: p.images || undefined,
                             variants: undefined,
                             discount_percent: p.discount_percent ?? undefined,
                         }));
@@ -493,17 +495,122 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                // Handle postback (button clicks)
                 if (event.postback?.payload) {
                     const payload = event.postback.payload;
+                    logger.info(`[${shop.name}] Postback received`, { payload, senderId });
 
-                    if (payload.startsWith('ORDER_')) {
+                    // Get or create customer for postback handling
+                    const customer = platform === 'instagram'
+                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                        : await getOrCreateCustomer(shop.id, senderId, accessToken);
+
+                    // Mark Seen & Typing
+                    if (platform !== 'instagram') {
+                        await sendSenderAction(senderId, 'typing_on', accessToken);
+                    }
+
+                    // Route postback as a user message to AI for natural handling
+                    let userMessage = '';
+
+                    if (payload.startsWith('SELECT_')) {
+                        const productName = payload.replace('SELECT_', '');
+                        userMessage = `${productName} авмаар байна`;
+                    } else if (payload.startsWith('ORDER_')) {
                         const productName = payload.replace('ORDER_', '');
+                        userMessage = `${productName} захиалах`;
+                    } else if (payload.startsWith('DETAILS_')) {
+                        const productName = payload.replace('DETAILS_', '');
+                        userMessage = `${productName}-ийн талаар дэлгэрэнгүй хэлж өгнө үү`;
+                    } else if (payload === 'CHECKOUT') {
+                        userMessage = 'Төлбөр төлөх';
+                    } else if (payload === 'CHECK_PAYMENT') {
+                        userMessage = 'Төлбөр шалгах';
+                    } else if (payload === 'CANCEL_ORDER') {
+                        userMessage = 'Захиалга цуцлах';
+                    } else if (payload === 'VIEW_CART') {
+                        userMessage = 'Сагс харах';
+                    } else if (payload === 'REQUEST_HUMAN') {
+                        userMessage = 'Хүн оператор руу шилжүүлнэ үү';
+                    } else if (payload === 'CONTINUE_SHOPPING' || payload === 'ADD_MORE' || payload === 'BROWSE_PRODUCTS') {
+                        userMessage = 'Ямар бараа байна вэ?';
+                    } else if (payload === 'REORDER') {
+                        userMessage = 'Өмнөх захиалгаа дахин захиалах';
+                    } else if (payload.startsWith('OPEN_QPAY:')) {
+                        const qpayUrl = payload.replace('OPEN_QPAY:', '');
                         await sendTextMessage({
                             recipientId: senderId,
-                            message: `"${productName}" захиалахыг хүсч байна уу? Хэдэн ширхэг авах вэ? 🛒`,
+                            message: `QPay төлбөрийн линк: ${qpayUrl}`,
                             pageAccessToken: accessToken,
                         });
+                        continue;
+                    } else {
+                        userMessage = payload; // Fallback: send payload as message
+                    }
+
+                    if (userMessage) {
+                        try {
+                            const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
+
+                            const mappedProducts: AIProduct[] = shop.products.map(p => ({
+                                id: p.id,
+                                name: p.name,
+                                description: p.description || undefined,
+                                price: p.price || 0,
+                                stock: p.stock ?? 0,
+                                image_url: p.image_url || undefined,
+                                images: p.images || undefined,
+                                variants: undefined,
+                                discount_percent: p.discount_percent ?? undefined,
+                            }));
+
+                            const response = await routeToAI(
+                                userMessage,
+                                {
+                                    shopId: shop.id,
+                                    customerId: customer.id,
+                                    shopName: shop.name,
+                                    shopDescription: shop.description || undefined,
+                                    aiInstructions: shop.ai_instructions || undefined,
+                                    aiEmotion: (shop.ai_emotion || 'friendly') as AIEmotion,
+                                    customKnowledge: shop.custom_knowledge || undefined,
+                                    products: mappedProducts,
+                                    customerName: customer.name || undefined,
+                                    orderHistory: customer.total_orders || 0,
+                                    notifySettings: buildNotifySettings(shop),
+                                    subscription: {
+                                        plan: shop.subscription_plan || 'starter',
+                                        status: shop.subscription_status || 'active',
+                                    },
+                                    messageCount: customer.message_count || 0,
+                                },
+                                previousHistory
+                            );
+
+                            let aiText = response.text;
+                            if (!aiText?.trim()) {
+                                aiText = `"${userMessage}" - хариултыг боловсруулж чадсангүй. Дахин оролдоно уу!`;
+                            }
+
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: aiText,
+                                pageAccessToken: accessToken,
+                            });
+
+                            await processAIResponse(response, senderId, accessToken);
+                            await saveChatHistory(shop.id, customer.id, userMessage, aiText, 'POSTBACK');
+                            await incrementMessageCount(customer.id);
+
+                            logger.success(`[${shop.name}] Postback processed: ${payload}`);
+
+                        } catch (postbackError) {
+                            logger.error(`[${shop.name}] Postback AI error:`, { error: postbackError });
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: 'Уучлаарай, түр алдаа гарлаа. Дахин оролдоно уу! 🙏',
+                                pageAccessToken: accessToken,
+                            });
+                        }
                     }
                 }
             }
