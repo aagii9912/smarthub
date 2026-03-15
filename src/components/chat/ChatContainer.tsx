@@ -1,7 +1,9 @@
 import React, { useRef, useEffect } from 'react';
+import { Bot } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { TypingIndicator } from './TypingIndicator';
+import type { ChatAction } from '@/types/ai';
 
 interface Message {
     id: string;
@@ -10,6 +12,7 @@ interface Message {
     created_at?: string;
     products?: import('@/types/ai').AIProduct[];
     tool_calls?: { name: string; status: 'pending' | 'completed' }[];
+    actions?: ChatAction[];
 }
 
 interface QuickReply {
@@ -25,6 +28,7 @@ interface ChatContainerProps {
     onSendMessage: (message: string) => void;
     quickReplies?: QuickReply[];
     onAddToCart?: (productId: string) => void;
+    onActionClick?: (payload: string, context?: Record<string, unknown>) => void;
 }
 
 export function ChatContainer({
@@ -32,7 +36,8 @@ export function ChatContainer({
     isTyping,
     onSendMessage,
     quickReplies,
-    onAddToCart
+    onAddToCart,
+    onActionClick
 }: ChatContainerProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +60,12 @@ export function ChatContainer({
                 )}
 
                 {messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} onAddToCart={onAddToCart} />
+                    <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        onAddToCart={onAddToCart}
+                        onActionClick={onActionClick}
+                    />
                 ))}
 
                 {isTyping && <TypingIndicator />}
@@ -86,5 +96,3 @@ export function ChatContainer({
         </div>
     );
 }
-
-import { Bot } from 'lucide-react';

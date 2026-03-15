@@ -2,6 +2,8 @@ import React from 'react';
 import { Bot } from 'lucide-react';
 import { ProductCardInChat } from './ProductCardInChat';
 import { ToolProcessingIndicator } from './ToolProcessingIndicator';
+import { ActionRenderer } from './actions';
+import type { ChatAction } from '@/types/ai';
 
 interface Message {
     id: string;
@@ -9,15 +11,23 @@ interface Message {
     content: string;
     products?: import('@/types/ai').AIProduct[];
     tool_calls?: { name: string; status: 'pending' | 'completed' }[];
+    actions?: ChatAction[];
 }
 
 interface MessageBubbleProps {
     message: Message;
     onAddToCart?: (productId: string) => void;
+    onActionClick?: (payload: string, context?: Record<string, unknown>) => void;
 }
 
-export function MessageBubble({ message, onAddToCart }: MessageBubbleProps) {
+export function MessageBubble({ message, onAddToCart, onActionClick }: MessageBubbleProps) {
     const isUser = message.role === 'user';
+
+    const handleAction = (payload: string, context?: Record<string, unknown>) => {
+        if (onActionClick) {
+            onActionClick(payload, context);
+        }
+    };
 
     return (
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-4`}>
@@ -67,6 +77,19 @@ export function MessageBubble({ message, onAddToCart }: MessageBubbleProps) {
                             />
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Action Buttons - Interactive buttons based on action type */}
+            {message.actions && message.actions.length > 0 && (
+                <div className="w-full space-y-1">
+                    {message.actions.map((action, i) => (
+                        <ActionRenderer
+                            key={`${action.type}-${i}`}
+                            action={action}
+                            onAction={handleAction}
+                        />
+                    ))}
                 </div>
             )}
         </div>

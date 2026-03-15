@@ -143,6 +143,31 @@ export interface QuickReplyOption {
     payload: string;    // Internal payload for handling
 }
 
+// Chat Action types for interactive buttons
+export type ChatActionType =
+    | 'confirmation'     // Тийм/Үгүй баталгаажуулах
+    | 'cart_actions'     // Сагсны үйлдлүүд
+    | 'payment_method'   // Төлбөрийн хэрэгсэл
+    | 'delivery_option'  // Хүргэлтийн сонголт
+    | 'order_actions'    // Захиалгын үйлдлүүд
+    | 'support_actions'  // Дэмжлэг
+    | 'quantity_select'; // Тоо ширхэг
+
+export interface ActionButton {
+    id: string;
+    label: string;
+    icon?: string;       // emoji or lucide icon name
+    variant: 'primary' | 'secondary' | 'danger' | 'ghost';
+    payload: string;     // action trigger payload
+    disabled?: boolean;
+}
+
+export interface ChatAction {
+    type: ChatActionType;
+    buttons: ActionButton[];
+    context?: Record<string, unknown>; // order_id, product_id гэх мэт
+}
+
 // AI Response
 export interface ChatResponse {
     text: string;
