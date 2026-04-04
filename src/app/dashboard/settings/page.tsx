@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Save, Store, CreditCard, Globe, LogOut, Trash2, AlertTriangle, Facebook, Instagram, User, Loader2, Link2, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,7 +11,7 @@ interface FacebookPage {
     category?: string;
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -377,5 +377,13 @@ export default function SettingsPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function SettingsPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-96"><div className="w-5 h-5 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" /></div>}>
+            <SettingsContent />
+        </Suspense>
     );
 }
