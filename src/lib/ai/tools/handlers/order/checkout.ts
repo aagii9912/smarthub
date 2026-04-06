@@ -54,7 +54,7 @@ export async function executeCheckout(
             orderId: orderId,
             amount: cart.total_amount,
             description: `Order #${orderId.substring(0, 8)}`,
-            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/payment/callback/qpay`,
+            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/payment/webhook`,
             items: cart.items.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
@@ -67,6 +67,41 @@ export async function executeCheckout(
     } catch (err) {
         logger.warn('QPay invoice creation failed:', { error: String(err) });
         qpayFailed = true;
+    }
+
+    // Create payment record in DB so webhook can find it
+    try {
+        const paymentData: Record<string, unknown> = {
+            order_id: orderId,
+            shop_id: context.shopId,
+            payment_method: qpayInvoice ? 'qpay' : (bankInfo?.account_number ? 'bank_transfer' : 'cash'),
+            amount: cart.total_amount,
+            status: 'pending',
+        };
+
+        if (qpayInvoice) {
+            paymentData.qpay_invoice_id = qpayInvoice.invoice_id;
+            paymentData.qpay_qr_text = qpayInvoice.qr_text;
+            paymentData.qpay_qr_image = qpayInvoice.qr_image;
+            paymentData.metadata = {
+                qpay_shorturl: qpayInvoice.qpay_shorturl,
+                urls: qpayInvoice.urls,
+                source: 'ai_checkout',
+            };
+            paymentData.expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        }
+
+        const { error: paymentInsertError } = await supabase
+            .from('payments')
+            .insert(paymentData);
+
+        if (paymentInsertError) {
+            logger.warn('Failed to create payment record:', { error: paymentInsertError.message });
+        } else {
+            logger.info('Payment record created for AI checkout:', { orderId });
+        }
+    } catch (payErr) {
+        logger.warn('Payment record creation failed (non-critical):', { error: String(payErr) });
     }
 
     if (context.notifySettings?.order !== false) {

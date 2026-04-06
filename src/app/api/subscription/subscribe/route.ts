@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
                 orderId: invoice.id,
                 amount,
                 description: `Syncly ${plan.name} Plan`,
-                callbackUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://smarthub-opal.vercel.app'}/api/subscription/webhook`
+                callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/subscription/webhook`
             });
 
             if (!qpayResult) {

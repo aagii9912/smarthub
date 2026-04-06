@@ -9,21 +9,30 @@ import crypto from 'crypto';
  */
 function verifyWebhookSignature(body: string, signature: string | null): boolean {
     const secret = process.env.QPAY_WEBHOOK_SECRET;
-    if (!secret) {
+    if (!secret || secret === 'your_qpay_webhook_secret_here') {
         logger.warn('QPAY_WEBHOOK_SECRET not configured — rejecting webhook');
         return false;
     }
     if (!signature) return false;
 
-    const expected = crypto
-        .createHmac('sha256', secret)
-        .update(body)
-        .digest('hex');
+    try {
+        const expected = crypto
+            .createHmac('sha256', secret)
+            .update(body)
+            .digest('hex');
 
-    return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expected)
-    );
+        // Check buffer lengths match before timingSafeEqual (throws if different)
+        if (Buffer.byteLength(signature) !== Buffer.byteLength(expected)) {
+            return false;
+        }
+
+        return crypto.timingSafeEqual(
+            Buffer.from(signature),
+            Buffer.from(expected)
+        );
+    } catch {
+        return false;
+    }
 }
 
 /**

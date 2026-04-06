@@ -6,10 +6,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import crypto from 'crypto';
+
+/**
+ * Verify QPay webhook signature
+ */
+function verifyWebhookSignature(body: string, signature: string | null): boolean {
+    const secret = process.env.QPAY_WEBHOOK_SECRET;
+    if (!secret || secret === 'your_qpay_webhook_secret_here') {
+        logger.warn('QPAY_WEBHOOK_SECRET not configured — rejecting subscription webhook');
+        return false;
+    }
+    if (!signature) return false;
+
+    try {
+        const expected = crypto
+            .createHmac('sha256', secret)
+            .update(body)
+            .digest('hex');
+
+        // Safe comparison: check length first to avoid timingSafeEqual crash
+        if (Buffer.byteLength(signature) !== Buffer.byteLength(expected)) {
+            return false;
+        }
+
+        return crypto.timingSafeEqual(
+            Buffer.from(signature),
+            Buffer.from(expected)
+        );
+    } catch {
+        return false;
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        // SEC: Verify webhook signature
+        const rawBody = await request.text();
+        const signature = request.headers.get('x-qpay-signature');
+
+        if (!verifyWebhookSignature(rawBody, signature)) {
+            logger.warn('Invalid subscription webhook signature received');
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+        }
+
+        const body = JSON.parse(rawBody);
         const { invoice_id, payment_status } = body;
 
         logger.info('Subscription webhook received', { invoice_id, payment_status });

@@ -23,6 +23,9 @@ vi.mock('@/lib/payment/qpay', () => ({
     checkPaymentStatus: vi.fn(),
     isPaymentCompleted: vi.fn().mockReturnValue(false),
 }));
+vi.mock('@/lib/services/StockService', () => ({
+    deductStockForOrder: vi.fn().mockResolvedValue(undefined),
+}));
 
 import {
     executeShowProductImage,
@@ -207,11 +210,15 @@ describe('ProductHandlers', () => {
             });
 
             mockChain.single = vi.fn().mockResolvedValueOnce({
-                data: { provider_transaction_id: 'txn-001', id: 'pay-001' },
+                data: { qpay_invoice_id: 'txn-001', id: 'pay-001' },
                 error: null,
             });
 
-            vi.mocked(checkPaymentStatus).mockResolvedValueOnce({ status: 'PAID' } as any);
+            vi.mocked(checkPaymentStatus).mockResolvedValueOnce({
+                count: 1,
+                paid_amount: 100000,
+                rows: [{ payment_id: 'qpay-txn-001', payment_status: 'PAID', payment_amount: 100000, payment_currency: 'MNT', payment_wallet: 'qpay', payment_date: '2026-04-06' }]
+            } as any);
             vi.mocked(isPaymentCompleted).mockReturnValueOnce(true);
 
             mockChain.select = vi.fn().mockReturnValue(mockChain);
@@ -230,7 +237,7 @@ describe('ProductHandlers', () => {
                 error: null,
             });
             mockChain.single = vi.fn().mockResolvedValueOnce({
-                data: { provider_transaction_id: 'txn-001', id: 'pay-001' },
+                data: { qpay_invoice_id: 'txn-001', id: 'pay-001' },
                 error: null,
             });
 

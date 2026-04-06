@@ -162,9 +162,9 @@ export async function createQPayInvoice(params: {
         logger.warn('QPay in mock mode - returning fake QR code');
         return {
             invoice_id: `MOCK_INV_${orderId}`,
-            qr_text: `https://qpay.mn/mock/${orderId}`,
+            qr_text: `MOCK_QPAY_${orderId}`,
             qr_image: `https://api.qrserver.com/v1/create-qr-code/?data=MOCK_${orderId}&size=300x300`,
-            qpay_shorturl: `https://qpay.mn/m/${orderId}`,
+            qpay_shorturl: `https://sandbox.qpay.mn/mock/${orderId}`,
             urls: [],
         };
     }

@@ -162,7 +162,7 @@ export async function executeCheckPaymentStatus(
 
     let query = supabase
         .from('orders')
-        .select('id, name, description, price, stock, image_url, has_variants, is_active')
+        .select('id, total_amount, status, created_at')
         .eq('shop_id', context.shopId)
         .eq('customer_id', context.customerId)
         .eq('status', 'pending');
@@ -186,18 +186,22 @@ export async function executeCheckPaymentStatus(
     for (const order of orders) {
         const { data: payment } = await supabase
             .from('payments')
-            .select('provider_transaction_id, id')
+            .select('qpay_invoice_id, id')
             .eq('order_id', order.id)
             .eq('status', 'pending')
             .single();
 
-        if (payment && payment.provider_transaction_id) {
+        if (payment && payment.qpay_invoice_id) {
             try {
-                const checkResult = await checkPaymentStatus(payment.provider_transaction_id);
+                const checkResult = await checkPaymentStatus(payment.qpay_invoice_id);
                 if (isPaymentCompleted(checkResult)) {
                     await supabase
                         .from('payments')
-                        .update({ status: 'paid', paid_at: new Date().toISOString() })
+                        .update({
+                            status: 'paid',
+                            paid_at: new Date().toISOString(),
+                            qpay_transaction_id: checkResult.rows[0]?.payment_id || null,
+                        })
                         .eq('id', payment.id);
 
                     await supabase
@@ -205,28 +209,13 @@ export async function executeCheckPaymentStatus(
                         .update({ status: 'paid' })
                         .eq('id', order.id);
 
-                    const { data: orderItems } = await supabase
-                        .from('order_items')
-                        .select('product_id, quantity')
-                        .eq('order_id', order.id);
-
-                    if (orderItems) {
-                        for (const item of orderItems) {
-                            const { data: prod } = await supabase
-                                .from('products')
-                                .select('stock, reserved_stock')
-                                .eq('id', item.product_id)
-                                .single();
-                            if (prod) {
-                                await supabase
-                                    .from('products')
-                                    .update({
-                                        stock: Math.max(0, (prod.stock || 0) - item.quantity),
-                                        reserved_stock: Math.max(0, (prod.reserved_stock || 0) - item.quantity)
-                                    })
-                                    .eq('id', item.product_id);
-                            }
-                        }
+                    // Stock deduction is handled by deductStockForOrder in the webhook handler
+                    // Do NOT duplicate stock deduction here to avoid double-counting
+                    try {
+                        const { deductStockForOrder } = await import('@/lib/services/StockService');
+                        await deductStockForOrder(order.id);
+                    } catch (stockErr) {
+                        logger.warn(`Stock deduction failed for order ${order.id}, may already be handled:`, { error: String(stockErr) });
                     }
 
                     verifiedOrderIds.push(order.id);
