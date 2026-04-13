@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
     getPlanTypeFromSubscription,
     checkMessageLimit,
+    checkTokenLimit,
     getEnabledToolsForPlan,
     PLAN_CONFIGS
 } from '../config/plans';
@@ -36,7 +37,7 @@ describe('AIRouter', () => {
         });
     });
 
-    describe('checkMessageLimit', () => {
+    describe('checkMessageLimit (legacy)', () => {
         it('should allow messages within limit', () => {
             expect(checkMessageLimit('starter', 10).allowed).toBe(true);
             expect(checkMessageLimit('pro', 500).allowed).toBe(true);
@@ -53,12 +54,58 @@ describe('AIRouter', () => {
         });
     });
 
+    describe('checkTokenLimit', () => {
+        it('should allow tokens within limit', () => {
+            const result = checkTokenLimit('starter', 100_000);
+            expect(result.allowed).toBe(true);
+            expect(result.remaining).toBe(PLAN_CONFIGS.starter.tokensPerMonth - 100_000);
+            expect(result.usagePercent).toBeGreaterThan(0);
+        });
+
+        it('should block tokens at limit', () => {
+            const starterLimit = PLAN_CONFIGS.starter.tokensPerMonth;
+            const result = checkTokenLimit('starter', starterLimit);
+            expect(result.allowed).toBe(false);
+            expect(result.remaining).toBe(0);
+            expect(result.usagePercent).toBe(100);
+        });
+
+        it('should block tokens over limit', () => {
+            const starterLimit = PLAN_CONFIGS.starter.tokensPerMonth;
+            const result = checkTokenLimit('starter', starterLimit + 500_000);
+            expect(result.allowed).toBe(false);
+            expect(result.remaining).toBe(0);
+            expect(result.usagePercent).toBe(100);
+        });
+
+        it('should have correct token limits per plan', () => {
+            expect(PLAN_CONFIGS.starter.tokensPerMonth).toBe(2_400_000);
+            expect(PLAN_CONFIGS.pro.tokensPerMonth).toBe(12_000_000);
+            expect(PLAN_CONFIGS.enterprise.tokensPerMonth).toBe(100_000_000);
+        });
+
+        it('should calculate usage percentage correctly', () => {
+            // 50% usage
+            const halfUsed = PLAN_CONFIGS.pro.tokensPerMonth / 2;
+            const result = checkTokenLimit('pro', halfUsed);
+            expect(result.usagePercent).toBe(50);
+            expect(result.allowed).toBe(true);
+        });
+
+        it('should allow large enterprise usage', () => {
+            const result = checkTokenLimit('enterprise', 50_000_000);
+            expect(result.allowed).toBe(true);
+            expect(result.remaining).toBe(50_000_000);
+        });
+    });
+
     describe('getEnabledToolsForPlan', () => {
         it('should return correct tools for starter', () => {
             const tools = getEnabledToolsForPlan('starter');
             expect(tools).toContain('add_to_cart');
             expect(tools).toContain('show_product_image');
-            expect(tools).not.toContain('checkout');
+            expect(tools).toContain('checkout');
+            expect(tools).not.toContain('cancel_order');
         });
 
         it('should return correct tools for pro', () => {

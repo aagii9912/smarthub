@@ -24,6 +24,7 @@ export {
     isToolEnabledForPlan,
     getEnabledToolsForPlan,
     checkMessageLimit,
+    checkTokenLimit,
     MODEL_DISPLAY_NAMES,
     PLAN_DISPLAY_NAMES,
 } from './config/plans';

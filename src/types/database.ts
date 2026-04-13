@@ -52,6 +52,9 @@ export interface Shop {
     subscription_id?: string | null;
     plan_id?: string | null;
     page_access_token?: string | null;
+    // Token Usage (billing)
+    token_usage_total?: number;
+    token_usage_reset_at?: string | null;
 }
 
 // ============================================

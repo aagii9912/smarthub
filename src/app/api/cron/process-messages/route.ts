@@ -49,6 +49,7 @@ interface ShopData {
     subscription_plan: string | null;
     subscription_status: string | null;
     trial_ends_at: string | null;
+    token_usage_total?: number;
     products: Array<{
         id: string;
         name: string;
@@ -152,7 +153,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         .from('shops')
         .select(`
             id, name, description, ai_instructions, ai_emotion, custom_knowledge,
-            is_ai_active, subscription_plan, subscription_status, trial_ends_at,
+            is_ai_active, subscription_plan, subscription_status, trial_ends_at, token_usage_total,
             products (id, name, description, price, stock, variants, discount_percent)
         `)
         .eq('id', shopId)
@@ -281,6 +282,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                         status: shopData.subscription_status || 'active',
                     },
                     messageCount: customer.message_count || 0,
+                    tokenUsageTotal: shopData.token_usage_total || 0,
                 },
                 previousHistory
             );

@@ -344,6 +344,7 @@ export async function POST(request: NextRequest) {
                                     status: shop.subscription_status || 'active',
                                 },
                                 messageCount: customer.message_count || 0,
+                                tokenUsageTotal: shop.token_usage_total || 0,
                             },
                             previousHistory
                         );
@@ -591,6 +592,7 @@ export async function POST(request: NextRequest) {
                                         status: shop.subscription_status || 'active',
                                     },
                                     messageCount: customer.message_count || 0,
+                                    tokenUsageTotal: shop.token_usage_total || 0,
                                 },
                                 previousHistory
                             );

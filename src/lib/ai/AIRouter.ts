@@ -1,15 +1,18 @@
 /**
  * AIRouter - Routes AI requests to Gemini models
  * 
+ * Billing: Token-based (primary) + message count (analytics)
  * Strategy:
  * - All plans use Gemini models
  * - Plan determines the specific model (flash-lite, flash)
  * - Function calling via Gemini SDK's functionDeclarations
+ * - Token usage tracked per-shop and persisted to Supabase
  */
 
 import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
 import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
+import { supabaseAdmin } from '@/lib/supabase';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
@@ -21,6 +24,7 @@ import {
     isToolEnabledForPlan,
     getEnabledToolsForPlan,
     checkMessageLimit,
+    checkTokenLimit,
     AIModel,
 } from './config/plans';
 
@@ -46,6 +50,7 @@ export interface RouterChatContext extends ChatContext {
         status?: string;
     };
     messageCount?: number;
+    tokenUsageTotal?: number;  // Current month's total token usage for the shop
 }
 
 /**
@@ -58,8 +63,68 @@ export interface RouterResponse extends ChatResponse {
         messagesUsed: number;
         messagesRemaining: number;
         tokensUsed?: number;
+        tokensRemaining?: number;
+        tokenUsagePercent?: number;
     };
     limitReached?: boolean;
+}
+
+/**
+ * Persist token usage to shop record (atomic increment)
+ */
+async function persistTokenUsage(shopId: string, tokensUsed: number): Promise<void> {
+    if (!tokensUsed || tokensUsed <= 0) return;
+
+    try {
+        const supabase = supabaseAdmin();
+        const { error } = await supabase.rpc('increment_shop_token_usage', {
+            p_shop_id: shopId,
+            p_tokens: tokensUsed,
+        });
+
+        if (error) {
+            // Fallback: manual increment if RPC not yet deployed
+            logger.warn('Token RPC not available, using manual increment:', { error: error.message });
+            const { data: shop } = await supabase
+                .from('shops')
+                .select('token_usage_total, token_usage_reset_at')
+                .eq('id', shopId)
+                .single();
+
+            const currentTotal = shop?.token_usage_total || 0;
+            const resetAt = shop?.token_usage_reset_at;
+
+            // Auto-reset on month boundary
+            if (resetAt && new Date(resetAt) <= new Date()) {
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+                nextMonth.setHours(0, 0, 0, 0);
+                await supabase
+                    .from('shops')
+                    .update({
+                        token_usage_total: tokensUsed,
+                        token_usage_reset_at: nextMonth.toISOString(),
+                    })
+                    .eq('id', shopId);
+            } else {
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+                nextMonth.setHours(0, 0, 0, 0);
+                await supabase
+                    .from('shops')
+                    .update({
+                        token_usage_total: currentTotal + tokensUsed,
+                        token_usage_reset_at: resetAt || nextMonth.toISOString(),
+                    })
+                    .eq('id', shopId);
+            }
+        }
+
+        logger.debug('Token usage persisted', { shopId, tokensUsed });
+    } catch (err) {
+        // Non-blocking: don't fail the response if billing persistence fails
+        logger.error('Failed to persist token usage:', { error: err, shopId, tokensUsed });
+    }
 }
 
 /**
@@ -143,25 +208,33 @@ export async function routeToAI(
     const planType = getPlanTypeFromSubscription(context.subscription);
     const planConfig = getPlanConfig(planType);
 
-    // Check message limit
-    const messageCount = context.messageCount || 0;
-    const limitCheck = checkMessageLimit(planType, messageCount);
+    // Check token limit (primary billing)
+    const currentTokenUsage = context.tokenUsageTotal || 0;
+    const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage);
 
-    if (!limitCheck.allowed) {
-        logger.warn('Message limit reached', {
+    // Also track message count for analytics (legacy)
+    const messageCount = context.messageCount || 0;
+    const messageLimitCheck = checkMessageLimit(planType, messageCount);
+
+    if (!tokenLimitCheck.allowed) {
+        logger.warn('Token limit reached', {
             plan: planType,
-            count: messageCount,
-            limit: limitCheck.limit
+            tokensUsed: currentTokenUsage,
+            tokenLimit: tokenLimitCheck.limit,
+            usagePercent: tokenLimitCheck.usagePercent,
         });
 
         return {
-            text: `Уучлаарай, та энэ сарын мессежийн лимитдээ хүрсэн байна (${limitCheck.limit} мессеж). Илүү олон мессеж авахын тулд план-аа шинэчлэнэ үү! 📈`,
+            text: `Уучлаарай, та энэ сарын AI токен лимитдээ хүрсэн байна (${(tokenLimitCheck.limit / 1_000_000).toFixed(1)}M токен). Илүү их хэрэглэхийг хүсвэл план-аа шинэчлэнэ үү! 📈`,
             limitReached: true,
             usage: {
                 plan: planType,
                 model: planConfig.model,
                 messagesUsed: messageCount,
-                messagesRemaining: 0,
+                messagesRemaining: Math.max(0, messageLimitCheck.remaining),
+                tokensUsed: currentTokenUsage,
+                tokensRemaining: 0,
+                tokenUsagePercent: 100,
             },
         };
     }
@@ -351,17 +424,26 @@ export async function routeToAI(
                 }
             }
 
-            // Log usage info
+            // Log usage info and calculate total tokens consumed
             const usageMetadata = response.usageMetadata;
+            let totalTokensConsumed = usageMetadata?.totalTokenCount || 0;
+
+            // If function calls happened, the secondResult also consumed tokens
+            // totalTokensConsumed already includes the full chat session tokens
+            // from the last response (Gemini SDK accumulates in multi-turn)
+
             if (usageMetadata) {
                 logger.info('Token usage:', {
                     promptTokens: usageMetadata.promptTokenCount,
                     candidatesTokens: usageMetadata.candidatesTokenCount,
-                    totalTokens: usageMetadata.totalTokenCount,
+                    totalTokens: totalTokensConsumed,
                 });
             }
 
-            logger.success(`AIRouter response received (${planType}/${planConfig.model})`);
+            // Persist token usage to shop record (non-blocking)
+            persistTokenUsage(context.shopId, totalTokensConsumed).catch(() => {});
+
+            logger.success(`AIRouter response received (${planType}/${planConfig.model}, ${totalTokensConsumed} tokens)`);
 
             return {
                 text: finalResponseText,
@@ -372,8 +454,10 @@ export async function routeToAI(
                     plan: planType,
                     model: planConfig.model,
                     messagesUsed: messageCount + 1,
-                    messagesRemaining: limitCheck.remaining - 1,
-                    tokensUsed: usageMetadata?.totalTokenCount,
+                    messagesRemaining: Math.max(0, messageLimitCheck.remaining - 1),
+                    tokensUsed: totalTokensConsumed,
+                    tokensRemaining: Math.max(0, tokenLimitCheck.remaining - totalTokensConsumed),
+                    tokenUsagePercent: tokenLimitCheck.usagePercent,
                 },
             };
         });

@@ -1,10 +1,11 @@
 /**
  * Syncly AI Plan Configuration - Gemini Family
  * 
+ * Billing: Token-based (primary) + message count (analytics)
  * Strategy: 3 plans using Gemini models (matching landing page)
- * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар
- * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар
- * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно
+ * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2.4M tokens
+ * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12M tokens
+ * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100M tokens
  */
 
 export type PlanType = 'starter' | 'pro' | 'enterprise';
@@ -21,7 +22,8 @@ export interface PlanAIConfig {
     provider: AIProvider;
     model: AIModel;
     maxTokens: number;
-    messagesPerMonth: number;
+    messagesPerMonth: number;   // Legacy: kept for analytics
+    tokensPerMonth: number;     // Primary billing metric
     maxShops: number;
     maxProducts: number;
     price: {
@@ -61,7 +63,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 500,
-        messagesPerMonth: 2000,
+        messagesPerMonth: 2000,       // Legacy analytics
+        tokensPerMonth: 2_400_000,    // ~2.4M tokens/month
         maxShops: 1,
         maxProducts: 50,
         price: {
@@ -106,7 +109,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 800,
-        messagesPerMonth: 10000,
+        messagesPerMonth: 10000,      // Legacy analytics
+        tokensPerMonth: 12_000_000,   // ~12M tokens/month
         maxShops: 3,
         maxProducts: 300,
         price: {
@@ -156,7 +160,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 1500,
-        messagesPerMonth: 100000, // Effectively unlimited
+        messagesPerMonth: 100000,     // Legacy analytics
+        tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited)
         maxShops: 1000,           // Effectively unlimited
         maxProducts: 100000,      // Effectively unlimited
         price: {
@@ -251,7 +256,7 @@ export function getEnabledToolsForPlan(plan: PlanType): ToolName[] {
 }
 
 /**
- * Check message limit
+ * Check message limit (legacy — kept for analytics)
  */
 export function checkMessageLimit(
     plan: PlanType,
@@ -265,6 +270,26 @@ export function checkMessageLimit(
         allowed: currentCount < limit,
         remaining,
         limit,
+    };
+}
+
+/**
+ * Check token limit (primary billing metric)
+ */
+export function checkTokenLimit(
+    plan: PlanType,
+    currentTokens: number
+): { allowed: boolean; remaining: number; limit: number; usagePercent: number } {
+    const config = getPlanConfig(plan);
+    const limit = config.tokensPerMonth;
+    const remaining = Math.max(0, limit - currentTokens);
+    const usagePercent = limit > 0 ? Math.min(100, Math.round((currentTokens / limit) * 100)) : 0;
+
+    return {
+        allowed: currentTokens < limit,
+        remaining,
+        limit,
+        usagePercent,
     };
 }
 

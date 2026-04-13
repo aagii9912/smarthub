@@ -23,6 +23,9 @@ export interface ShopWithProducts {
     subscription_status?: string | null;
     trial_ends_at?: string | null;
     custom_knowledge?: Record<string, unknown> | null;
+    // Token billing
+    token_usage_total?: number;
+    token_usage_reset_at?: string | null;
 }
 
 export interface AIFeatures {
@@ -65,6 +68,8 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         instagram_business_account_id: data.instagram_business_account_id,
         instagram_access_token: data.instagram_access_token,
         instagram_username: data.instagram_username,
+        token_usage_total: data.token_usage_total || 0,
+        token_usage_reset_at: data.token_usage_reset_at,
     };
 }
 
@@ -102,6 +107,8 @@ export async function getShopByInstagramId(instagramId: string): Promise<ShopWit
         subscription_status: data.subscription_status,
         trial_ends_at: data.trial_ends_at,
         custom_knowledge: data.custom_knowledge,
+        token_usage_total: data.token_usage_total || 0,
+        token_usage_reset_at: data.token_usage_reset_at,
     };
 }
 
