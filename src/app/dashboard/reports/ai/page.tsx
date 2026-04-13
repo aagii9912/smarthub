@@ -123,7 +123,7 @@ export default function AIReportPage() {
         );
     }
 
-    const maxDaily = Math.max(...(data?.dailyMessages || []).map(d => d.count), 1);
+    const maxDaily = Math.max(...(data?.dailyMessages || []).map((d: { date: string; count: number }) => d.count), 1);
 
     return (
         <div className="space-y-5">
@@ -220,7 +220,7 @@ export default function AIReportPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.04]">
-                            {(data?.topCustomers || []).map((customer, i) => (
+                            {(data?.topCustomers || []).map((customer: { id: string; name: string; messageCount: number; phone?: string }, i: number) => (
                                 <tr key={customer.id} className="hover:bg-[#0D0928] transition-colors">
                                     <td className="px-5 py-3">
                                         <div className="flex items-center gap-2.5">

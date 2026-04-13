@@ -67,19 +67,72 @@ export async function executeRequestSupport(
     context: ToolExecutionContext
 ): Promise<ToolExecutionResult> {
     const { reason } = args;
+    const supabase = supabaseAdmin();
 
+    // 1. Save support request to database for dashboard visibility
+    try {
+        await supabase.from('customer_complaints').insert({
+            shop_id: context.shopId,
+            customer_id: context.customerId || null,
+            complaint_type: 'service',
+            description: `[HUMAN SUPPORT REQUEST] ${reason || 'Хүн холбогдох хүсэлт'}`,
+            severity: 'high',
+            source: 'ai_tool',
+        });
+    } catch (dbError) {
+        logger.warn('Failed to save support request to DB:', { error: dbError });
+    }
+
+    // 2. Send push notification to shop owner
     if (context.notifySettings?.support !== false) {
         await sendPushNotification(context.shopId, {
-            title: '📞 Холбогдох хүсэлт',
-            body: `Хэрэглэгч холбогдох хүсэлт илгээлээ. Шалтгаан: ${reason || 'Тодорхойгүй'}`,
+            title: '🔴 Хүн холбогдох хүсэлт!',
+            body: `${context.customerName || 'Хэрэглэгч'}: ${reason || 'Тодорхойгүй шалтгаан'}`,
             url: `/dashboard/chat?customer=${context.customerId}`,
-            tag: `support-${context.customerId}`
+            tag: `support-${context.customerId}`,
+            actions: [
+                { action: 'view', title: 'Харах' },
+                { action: 'reply', title: 'Хариулах' },
+            ],
         });
     }
 
+    // 3. Send email notification to shop owner (non-blocking)
+    try {
+        const { data: shop } = await supabase
+            .from('shops')
+            .select('user_id, name')
+            .eq('id', context.shopId)
+            .single();
+
+        if (shop?.user_id) {
+            // Try to get user email from auth
+            const { data: { user } } = await supabase.auth.admin.getUserById(shop.user_id);
+            if (user?.email) {
+                // Dynamic import to avoid circular dependency
+                const { sendSupportRequestEmail } = await import('@/lib/email/templates');
+                await sendSupportRequestEmail({
+                    to: user.email,
+                    shopName: shop.name,
+                    customerName: context.customerName || 'Тодорхойгүй',
+                    reason: reason || 'Шалтгаан тодорхойгүй',
+                    dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://syncly.mn'}/dashboard/chat?customer=${context.customerId}`,
+                }).catch((err: Error) => logger.warn('Support email failed:', { error: err.message }));
+            }
+        }
+    } catch (emailError) {
+        logger.warn('Failed to send support email:', { error: emailError });
+    }
+
+    logger.info('Human support request processed', {
+        shopId: context.shopId,
+        customerId: context.customerId,
+        reason,
+    });
+
     return {
         success: true,
-        message: 'Support request notified.',
+        message: 'Дэлгүүрийн эзэнд мэдэгдэл илгээлээ. Тун удахгүй холбогдоно.',
         actions: [
             {
                 type: 'support_actions',

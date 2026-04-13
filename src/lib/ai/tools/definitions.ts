@@ -23,6 +23,7 @@ export type ToolName =
     | 'cancel_order'
     | 'check_order_status'
     | 'update_order'
+    | 'check_delivery_status'
     | 'add_to_cart'
     | 'view_cart'
     | 'remove_from_cart'
@@ -34,3 +35,4 @@ export type ToolName =
     | 'suggest_related_products'
     | 'check_payment_status'
     | 'log_complaint';
+

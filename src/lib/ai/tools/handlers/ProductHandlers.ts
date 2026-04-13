@@ -79,33 +79,78 @@ export async function executeSuggestRelatedProducts(
             };
         }
 
+        const currentPrice = currentProduct.discount_percent
+            ? Math.round(currentProduct.price * (1 - currentProduct.discount_percent / 100))
+            : currentProduct.price;
+
+        // Only consider in-stock products (excluding current)
+        const availableProducts = (context.products || []).filter(p =>
+            p.id !== currentProduct.id && (p.stock - (p.reserved_stock || 0)) > 0
+        );
+
         let suggestions: typeof context.products = [];
 
         if (suggestion_type === 'similar') {
-            suggestions = context.products?.filter(p =>
-                p.id !== currentProduct.id &&
-                p.type === currentProduct.type &&
-                p.stock > 0
-            ).slice(0, 3) || [];
-        } else if (suggestion_type === 'bundle') {
-            const currentPrice = currentProduct.discount_percent
-                ? currentProduct.price * (1 - currentProduct.discount_percent / 100)
-                : currentProduct.price;
-            suggestions = context.products?.filter(p => {
-                const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
-                return p.id !== currentProduct.id && pPrice < currentPrice && p.stock > 0;
-            }).slice(0, 2) || [];
-        } else {
-            suggestions = context.products?.filter(p =>
-                p.id !== currentProduct.id &&
-                p.type !== currentProduct.type &&
-                p.stock > 0
-            ).slice(0, 3) || [];
+            // Similar: same type, ±30% price range, prefer same category
+            const priceMin = currentPrice * 0.7;
+            const priceMax = currentPrice * 1.3;
+            suggestions = availableProducts
+                .filter(p => p.type === currentProduct.type)
+                .map(p => {
+                    const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
+                    const priceScore = (pPrice >= priceMin && pPrice <= priceMax) ? 10 : 0;
+                    const stockScore = Math.min(p.stock, 10); // prefer items with good stock
+                    const discountScore = p.discount_percent ? 5 : 0;
+                    return { product: p, score: priceScore + stockScore + discountScore };
+                })
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3)
+                .map(s => s.product);
 
+        } else if (suggestion_type === 'bundle') {
+            // Bundle: cheaper items that complement (different type, <70% of current price)
+            suggestions = availableProducts
+                .filter(p => {
+                    const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
+                    return pPrice < currentPrice * 0.7 && p.type !== currentProduct.type;
+                })
+                .sort((a, b) => {
+                    // Prioritize discounted items for bundles
+                    const aDiscount = a.discount_percent || 0;
+                    const bDiscount = b.discount_percent || 0;
+                    return bDiscount - aDiscount;
+                })
+                .slice(0, 2);
+
+            // If no cross-type bundles, try same type but cheaper
             if (suggestions.length === 0) {
-                suggestions = context.products?.filter(p =>
-                    p.id !== currentProduct.id && p.stock > 0
-                ).slice(0, 3) || [];
+                suggestions = availableProducts
+                    .filter(p => {
+                        const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
+                        return pPrice < currentPrice * 0.7;
+                    })
+                    .slice(0, 2);
+            }
+
+        } else {
+            // Complementary: different type, similar price range (±50%)
+            const priceMin = currentPrice * 0.5;
+            const priceMax = currentPrice * 1.5;
+            suggestions = availableProducts
+                .filter(p => p.type !== currentProduct.type)
+                .map(p => {
+                    const pPrice = p.discount_percent ? p.price * (1 - p.discount_percent / 100) : p.price;
+                    const inRange = (pPrice >= priceMin && pPrice <= priceMax) ? 10 : 0;
+                    const discountBonus = p.discount_percent ? 5 : 0;
+                    return { product: p, score: inRange + discountBonus };
+                })
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3)
+                .map(s => s.product);
+
+            // Fallback: any available product
+            if (suggestions.length === 0) {
+                suggestions = availableProducts.slice(0, 3);
             }
         }
 
@@ -124,7 +169,8 @@ export async function executeSuggestRelatedProducts(
             return {
                 name: p.name,
                 price: discountedPrice,
-                original_price: p.discount_percent ? p.price : undefined
+                original_price: p.discount_percent ? p.price : undefined,
+                available: p.stock - (p.reserved_stock || 0),
             };
         });
 

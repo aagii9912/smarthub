@@ -27,6 +27,11 @@ export const UpdateOrderSchema = z.object({
 });
 export type UpdateOrderArgs = z.infer<typeof UpdateOrderSchema>;
 
+export const CheckDeliveryStatusSchema = z.object({
+    order_id: z.string().optional(),
+});
+export type CheckDeliveryStatusArgs = z.infer<typeof CheckDeliveryStatusSchema>;
+
 export const ORDER_TOOLS: ToolDefinition[] = [
     {
         name: 'create_order',
@@ -47,5 +52,11 @@ export const ORDER_TOOLS: ToolDefinition[] = [
         name: 'update_order',
         description: 'Modify a pending order. Use when customer wants to change quantity, add/remove items, or update details. Only works on pending orders.',
         parameters: { type: 'object', properties: { action: { type: 'string', enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'], description: 'Type of modification' }, product_name: { type: 'string', description: 'Product to modify (for quantity/add/remove)' }, new_quantity: { type: 'number', description: 'New quantity (for change_quantity)' }, notes: { type: 'string', description: 'Updated notes (for update_notes)' } }, required: ['action'] }
+    },
+    {
+        name: 'check_delivery_status',
+        description: 'Check delivery status and estimated delivery time for customer orders. Use when customer asks "Хүргэлт хаана?", "Хэзээ авах вэ?", "Delivery status". Returns delivery tracking info with ETA.',
+        parameters: { type: 'object', properties: { order_id: { type: 'string', description: 'Specific order ID to check delivery for (optional — defaults to latest shipped order)' } }, required: [] }
     }
 ];
+

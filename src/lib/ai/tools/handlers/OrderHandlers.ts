@@ -8,3 +8,5 @@ export * from './order/cancelOrder';
 export * from './order/checkOrderStatus';
 export * from './order/checkout';
 export * from './order/updateOrder';
+export * from './order/checkDeliveryStatus';
+

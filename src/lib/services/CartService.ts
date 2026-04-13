@@ -28,14 +28,41 @@ export interface CartWithItems {
 export class CartService {
     private supabase = supabaseAdmin();
 
+    // Cart expires after 24 hours of inactivity
+    static readonly CART_EXPIRY_HOURS = 24;
+
+    /**
+     * Check if a cart is expired (older than CART_EXPIRY_HOURS without update)
+     */
+    isCartExpired(cart: CartWithItems): boolean {
+        const lastActivity = new Date(cart.updated_at || cart.created_at);
+        const expiryMs = CartService.CART_EXPIRY_HOURS * 60 * 60 * 1000;
+        return Date.now() - lastActivity.getTime() > expiryMs;
+    }
+
     /**
      * Get or create cart for a customer
+     * Auto-clears expired carts
      */
     async getOrCreate(shopId: string, customerId: string): Promise<CartWithItems> {
         // Try to find existing cart
         const cart = await this.getByCustomer(shopId, customerId);
 
         if (cart) {
+            // If cart is expired, clear it and re-use
+            if (this.isCartExpired(cart)) {
+                logger.info('Cart expired, clearing items', {
+                    cartId: cart.id,
+                    age: `${Math.round((Date.now() - new Date(cart.updated_at || cart.created_at).getTime()) / 3600000)}h`,
+                });
+                await this.clearCart(cart.id);
+                // Touch the cart to reset expiry
+                await this.supabase
+                    .from('carts')
+                    .update({ updated_at: new Date().toISOString() })
+                    .eq('id', cart.id);
+                return { ...cart, items: [], total_amount: 0, updated_at: new Date().toISOString() };
+            }
             return cart;
         }
 
@@ -61,6 +88,47 @@ export class CartService {
             items: [],
             total_amount: 0,
         };
+    }
+
+    /**
+     * Clean up all expired carts (for cron job)
+     */
+    async cleanupExpiredCarts(): Promise<{ deleted: number }> {
+        const expiryDate = new Date(
+            Date.now() - CartService.CART_EXPIRY_HOURS * 60 * 60 * 1000
+        ).toISOString();
+
+        // Find expired carts
+        const { data: expiredCarts, error: findError } = await this.supabase
+            .from('carts')
+            .select('id')
+            .lt('updated_at', expiryDate);
+
+        if (findError || !expiredCarts || expiredCarts.length === 0) {
+            return { deleted: 0 };
+        }
+
+        const cartIds = expiredCarts.map(c => c.id);
+
+        // Delete cart items first
+        await this.supabase
+            .from('cart_items')
+            .delete()
+            .in('cart_id', cartIds);
+
+        // Delete expired carts
+        const { error: deleteError } = await this.supabase
+            .from('carts')
+            .delete()
+            .in('id', cartIds);
+
+        if (deleteError) {
+            logger.error('Failed to cleanup expired carts', { error: deleteError });
+            return { deleted: 0 };
+        }
+
+        logger.info(`Cleaned up ${cartIds.length} expired carts`);
+        return { deleted: cartIds.length };
     }
 
     /**

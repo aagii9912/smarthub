@@ -23,6 +23,7 @@ import type {
     RememberPreferenceArgs,
     CheckPaymentArgs,
     CheckOrderStatusArgs,
+    CheckDeliveryStatusArgs,
     LogComplaintArgs,
     SuggestRelatedProductsArgs,
     UpdateOrderArgs,
@@ -30,18 +31,18 @@ import type {
 } from '../tools/definitions';
 
 // Handler imports — re-exported for backward compatibility
-export { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout } from '../tools/handlers/OrderHandlers';
+export { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout, executeCheckDeliveryStatus } from '../tools/handlers/OrderHandlers';
 export { executeAddToCart, executeViewCart, executeRemoveFromCart } from '../tools/handlers/CartHandlers';
 export { executeCollectContact, executeRequestSupport, executeRememberPreference } from '../tools/handlers/CustomerHandlers';
 export { executeShowProductImage, executeSuggestRelatedProducts, executeCheckPaymentStatus, executeLogComplaint } from '../tools/handlers/ProductHandlers';
 
 // Also import for local use in executeTool router
-import { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout } from '../tools/handlers/OrderHandlers';
+import { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout, executeCheckDeliveryStatus } from '../tools/handlers/OrderHandlers';
 import { executeAddToCart, executeViewCart, executeRemoveFromCart } from '../tools/handlers/CartHandlers';
 import { executeCollectContact, executeRequestSupport, executeRememberPreference } from '../tools/handlers/CustomerHandlers';
 import { executeShowProductImage, executeSuggestRelatedProducts, executeCheckPaymentStatus, executeLogComplaint } from '../tools/handlers/ProductHandlers';
 import {
-    CreateOrderSchema, CancelOrderSchema, CheckOrderStatusSchema, UpdateOrderSchema,
+    CreateOrderSchema, CancelOrderSchema, CheckOrderStatusSchema, UpdateOrderSchema, CheckDeliveryStatusSchema,
     AddToCartSchema, ViewCartSchema, RemoveFromCartSchema, CheckoutSchema,
     CollectContactSchema, RequestHumanSupportSchema, RememberPreferenceSchema,
     ShowProductImageSchema, SuggestRelatedProductsSchema, CheckPaymentStatusSchema, LogComplaintSchema
@@ -52,6 +53,7 @@ const TOOL_SCHEMAS: Record<string, z.ZodTypeAny> = {
     cancel_order: CancelOrderSchema,
     check_order_status: CheckOrderStatusSchema,
     update_order: UpdateOrderSchema,
+    check_delivery_status: CheckDeliveryStatusSchema,
     add_to_cart: AddToCartSchema,
     view_cart: ViewCartSchema,
     remove_from_cart: RemoveFromCartSchema,
@@ -123,6 +125,8 @@ export async function executeTool(
                 return await executeCheckout(validatedArgs as CheckoutArgs, context);
             case 'update_order':
                 return await executeUpdateOrder(validatedArgs as UpdateOrderArgs, context);
+            case 'check_delivery_status':
+                return await executeCheckDeliveryStatus(validatedArgs as CheckDeliveryStatusArgs, context);
 
             // Cart handlers
             case 'add_to_cart':

@@ -1,12 +1,14 @@
 /**
  * Rate Limiter Utility
- * In-memory rate limiting for API protection
+ * Redis-first rate limiting with in-memory fallback
  * 
- * Note: For production scale, use Redis-based rate limiting
+ * Production: Uses Upstash Redis (persistent across serverless instances)
+ * Development: Falls back to in-memory Map
  */
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { getRedisClient } from '@/lib/redis/client';
 
 interface RateLimitConfig {
     windowMs: number;      // Time window in milliseconds
@@ -18,9 +20,8 @@ interface RateLimitEntry {
     resetAt: number;
 }
 
-// In-memory store (for single-instance deployments)
-// For production: Replace with Redis
-const rateLimitStore = new Map<string, RateLimitEntry>();
+// In-memory fallback store (for when Redis is unavailable)
+const fallbackStore = new Map<string, RateLimitEntry>();
 
 // Default configs for different route types
 export const RATE_LIMIT_CONFIGS = {
@@ -38,27 +39,81 @@ export const RATE_LIMIT_CONFIGS = {
 } as const;
 
 /**
- * Check rate limit for a given key
+ * Check rate limit for a given key (async, supports Redis)
  */
-export function checkRateLimit(
+export async function checkRateLimit(
     key: string,
     config: RateLimitConfig = RATE_LIMIT_CONFIGS.standard
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+    const redis = getRedisClient();
+
+    if (redis.isRedis) {
+        return checkRateLimitRedis(key, config);
+    }
+
+    return checkRateLimitMemory(key, config);
+}
+
+/**
+ * Redis-backed rate limiting (sliding window counter)
+ */
+async function checkRateLimitRedis(
+    key: string,
+    config: RateLimitConfig
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+    const redis = getRedisClient();
+    const windowSeconds = Math.ceil(config.windowMs / 1000);
+    const redisKey = `rl:${key}`;
+
+    try {
+        const count = await redis.incr(redisKey);
+
+        // Set expiry on first request in window
+        if (count === 1) {
+            await redis.expire(redisKey, windowSeconds);
+        }
+
+        const ttl = await redis.ttl(redisKey);
+        const resetAt = Date.now() + (ttl > 0 ? ttl * 1000 : config.windowMs);
+
+        if (count > config.maxRequests) {
+            return { allowed: false, remaining: 0, resetAt };
+        }
+
+        return {
+            allowed: true,
+            remaining: config.maxRequests - count,
+            resetAt,
+        };
+    } catch (err) {
+        logger.warn('Redis rate limit error, falling back to memory', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+        return checkRateLimitMemory(key, config);
+    }
+}
+
+/**
+ * In-memory rate limiting fallback
+ */
+function checkRateLimitMemory(
+    key: string,
+    config: RateLimitConfig
 ): { allowed: boolean; remaining: number; resetAt: number } {
     const now = Date.now();
-    const entry = rateLimitStore.get(key);
+    const entry = fallbackStore.get(key);
 
     // Clean up expired entries periodically
-    if (Math.random() < 0.01) { // 1% chance to cleanup
+    if (Math.random() < 0.01) {
         cleanupExpiredEntries();
     }
 
     if (!entry || now > entry.resetAt) {
-        // New window
         const newEntry: RateLimitEntry = {
             count: 1,
             resetAt: now + config.windowMs,
         };
-        rateLimitStore.set(key, newEntry);
+        fallbackStore.set(key, newEntry);
         return {
             allowed: true,
             remaining: config.maxRequests - 1,
@@ -66,7 +121,6 @@ export function checkRateLimit(
         };
     }
 
-    // Existing window
     if (entry.count >= config.maxRequests) {
         return {
             allowed: false,
@@ -90,9 +144,9 @@ function cleanupExpiredEntries() {
     const now = Date.now();
     let cleaned = 0;
 
-    for (const [key, entry] of rateLimitStore.entries()) {
+    for (const [key, entry] of fallbackStore.entries()) {
         if (now > entry.resetAt) {
-            rateLimitStore.delete(key);
+            fallbackStore.delete(key);
             cleaned++;
         }
     }
@@ -153,7 +207,7 @@ export function withRateLimit(
         const url = new URL(req.url);
         const key = `${clientId}:${url.pathname}`;
 
-        const { allowed, remaining, resetAt } = checkRateLimit(key, config);
+        const { allowed, remaining, resetAt } = await checkRateLimit(key, config);
 
         if (!allowed) {
             logger.warn('Rate limit exceeded', { clientId, path: url.pathname });
@@ -173,16 +227,16 @@ export function withRateLimit(
 /**
  * Check rate limit in middleware (for edge runtime)
  */
-export function checkMiddlewareRateLimit(
+export async function checkMiddlewareRateLimit(
     req: Request,
     routeType: keyof typeof RATE_LIMIT_CONFIGS = 'standard'
-): { allowed: boolean; response?: NextResponse } {
+): Promise<{ allowed: boolean; response?: NextResponse }> {
     const clientId = getClientIdentifier(req);
     const url = new URL(req.url);
     const key = `${clientId}:${routeType}`;
 
     const config = RATE_LIMIT_CONFIGS[routeType];
-    const { allowed, resetAt } = checkRateLimit(key, config);
+    const { allowed, resetAt } = await checkRateLimit(key, config);
 
     if (!allowed) {
         logger.warn('Rate limit exceeded in middleware', {

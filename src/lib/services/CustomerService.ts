@@ -219,6 +219,157 @@ export class CustomerService {
 
         return data || [];
     }
+
+    // ================================================
+    // Customer Intelligence
+    // ================================================
+
+    /**
+     * Calculate customer score (0-100)
+     * Based on: purchase frequency, average order value, recency, engagement
+     */
+    calculateCustomerScore(customer: Customer): number {
+        let score = 0;
+
+        // 1. Purchase frequency (max 30 points)
+        const orders = customer.total_orders || 0;
+        if (orders >= 10) score += 30;
+        else if (orders >= 5) score += 20;
+        else if (orders >= 3) score += 15;
+        else if (orders >= 1) score += 8;
+
+        // 2. Total spending (max 30 points)
+        const spent = customer.total_spent || 0;
+        if (spent >= 1000000) score += 30;      // 1M+
+        else if (spent >= 500000) score += 22;   // 500K+
+        else if (spent >= 200000) score += 15;   // 200K+
+        else if (spent >= 50000) score += 8;     // 50K+
+
+        // 3. Recency (max 25 points) — how recently they engaged
+        const daysSinceCreated = Math.floor(
+            (Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const messageCount = customer.message_count || 0;
+
+        // Estimate last activity from message count and account age
+        if (messageCount > 0 && daysSinceCreated < 7) score += 25;
+        else if (messageCount > 0 && daysSinceCreated < 30) score += 18;
+        else if (messageCount > 0 && daysSinceCreated < 90) score += 10;
+        else if (daysSinceCreated < 30) score += 5;
+
+        // 4. Engagement depth (max 15 points)
+        if (messageCount >= 50) score += 15;
+        else if (messageCount >= 20) score += 10;
+        else if (messageCount >= 5) score += 5;
+
+        // Bonus: has contact info (+5 for phone, +3 for address)
+        if (customer.phone) score += 3;
+        if (customer.address) score += 2;
+
+        return Math.min(100, score);
+    }
+
+    /**
+     * Get customer segment based on score
+     */
+    getCustomerSegment(score: number): {
+        segment: 'vip' | 'active' | 'at_risk' | 'new' | 'lost';
+        label: string;
+        color: string;
+    } {
+        if (score >= 70) return { segment: 'vip', label: 'VIP', color: '#8B5CF6' };
+        if (score >= 45) return { segment: 'active', label: 'Идэвхтэй', color: '#10B981' };
+        if (score >= 25) return { segment: 'at_risk', label: 'Эрсдэлтэй', color: '#F59E0B' };
+        if (score >= 10) return { segment: 'new', label: 'Шинэ', color: '#3B82F6' };
+        return { segment: 'lost', label: 'Алдсан', color: '#6B7280' };
+    }
+
+    /**
+     * Get segment distribution for a shop
+     */
+    async getSegmentDistribution(shopId: string): Promise<{
+        segments: Array<{ segment: string; label: string; color: string; count: number; percentage: number }>;
+        totalCustomers: number;
+        averageScore: number;
+    }> {
+        const { data: customers, error } = await this.supabase
+            .from('customers')
+            .select('id, total_orders, total_spent, message_count, phone, address, created_at')
+            .eq('shop_id', shopId);
+
+        if (error || !customers) {
+            return { segments: [], totalCustomers: 0, averageScore: 0 };
+        }
+
+        const segmentCounts: Record<string, { label: string; color: string; count: number }> = {
+            vip: { label: 'VIP', color: '#8B5CF6', count: 0 },
+            active: { label: 'Идэвхтэй', color: '#10B981', count: 0 },
+            at_risk: { label: 'Эрсдэлтэй', color: '#F59E0B', count: 0 },
+            new: { label: 'Шинэ', color: '#3B82F6', count: 0 },
+            lost: { label: 'Алдсан', color: '#6B7280', count: 0 },
+        };
+
+        let totalScore = 0;
+
+        for (const customer of customers) {
+            const score = this.calculateCustomerScore(customer as Customer);
+            const { segment } = this.getCustomerSegment(score);
+            segmentCounts[segment].count++;
+            totalScore += score;
+        }
+
+        const total = customers.length;
+        const segments = Object.entries(segmentCounts).map(([segment, data]) => ({
+            segment,
+            label: data.label,
+            color: data.color,
+            count: data.count,
+            percentage: total > 0 ? Math.round((data.count / total) * 100) : 0,
+        }));
+
+        return {
+            segments,
+            totalCustomers: total,
+            averageScore: total > 0 ? Math.round(totalScore / total) : 0,
+        };
+    }
+
+    /**
+     * Auto-promote high-score customers to VIP
+     */
+    async autoPromoteVIPs(shopId: string, threshold: number = 70): Promise<number> {
+        const { data: customers, error } = await this.supabase
+            .from('customers')
+            .select('id, total_orders, total_spent, message_count, phone, address, is_vip, created_at')
+            .eq('shop_id', shopId)
+            .eq('is_vip', false);
+
+        if (error || !customers) return 0;
+
+        const toPromote: string[] = [];
+
+        for (const customer of customers) {
+            const score = this.calculateCustomerScore(customer as Customer);
+            if (score >= threshold) {
+                toPromote.push(customer.id);
+            }
+        }
+
+        if (toPromote.length === 0) return 0;
+
+        const { error: updateError } = await this.supabase
+            .from('customers')
+            .update({ is_vip: true })
+            .in('id', toPromote);
+
+        if (updateError) {
+            logger.error('Failed to auto-promote VIPs', { error: updateError });
+            return 0;
+        }
+
+        logger.info(`Auto-promoted ${toPromote.length} customers to VIP`, { shopId });
+        return toPromote.length;
+    }
 }
 
 // Export singleton instance

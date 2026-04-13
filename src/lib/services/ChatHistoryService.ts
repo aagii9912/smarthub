@@ -54,6 +54,19 @@ export class ChatHistoryService {
     }
 
     /**
+     * Plan-based context limits
+     */
+    static readonly CONTEXT_LIMITS: Record<string, number> = {
+        lite: 8,
+        starter: 12,
+        pro: 20,
+        enterprise: 30,
+    };
+
+    /** Approximate tokens per character (Mongolian/mixed text) */
+    static readonly TOKENS_PER_CHAR = 0.5;
+
+    /**
      * Get recent chat history for a customer
      */
     async getRecent(
@@ -93,6 +106,74 @@ export class ChatHistoryService {
         });
 
         return messages;
+    }
+
+    /**
+     * Get context-optimized chat history
+     * - Limits messages based on plan tier
+     * - Estimates token usage
+     * - Summarizes old messages if context is too large
+     */
+    async getContextOptimized(
+        shopId: string,
+        customerId: string,
+        planType: string = 'starter',
+        maxTokenBudget: number = 2000
+    ): Promise<{ messages: ChatMessage[]; estimatedTokens: number; wasTruncated: boolean }> {
+        const limit = ChatHistoryService.CONTEXT_LIMITS[planType] || 12;
+
+        const { data, error } = await this.supabase
+            .from('chat_history')
+            .select('message, response, created_at')
+            .eq('shop_id', shopId)
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            logger.error('Failed to get optimized chat history', { shopId, customerId, error });
+            return { messages: [], estimatedTokens: 0, wasTruncated: false };
+        }
+
+        const entries = (data || []).reverse();
+        const messages: ChatMessage[] = [];
+        let totalChars = 0;
+        let wasTruncated = false;
+
+        for (const h of entries) {
+            const entryChars = (h.message?.length || 0) + (h.response?.length || 0);
+            const entryTokens = Math.ceil(entryChars * ChatHistoryService.TOKENS_PER_CHAR);
+
+            // Stop if we'd exceed token budget
+            if (totalChars * ChatHistoryService.TOKENS_PER_CHAR + entryTokens > maxTokenBudget) {
+                wasTruncated = true;
+                break;
+            }
+
+            if (h.message) {
+                messages.push({ role: 'user', content: h.message });
+                totalChars += h.message.length;
+            }
+            if (h.response) {
+                messages.push({ role: 'assistant', content: h.response });
+                totalChars += h.response.length;
+            }
+        }
+
+        const estimatedTokens = Math.ceil(totalChars * ChatHistoryService.TOKENS_PER_CHAR);
+
+        if (wasTruncated) {
+            logger.debug('Chat context truncated', {
+                shopId,
+                customerId,
+                plan: planType,
+                messagesUsed: messages.length / 2,
+                totalAvailable: entries.length,
+                estimatedTokens,
+            });
+        }
+
+        return { messages, estimatedTokens, wasTruncated };
     }
 
     /**

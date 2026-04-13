@@ -1,7 +1,10 @@
 import { logger } from '@/lib/utils/logger';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase';
 import { headers } from 'next/headers';
+
+// Re-export supabaseAdmin from canonical source (ARCH-1 fix: single definition)
+export { supabaseAdmin };
 
 // Get authenticated user from Supabase Auth
 export async function getAuthUser() {
@@ -13,20 +16,6 @@ export async function getAuthUser() {
     }
 
     return user.id;
-}
-
-// Create Supabase admin client (for server-side operations)
-export function supabaseAdmin() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false,
-            },
-        }
-    );
 }
 
 // Get shop for an authenticated user

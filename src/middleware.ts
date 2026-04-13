@@ -44,7 +44,7 @@ export default async function middleware(req: NextRequest) {
             routeType = 'webhook';
         }
 
-        const rateLimit = checkMiddlewareRateLimit(req, routeType);
+        const rateLimit = await checkMiddlewareRateLimit(req, routeType);
         if (!rateLimit.allowed && rateLimit.response) {
             return rateLimit.response;
         }
