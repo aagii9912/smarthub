@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { motion, Variants } from 'framer-motion';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActionCenter } from '@/components/dashboard/ActionCenter';
 import { AIStatsCard } from '@/components/dashboard/AIStatsCard';
@@ -35,6 +36,19 @@ const timeFilterOptions = [
     { value: 'week' as const, labelKey: 'week' as const },
     { value: 'month' as const, labelKey: 'month' as const },
 ];
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export default function DashboardPage() {
     const { user, shop, loading: authLoading } = useAuth();
@@ -76,7 +90,7 @@ export default function DashboardPage() {
                         <Dropdown
                             align="right"
                             trigger={
-                                <button className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/50 bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200">
+                                <button className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/50 bg-card backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200">
                                     <Calendar className="w-3.5 h-3.5" />
                                     {currentFilterLabel}
                                     <ChevronDown className="w-3 h-3" />
@@ -97,7 +111,7 @@ export default function DashboardPage() {
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}
-                            className="p-2 bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200"
+                            className="p-2 bg-card backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200"
                             title={t.dashboard.refresh}
                         >
                             <RefreshCw className={cn('w-3.5 h-3.5 text-white/40', isRefetching && 'animate-spin')} />
@@ -106,38 +120,58 @@ export default function DashboardPage() {
                 </div>
 
                 {/* ─── Stats Grid ─── */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                    <StatsCard title={t.dashboard.todayOrders} value={stats.todayOrders.toString()} icon={ShoppingCart} iconColor="gold" />
-                    <StatsCard
-                        title={t.dashboard.revenue}
-                        value={
-                            stats.totalRevenue >= 1000000
-                                ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
-                                : `₮${stats.totalRevenue.toLocaleString()}`
-                        }
-                        icon={TrendingUp}
-                        iconColor="blue"
-                    />
-                    <StatsCard title={t.dashboard.customers} value={stats.totalCustomers.toString()} icon={Users} iconColor="purple" />
-                    <StatsCard title={t.dashboard.pending} value={stats.pendingOrders.toString()} icon={Clock} iconColor="warning" />
-                </div>
+                <motion.div 
+                    variants={containerVariants} 
+                    initial="hidden" 
+                    animate="show" 
+                    className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4"
+                >
+                    <motion.div variants={itemVariants}>
+                        <StatsCard title={t.dashboard.todayOrders} value={stats.todayOrders.toString()} icon={ShoppingCart} iconColor="gold" />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <StatsCard
+                            title={t.dashboard.revenue}
+                            value={
+                                stats.totalRevenue >= 1000000
+                                    ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
+                                    : `₮${stats.totalRevenue.toLocaleString()}`
+                            }
+                            icon={TrendingUp}
+                            iconColor="blue"
+                        />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <StatsCard title={t.dashboard.customers} value={stats.totalCustomers.toString()} icon={Users} iconColor="purple" />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <StatsCard title={t.dashboard.pending} value={stats.pendingOrders.toString()} icon={Clock} iconColor="warning" />
+                    </motion.div>
+                </motion.div>
 
                 {/* ─── AI Stats ─── */}
                 {aiStats && (
-                    <AIStatsCard
-                        totalConversations={aiStats.totalConversations}
-                        totalMessages={aiStats.totalMessages}
-                        tokenUsage={aiStats.tokenUsage}
-                        contactsCollected={aiStats.contactsCollected}
-                        planType={aiStats.plan.type}
-                    />
+                    <motion.div variants={itemVariants} initial="hidden" animate="show">
+                        <AIStatsCard
+                            totalConversations={aiStats.totalConversations}
+                            totalMessages={aiStats.totalMessages}
+                            tokenUsage={aiStats.tokenUsage}
+                            contactsCollected={aiStats.contactsCollected}
+                            planType={aiStats.plan.type}
+                        />
+                    </motion.div>
                 )}
 
                 {/* ─── Bento Grid ─── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+                <motion.div 
+                    variants={containerVariants} 
+                    initial="hidden" 
+                    animate="show" 
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5"
+                >
                     {/* Recent Orders — spans 2 cols */}
-                    <div className="lg:col-span-2">
-                        <div className="rounded-2xl bg-[#0F0B2E] backdrop-blur-sm border border-white/[0.08] overflow-hidden transition-all duration-300 hover:border-[#4A7CE7]/20">
+                    <motion.div variants={itemVariants} className="lg:col-span-2">
+                        <div className="rounded-2xl bg-card backdrop-blur-sm border border-white/[0.08] overflow-hidden transition-all duration-300 hover:border-[#4A7CE7]/20">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 flex items-center justify-center">
@@ -162,7 +196,7 @@ export default function DashboardPage() {
                                             <Link
                                                 key={order.id}
                                                 href="/dashboard/orders"
-                                                className="px-5 py-3.5 flex items-center justify-between hover:bg-[#0D0928] transition-colors"
+                                                className="px-5 py-3.5 flex items-center justify-between hover:bg-muted transition-colors"
                                             >
                                                 <div className="flex items-center gap-3.5 overflow-hidden">
                                                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.04] from-white/[0.08] to-white/[0.04] flex items-center justify-center shrink-0">
@@ -193,18 +227,18 @@ export default function DashboardPage() {
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Action Center */}
-                    <div>
+                    <motion.div variants={itemVariants}>
                         <ActionCenter
                             conversations={activeConversations}
                             lowStockProducts={lowStockProducts}
                             pendingOrders={recentOrders.filter((o: any) => o.status === 'pending')}
                             unansweredCount={unansweredCount}
                         />
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             </div>
         </PullToRefresh>
     );

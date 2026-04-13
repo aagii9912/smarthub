@@ -95,7 +95,7 @@ export function StatsCard({ title, value, change, icon: Icon, iconColor = 'brand
     return (
         <div className={cn(
             'group relative rounded-2xl p-4 md:p-5 transition-all duration-300',
-            'bg-[#0F0B2E] backdrop-blur-sm',
+            'bg-card backdrop-blur-sm',
             'border border-white/[0.08]',
             'hover:border-[#4A7CE7]/30',
             'hover:-translate-y-0.5 hover:shadow-lg',

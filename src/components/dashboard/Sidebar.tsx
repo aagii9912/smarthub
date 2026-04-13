@@ -75,9 +75,21 @@ export function Sidebar() {
         return (t.sidebar as Record<string, string>)[key] || key;
     };
 
+    const getActiveHref = () => {
+        if (pathname === '/dashboard' || pathname === '/dashboard/') return '/dashboard';
+        const allHrefs = [...mainMenuKeys, ...toolsMenuKeys, ...bottomMenuKeys].map(item => item.href);
+        const matches = allHrefs.filter(href => 
+            pathname === href || pathname.startsWith(href + '/')
+        );
+        if (matches.length === 0) return null;
+        return matches.reduce((a, b) => a.length > b.length ? a : b);
+    };
+
+    const activeHref = getActiveHref();
+
     const isActive = (href: string) => {
         if (href === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/';
-        return pathname.startsWith(href);
+        return href === activeHref;
     };
 
     const isLocked = (item: MenuItem) => {

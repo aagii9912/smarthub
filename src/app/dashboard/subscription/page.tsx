@@ -15,6 +15,7 @@ export default function SubscriptionPage() {
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
     const [upgrading, setUpgrading] = useState(false);
+    const [paymentInfo, setPaymentInfo] = useState<{ invoice_id?: string; qr_code?: string; urls?: any[] } | null>(null);
 
     useEffect(() => { fetchData(); }, []);
 
@@ -73,6 +74,35 @@ export default function SubscriptionPage() {
                 setBillingHistory(d.invoices || []);
             }
         } catch (e) { logger.error('Алдаа гарлаа', { error: e }); } finally { setLoading(false); }
+    }
+
+    async function initSubscription(planId: string) {
+        setSelectedPlan(planId);
+        setShowUpgrade(true);
+        setPaymentInfo(null);
+        setUpgrading(true);
+        try {
+            const res = await fetch('/api/subscription/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan_id: planId, billing_cycle: billingCycle })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || data.message || 'Алдаа гарлаа');
+            
+            if (!data.payment_required) {
+                toast.success(data.message || 'Амжилттай шинэчлэгдлээ');
+                setShowUpgrade(false);
+                fetchData(true);
+            } else {
+                setPaymentInfo(data);
+            }
+        } catch (e: any) {
+            toast.error(e.message);
+            setShowUpgrade(false);
+        } finally {
+            setUpgrading(false);
+        }
     }
 
     const safePlans = plans.length > 0 ? plans : [
@@ -147,8 +177,8 @@ export default function SubscriptionPage() {
                                 {p.features.map(f => <li key={f} className="flex items-center gap-2 text-[12px] text-white/60"><Check className="w-3.5 h-3.5 text-[#4A7CE7] flex-shrink-0" strokeWidth={1.5} />{f}</li>)}
                             </ul>
                             <button
-                                onClick={() => { if (!isCurrent) { setSelectedPlan(p.id); setShowUpgrade(true); } }}
-                                disabled={isCurrent}
+                                onClick={() => { if (!isCurrent) { initSubscription(p.id); } }}
+                                disabled={isCurrent || upgrading}
                                 className={`w-full mt-5 py-2 rounded-md text-[12px] font-medium transition-all ${isCurrent ? 'bg-[#0F0B2E] text-white/30 cursor-default' : p.highlighted ? 'bg-[#4A7CE7] text-white hover:bg-[#3A6BD4]' : 'bg-foreground text-background hover:opacity-80'}`}
                             >{isCurrent ? 'Одоогийн план' : 'Сонгох'}</button>
                         </div>
@@ -184,22 +214,47 @@ export default function SubscriptionPage() {
             {/* Upgrade Modal */}
             {showUpgrade && selectedPlan && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-sm p-6">
+                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-sm p-6 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">Шинэчлэх</h3>
                             <button onClick={() => setShowUpgrade(false)} className="p-1 hover:bg-[#0F0B2E] rounded-md"><X className="w-4 h-4 text-white/30" strokeWidth={1.5} /></button>
                         </div>
                         <p className="text-[13px] text-white/50 mb-5">{PLANS.find(p => p.id === selectedPlan)?.name} план руу шинэчлэх</p>
-                        <p className="text-[11px] text-white/40 mb-3">QPay-ээр төлөх</p>
-                        <div className="w-40 h-40 bg-[#0D0928] border border-white/[0.08] rounded-lg mx-auto flex items-center justify-center mb-4">
-                            <div className="w-full h-full bg-[url('https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://qpay.mn/mock')] bg-contain bg-no-repeat bg-center opacity-60" />
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowUpgrade(false)} className="flex-1 py-2 border border-white/[0.08] rounded-md text-[12px] font-medium text-foreground hover:border-white/[0.15] transition-colors">Болих</button>
-                            <button onClick={() => { setUpgrading(true); setTimeout(() => { setUpgrading(false); setShowUpgrade(false); fetchData(true); toast.success('Амжилттай шинэчлэгдлээ'); }, 2000); }} className="flex-1 py-2 bg-[#4A7CE7] text-white rounded-md text-[12px] font-medium hover:bg-[#3A6BD4] transition-colors flex items-center justify-center gap-1.5">
-                                {upgrading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />}Төлбөр шалгах
-                            </button>
-                        </div>
+                        
+                        {upgrading && !paymentInfo ? (
+                           <div className="py-10 flex flex-col items-center justify-center text-white/50">
+                                <Loader2 className="w-6 h-6 animate-spin mb-2 text-[#4A7CE7]" />
+                                <span className="text-[12px]">Нэхэмжлэх үүсгэж байна...</span>
+                           </div>
+                        ) : paymentInfo?.qr_code ? (
+                            <>
+                                <p className="text-[11px] text-white/40 mb-3 text-center">Дэлгэц дээрх QPay QR кодыг уншуулж төлнө үү</p>
+                                <div className="w-48 h-48 bg-white border border-white/[0.08] rounded-2xl mx-auto flex items-center justify-center mb-6 overflow-hidden p-2 shadow-inner">
+                                    <img src={`data:image/png;base64,${paymentInfo.qr_code}`} alt="QPay QR" className="w-full h-full object-contain" />
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setShowUpgrade(false)} className="flex-1 py-2 border border-white/[0.08] rounded-md text-[12px] font-medium text-foreground hover:border-white/[0.15] transition-colors">Болих</button>
+                                    <button onClick={async () => { 
+                                        setUpgrading(true); 
+                                        await fetchData(true);
+                                        setUpgrading(false);
+                                        toast.info('Төлбөр шалгаж байна. Хэрвээ төлбөр уншигдсан бол хуудас автоматаар шинэчлэгдэнэ.');
+                                        // If it was successful, currentPlan would be updated, modal handling can be done by user closing or auto if desired.
+                                        if (currentPlan === selectedPlan) {
+                                            toast.success('Амжилттай шинэчлэгдлээ');
+                                            setShowUpgrade(false);
+                                        }
+                                    }} className="flex-1 py-2 bg-[#4A7CE7] text-white rounded-md text-[12px] font-medium hover:bg-[#3A6BD4] transition-colors flex items-center justify-center gap-1.5 focus:ring-2 focus:ring-[#4A7CE7] focus:ring-offset-2 focus:ring-offset-[#0A0220]">
+                                        {upgrading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />}Төлбөр шалгах
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="py-10 flex flex-col items-center justify-center text-white/50 text-center">
+                                <p className="text-[12px] text-red-400 max-w-[200px] mb-4">Нэхэмжлэх үүсгэхэд алдаа гарлаа. Төлбөрийн систем түр ажиллахгүй байна.</p>
+                                <button onClick={() => setShowUpgrade(false)} className="px-5 py-2 border border-white/[0.08] rounded-md text-[12px] hover:bg-white/[0.04] transition-colors">Хаах</button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
