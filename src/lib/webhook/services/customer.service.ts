@@ -158,29 +158,57 @@ export async function updateCustomerInfo(
 ): Promise<CustomerData> {
     const supabase = supabaseAdmin();
     const updatedCustomer = { ...customer };
+    const updates: Record<string, string> = {};
 
+    // Auto-detect phone number (Mongolian 8-digit format)
     if (!customer.phone) {
         const phoneMatch = message.match(/\b([89765]\d{7})\b/);
         if (phoneMatch) {
-            await supabase
-                .from('customers')
-                .update({ phone: phoneMatch[1] })
-                .eq('id', customer.id);
+            updates.phone = phoneMatch[1];
             updatedCustomer.phone = phoneMatch[1];
             logger.info('Phone extracted from message', { phone: phoneMatch[1] });
         }
     }
 
+    // Auto-detect email address
+    const emailMatch = message.match(/[\w.-]+@[\w.-]+\.\w{2,}/);
+    if (emailMatch) {
+        updates.email = emailMatch[0].toLowerCase();
+        logger.info('Email extracted from message', { email: emailMatch[0] });
+    }
+
+    // Auto-detect physical address (Mongolian address patterns)
+    const addressPatterns = [
+        /(\S+\s*дүүрэг[\s,]*\d+[-\s]*р?\s*хороо[\s,]*[\d\w\s-]+)/i,
+        /(\d+[-\s]*р?\s*хороо[\s,]*[\d\w\s-]*байр[\s,]*[\d\w\s-]*тоот)/i,
+        /([\w\s]+гудамж[\s,]*\d+[\w\s-]*)/i,
+    ];
+
+    for (const pattern of addressPatterns) {
+        const addressMatch = message.match(pattern);
+        if (addressMatch) {
+            updates.address = addressMatch[1].trim();
+            logger.info('Address extracted from message', { address: addressMatch[1] });
+            break;
+        }
+    }
+
+    // Fetch name from Facebook if missing
     if (!customer.name) {
         const userName = await fetchFacebookUserName(facebookId, pageAccessToken);
         if (userName) {
-            await supabase
-                .from('customers')
-                .update({ name: userName })
-                .eq('id', customer.id);
+            updates.name = userName;
             updatedCustomer.name = userName;
             logger.info('Updated customer name from Facebook', { userName });
         }
+    }
+
+    // Apply all updates in a single DB call
+    if (Object.keys(updates).length > 0) {
+        await supabase
+            .from('customers')
+            .update(updates)
+            .eq('id', customer.id);
     }
 
     return updatedCustomer;

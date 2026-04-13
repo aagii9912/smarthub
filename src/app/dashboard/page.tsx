@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActionCenter } from '@/components/dashboard/ActionCenter';
+import { AIStatsCard } from '@/components/dashboard/AIStatsCard';
 import { OrderStatusBadge } from '@/components/ui/Badge';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -12,6 +13,7 @@ import { Dropdown, DropdownItem } from '@/components/ui/Dropdown';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useAIStats } from '@/hooks/useAIStats';
 import { formatTimeAgo } from '@/lib/utils/date';
 import {
     ShoppingCart,
@@ -40,6 +42,7 @@ export default function DashboardPage() {
     const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
 
     const { data, isLoading, refetch, isRefetching } = useDashboard(timeFilter);
+    const { data: aiStats } = useAIStats(timeFilter);
 
     const stats = data?.stats || { todayOrders: 0, pendingOrders: 0, totalRevenue: 0, totalCustomers: 0 };
     const recentOrders = data?.recentOrders || [];
@@ -118,6 +121,17 @@ export default function DashboardPage() {
                     <StatsCard title={t.dashboard.customers} value={stats.totalCustomers.toString()} icon={Users} iconColor="purple" />
                     <StatsCard title={t.dashboard.pending} value={stats.pendingOrders.toString()} icon={Clock} iconColor="warning" />
                 </div>
+
+                {/* ─── AI Stats ─── */}
+                {aiStats && (
+                    <AIStatsCard
+                        totalConversations={aiStats.totalConversations}
+                        totalMessages={aiStats.totalMessages}
+                        tokenUsage={aiStats.tokenUsage}
+                        contactsCollected={aiStats.contactsCollected}
+                        planType={aiStats.plan.type}
+                    />
+                )}
 
                 {/* ─── Bento Grid ─── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">

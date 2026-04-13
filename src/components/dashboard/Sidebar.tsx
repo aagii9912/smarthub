@@ -53,6 +53,7 @@ const toolsMenuKeys: MenuItem[] = [
     { nameKey: 'cart', href: '/dashboard/inbox', icon: ShoppingCart, feature: 'cart_system' },
     { nameKey: 'inbox', href: '/dashboard/inbox/messages', icon: Inbox },
     { nameKey: 'reports', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
+    { nameKey: 'aiReport', href: '/dashboard/reports/ai', icon: Sparkles },
 ];
 
 const bottomMenuKeys: MenuItem[] = [

@@ -2,13 +2,14 @@
  * Syncly AI Plan Configuration - Gemini Family
  * 
  * Billing: Token-based (primary) + message count (analytics)
- * Strategy: 3 plans using Gemini models (matching landing page)
+ * Strategy: 4 plans using Gemini models
+ * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1M tokens (Chatbot only)
  * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2.4M tokens
  * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12M tokens
  * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100M tokens
  */
 
-export type PlanType = 'starter' | 'pro' | 'enterprise';
+export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
 export type AIModel = 'gemini-3.1-flash-lite-preview';
 
@@ -59,6 +60,46 @@ export interface PlanAIConfig {
  * Plan configurations (matching landing page exactly)
  */
 export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
+    lite: {
+        provider: 'gemini',
+        model: 'gemini-3.1-flash-lite-preview',
+        maxTokens: 300,
+        messagesPerMonth: 1000,       // Legacy analytics
+        tokensPerMonth: 1_000_000,    // ~1M tokens/month
+        maxShops: 1,
+        maxProducts: 20,
+        price: {
+            monthly: { mnt: 89000, usd: 26 },
+            yearly: { mnt: 890000, usd: 262 },
+        },
+        features: {
+            // AI Core
+            toolCalling: true,
+            vision: false,
+            memory: false,
+            salesIntelligence: false,
+
+            // Modules
+            cartSystem: 'none',
+            paymentIntegration: false,
+            crmAnalytics: 'none',
+
+            // Tools
+            autoTagging: false,
+            appointmentBooking: false,
+            bulkMarketing: false,
+            excelExport: false,
+            customBranding: false,
+            commentReply: false,
+            prioritySupport: false,
+            personalManager: false,
+        },
+        enabledTools: [
+            'show_product_image',
+            'collect_contact_info',
+        ],
+    },
+
     starter: {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
@@ -225,7 +266,7 @@ export function getPlanTypeFromSubscription(subscription?: {
     status?: string;
 }): PlanType {
     if (!subscription || subscription.status !== 'active') {
-        return 'starter'; // Default to starter (no trial)
+        return 'lite'; // Default to lite (cheapest plan)
     }
 
     const planName = subscription.plan?.toLowerCase();
@@ -236,8 +277,14 @@ export function getPlanTypeFromSubscription(subscription?: {
     if (planName === 'pro' || planName === 'professional') {
         return 'pro';
     }
+    if (planName === 'starter') {
+        return 'starter';
+    }
+    if (planName === 'lite' || planName === 'basic' || planName === 'chatbot') {
+        return 'lite';
+    }
 
-    return 'starter'; // Default to starter
+    return 'lite'; // Default to lite
 }
 
 /**
@@ -322,6 +369,7 @@ export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
  * Plan display names for UI
  */
 export const PLAN_DISPLAY_NAMES: Record<PlanType, string> = {
+    lite: 'Lite',
     starter: 'Starter',
     pro: 'Pro',
     enterprise: 'Enterprise',

@@ -10,30 +10,38 @@ import {
 
 describe('AIRouter', () => {
     describe('getPlanTypeFromSubscription', () => {
-        it('should return starter for undefined subscription', () => {
+        it('should return lite for undefined subscription', () => {
             const result = getPlanTypeFromSubscription({} as any);
-            expect(result).toBe('starter');
+            expect(result).toBe('lite');
         });
 
-        it('should return starter for inactive subscription', () => {
+        it('should return lite for inactive subscription', () => {
             const result = getPlanTypeFromSubscription({
                 plan: 'pro',
                 status: 'inactive'
             });
-            expect(result).toBe('starter');
+            expect(result).toBe('lite');
         });
 
         it('should return correct plan for active subscription', () => {
+            expect(getPlanTypeFromSubscription({ plan: 'lite', status: 'active' })).toBe('lite');
+            expect(getPlanTypeFromSubscription({ plan: 'starter', status: 'active' })).toBe('starter');
             expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'active' })).toBe('pro');
             expect(getPlanTypeFromSubscription({ plan: 'enterprise', status: 'active' })).toBe('enterprise');
         });
 
-        it('should return starter for unknown plan', () => {
+        it('should return lite for unknown plan', () => {
             const result = getPlanTypeFromSubscription({
                 plan: 'unknown',
                 status: 'active'
             });
-            expect(result).toBe('starter');
+            expect(result).toBe('lite');
+        });
+
+        it('should map aliases correctly', () => {
+            expect(getPlanTypeFromSubscription({ plan: 'basic', status: 'active' })).toBe('lite');
+            expect(getPlanTypeFromSubscription({ plan: 'chatbot', status: 'active' })).toBe('lite');
+            expect(getPlanTypeFromSubscription({ plan: 'professional', status: 'active' })).toBe('pro');
         });
     });
 
@@ -79,6 +87,7 @@ describe('AIRouter', () => {
         });
 
         it('should have correct token limits per plan', () => {
+            expect(PLAN_CONFIGS.lite.tokensPerMonth).toBe(1_000_000);
             expect(PLAN_CONFIGS.starter.tokensPerMonth).toBe(2_400_000);
             expect(PLAN_CONFIGS.pro.tokensPerMonth).toBe(12_000_000);
             expect(PLAN_CONFIGS.enterprise.tokensPerMonth).toBe(100_000_000);
@@ -100,6 +109,15 @@ describe('AIRouter', () => {
     });
 
     describe('getEnabledToolsForPlan', () => {
+        it('should return minimal tools for lite', () => {
+            const tools = getEnabledToolsForPlan('lite');
+            expect(tools).toContain('show_product_image');
+            expect(tools).toContain('collect_contact_info');
+            expect(tools).not.toContain('add_to_cart');
+            expect(tools).not.toContain('checkout');
+            expect(tools.length).toBe(2);
+        });
+
         it('should return correct tools for starter', () => {
             const tools = getEnabledToolsForPlan('starter');
             expect(tools).toContain('add_to_cart');
