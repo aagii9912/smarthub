@@ -384,3 +384,97 @@ AI IDENTITY (Брэнд дүр):
 - Робот шиг формал хэл хэрэглэх`;
 }
 
+// ==============================
+// Multi-language Support
+// ==============================
+
+export type SupportedLanguage = 'mn' | 'en' | 'ko' | 'ja';
+
+/**
+ * Language detection patterns
+ */
+const LANGUAGE_PATTERNS: Record<SupportedLanguage, RegExp[]> = {
+    en: [
+        /\b(hello|hi|hey|how|what|where|when|can|do|is|are|the|please|thank|want|need|buy|order|price|much|deliver)\b/i,
+    ],
+    ko: [
+        /[\uAC00-\uD7AF]/,  // Korean Hangul
+        /(안녕|감사|주문|배송|가격|얼마|사고|싶어)/,
+    ],
+    ja: [
+        /[\u3040-\u309F\u30A0-\u30FF]/,  // Hiragana + Katakana
+        /(こんにちは|ありがとう|注文|配送|価格|いくら|欲しい)/,
+    ],
+    mn: [], // Default fallback
+};
+
+/**
+ * Localized response instruction wrappers
+ */
+const LANGUAGE_INSTRUCTIONS: Record<SupportedLanguage, string> = {
+    mn: '', // Default Mongolian — no wrapper needed
+    en: `
+LANGUAGE: The customer is writing in ENGLISH.
+- Respond ONLY in English
+- Be friendly, professional, and concise
+- Use the same warm, human tone but in English
+- Product names can stay in their original language
+- Currency: ₮ (Mongolian Tugrik)
+`,
+    ko: `
+LANGUAGE: 고객이 한국어로 작성하고 있습니다.
+- 한국어로만 답변하세요
+- 친절하고 전문적으로 답변하세요
+- 상품명은 원래 언어 그대로 사용 가능합니다
+- 통화: ₮ (몽골 투그릭)
+`,
+    ja: `
+LANGUAGE: お客様は日本語で書いています。
+- 日本語のみで回答してください
+- フレンドリーでプロフェッショナルに対応してください
+- 商品名は元の言語のままで構いません
+- 通貨: ₮（モンゴルトゥグルグ）
+`,
+};
+
+/**
+ * Detect the language of a message
+ */
+export function detectLanguage(message: string): SupportedLanguage {
+    if (!message) return 'mn';
+
+    // Check non-default languages first (in priority order)
+    for (const lang of ['ko', 'ja', 'en'] as SupportedLanguage[]) {
+        const patterns = LANGUAGE_PATTERNS[lang];
+        for (const pattern of patterns) {
+            if (pattern.test(message)) {
+                return lang;
+            }
+        }
+    }
+
+    return 'mn'; // Default to Mongolian
+}
+
+/**
+ * Get localized system prompt wrapper
+ */
+export function getLanguageInstruction(lang: SupportedLanguage): string {
+    return LANGUAGE_INSTRUCTIONS[lang] || '';
+}
+
+/**
+ * Build system prompt with language awareness
+ */
+export function buildLocalizedSystemPrompt(
+    context: ChatContext,
+    customerMessage?: string
+): string {
+    const basePrompt = buildSystemPrompt(context);
+    const lang = customerMessage ? detectLanguage(customerMessage) : 'mn';
+    const langInstruction = getLanguageInstruction(lang);
+
+    if (!langInstruction) return basePrompt;
+
+    return `${basePrompt}\n\n${langInstruction}`;
+}
