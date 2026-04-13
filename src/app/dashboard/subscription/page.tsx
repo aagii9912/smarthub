@@ -4,13 +4,13 @@ import { Crown, Check, Zap, BarChart3, Package, MessageSquare, Bot, Calendar, Do
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
 
-interface Plan { id: string; name: string; price_monthly: number; price_yearly: number; features: string[]; limits: { products: number; orders: number; messages: number }; highlighted?: boolean; }
+interface Plan { id: string; name: string; price_monthly: number; price_yearly: number; features: string[]; limits: { products: number; orders: number; messages: number; tokens: number }; highlighted?: boolean; }
 export default function SubscriptionPage() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPlan, setCurrentPlan] = useState('starter');
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
-    const [usage, setUsage] = useState({ products: 0, orders: 0, messages: 0 });
+    const [usage, setUsage] = useState({ products: 0, orders: 0, messages: 0, tokens: 0 });
     const [billingHistory, setBillingHistory] = useState<any[]>([]);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -39,8 +39,9 @@ export default function SubscriptionPage() {
                     if (lmt.max_products > 0) mappedFeatures.push(`${lmt.max_products} бараа`);
                     else if (lmt.max_products === -1) mappedFeatures.push('Хязгааргүй бараа');
 
-                    if (lmt.max_messages > 0) mappedFeatures.push(`${lmt.max_messages} мессеж/сар`);
-                    else if (lmt.max_messages === -1) mappedFeatures.push('Хязгааргүй мессеж');
+                    if (lmt.max_tokens > 0) mappedFeatures.push(`${lmt.max_tokens.toLocaleString()} токен/сар`);
+                    else if (lmt.max_messages > 0) mappedFeatures.push(`${lmt.max_messages.toLocaleString()} токен/сар`);
+                    else if (lmt.max_tokens === -1 || lmt.max_messages === -1) mappedFeatures.push('Хязгааргүй токен');
 
                     if (feats.ai_enabled) mappedFeatures.push('AI чатбот');
                     if (feats.shops_limit > 1) mappedFeatures.push('Бүх платформ (FB/IG)');
@@ -57,7 +58,8 @@ export default function SubscriptionPage() {
                         limits: {
                             products: lmt.max_products > 0 ? lmt.max_products : 99999,
                             orders: lmt.max_customers > 0 ? lmt.max_customers : 99999, // fallback mapping 
-                            messages: lmt.max_messages > 0 ? lmt.max_messages : 99999
+                            messages: lmt.max_messages > 0 ? lmt.max_messages : 99999,
+                            tokens: lmt.max_tokens > 0 ? lmt.max_tokens : (lmt.max_messages > 0 ? lmt.max_messages : 99999)
                         },
                         highlighted: plan.is_featured
                     }
@@ -70,7 +72,7 @@ export default function SubscriptionPage() {
             if (subRes.ok) {
                 const d = await subRes.json();
                 if (d.plan) { setCurrentPlan(d.plan.slug); }
-                setUsage(d.usage || { products: 0, orders: 0, messages: 0 });
+                setUsage(d.usage || { products: 0, orders: 0, messages: 0, tokens: 0 });
                 setBillingHistory(d.invoices || []);
             }
         } catch (e) { logger.error('Алдаа гарлаа', { error: e }); } finally { setLoading(false); }
@@ -106,14 +108,14 @@ export default function SubscriptionPage() {
     }
 
     const safePlans = plans.length > 0 ? plans : [
-        { id: 'starter', name: 'Уншиж байна...', price_monthly: 0, price_yearly: 0, features: [], limits: { products: 0, orders: 0, messages: 0 } }
+        { id: 'starter', name: 'Уншиж байна...', price_monthly: 0, price_yearly: 0, features: [], limits: { products: 0, orders: 0, messages: 0, tokens: 0 } }
     ];
     const PLANS = safePlans;
     const plan = PLANS.find(p => p.id === currentPlan) || PLANS[0];
     const usageItems = [
         { label: 'Бүтээгдэхүүн', value: usage.products, max: plan.limits.products, icon: Package },
         { label: 'Захиалга', value: usage.orders, max: plan.limits.orders, icon: BarChart3 },
-        { label: 'Мессеж', value: usage.messages, max: plan.limits.messages, icon: MessageSquare }
+        { label: 'Токен', value: usage.tokens || 0, max: plan.limits.tokens, icon: Zap }
     ];
 
     const cardCls = "bg-[#0F0B2E] rounded-lg border border-white/[0.08]";

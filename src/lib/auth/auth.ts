@@ -34,7 +34,7 @@ export async function getAuthUserShop() {
     // Build query
     let query = supabase
         .from('shops')
-        .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at')
+        .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, token_usage_total')
         .eq('user_id', userId);
 
     // If specific shop requested, use it, otherwise get first
