@@ -270,7 +270,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                         <option value={120}>2 цаг</option>
                                     </select>
                                 </div>
-                                <Input name="maxBookings" label="Өдөрт авах хүний дээд хязгаар" type="number" defaultValue={product?.max_bookings_per_day || ''} placeholder="Хязгааргүй бол хоосон орхи" />
+                                <Input name="maxBookings" label="Өдөрт авах хүн (Макс)" type="number" defaultValue={product?.max_bookings_per_day || ''} placeholder="Хязгааргүй бол хоосон" />
                             </div>
 
                             <div className="pt-2">

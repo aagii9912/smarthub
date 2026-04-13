@@ -356,7 +356,7 @@ export default function ProductsPage() {
             {/* Add/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
-                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-2xl p-5 m-4 relative">
+                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-4xl p-5 m-4 relative">
                         <div className="flex items-center justify-between mb-5">
                             <h2 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
                                 {editingProduct ? t.products.edit : t.products.newEntry}
