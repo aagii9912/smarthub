@@ -214,182 +214,270 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                         key={item.type}
                         type="button"
                         onClick={() => setProductType(item.type as any)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${productType === item.type ? 'bg-[#0F0B2E] text-white shadow-sm' : 'text-white/50 hover:text-white'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${productType === item.type ? 'bg-[#0F0B2E] text-white shadow-sm border border-white/[0.08]' : 'text-white/40 hover:text-white'}`}
                     >
-                        <item.icon className="w-4 h-4" /> {item.label}
+                        <item.icon className="w-3.5 h-3.5" strokeWidth={2} /> {item.label}
                     </button>
                 ))}
             </div>
 
-            <div className="flex gap-6">
-                {/* Image Upload */}
-                <div className="w-32 h-32 flex-shrink-0">
-                    <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-xl hover:border-violet-500 transition-colors relative overflow-hidden group bg-[#0F0B2E]">
-                        {imagePreview ? (
-                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-white/40 gap-2">
-                                <Upload className="w-6 h-6" />
-                                <span className="text-xs">Зураг</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Left Column (Main Info) */}
+                <div className="md:col-span-2 space-y-6">
+                    
+                    {/* Basic Info Card */}
+                    <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
+                        <h3 className="text-[13px] font-semibold text-white/90">Үндсэн мэдээлэл</h3>
+                        <Input name="name" label="Нэр" defaultValue={product?.name} required placeholder="Бүтээгдэхүүний нэр" />
+                        <Textarea name="description" label="Тайлбар" defaultValue={product?.description || ''} rows={4} placeholder="Бүтээгдэхүүн/Үйлчилгээний дэлгэрэнгүй..." />
+                    </div>
+
+                    {/* Price and Inventory Card */}
+                    <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
+                        <h3 className="text-[13px] font-semibold text-white/90">Үнэ болон Хямдрал</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input name="price" label="Үнэ (₮)" type="number" defaultValue={product?.price} required placeholder="0" />
+                            <Input name="discount" label="Хямдрал (%)" type="number" defaultValue={product?.discount_percent || ''} placeholder="0" />
+                        </div>
+                        {productType === 'physical' && !hasVariants && (
+                            <div className="pt-1">
+                                <Input name="stock" label="Үлдэгдэл тоо (Stock)" type="number" defaultValue={product?.stock || ''} placeholder="0" />
                             </div>
                         )}
-                        <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
                     </div>
+
+                    {/* Appointment Settings Card */}
+                    {productType === 'appointment' && (
+                        <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Calendar className="w-4 h-4 text-violet-400" />
+                                <h3 className="text-[13px] font-semibold text-violet-400">Цаг захиалгын хуваарь</h3>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[12px] font-medium text-white/70 mb-1.5">Үргэлжлэх хугацаа</label>
+                                    <select 
+                                        name="duration" 
+                                        defaultValue={product?.duration_minutes || 60}
+                                        className="w-full bg-[#151040] border border-white/[0.08] rounded-lg px-3 py-2.5 text-[13px] text-foreground focus:outline-none focus:border-violet-500 transition-colors"
+                                    >
+                                        <option value={15}>15 минут</option>
+                                        <option value={30}>30 минут</option>
+                                        <option value={45}>45 минут</option>
+                                        <option value={60}>1 цаг</option>
+                                        <option value={90}>1 цаг 30 минут</option>
+                                        <option value={120}>2 цаг</option>
+                                    </select>
+                                </div>
+                                <Input name="maxBookings" label="Өдөрт авах хүний дээд хязгаар" type="number" defaultValue={product?.max_bookings_per_day || ''} placeholder="Хязгааргүй бол хоосон орхи" />
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="block text-[12px] font-medium text-white/70 mb-2.5">Ажиллах гаригууд</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям', 'Ням'].map((day, idx) => (
+                                        <label key={idx} className="cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                name="availableDays" 
+                                                value={day} 
+                                                defaultChecked={product?.available_days?.includes(day) ?? (idx < 5)}
+                                                className="peer sr-only" 
+                                            />
+                                            <div className="px-3 py-1.5 rounded-lg border border-white/[0.06] bg-[#151040]/50 text-[11px] font-medium text-white/30 peer-checked:bg-violet-500/10 peer-checked:text-violet-300 peer-checked:border-violet-500/30 transition-all">
+                                                {day}
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[12px] font-medium text-white/70 mb-1.5">Эхлэх цаг</label>
+                                    <input 
+                                        type="time" 
+                                        name="startTime" 
+                                        defaultValue={product?.start_time || '09:00'} 
+                                        className="w-full bg-[#151040] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-violet-500 [color-scheme:dark]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[12px] font-medium text-white/70 mb-1.5">Дуусах цаг</label>
+                                    <input 
+                                        type="time" 
+                                        name="endTime" 
+                                        defaultValue={product?.end_time || '18:00'} 
+                                        className="w-full bg-[#151040] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-violet-500 [color-scheme:dark]"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Variants Card for Physical and Service */}
+                    {(productType === 'physical' || productType === 'service') && (
+                        <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={hasVariants}
+                                        onChange={(e) => setHasVariants(e.target.checked)}
+                                        className="w-4 h-4 text-violet-500 rounded bg-[#151040] border-white/[0.2] focus:ring-violet-500"
+                                    />
+                                    <span className="font-semibold text-[13px] text-white/90">Олон төрөл / Хувилбартай</span>
+                                </label>
+                            </div>
+
+                            {hasVariants ? (
+                                <div className="space-y-5">
+                                    <p className="text-[11px] text-white/40 leading-relaxed -mt-1">
+                                        Та бүтээгдэхүүн/үйлчилгээнийхээ төрлөөс (өнцөг, багц, хэмжээ) шалтгаалж үнийг өөрөөр тохируулах боломжтой.
+                                    </p>
+                                    <div className="p-4 bg-[#151040]/50 rounded-xl border border-white/[0.04] space-y-4">
+                                        {optionGroups.map((group, idx) => (
+                                            <div key={idx} className="flex gap-2 items-start">
+                                                <div className="w-1/3">
+                                                    <Input
+                                                        name={`option_name_${idx}`}
+                                                        label={idx === 0 ? "Сонголтын нэр (Ж: Өнгө/Багц)" : ""}
+                                                        value={group.name}
+                                                        onChange={(e) => updateOptionGroup(idx, 'name', e.target.value)}
+                                                        placeholder="Өнгө"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <Input
+                                                        name={`option_values_${idx}`}
+                                                        label={idx === 0 ? "Утгууд (Таслалаар зааглана)" : ""}
+                                                        value={group.values.join(', ')}
+                                                        onChange={(e) => updateOptionGroup(idx, 'values', e.target.value)}
+                                                        placeholder="Улаан, Хар, Цагаан"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeOptionGroup(idx)}
+                                                    className={`p-2 rounded-md bg-white/[0.02] text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors ${idx === 0 ? 'mt-6' : 'mt-1'}`}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <div className="flex gap-2 pt-2">
+                                            <Button type="button" variant="secondary" size="sm" onClick={addOptionGroup} className="text-[11px] px-3">
+                                                <Plus className="w-3 h-3 mr-1.5 bg-white/20 rounded-full" /> Сонголт нэмэх
+                                            </Button>
+                                            <Button type="button" size="sm" onClick={generateVariants} disabled={optionGroups.length === 0 || optionGroups.some(g => !g.name || g.values.length === 0)} className="text-[11px] px-3">
+                                                Хувилбар үүсгэх
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {variants.length > 0 && (
+                                        <div className="border border-white/[0.08] rounded-xl overflow-hidden shadow-sm">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-[#151040]/80 border-b border-white/[0.04]">
+                                                    <tr>
+                                                        <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em]">Хувилбар</th>
+                                                        <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em]">Үнэ (₮)</th>
+                                                        {productType === 'physical' && <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em] w-20">Үлдэгдэл</th>}
+                                                        <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em] text-center w-16">Идэвхтэй</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-white/[0.04]">
+                                                    {variants.map((variant, idx) => (
+                                                        <tr key={idx} className="hover:bg-white/[0.01]">
+                                                            <td className="px-4 py-3 text-[12px] font-medium text-white/80">{variant.name}</td>
+                                                            <td className="px-4 py-3">
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full max-w-[120px] bg-[#0A0220] px-2 py-1.5 border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none tabular-nums transition-all"
+                                                                    value={variant.price}
+                                                                    onChange={(e) => {
+                                                                        const newVar = [...variants];
+                                                                        newVar[idx].price = Number(e.target.value);
+                                                                        setVariants(newVar);
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            {productType === 'physical' && (
+                                                                <td className="px-4 py-3">
+                                                                    <input
+                                                                        type="number"
+                                                                        className="w-16 bg-[#0A0220] px-2 py-1.5 border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none tabular-nums text-center transition-all"
+                                                                        value={variant.stock}
+                                                                        onChange={(e) => {
+                                                                            const newVar = [...variants];
+                                                                            newVar[idx].stock = Number(e.target.value);
+                                                                            setVariants(newVar);
+                                                                        }}
+                                                                    />
+                                                                </td>
+                                                            )}
+                                                            <td className="px-4 py-3 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={variant.is_active}
+                                                                    onChange={(e) => {
+                                                                        const newVar = [...variants];
+                                                                        newVar[idx].is_active = e.target.checked;
+                                                                        setVariants(newVar);
+                                                                    }}
+                                                                    className="rounded flex-shrink-0 mx-auto w-3.5 h-3.5 bg-[#0A0220] border-white/[0.2] text-violet-500 focus:ring-violet-500/50 cursor-pointer"
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input name="colors" label="Гаднах өнгөнүүд" placeholder="Улаан, Хар" defaultValue={product?.colors?.join(', ')} />
+                                    <Input name="sizes" label="Боломжит хэмжээнүүд" placeholder="S, M, L" defaultValue={product?.sizes?.join(', ')} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex-1 space-y-4">
-                    <Input name="name" label="Нэр" defaultValue={product?.name} required placeholder="Бүтээгдэхүүний нэр" />
-
-                    <div className={`grid gap-4 ${productType === 'physical' && !hasVariants ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                        <Input name="price" label="Үнэ (₮)" type="number" defaultValue={product?.price} required placeholder="0" />
-
-                        {productType === 'physical' && !hasVariants && (
-                            <Input name="stock" label="Үлдэгдэл" type="number" defaultValue={product?.stock || ''} placeholder="0" />
-                        )}
-
-                        <Input name="discount" label="Хямдрал (%)" type="number" defaultValue={product?.discount_percent || ''} placeholder="0" />
+                {/* Right Column (Media) */}
+                <div className="space-y-6">
+                    <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-4">
+                        <h3 className="text-[13px] font-semibold text-white/90">Зураг оруулах</h3>
+                        <div className="w-full aspect-square relative">
+                            <div className="w-full h-full border border-dashed border-white/[0.15] rounded-xl hover:border-violet-500/50 hover:bg-violet-500/[0.02] transition-colors relative overflow-hidden group bg-[#151040]/30 shadow-inner">
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 gap-3 group-hover:text-white/50 transition-colors">
+                                        <div className="w-12 h-12 rounded-full bg-white/[0.03] shadow-sm flex items-center justify-center">
+                                            <Upload className="w-5 h-5 text-white/40" strokeWidth={1.5} />
+                                        </div>
+                                        <span className="text-[12px] font-medium tracking-[-0.01em]">Дарах эсвэл зураг чирнэ үү</span>
+                                    </div>
+                                )}
+                                <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-white/20 text-center uppercase tracking-[0.05em] font-medium">Санал болгох: 800x800px (1:1)</p>
                     </div>
                 </div>
             </div>
 
-            <Textarea name="description" label="Тайлбар" defaultValue={product?.description || ''} rows={3} />
-
-            {/* Appointment Settings (Stripped down for brevity, logic exists in original) */}
-            {productType === 'appointment' && (
-                <div className="p-4 bg-violet-500/10 rounded-xl border border-violet-200">
-                    <p className="text-sm font-medium text-violet-800">Цаг захиалгын тохиргоо (Хэвийн)</p>
-                    {/* ... Add Appointment fields back if needed, preserving existing functionality ... */}
-                    <input type="hidden" name="duration" value="60" />
-                </div>
-            )}
-
-            {/* VARIANTS SECTION */}
-            {productType === 'physical' && (
-                <div className="pt-4 border-t border-white/[0.08]">
-                    <div className="flex items-center justify-between mb-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={hasVariants}
-                                onChange={(e) => setHasVariants(e.target.checked)}
-                                className="w-4 h-4 text-violet-600 rounded"
-                            />
-                            <span className="font-medium text-white">Олон төрөл/хувилбартай (Өнгө, Размер)</span>
-                        </label>
-                    </div>
-
-                    {hasVariants ? (
-                        <div className="space-y-4">
-                            {/* Option Groups Builder */}
-                            <div className="p-4 bg-[#0F0B2E] rounded-xl border border-white/[0.08] space-y-3">
-                                <h4 className="font-medium text-white">Хувилбарууд үүсгэх</h4>
-                                {optionGroups.map((group, idx) => (
-                                    <div key={idx} className="flex gap-2 items-start">
-                                        <div className="w-1/3">
-                                            <Input
-                                                name={`option_name_${idx}`}
-                                                label={idx === 0 ? "Сонголтын нэр (Ж: Өнгө)" : ""}
-                                                value={group.name}
-                                                onChange={(e) => updateOptionGroup(idx, 'name', e.target.value)}
-                                                placeholder="Өнгө"
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <Input
-                                                name={`option_values_${idx}`}
-                                                label={idx === 0 ? "Утгууд (Таслалаар зааглана)" : ""}
-                                                value={group.values.join(', ')}
-                                                onChange={(e) => updateOptionGroup(idx, 'values', e.target.value)}
-                                                placeholder="Улаан, Хар, Цагаан"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeOptionGroup(idx)}
-                                            className="mt-2 p-2 text-white/40 hover:text-red-500"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                                <Button type="button" variant="secondary" size="sm" onClick={addOptionGroup}>
-                                    <Plus className="w-4 h-4 mr-2" /> Сонголт нэмэх
-                                </Button>
-                                <Button type="button" size="sm" onClick={generateVariants} disabled={optionGroups.length === 0 || optionGroups.some(g => !g.name || g.values.length === 0)}>
-                                    Хувилбаруудыг үүсгэх
-                                </Button>
-                            </div>
-
-                            {/* Generated Variants Table */}
-                            {variants.length > 0 && (
-                                <div className="border border-white/[0.08] rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-[#0F0B2E]">
-                                            <tr>
-                                                <th className="px-4 py-2 text-left">Хувилбар</th>
-                                                <th className="px-4 py-2 text-left">Үнэ (₮)</th>
-                                                <th className="px-4 py-2 text-left">Үлдэгдэл</th>
-                                                <th className="px-4 py-2 text-center">Идэвхтэй</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {variants.map((variant, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="px-4 py-2 font-medium">{variant.name}</td>
-                                                    <td className="px-4 py-2">
-                                                        <input
-                                                            type="number"
-                                                            className="w-24 px-2 py-1 border rounded"
-                                                            value={variant.price}
-                                                            onChange={(e) => {
-                                                                const newVar = [...variants];
-                                                                newVar[idx].price = Number(e.target.value);
-                                                                setVariants(newVar);
-                                                            }}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-2">
-                                                        <input
-                                                            type="number"
-                                                            className="w-20 px-2 py-1 border rounded"
-                                                            value={variant.stock}
-                                                            onChange={(e) => {
-                                                                const newVar = [...variants];
-                                                                newVar[idx].stock = Number(e.target.value);
-                                                                setVariants(newVar);
-                                                            }}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-2 text-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={variant.is_active}
-                                                            onChange={(e) => {
-                                                                const newVar = [...variants];
-                                                                newVar[idx].is_active = e.target.checked;
-                                                                setVariants(newVar);
-                                                            }}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input name="colors" label="Өнгө" placeholder="Улаан, Хар" defaultValue={product?.colors?.join(', ')} />
-                            <Input name="sizes" label="Хэмжээ" placeholder="S, M, L" defaultValue={product?.sizes?.join(', ')} />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/[0.08]">
-                <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>Цуцлах</Button>
-                <Button type="submit" disabled={saving}>{saving ? 'Хадгалж байна...' : 'Хадгалах'}</Button>
+            {/* Sticky Actions Footer */}
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-white/[0.08] -mx-5 -mb-5 bg-[#0F0B2E]/90 backdrop-blur-md rounded-b-xl">
+                <Button variant="secondary" type="button" onClick={onCancel} disabled={saving} className="text-[12px] px-4">
+                    Цуцлах
+                </Button>
+                <Button type="submit" disabled={saving} className="bg-violet-600 hover:bg-violet-500 text-[12px] px-5 shadow-[0_4px_12px_rgba(124,58,237,0.2)] border border-violet-500/50">
+                    {saving ? 'Түрхүлээнэ үү...' : 'Хадгалах'}
+                </Button>
             </div>
         </form>
     );
