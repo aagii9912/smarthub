@@ -67,12 +67,13 @@ export async function POST(request: NextRequest) {
             // 2. Activate subscription
             const { data: subscription } = await supabase
                 .from('subscriptions')
-                .select('billing_cycle, plan_id')
+                .select('billing_cycle, plan_id, plans(slug)')
                 .eq('shop_id', shop.id)
                 .single();
 
+            const periodEnd = new Date();
+            
             if (subscription) {
-                const periodEnd = new Date();
                 periodEnd.setMonth(periodEnd.getMonth() + 
                     (subscription.billing_cycle === 'yearly' ? 12 : 1));
 
@@ -85,11 +86,53 @@ export async function POST(request: NextRequest) {
                     })
                     .eq('shop_id', shop.id);
 
-                // 3. Update shop's plan
+                // 3. Update shop's plan + subscription_plan text field
+                const planSlug = (subscription as any).plans?.slug || 'professional';
                 await supabase
                     .from('shops')
-                    .update({ plan_id: subscription.plan_id })
+                    .update({ 
+                        plan_id: subscription.plan_id,
+                        subscription_plan: planSlug,
+                        subscription_status: 'active'
+                    })
                     .eq('id', shop.id);
+            } else {
+                // No subscription record exists — create one
+                // Find the plan from the invoice description
+                const planSlug = invoice.description?.toLowerCase().includes('professional') ? 'professional'
+                    : invoice.description?.toLowerCase().includes('starter') ? 'starter'
+                    : invoice.description?.toLowerCase().includes('lite') ? 'lite'
+                    : 'professional';
+                
+                const { data: plan } = await supabase
+                    .from('plans')
+                    .select('id, slug')
+                    .eq('slug', planSlug)
+                    .single();
+
+                if (plan) {
+                    periodEnd.setMonth(periodEnd.getMonth() + 1);
+                    
+                    await supabase
+                        .from('subscriptions')
+                        .upsert({
+                            shop_id: shop.id,
+                            plan_id: plan.id,
+                            status: 'active',
+                            billing_cycle: 'monthly',
+                            current_period_start: new Date().toISOString(),
+                            current_period_end: periodEnd.toISOString()
+                        }, { onConflict: 'shop_id' });
+
+                    await supabase
+                        .from('shops')
+                        .update({ 
+                            plan_id: plan.id,
+                            subscription_plan: plan.slug,
+                            subscription_status: 'active'
+                        })
+                        .eq('id', shop.id);
+                }
             }
 
             logger.success('Subscription payment verified and activated', {
