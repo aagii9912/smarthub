@@ -26,11 +26,12 @@ export async function POST(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        // Get the plan
+        // Get the plan - support both UUID and slug
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(plan_id);
         const { data: plan, error: planError } = await supabase
             .from('plans')
-            .select('id, name, price_monthly, price_yearly, features, is_active')
-            .eq('id', plan_id)
+            .select('id, name, slug, price_monthly, price_yearly, features, is_active')
+            .eq(isUUID ? 'id' : 'slug', plan_id)
             .eq('is_active', true)
             .single();
 
