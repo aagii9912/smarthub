@@ -60,6 +60,7 @@ export interface PlanPricing {
 export interface PricingContent {
     sectionLabel: string;
     sectionTitle: string;
+    lite: PlanPricing & { label: string; desc: string; features: string[]; recommended?: boolean };
     starter: PlanPricing & { label: string; desc: string; features: string[] };
     pro: PlanPricing & { label: string; desc: string; features: string[]; recommended?: boolean };
     enterprise: PlanPricing & { label: string; desc: string; features: string[] };
@@ -67,6 +68,7 @@ export interface PricingContent {
 
 export interface ComparisonRow {
     name: string;
+    lite: string | boolean;
     starter: string | boolean;
     pro: string | boolean;
     enterprise: string | boolean;

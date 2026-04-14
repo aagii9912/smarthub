@@ -3,9 +3,6 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { headers } from 'next/headers';
 
-// Re-export supabaseAdmin from canonical source (ARCH-1 fix: single definition)
-export { supabaseAdmin };
-
 // Get authenticated user from Supabase Auth
 export async function getAuthUser() {
     const supabase = await createSupabaseServerClient();

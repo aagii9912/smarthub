@@ -1,0 +1,345 @@
+/* ──────────────────────────────────────────────
+   QPay Payment Landing Page
+   Mobile-first, premium design
+   ────────────────────────────────────────────── */
+
+.pay-container {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+.pay-card {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 32px 24px;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Loading */
+.pay-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 0;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pay-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #6c63ff;
+    border-radius: 50%;
+    animation: pay-spin 0.8s linear infinite;
+}
+
+@keyframes pay-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Status Icons */
+.pay-status-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 auto 20px;
+}
+
+.pay-success-icon {
+    background: linear-gradient(135deg, #00c853, #69f0ae);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0, 200, 83, 0.3);
+}
+
+.pay-error-icon {
+    background: linear-gradient(135deg, #ff1744, #ff616f);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(255, 23, 68, 0.3);
+}
+
+.pay-expired-icon {
+    background: linear-gradient(135deg, #ff9100, #ffab40);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(255, 145, 0, 0.3);
+}
+
+.pay-card h2 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+
+.pay-subtitle {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    margin: 0;
+}
+
+.pay-success-msg {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    margin-top: 16px;
+}
+
+/* Header */
+.pay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+.pay-shop-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pay-shop-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+.pay-shop-logo-placeholder {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c63ff, #8b80ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    color: #fff;
+}
+
+.pay-shop-name {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.pay-timer {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    color: #ffab40;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.pay-timer-icon {
+    font-size: 14px;
+}
+
+/* Amount */
+.pay-amount-section {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.pay-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 8px;
+}
+
+.pay-amount-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+}
+
+.pay-currency {
+    font-size: 24px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pay-amount-value {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff, #e0e0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pay-plan-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #6c63ff, #8b80ff);
+    color: #fff;
+}
+
+/* Divider */
+.pay-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    margin: 0 0 24px;
+}
+
+/* Banks Section */
+.pay-section-title {
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0 0 16px;
+}
+
+.pay-banks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.pay-bank-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 8px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.pay-bank-btn:hover,
+.pay-bank-btn:active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(108, 99, 255, 0.4);
+    transform: scale(0.97);
+}
+
+.pay-bank-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    object-fit: contain;
+    background: #fff;
+    padding: 4px;
+}
+
+.pay-bank-name {
+    font-size: 11px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.2;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* QR Fallback */
+.pay-qr-section {
+    margin-bottom: 20px;
+}
+
+.pay-qr-toggle {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 8px;
+    list-style: none;
+}
+
+.pay-qr-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.pay-qr-toggle::before {
+    content: '▸ ';
+}
+
+details[open] .pay-qr-toggle::before {
+    content: '▾ ';
+}
+
+.pay-qr-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+.pay-qr-image {
+    width: 200px;
+    height: 200px;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px;
+}
+
+/* Footer */
+.pay-footer {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.pay-footer p {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+    margin: 0;
+}
+
+.pay-polling-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #69f0ae;
+    animation: pay-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pay-pulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* Responsive */
+@media (max-width: 380px) {
+    .pay-card { padding: 24px 16px; }
+    .pay-amount-value { font-size: 36px; }
+    .pay-banks-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .pay-bank-btn { padding: 10px 6px; }
+    .pay-bank-logo { width: 32px; height: 32px; }
+}

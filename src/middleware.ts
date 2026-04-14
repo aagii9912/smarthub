@@ -16,6 +16,8 @@ const publicPaths = [
     '/api/webhook',
     '/api/subscription/webhook',
     '/api/payment/webhook',
+    '/api/pay',
+    '/pay',
     '/privacy',
     '/terms',
     '/help',

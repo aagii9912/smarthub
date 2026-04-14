@@ -2,9 +2,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendOrderNotification } from '@/lib/notifications';
 import { getCartFromDB } from '../../../helpers/stockHelpers';
-import { createQPayInvoice } from '@/lib/payment/qpay';
+import { createShopOrderInvoice } from '@/lib/payment/qpay';
 import type { CheckoutArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
+
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn';
 
 export async function executeCheckout(
     args: CheckoutArgs,
@@ -33,77 +35,85 @@ export async function executeCheckout(
         return { success: false, error: checkoutError.message };
     }
 
-    let qpayInvoice = null;
-    let bankInfo = null;
-    let qpayFailed = false;
+    // Get shop details (QPay merchant + bank info)
+    const { data: shop } = await supabase
+        .from('shops')
+        .select('name, bank_name, account_number, account_name, qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status')
+        .eq('id', context.shopId)
+        .single();
 
-    try {
-        const { data: shop } = await supabase
-            .from('shops')
-            .select('bank_name, account_number, account_name')
-            .eq('id', context.shopId)
+    let paymentId: string | null = null;
+    let qpaySuccess = false;
+    let paymentLink = '';
+
+    // ── QPay Invoice (using shop's own merchant) ──
+    if (shop?.qpay_merchant_id && shop.qpay_status === 'active') {
+        try {
+            const qpayInvoice = await createShopOrderInvoice({
+                shopMerchantId: shop.qpay_merchant_id,
+                shopBankCode: shop.qpay_bank_code!,
+                shopAccountNumber: shop.qpay_account_number!,
+                shopAccountName: shop.qpay_account_name!,
+                orderId: orderId,
+                amount: cart.total_amount,
+                shopName: shop.name || 'Shop',
+                callbackUrl: `${SITE_URL}/api/payment/webhook?type=order&order=${orderId}`,
+            });
+
+            if (qpayInvoice) {
+                // Save payment record
+                const { data: payment } = await supabase
+                    .from('payments')
+                    .insert({
+                        order_id: orderId,
+                        shop_id: context.shopId,
+                        payment_type: 'order',
+                        payment_method: 'qpay',
+                        amount: cart.total_amount,
+                        status: 'pending',
+                        qpay_invoice_id: qpayInvoice.invoice_id,
+                        qpay_qr_text: qpayInvoice.qr_text,
+                        qpay_qr_image: qpayInvoice.qr_image,
+                        metadata: {
+                            urls: qpayInvoice.urls,
+                            source: 'ai_checkout',
+                            shop_merchant_id: shop.qpay_merchant_id,
+                        },
+                        expires_at: qpayInvoice.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    })
+                    .select('id')
+                    .single();
+
+                if (payment) {
+                    paymentId = payment.id;
+                    paymentLink = `${SITE_URL}/pay/${payment.id}`;
+                    qpaySuccess = true;
+                }
+            }
+        } catch (err) {
+            logger.warn('QPay invoice creation failed:', { error: String(err) });
+        }
+    }
+
+    // Fallback: bank transfer payment record
+    if (!qpaySuccess) {
+        const { data: payment } = await supabase
+            .from('payments')
+            .insert({
+                order_id: orderId,
+                shop_id: context.shopId,
+                payment_type: 'order',
+                payment_method: shop?.account_number ? 'bank_transfer' : 'cash',
+                amount: cart.total_amount,
+                status: 'pending',
+            })
+            .select('id')
             .single();
 
-        bankInfo = shop;
-    } catch (err) {
-        logger.warn('Failed to fetch shop bank info:', { error: String(err) });
+        if (payment) paymentId = payment.id;
     }
 
-    try {
-        qpayInvoice = await createQPayInvoice({
-            orderId: orderId,
-            amount: cart.total_amount,
-            description: `Order #${orderId.substring(0, 8)}`,
-            callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/payment/webhook`,
-            items: cart.items.map(item => ({
-                name: item.name,
-                quantity: item.quantity,
-                unitPrice: item.unit_price,
-            })),
-        });
-        if (!qpayInvoice) {
-            qpayFailed = true;
-        }
-    } catch (err) {
-        logger.warn('QPay invoice creation failed:', { error: String(err) });
-        qpayFailed = true;
-    }
-
-    // Create payment record in DB so webhook can find it
-    try {
-        const paymentData: Record<string, unknown> = {
-            order_id: orderId,
-            shop_id: context.shopId,
-            payment_method: qpayInvoice ? 'qpay' : (bankInfo?.account_number ? 'bank_transfer' : 'cash'),
-            amount: cart.total_amount,
-            status: 'pending',
-        };
-
-        if (qpayInvoice) {
-            paymentData.qpay_invoice_id = qpayInvoice.invoice_id;
-            paymentData.qpay_qr_text = qpayInvoice.qr_text;
-            paymentData.qpay_qr_image = qpayInvoice.qr_image;
-            paymentData.metadata = {
-                qpay_shorturl: qpayInvoice.qpay_shorturl,
-                urls: qpayInvoice.urls,
-                source: 'ai_checkout',
-            };
-            paymentData.expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        }
-
-        const { error: paymentInsertError } = await supabase
-            .from('payments')
-            .insert(paymentData);
-
-        if (paymentInsertError) {
-            logger.warn('Failed to create payment record:', { error: paymentInsertError.message });
-        } else {
-            logger.info('Payment record created for AI checkout:', { orderId });
-        }
-    } catch (payErr) {
-        logger.warn('Payment record creation failed (non-critical):', { error: String(payErr) });
-    }
-
+    // Send notification
     if (context.notifySettings?.order !== false) {
         try {
             await sendOrderNotification(context.shopId, 'new', {
@@ -116,36 +126,37 @@ export async function executeCheckout(
         }
     }
 
-    let paymentMsg = `Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ! Нийт: ${cart.total_amount.toLocaleString()}₮\n\nТөлбөр төлөх сонголтууд:`;
+    // ── Build response message ──
+    const amount = cart.total_amount.toLocaleString();
+    let paymentMsg = `✅ Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ!\nНийт дүн: ${amount}₮\n`;
 
-    if (qpayInvoice) {
-        paymentMsg += `\n\n1. QPay (Хялбар): Доорх линкээр орж эсвэл QR кодыг уншуулж төлнө үү.\n${qpayInvoice.qpay_shorturl}`;
-    } else if (qpayFailed) {
-        paymentMsg += `\n\n⚠️ QPay одоогоор түр ажиллахгүй байна. Дансаар шилжүүлнэ үү.`;
-    }
-
-    if (bankInfo && bankInfo.account_number) {
-        const bankNum = qpayInvoice ? '2' : '1';
-        paymentMsg += `\n\n${bankNum}. Дансны шилжүүлэг:\nБанк: ${bankInfo.bank_name || 'Банк'}\nДанс: ${bankInfo.account_number}\nНэр: ${bankInfo.account_name || 'Дэлгүүр'}\nГүйлгээний утга: ${orderId.substring(0, 8)}`;
-        paymentMsg += `\n\n*Дансаар шилжүүлсэн бол баримтаа илгээнэ үү.`;
+    if (qpaySuccess && paymentLink) {
+        // PRIMARY: Send a payment link (not QR code!)
+        paymentMsg += `\n💳 Төлбөр төлөх:\n${paymentLink}\n\nДээрх линкээр орж банкны аппаа сонгоод төлнө үү.`;
+    } else if (shop?.account_number) {
+        // FALLBACK: Bank transfer
+        paymentMsg += `\n💳 Дансаар шилжүүлэх:\nБанк: ${shop.bank_name || 'Банк'}\nДанс: ${shop.account_number}\nНэр: ${shop.account_name || 'Дэлгүүр'}\nГүйлгээний утга: ${orderId.substring(0, 8)}`;
+        paymentMsg += `\n\n*Шилжүүлсэн бол баримтаа илгээнэ үү.`;
+    } else {
+        paymentMsg += `\nТөлбөрийн мэдээллийг удахгүй илгээнэ.`;
     }
 
     return {
         success: true,
         message: paymentMsg,
-        data: { order_id: orderId, qpay: qpayInvoice, bank: bankInfo, qpay_failed: qpayFailed },
+        data: { order_id: orderId, payment_id: paymentId, payment_link: paymentLink, qpay: qpaySuccess },
         actions: [
             {
                 type: 'payment_method',
                 buttons: [
-                    ...(qpayInvoice ? [{
+                    ...(qpaySuccess ? [{
                         id: 'pay_qpay',
-                        label: 'QPay төлөх',
+                        label: '💳 Төлбөр төлөх',
                         icon: 'qpay',
                         variant: 'primary' as const,
-                        payload: `OPEN_QPAY:${qpayInvoice.qpay_shorturl}`,
+                        payload: `OPEN_URL:${paymentLink}`,
                     }] : []),
-                    ...(bankInfo?.account_number ? [{
+                    ...(shop?.account_number ? [{
                         id: 'pay_bank',
                         label: 'Дансаар шилжүүлэх',
                         icon: 'bank',

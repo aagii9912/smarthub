@@ -101,6 +101,18 @@ describe('AIRouter', () => {
             expect(result.allowed).toBe(true);
         });
 
+        it('should correctly flag thresholds for warnings at 80% and 90%', () => {
+            const limit = PLAN_CONFIGS.starter.tokensPerMonth;
+            
+            // 80% usage
+            const eightyPercent = limit * 0.8;
+            expect(checkTokenLimit('starter', eightyPercent).usagePercent).toBe(80);
+            
+            // 90% usage
+            const ninetyPercent = limit * 0.9;
+            expect(checkTokenLimit('starter', ninetyPercent).usagePercent).toBe(90);
+        });
+
         it('should allow large enterprise usage', () => {
             const result = checkTokenLimit('enterprise', 50_000_000);
             expect(result.allowed).toBe(true);

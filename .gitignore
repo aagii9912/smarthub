@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 debug.log
+test_pay.html
+test_payment_data.json
+test-db.js

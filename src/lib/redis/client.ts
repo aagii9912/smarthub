@@ -133,27 +133,6 @@ class UpstashRedisWrapper implements RedisClient {
 // ==============================
 let _redisClient: RedisClient | null = null;
 
-/**
- * Safely try to load Upstash Redis at runtime.
- * Uses a variable require path to avoid Turbopack/webpack static analysis.
- */
-function tryLoadUpstash(url: string, token: string): RedisClient | null {
-    try {
-        // Use indirect require to prevent bundler from statically resolving
-        const moduleName = '@upstash/redis';
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const mod = globalThis.require?.(moduleName);
-        if (mod?.Redis) {
-            const upstashClient = new mod.Redis({ url, token });
-            logger.info('Redis client initialized (Upstash)');
-            return new UpstashRedisWrapper(upstashClient);
-        }
-    } catch {
-        // Package not installed — expected in development
-    }
-    return null;
-}
-
 export function getRedisClient(): RedisClient {
     if (_redisClient) return _redisClient;
 
@@ -161,11 +140,14 @@ export function getRedisClient(): RedisClient {
     const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
     if (url && token) {
-        const upstash = tryLoadUpstash(url, token);
-        if (upstash) {
-            _redisClient = upstash;
-        } else {
-            logger.warn('Upstash Redis not available, using in-memory fallback');
+        try {
+            // Direct require for Next.js compat
+            const { Redis } = require('@upstash/redis');
+            const upstashClient = new Redis({ url, token });
+            logger.info('Redis client initialized (Upstash)');
+            _redisClient = new UpstashRedisWrapper(upstashClient);
+        } catch (e) {
+            logger.error('Upstash Redis load failed, using in-memory fallback:', e);
             _redisClient = new InMemoryRedis();
         }
     } else {

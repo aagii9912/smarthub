@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getPlanConfig, PlanType } from '@/lib/ai/config/plans';
 import { Crown, Check, Zap, BarChart3, Package, MessageSquare, Bot, Calendar, Download, CreditCard, Loader2, X, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
@@ -39,9 +40,13 @@ export default function SubscriptionPage() {
                     if (lmt.max_products > 0) mappedFeatures.push(`${lmt.max_products} бараа`);
                     else if (lmt.max_products === -1) mappedFeatures.push('Хязгааргүй бараа');
 
+                    
+                    
+                    const planConfig = getPlanConfig((plan.slug || 'lite') as PlanType);
+                    
                     if (lmt.max_tokens > 0) mappedFeatures.push(`${lmt.max_tokens.toLocaleString()} токен/сар`);
-                    else if (lmt.max_messages > 0) mappedFeatures.push(`${lmt.max_messages.toLocaleString()} токен/сар`);
-                    else if (lmt.max_tokens === -1 || lmt.max_messages === -1) mappedFeatures.push('Хязгааргүй токен');
+                    else if (planConfig.tokensPerMonth > 0) mappedFeatures.push(`${planConfig.tokensPerMonth.toLocaleString()} токен/сар`);
+                    else mappedFeatures.push('Хязгааргүй токен');
 
                     if (feats.ai_enabled) mappedFeatures.push('AI чатбот');
                     if (feats.shops_limit > 1) mappedFeatures.push('Бүх платформ (FB/IG)');
@@ -57,9 +62,9 @@ export default function SubscriptionPage() {
                         features: mappedFeatures,
                         limits: {
                             products: lmt.max_products > 0 ? lmt.max_products : 99999,
-                            orders: lmt.max_customers > 0 ? lmt.max_customers : 99999, // fallback mapping 
+                            orders: lmt.max_customers > 0 ? lmt.max_customers : 99999,
                             messages: lmt.max_messages > 0 ? lmt.max_messages : 99999,
-                            tokens: lmt.max_tokens > 0 ? lmt.max_tokens : (lmt.max_messages > 0 ? lmt.max_messages : 99999)
+                            tokens: planConfig.tokensPerMonth || 99999
                         },
                         highlighted: plan.is_featured
                     }

@@ -12,7 +12,7 @@ interface PricingSectionProps {
 export function PricingSection({ content: c }: PricingSectionProps) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
-  const getPlan = (plan: 'starter' | 'pro' | 'enterprise') => {
+  const getPlan = (plan: 'lite' | 'starter' | 'pro' | 'enterprise') => {
     const p = c.pricing[plan];
     return billingPeriod === 'monthly' ? p.monthly : p.yearly;
   };
@@ -55,7 +55,32 @@ export function PricingSection({ content: c }: PricingSectionProps) {
           </div>
 
           {/* Cards */}
-          <div className="mt-12 grid sm:grid-cols-3 gap-5">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Lite */}
+            <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
+              <p className="text-[14px] font-semibold">{c.pricing.lite.label}</p>
+              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.lite.desc}</p>
+              <div className="mt-5">
+                <span className="text-3xl font-bold tracking-[-0.02em]">{getPlan('lite').price}</span>
+                <span className="text-[13px] text-slate-500">{getPlan('lite').period}</span>
+              </div>
+              {billingPeriod === "yearly" && getPlan('lite').savings && (
+                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('lite').savings}</p>
+              )}
+              <ul className="mt-6 space-y-3 flex-1">
+                {c.pricing.lite.features.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
+                    <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/auth/register?plan=lite"
+                className="mt-7 inline-flex items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.08] transition-all duration-200"
+              >
+                Эхлүүлэх
+              </Link>
+            </div>
             {/* Starter */}
             <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
               <p className="text-[14px] font-semibold">{c.pricing.starter.label}</p>
@@ -150,6 +175,7 @@ export function PricingSection({ content: c }: PricingSectionProps) {
               <thead>
                 <tr className="border-b border-white/[0.06]">
                   <th className="text-left font-medium p-4 text-slate-500">Боломжууд</th>
+                  <th className="font-medium p-4 text-center text-slate-400">Lite</th>
                   <th className="font-medium p-4 text-center text-slate-400">Starter</th>
                   <th className="font-medium p-4 text-center text-indigo-400">Pro</th>
                   <th className="font-medium p-4 text-center text-slate-400">Enterprise</th>
@@ -159,15 +185,15 @@ export function PricingSection({ content: c }: PricingSectionProps) {
                 {c.comparison.map((row, i) => (
                   <tr key={row.name} className={i < c.comparison.length - 1 ? "border-b border-white/[0.04]" : ""}>
                     <td className="p-4 text-slate-400">{row.name}</td>
-                    {[row.starter, row.pro, row.enterprise].map((val, j) => (
+                    {[row.lite, row.starter, row.pro, row.enterprise].map((val, j) => (
                       <td key={j} className="p-4 text-center">
                         {val === true ? (
                           <Check className="h-4 w-4 text-emerald-400 mx-auto" />
                         ) : val === false ? (
                           <Minus className="h-4 w-4 text-slate-700 mx-auto" />
                         ) : (
-                          <span className={j === 1 ? "text-indigo-400 font-medium" : "text-slate-500"}>
-                            {val}
+                          <span className={j === 2 ? "text-indigo-400 font-medium" : "text-slate-500"}>
+                            {val as string}
                           </span>
                         )}
                       </td>

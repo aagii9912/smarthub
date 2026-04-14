@@ -13,6 +13,7 @@ import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
 import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getRedisClient } from '@/lib/redis/client';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
@@ -205,6 +206,29 @@ export async function routeToAI(
     // Check token limit (primary billing)
     const currentTokenUsage = context.tokenUsageTotal || 0;
     const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage);
+
+    // Token Usage Warning Logic
+    if (tokenLimitCheck.usagePercent >= 80 && context.shopId) {
+        const threshold = tokenLimitCheck.usagePercent >= 90 ? 90 : 80;
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const warnKey = `token_warn_${threshold}_${context.shopId}_${currentMonth}`;
+        
+        try {
+            const redis = getRedisClient();
+            const alreadyWarned = await redis.get(warnKey);
+            
+            if (!alreadyWarned) {
+                // Send warning (fire and forget)
+                logger.info(`🚨 Sending ${threshold}% token usage warning to shop ${context.shopId}`);
+                // TODO: Integrate with NotificationService / RESEND for emails
+                
+                // Track that we warned them to avoid spamming
+                await redis.set(warnKey, '1', 60 * 60 * 24 * 31); // 31 days expiry
+            }
+        } catch (err) {
+            logger.error('Failed to process token usage warning', { error: err });
+        }
+    }
 
     // Also track message count for analytics (legacy)
     const messageCount = context.messageCount || 0;
