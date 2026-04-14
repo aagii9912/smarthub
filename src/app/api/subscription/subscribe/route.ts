@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { createQPayInvoice } from '@/lib/payment/qpay';
+import { createSubscriptionInvoice } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
@@ -95,9 +95,10 @@ export async function POST(request: NextRequest) {
 
         // Create QPay invoice
         try {
-            const qpayResult = await createQPayInvoice({
-                orderId: invoice.id,
+            const qpayResult = await createSubscriptionInvoice({
+                planSlug: plan.name,
                 amount,
+                userId: shop.id,
                 description: `Syncly ${plan.name} Plan`,
                 callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/subscription/webhook`
             });

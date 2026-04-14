@@ -246,7 +246,7 @@ export async function executeCheckPaymentStatus(
                         .update({
                             status: 'paid',
                             paid_at: new Date().toISOString(),
-                            qpay_transaction_id: checkResult.rows[0]?.payment_id || null,
+                            qpay_transaction_id: checkResult.rows?.[0]?.payment_id || null,
                         })
                         .eq('id', payment.id);
 

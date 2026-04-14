@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
+import { checkPaymentStatus, isPaymentCompleted, getTransactionId } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 
 /**
@@ -61,7 +61,7 @@ export async function GET(
                     .update({
                         status: 'paid',
                         paid_at: new Date().toISOString(),
-                        qpay_transaction_id: paymentCheck.rows[0]?.payment_id,
+                        qpay_transaction_id: getTransactionId(paymentCheck),
                     })
                     .eq('id', payment.id);
 

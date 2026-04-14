@@ -147,7 +147,7 @@ export function getRedisClient(): RedisClient {
             logger.info('Redis client initialized (Upstash)');
             _redisClient = new UpstashRedisWrapper(upstashClient);
         } catch (e) {
-            logger.error('Upstash Redis load failed, using in-memory fallback:', e);
+            logger.error('Upstash Redis load failed, using in-memory fallback:', { error: String(e) });
             _redisClient = new InMemoryRedis();
         }
     } else {

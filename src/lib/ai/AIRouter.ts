@@ -223,7 +223,7 @@ export async function routeToAI(
                 // TODO: Integrate with NotificationService / RESEND for emails
                 
                 // Track that we warned them to avoid spamming
-                await redis.set(warnKey, '1', 60 * 60 * 24 * 31); // 31 days expiry
+                await redis.set(warnKey, '1', { ex: 60 * 60 * 24 * 31 }); // 31 days expiry
             }
         } catch (err) {
             logger.error('Failed to process token usage warning', { error: err });

@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
                 qpay_transaction_id: transactionId,
                 metadata: {
                     ...(payment.metadata as Record<string, unknown> || {}),
-                    payment_details: paymentCheck.rows[0],
+                    payment_details: paymentCheck.rows?.[0] ?? null,
                 },
             })
             .eq('id', payment.id);
