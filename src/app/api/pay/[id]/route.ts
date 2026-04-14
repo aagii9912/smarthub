@@ -55,8 +55,9 @@ export async function GET(
     if (payment.payment_type === 'subscription') {
         shopName = 'Syncly';
     } else if (payment.orders) {
-        const order = payment.orders as Record<string, unknown>;
-        const shop = order.shops as Record<string, unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const order = payment.orders as any;
+        const shop = order?.shops;
         shopName = (shop?.name as string) || 'Shop';
         shopLogo = shop?.logo_url || null;
     }
