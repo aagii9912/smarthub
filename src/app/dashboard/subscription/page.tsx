@@ -243,14 +243,27 @@ export default function SubscriptionPage() {
                                     <button onClick={() => setShowUpgrade(false)} className="flex-1 py-2 border border-white/[0.08] rounded-md text-[12px] font-medium text-foreground hover:border-white/[0.15] transition-colors">Болих</button>
                                     <button onClick={async () => { 
                                         setUpgrading(true); 
-                                        await fetchData(true);
-                                        setUpgrading(false);
-                                        toast.info('Төлбөр шалгаж байна. Хэрвээ төлбөр уншигдсан бол хуудас автоматаар шинэчлэгдэнэ.');
-                                        // If it was successful, currentPlan would be updated, modal handling can be done by user closing or auto if desired.
-                                        if (currentPlan === selectedPlan) {
-                                            toast.success('Амжилттай шинэчлэгдлээ');
-                                            setShowUpgrade(false);
+                                        try {
+                                            const checkRes = await fetch('/api/subscription/check-payment', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ invoice_id: paymentInfo?.invoice_id })
+                                            });
+                                            const checkData = await checkRes.json();
+                                            
+                                            if (checkData.status === 'paid') {
+                                                toast.success(checkData.message || 'Амжилттай!');
+                                                setShowUpgrade(false);
+                                                fetchData(true);
+                                            } else if (checkData.status === 'pending') {
+                                                toast.info(checkData.message || 'Төлбөр хүлээгдэж байна');
+                                            } else {
+                                                toast.error(checkData.message || 'Алдаа гарлаа');
+                                            }
+                                        } catch {
+                                            toast.error('Төлбөр шалгахад алдаа гарлаа');
                                         }
+                                        setUpgrading(false);
                                     }} className="flex-1 py-2 bg-[#4A7CE7] text-white rounded-md text-[12px] font-medium hover:bg-[#3A6BD4] transition-colors flex items-center justify-center gap-1.5 focus:ring-2 focus:ring-[#4A7CE7] focus:ring-offset-2 focus:ring-offset-[#0A0220]">
                                         {upgrading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />}Төлбөр шалгах
                                     </button>
