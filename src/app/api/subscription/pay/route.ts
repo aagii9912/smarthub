@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoice } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
@@ -22,7 +22,7 @@ const PLAN_PRICES: Record<string, { price: number; name: string }> = {
  */
 export async function POST(request: NextRequest) {
     try {
-        const { userId } = await auth();
+        const userId = await getAuthUser();
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
