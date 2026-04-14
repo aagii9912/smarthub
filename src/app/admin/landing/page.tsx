@@ -622,7 +622,7 @@ export default function LandingCMSPage() {
                     </table>
                 </div>
                 <button
-                    onClick={() => updateContent('comparison', [...content.comparison, { name: '', starter: '', pro: '', enterprise: '' }])}
+                    onClick={() => updateContent('comparison', [...content.comparison, { name: '', lite: '', starter: '', pro: '', enterprise: '' }])}
                     className="inline-flex items-center gap-1.5 text-[12px] text-violet-600 hover:text-indigo-300 transition-colors mt-2"
                 >
                     <Plus className="w-3.5 h-3.5" /> Мөр нэмэх
