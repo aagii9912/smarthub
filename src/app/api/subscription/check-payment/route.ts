@@ -1,6 +1,9 @@
 /**
  * Check Subscription Payment Status
  * Manually verify QPay payment and activate subscription if paid
+ * 
+ * Supports both invoice-based and payment-based lookups
+ * to handle both subscribe and pay flows
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,8 +24,8 @@ export async function POST(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        // Find the latest pending invoice for this shop
-        const query = supabase
+        // ── Strategy 1: Look up by invoices table ──
+        const invoiceQuery = supabase
             .from('invoices')
             .select('id, qpay_invoice_id, status, amount, description, shop_id')
             .eq('shop_id', shop.id)
@@ -30,41 +33,68 @@ export async function POST(request: NextRequest) {
             .order('created_at', { ascending: false });
 
         if (invoice_id) {
-            query.eq('id', invoice_id);
+            invoiceQuery.eq('id', invoice_id);
         }
 
-        const { data: invoice, error: invoiceError } = await query.limit(1).single();
+        const { data: invoice } = await invoiceQuery.limit(1).single();
 
-        if (invoiceError || !invoice) {
-            return NextResponse.json({ 
+        // ── Strategy 2: Fallback to payments table (for pay/ flow) ──
+        let qpayInvoiceId: string | null = invoice?.qpay_invoice_id || null;
+        let paymentRecordId: string | null = null;
+
+        if (!qpayInvoiceId) {
+            const { data: paymentRecord } = await supabase
+                .from('payments')
+                .select('id, qpay_invoice_id, status, amount')
+                .eq('shop_id', shop.id)
+                .eq('payment_type', 'subscription')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (paymentRecord?.qpay_invoice_id) {
+                qpayInvoiceId = paymentRecord.qpay_invoice_id;
+                paymentRecordId = paymentRecord.id;
+            }
+        }
+
+        if (!qpayInvoiceId) {
+            return NextResponse.json({
                 status: 'no_pending',
-                message: 'Хүлээгдэж буй нэхэмжлэх олдсонгүй' 
-            });
-        }
-
-        if (!invoice.qpay_invoice_id) {
-            return NextResponse.json({ 
-                status: 'no_qpay',
-                message: 'QPay нэхэмжлэх үүсээгүй байна' 
+                message: 'Хүлээгдэж буй нэхэмжлэх олдсонгүй'
             });
         }
 
         // Check QPay payment status
-        const paymentCheck = await checkPaymentStatus(invoice.qpay_invoice_id);
-        
+        const paymentCheck = await checkPaymentStatus(qpayInvoiceId);
+
         if (isPaymentCompleted(paymentCheck)) {
             // Payment confirmed! Activate subscription
-            
-            // 1. Update invoice
-            await supabase
-                .from('invoices')
-                .update({
-                    status: 'paid',
-                    paid_at: new Date().toISOString()
-                })
-                .eq('id', invoice.id);
 
-            // 2. Activate subscription
+            // 1. Update invoice (if exists)
+            if (invoice) {
+                await supabase
+                    .from('invoices')
+                    .update({
+                        status: 'paid',
+                        paid_at: new Date().toISOString()
+                    })
+                    .eq('id', invoice.id);
+            }
+
+            // 2. Update payment record (if exists)
+            if (paymentRecordId) {
+                await supabase
+                    .from('payments')
+                    .update({
+                        status: 'paid',
+                        paid_at: new Date().toISOString(),
+                    })
+                    .eq('id', paymentRecordId);
+            }
+
+            // 3. Activate subscription
             const { data: subscription } = await supabase
                 .from('subscriptions')
                 .select('billing_cycle, plan_id, plans(slug)')
@@ -72,9 +102,9 @@ export async function POST(request: NextRequest) {
                 .single();
 
             const periodEnd = new Date();
-            
+
             if (subscription) {
-                periodEnd.setMonth(periodEnd.getMonth() + 
+                periodEnd.setMonth(periodEnd.getMonth() +
                     (subscription.billing_cycle === 'yearly' ? 12 : 1));
 
                 await supabase
@@ -86,11 +116,12 @@ export async function POST(request: NextRequest) {
                     })
                     .eq('shop_id', shop.id);
 
-                // 3. Update shop's plan + subscription_plan text field
+                // 4. Update shop's plan + subscription_plan + subscription_status
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const planSlug = (subscription as any).plans?.slug || 'professional';
                 await supabase
                     .from('shops')
-                    .update({ 
+                    .update({
                         plan_id: subscription.plan_id,
                         subscription_plan: planSlug,
                         subscription_status: 'active'
@@ -99,11 +130,11 @@ export async function POST(request: NextRequest) {
             } else {
                 // No subscription record exists — create one
                 // Find the plan from the invoice description
-                const planSlug = invoice.description?.toLowerCase().includes('professional') ? 'professional'
-                    : invoice.description?.toLowerCase().includes('starter') ? 'starter'
-                    : invoice.description?.toLowerCase().includes('lite') ? 'lite'
+                const planSlug = invoice?.description?.toLowerCase().includes('professional') ? 'professional'
+                    : invoice?.description?.toLowerCase().includes('starter') ? 'starter'
+                    : invoice?.description?.toLowerCase().includes('lite') ? 'lite'
                     : 'professional';
-                
+
                 const { data: plan } = await supabase
                     .from('plans')
                     .select('id, slug')
@@ -112,7 +143,7 @@ export async function POST(request: NextRequest) {
 
                 if (plan) {
                     periodEnd.setMonth(periodEnd.getMonth() + 1);
-                    
+
                     await supabase
                         .from('subscriptions')
                         .upsert({
@@ -126,7 +157,7 @@ export async function POST(request: NextRequest) {
 
                     await supabase
                         .from('shops')
-                        .update({ 
+                        .update({
                             plan_id: plan.id,
                             subscription_plan: plan.slug,
                             subscription_status: 'active'
@@ -137,7 +168,8 @@ export async function POST(request: NextRequest) {
 
             logger.success('Subscription payment verified and activated', {
                 shop_id: shop.id,
-                invoice_id: invoice.id,
+                invoice_id: invoice?.id,
+                payment_id: paymentRecordId,
             });
 
             return NextResponse.json({

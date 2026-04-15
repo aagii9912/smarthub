@@ -1,10 +1,16 @@
 /**
  * Subscribe API
  * Handle subscription creation with QPay payment
+ * 
+ * Unified subscription flow:
+ * 1. Free plan → direct activation (no payment needed)
+ * 2. Paid plan → create QPay invoice + payments record + pending subscription
+ *    → QPay webhook → /api/payment/webhook activates subscription
+ *    → Manual check → /api/subscription/check-payment also works as fallback
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop } from '@/lib/auth/auth';
+import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoice } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
@@ -16,6 +22,8 @@ export async function POST(request: NextRequest) {
         if (!shop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const userId = await getAuthUser();
 
         const body = await request.json();
         const { plan_id, billing_cycle = 'monthly' } = body;
@@ -44,44 +52,14 @@ export async function POST(request: NextRequest) {
             ? plan.price_yearly
             : plan.price_monthly;
 
-        // Check if free plan
+        // Free plans are not available — all users must pay
         if (amount === 0) {
-            // Direct subscription without payment
-            const periodEnd = new Date();
-            periodEnd.setMonth(periodEnd.getMonth() + (billing_cycle === 'yearly' ? 12 : 1));
-
-            // Create or update subscription
-            const { data: subscription, error: subError } = await supabase
-                .from('subscriptions')
-                .upsert({
-                    shop_id: shop.id,
-                    plan_id: plan.id,
-                    status: 'active',
-                    billing_cycle,
-                    current_period_start: new Date().toISOString(),
-                    current_period_end: periodEnd.toISOString()
-                }, {
-                    onConflict: 'shop_id'
-                })
-                .select()
-                .single();
-
-            if (subError) throw subError;
-
-            // Update shop's plan
-            await supabase
-                .from('shops')
-                .update({ plan_id: plan.id })
-                .eq('id', shop.id);
-
             return NextResponse.json({
-                subscription,
-                message: 'Subscribed to free plan successfully',
-                payment_required: false
-            });
+                error: 'Үнэгүй план байхгүй байна. Төлбөртэй план сонгоно уу.',
+            }, { status: 400 });
         }
 
-        // Create invoice for paid plan
+        // Create invoice for paid plan (billing history)
         const { data: invoice, error: invoiceError } = await supabase
             .from('invoices')
             .insert({
@@ -96,12 +74,15 @@ export async function POST(request: NextRequest) {
 
         // Create QPay invoice
         try {
+            // FIX: Use plan.slug (not plan.name) and correct callback URL
+            const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/payment/webhook?type=subscription`;
+
             const qpayResult = await createSubscriptionInvoice({
-                planSlug: plan.name,
+                planSlug: plan.slug,  // FIX: was plan.name → now plan.slug
                 amount,
-                userId: shop.id,
+                userId: userId || shop.id,
                 description: `Syncly ${plan.name} Plan`,
-                callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/subscription/webhook`
+                callbackUrl,  // FIX: now points to /api/payment/webhook
             });
 
             if (!qpayResult) {
@@ -124,6 +105,31 @@ export async function POST(request: NextRequest) {
                     qpay_urls: qpayResult.urls
                 })
                 .eq('id', invoice.id);
+
+            // FIX: Also create a PAYMENTS record so webhook handler can find it
+            // This is the critical missing piece — webhook looks up by qpay_invoice_id in payments table
+            await supabase
+                .from('payments')
+                .insert({
+                    shop_id: shop.id,
+                    payment_type: 'subscription',
+                    payment_method: 'qpay',
+                    amount,
+                    status: 'pending',
+                    subscription_user_id: userId || shop.id,
+                    subscription_plan_slug: plan.slug,
+                    qpay_invoice_id: qpayResult.invoice_id,
+                    qpay_qr_text: qpayResult.qr_text,
+                    qpay_qr_image: qpayResult.qr_image,
+                    metadata: {
+                        urls: qpayResult.urls,
+                        plan_name: plan.name,
+                        plan_price: amount,
+                        invoice_id: invoice.id,
+                        billing_cycle,
+                    },
+                    expires_at: qpayResult.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                });
 
             // Store pending subscription info
             await supabase

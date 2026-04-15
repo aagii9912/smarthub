@@ -22,7 +22,6 @@ interface Plan {
 }
 
 interface SubscriptionStepProps {
-    onSkip: () => void;
     onComplete: () => void;
 }
 
@@ -39,7 +38,7 @@ const planColors: Record<string, { bg: string; text: string }> = {
     enterprise: { bg: 'bg-orange-100', text: 'text-orange-600' },
 };
 
-export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) {
+export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
@@ -139,7 +138,7 @@ export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) 
         );
     }
 
-    const filteredPlans = plans.filter(plan => plan.slug !== 'free');
+    const filteredPlans = plans.filter(plan => plan.slug !== 'free' && (plan.price_monthly || 0) > 0);
     const selected = plans.find(p => p.slug === selectedPlan);
 
     return (
@@ -240,15 +239,7 @@ export function SubscriptionStep({ onSkip, onComplete }: SubscriptionStepProps) 
                 })}
             </div>
 
-            {/* Skip Button */}
-            <div className="text-center pt-4">
-                <button
-                    onClick={onSkip}
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                    {t.setup.subscription.chooseLater}
-                </button>
-            </div>
+            {/* Payment required — no skip option */}
 
             {/* Payment Modal */}
             {showPaymentModal && selected && (

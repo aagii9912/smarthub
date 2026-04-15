@@ -570,7 +570,6 @@ function SetupContent() {
 
             {step === 6 && (
               <SubscriptionStep
-                onSkip={() => router.push('/dashboard')}
                 onComplete={() => router.push('/dashboard')}
               />
             )}

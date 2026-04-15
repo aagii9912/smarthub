@@ -6,6 +6,8 @@ import crypto from 'crypto';
 
 /**
  * Verify QPay webhook signature
+ * Uses verify-at-source pattern: always calls QPay API to confirm payment
+ * HMAC signature is a secondary check when configured
  */
 function verifyWebhookSignature(body: string, signature: string | null): boolean {
     const secret = process.env.QPAY_WEBHOOK_SECRET;
@@ -41,8 +43,8 @@ function verifyWebhookSignature(body: string, signature: string | null): boolean
  * Handle QPay payment webhook callbacks
  * 
  * Supports two payment types via query params:
- * - ?type=subscription&user=xxx&plan=lite  → Subscription activation
- * - ?type=order&order=xxx                  → Order payment confirmation
+ * - ?type=subscription  → Subscription activation
+ * - ?type=order         → Order payment confirmation
  * 
  * Security: Always verify with QPay API (verify-at-source pattern)
  */
@@ -137,7 +139,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ──────────────────────────────────────────────
-// Subscription Payment Handler
+// Subscription Payment Handler (REWRITTEN)
 // ──────────────────────────────────────────────
 
 async function handleSubscriptionPayment(
@@ -146,46 +148,126 @@ async function handleSubscriptionPayment(
 ) {
     const userId = payment.subscription_user_id as string;
     const planSlug = payment.subscription_plan_slug as string;
+    const shopId = payment.shop_id as string;
 
-    if (!userId || !planSlug) {
-        logger.error('Subscription payment missing user_id or plan_slug');
+    if (!planSlug) {
+        logger.error('Subscription payment missing plan_slug', { payment_id: payment.id });
         return;
     }
 
-    // Calculate subscription period (1 month from now)
+    // ── Step 1: Look up the plan from database ──
+    const { data: plan, error: planError } = await supabase
+        .from('plans')
+        .select('id, slug, name')
+        .eq('slug', planSlug)
+        .single();
+
+    if (planError || !plan) {
+        logger.error('Plan not found for slug:', { planSlug, error: planError?.message });
+        return;
+    }
+
+    // ── Step 2: Resolve shop_id ──
+    // Priority: use shop_id from payment record, else look up by user_id
+    let resolvedShopId = shopId;
+
+    if (!resolvedShopId && userId) {
+        const { data: shop } = await supabase
+            .from('shops')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1)
+            .single();
+
+        if (shop) {
+            resolvedShopId = shop.id;
+        }
+    }
+
+    if (!resolvedShopId) {
+        logger.error('Cannot resolve shop for subscription payment', {
+            payment_id: payment.id,
+            userId,
+            shopId,
+        });
+        return;
+    }
+
+    // ── Step 3: Get billing cycle from existing subscription or metadata ──
+    const metadata = payment.metadata as Record<string, unknown> || {};
+    let billingCycle = (metadata.billing_cycle as string) || 'monthly';
+
+    const { data: existingSub } = await supabase
+        .from('subscriptions')
+        .select('billing_cycle')
+        .eq('shop_id', resolvedShopId)
+        .single();
+
+    if (existingSub?.billing_cycle) {
+        billingCycle = existingSub.billing_cycle;
+    }
+
+    // ── Step 4: Calculate subscription period ──
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setMonth(endDate.getMonth() + (billingCycle === 'yearly' ? 12 : 1));
 
-    // Upsert subscription
-    const { error } = await supabase
+    // ── Step 5: Upsert subscription with SHOP_ID ──
+    const { error: subError } = await supabase
         .from('subscriptions')
         .upsert({
-            user_id: userId,
-            plan_slug: planSlug,
+            shop_id: resolvedShopId,
+            plan_id: plan.id,
             status: 'active',
+            billing_cycle: billingCycle,
             current_period_start: startDate.toISOString(),
             current_period_end: endDate.toISOString(),
-            payment_method: 'qpay',
-            last_payment_id: payment.id as string,
         }, {
-            onConflict: 'user_id',
+            onConflict: 'shop_id',
         });
 
-    if (error) {
-        logger.error('Failed to activate subscription:', { error: error.message });
+    if (subError) {
+        logger.error('Failed to activate subscription:', { error: subError.message });
         return;
+    }
+
+    // ── Step 6: Update SHOPS table (plan_id + subscription_plan + subscription_status) ──
+    const { error: shopUpdateError } = await supabase
+        .from('shops')
+        .update({
+            plan_id: plan.id,
+            subscription_plan: plan.slug,
+            subscription_status: 'active',
+        })
+        .eq('id', resolvedShopId);
+
+    if (shopUpdateError) {
+        logger.error('Failed to update shop plan:', { error: shopUpdateError.message });
+        // Non-fatal — subscription was activated, shop update can be retried
+    }
+
+    // ── Step 7: Also mark any related invoice as paid ──
+    const invoiceId = metadata.invoice_id as string;
+    if (invoiceId) {
+        await supabase
+            .from('invoices')
+            .update({
+                status: 'paid',
+                paid_at: new Date().toISOString(),
+            })
+            .eq('id', invoiceId);
     }
 
     logger.success('Subscription activated via QPay:', {
-        user_id: userId,
-        plan: planSlug,
+        shop_id: resolvedShopId,
+        plan: plan.slug,
+        plan_name: plan.name,
         valid_until: endDate.toISOString(),
     });
 }
 
 // ──────────────────────────────────────────────
-// Order Payment Handler
+// Order Payment Handler (FIXED: adds order status update)
 // ──────────────────────────────────────────────
 
 async function handleOrderPayment(
@@ -198,6 +280,21 @@ async function handleOrderPayment(
     if (!orderId) {
         logger.warn('Order payment missing order_id');
         return;
+    }
+
+    // FIX: Update order status to 'paid'
+    const { error: orderUpdateError } = await supabase
+        .from('orders')
+        .update({
+            status: 'paid',
+            payment_method: 'qpay',
+            paid_at: new Date().toISOString(),
+        })
+        .eq('id', orderId);
+
+    if (orderUpdateError) {
+        logger.error('Failed to update order status:', { error: orderUpdateError.message });
+        // Non-fatal — continue with stock and email
     }
 
     // Deduct stock

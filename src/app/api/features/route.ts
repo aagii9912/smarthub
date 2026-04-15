@@ -56,10 +56,10 @@ export async function GET() {
         logger.debug('[Features API] shop:', { shopId: shop?.id, planId: shop?.plan_id, subscriptionPlan: shop?.subscription_plan });
 
         if (shopError || !shop) {
-            // Return default free features if no shop found
+            // Return minimal features for shops without subscription
             return NextResponse.json({
                 features: {
-                    ai_enabled: true,
+                    ai_enabled: false,
                     ai_model: 'gpt-4o-mini',
                     sales_intelligence: false,
                     ai_memory: false,
@@ -75,15 +75,16 @@ export async function GET() {
                     priority_support: false
                 },
                 limits: {
-                    max_messages: 50,
+                    max_messages: 0,
                     max_shops: 1,
-                    max_products: 10,
-                    max_customers: 50
+                    max_products: 0,
+                    max_customers: 0
                 },
                 plan: {
-                    slug: 'free',
-                    name: 'Free'
-                }
+                    slug: 'unpaid',
+                    name: 'Төлбөргүй'
+                },
+                requires_subscription: true
             });
         }
 
@@ -149,9 +150,9 @@ export async function GET() {
         const effectiveFeatures = { ...planFeatures, ...shopOverrides };
         const effectiveLimits = { ...planLimits, ...limitOverrides };
 
-        // Determine plan slug - use planData first, then subscription_plan field, then 'free'
-        const planSlug = planData?.slug || shop.subscription_plan || 'free';
-        const planName = planData?.name || (shop.subscription_plan ? shop.subscription_plan.charAt(0).toUpperCase() + shop.subscription_plan.slice(1) : 'Free');
+        // Determine plan slug - use planData first, then subscription_plan field, then 'unpaid'
+        const planSlug = planData?.slug || shop.subscription_plan || 'unpaid';
+        const planName = planData?.name || (shop.subscription_plan ? shop.subscription_plan.charAt(0).toUpperCase() + shop.subscription_plan.slice(1) : 'Төлбөргүй');
 
         logger.debug('[Features API] Final plan:', { planSlug, hasPlanData: !!planData, subscriptionPlan: shop.subscription_plan });
 
