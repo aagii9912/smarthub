@@ -193,10 +193,8 @@ export default function PaymentPage() {
                             key={i}
                             href={bank.link}
                             className="pay-bank-btn"
-                            onClick={() => {
-                                // Track click for analytics
-                                fetch(`/api/pay/${id}`, { method: 'HEAD' }).catch(() => {});
-                            }}
+                            target="_blank"
+                            rel="noopener noreferrer"
                         >
                             <img
                                 src={bank.logo}
@@ -204,6 +202,13 @@ export default function PaymentPage() {
                                 className="pay-bank-logo"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none';
+                                    const parent = (e.target as HTMLImageElement).parentElement;
+                                    if (parent && !parent.querySelector('.pay-bank-fallback')) {
+                                        const fallback = document.createElement('div');
+                                        fallback.className = 'pay-bank-fallback';
+                                        fallback.textContent = bank.name.charAt(0);
+                                        parent.insertBefore(fallback, parent.firstChild);
+                                    }
                                 }}
                             />
                             <span className="pay-bank-name">{bank.name}</span>
@@ -213,10 +218,14 @@ export default function PaymentPage() {
 
                 {/* QR Code fallback (desktop) */}
                 {payment.qrImage && (
-                    <details className="pay-qr-section">
+                    <details className="pay-qr-section" open>
                         <summary className="pay-qr-toggle">QR код харуулах</summary>
                         <div className="pay-qr-wrapper">
-                            <img src={payment.qrImage} alt="QR Code" className="pay-qr-image" />
+                            <img 
+                                src={payment.qrImage.startsWith('data:') ? payment.qrImage : `data:image/png;base64,${payment.qrImage}`} 
+                                alt="QR Code" 
+                                className="pay-qr-image" 
+                            />
                         </div>
                     </details>
                 )}

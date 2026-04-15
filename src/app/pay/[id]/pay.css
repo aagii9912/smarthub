@@ -267,6 +267,19 @@
     white-space: nowrap;
 }
 
+.pay-bank-fallback {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c63ff, #8b80ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 18px;
+    color: #fff;
+}
+
 /* QR Fallback */
 .pay-qr-section {
     margin-bottom: 20px;
