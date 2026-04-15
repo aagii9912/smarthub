@@ -160,7 +160,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = supabaseAdmin();
 
     // Get user's shop (include QPay status for auto-registration)
-    let query = supabase.from('shops').select('id, name, phone, email, qpay_merchant_id, qpay_status').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, phone, qpay_merchant_id, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -257,7 +257,6 @@ export async function PATCH(request: NextRequest) {
             accountNumber: sanitizedUpdate.account_number as string,
             accountName: sanitizedUpdate.account_name as string,
             phone: (updatedShop as any)?.phone || shop.phone || '',
-            email: shop.email || '',
           });
 
           // Save QPay merchant info
