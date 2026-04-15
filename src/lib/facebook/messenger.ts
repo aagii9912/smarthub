@@ -381,9 +381,9 @@ export async function sendActionsAsButtons({
 
     for (const action of actions) {
         for (const btn of action.buttons) {
-            // Handle special OPEN_QPAY payload as web_url button
-            if (btn.payload.startsWith('OPEN_QPAY:')) {
-                const url = btn.payload.replace('OPEN_QPAY:', '');
+            // Handle URL buttons (OPEN_URL: or OPEN_QPAY:) as web_url
+            if (btn.payload.startsWith('OPEN_URL:') || btn.payload.startsWith('OPEN_QPAY:')) {
+                const url = btn.payload.replace(/^OPEN_(URL|QPAY):/, '');
                 allButtons.push({
                     type: 'web_url',
                     title: btn.label.substring(0, 20), // FB limit: 20 chars
