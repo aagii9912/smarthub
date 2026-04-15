@@ -5,13 +5,13 @@
  * Strategy: Tiered Gemini models per plan
  * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1M tokens (Chatbot only)
  * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2.4M tokens
- * - Pro: Gemini 2.5 Flash (stable) - ₮379,000/сар - 12M tokens (better tool calling)
- * - Enterprise: Gemini 2.5 Pro (stable) - Тохиролцоно - 100M tokens (best reasoning)
+ * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12M tokens (better tool calling)
+ * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100M tokens
  */
 
 export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
-export type AIModel = 'gemini-3.1-flash-lite-preview' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
+export type AIModel = 'gemini-3.1-flash-lite-preview';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -148,8 +148,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     pro: {
         provider: 'gemini',
-        model: 'gemini-2.5-flash',
-        maxTokens: 2048,
+        model: 'gemini-3.1-flash-lite-preview',
+        maxTokens: 800,
         messagesPerMonth: 10000,      // Legacy analytics
         tokensPerMonth: 12_000_000,   // ~12M tokens/month
         maxShops: 3,
@@ -199,8 +199,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     enterprise: {
         provider: 'gemini',
-        model: 'gemini-2.5-pro',
-        maxTokens: 4096,
+        model: 'gemini-3.1-flash-lite-preview',
+        maxTokens: 1500,
         messagesPerMonth: 100000,     // Legacy analytics
         tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited)
         maxShops: 1000,           // Effectively unlimited
@@ -364,8 +364,6 @@ export function checkShopLimit(
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
     'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
-    'gemini-2.5-flash': 'Gemini 2.5 Flash',
-    'gemini-2.5-pro': 'Gemini 2.5 Pro',
 };
 
 /**
