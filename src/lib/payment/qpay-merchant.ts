@@ -92,11 +92,12 @@ const DEFAULT_MCC_CODE = '7372';
 // ──────────────────────────────────────────────
 
 /**
- * Register a shop as a QPay merchant (company)
+ * Register a shop as a QPay merchant (company or person)
  * Returns the QPay merchant_id
  */
 export async function registerShopAsMerchant(params: {
     shopName: string;
+    merchantType?: 'company' | 'person';
     registerNumber?: string;
     bankCode: string;
     accountNumber: string;
@@ -109,9 +110,10 @@ export async function registerShopAsMerchant(params: {
     address?: string;
 }): Promise<QPayMerchant> {
     const token = await getAccessToken();
+    const isCompany = params.merchantType === 'company';
+    const endpoint = isCompany ? '/v2/merchant/company' : '/v2/merchant/person';
 
     const body: Record<string, unknown> = {
-        company_name: params.shopName,
         name: params.shopName,
         mcc_code: params.mccCode || DEFAULT_MCC_CODE,
         city: params.city || CITY_CODES.ULAANBAATAR,
@@ -127,14 +129,24 @@ export async function registerShopAsMerchant(params: {
         }],
     };
 
-    // FIX: Only include register_number if provided (empty string causes QPay rejection)
-    if (params.registerNumber) {
-        body.register_number = params.registerNumber;
+    if (isCompany) {
+        body.company_name = params.shopName;
+        if (params.registerNumber) {
+            body.register_number = params.registerNumber;
+        }
+    } else {
+        // Person merchant: use accountName as last/first name
+        const nameParts = params.accountName.split(' ');
+        body.last_name = nameParts[0] || params.accountName;
+        body.first_name = nameParts[1] || params.accountName;
+        if (params.registerNumber) {
+            body.register_number = params.registerNumber;
+        }
     }
 
-    logger.info('Registering shop as QPay merchant:', { shopName: params.shopName });
+    logger.info(`Registering shop as QPay merchant (${params.merchantType || 'person'}):`, { shopName: params.shopName });
 
-    const response = await fetch(`${QPAY_BASE_URL}/v2/merchant/company`, {
+    const response = await fetch(`${QPAY_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,

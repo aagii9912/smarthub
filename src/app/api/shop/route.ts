@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, ai_emotion, ai_instructions, is_ai_active, qpay_status').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -177,7 +177,7 @@ export async function PATCH(request: NextRequest) {
     const ALLOWED_FIELDS = [
       'name', 'owner_name', 'phone', 'description',
       'ai_instructions', 'ai_emotion', 'is_ai_active',
-      'bank_name', 'account_name', 'account_number', 'register_number',
+      'bank_name', 'account_name', 'account_number', 'register_number', 'merchant_type',
       'notify_on_order', 'notify_on_contact', 'notify_on_support', 'notify_on_cancel',
       'facebook_page_id', 'facebook_page_name', 'facebook_page_username',
       'facebook_page_access_token',
@@ -260,6 +260,7 @@ export async function PATCH(request: NextRequest) {
 
           const merchant = await registerShopAsMerchant({
             shopName: (updatedShop as any)?.name || shop.name || 'Shop',
+            merchantType: (sanitizedUpdate.merchant_type as 'company' | 'person') || (body.merchant_type as 'company' | 'person') || 'person',
             registerNumber: (sanitizedUpdate.register_number as string) || (body.register_number as string) || undefined,
             bankCode,
             accountNumber: sanitizedUpdate.account_number as string,
