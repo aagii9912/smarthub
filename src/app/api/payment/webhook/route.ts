@@ -282,9 +282,23 @@ async function handleOrderPayment(
         return;
     }
 
-    // NOTE: Order status is updated automatically by DB trigger (update_order_on_payment)
-    // When payments.status → 'paid', trigger updates orders → 'confirmed' + paid_at
-    logger.info('Order will be auto-updated by DB trigger:', { orderId });
+    // Update order status directly (DB trigger may not be deployed)
+    // Use 'confirmed' which exists in original order_status enum
+    const { error: orderUpdateError } = await supabase
+        .from('orders')
+        .update({
+            status: 'confirmed',
+            payment_status: 'paid',
+            payment_method: 'qpay',
+            paid_at: new Date().toISOString(),
+        })
+        .eq('id', orderId);
+
+    if (orderUpdateError) {
+        logger.error('Failed to update order status:', { error: orderUpdateError.message, orderId });
+    } else {
+        logger.success('Order status updated to confirmed:', { orderId });
+    }
 
     // Deduct stock
     try {

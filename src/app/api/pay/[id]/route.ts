@@ -56,9 +56,18 @@ export async function GET(
                     })
                     .eq('id', payment.id);
 
-                // Order status auto-updated by DB trigger (update_order_on_payment)
-                // Just handle stock deduction
+                // Update order status directly
                 if (payment.order_id) {
+                    await supabase
+                        .from('orders')
+                        .update({
+                            status: 'confirmed',
+                            payment_status: 'paid',
+                            payment_method: 'qpay',
+                            paid_at: new Date().toISOString(),
+                        })
+                        .eq('id', payment.order_id);
+
                     try {
                         const { deductStockForOrder } = await import('@/lib/services/StockService');
                         await deductStockForOrder(payment.order_id);

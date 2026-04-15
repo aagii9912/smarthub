@@ -250,7 +250,16 @@ export async function executeCheckPaymentStatus(
                         })
                         .eq('id', payment.id);
 
-                    // Order status auto-updated by DB trigger when payments.status → 'paid'
+                    // Update order status directly
+                    await supabase
+                        .from('orders')
+                        .update({
+                            status: 'confirmed',
+                            payment_status: 'paid',
+                            payment_method: 'qpay',
+                            paid_at: new Date().toISOString(),
+                        })
+                        .eq('id', order.id);
 
                     // Stock deduction is handled by deductStockForOrder in the webhook handler
                     // Do NOT duplicate stock deduction here to avoid double-counting
