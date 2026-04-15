@@ -250,10 +250,7 @@ export async function executeCheckPaymentStatus(
                         })
                         .eq('id', payment.id);
 
-                    await supabase
-                        .from('orders')
-                        .update({ status: 'paid' })
-                        .eq('id', order.id);
+                    // Order status auto-updated by DB trigger when payments.status → 'paid'
 
                     // Stock deduction is handled by deductStockForOrder in the webhook handler
                     // Do NOT duplicate stock deduction here to avoid double-counting
@@ -285,7 +282,7 @@ export async function executeCheckPaymentStatus(
     if (qpayErrors > 0) {
         return {
             success: true,
-            message: 'QPay-аас төлбөр шалгаж чадсангүй. Түр хүлээгээд дахин оролдоно уу. Хэрвээ дансаар шилжүүлсэн бол баримтаа илгээнэ үү.',
+            message: 'QPay-аас төлбөр шалгаж чадсангүй. Түр хүлээгээд дахин оролдоно уу.',
             data: { paid: false, qpay_error: true }
         };
     }
