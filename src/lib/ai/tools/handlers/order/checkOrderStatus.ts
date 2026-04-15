@@ -13,7 +13,7 @@ export async function executeCheckOrderStatus(
     try {
         let query = supabase
             .from('orders')
-            .select('id, status, total_amount, created_at, order_items(product_name, quantity, unit_price)')
+            .select('id, status, total_amount, created_at, order_items(quantity, unit_price, products(name))')
             .eq('shop_id', context.shopId)
             .eq('customer_id', context.customerId)
             .order('created_at', { ascending: false });
@@ -49,8 +49,8 @@ export async function executeCheckOrderStatus(
                 cancelled: '❌ Цуцлагдсан'
             };
 
-            const items = (order.order_items as { product_name: string; quantity: number }[])?.map(
-                (item: { product_name: string; quantity: number }) => `${item.product_name} x${item.quantity}`
+            const items = (order.order_items as any[])?.map(
+                (item: any) => `${item.products?.[0]?.name || item.products?.name || 'Бараа'} x${item.quantity}`
             ).join(', ') || '';
 
             return {

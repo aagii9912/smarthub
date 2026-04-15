@@ -59,7 +59,7 @@ export async function sendPushNotification(
     // Get all subscriptions for this shop
     const { data: subscriptions, error } = await supabase
         .from('push_subscriptions')
-        .select('id, shop_id, user_id, endpoint, p256dh, auth, created_at')
+        .select('id, shop_id, endpoint, p256dh, auth, created_at')
         .eq('shop_id', shopId);
 
     logger.debug('Push subscriptions query result', { count: subscriptions?.length || 0, error: error?.message });

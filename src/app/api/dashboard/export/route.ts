@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
             case 'orders': {
                 const { data: orders } = await supabase
                     .from('orders')
-                    .select('id, status, total_amount, created_at, customer_id, order_items(product_name, quantity, unit_price)')
+                    .select('id, status, total_amount, created_at, customer_id, order_items(quantity, unit_price, products(name))')
                     .eq('shop_id', shop.id)
                     .gte('created_at', since.toISOString())
                     .order('created_at', { ascending: false })
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
 
                 csvContent = 'Order ID,Status,Total (₮),Date,Items\n';
                 (orders || []).forEach(order => {
-                    const items = (order.order_items as { product_name: string; quantity: number }[])
-                        ?.map((i: { product_name: string; quantity: number }) => `${i.product_name} x${i.quantity}`)
+                    const items = (order.order_items as any[])
+                        ?.map((i: any) => `${i.products?.[0]?.name || i.products?.name || 'Бараа'} x${i.quantity}`)
                         .join('; ') || '';
                     csvContent += `${order.id},${order.status},${order.total_amount},${order.created_at},"${items}"\n`;
                 });

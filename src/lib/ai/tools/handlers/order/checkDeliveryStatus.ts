@@ -31,7 +31,7 @@ export async function executeCheckDeliveryStatus(
 
         let query = supabase
             .from('orders')
-            .select('id, status, total_amount, created_at, updated_at, notes, order_items(product_name, quantity)')
+            .select('id, status, total_amount, created_at, updated_at, notes, order_items(quantity, products(name))')
             .eq('shop_id', context.shopId)
             .eq('customer_id', context.customerId)
             .in('status', ['confirmed', 'processing', 'shipped', 'delivered', 'paid'])
@@ -60,8 +60,8 @@ export async function executeCheckDeliveryStatus(
 
         const deliveries = orders.map(order => {
             const statusInfo = DELIVERY_ESTIMATES[order.status] || DELIVERY_ESTIMATES.pending;
-            const items = (order.order_items as { product_name: string; quantity: number }[])?.map(
-                (item: { product_name: string; quantity: number }) => `${item.product_name} x${item.quantity}`
+            const items = (order.order_items as any[])?.map(
+                (item: any) => `${item.products?.[0]?.name || item.products?.name || 'Бараа'} x${item.quantity}`
             ).join(', ') || '';
 
             // Calculate time since order

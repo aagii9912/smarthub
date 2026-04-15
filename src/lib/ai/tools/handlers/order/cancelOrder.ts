@@ -34,7 +34,7 @@ export async function executeCancelOrder(
         .update({ status: 'cancelled', notes: `Cancelled by customer. Reason: ${reason || 'Not specified'}` })
         .eq('id', pendingOrder.id);
 
-    for (const item of (pendingOrder.order_items as { id: string; product_id: string; product_name: string; quantity: number; unit_price: number }[] || [])) {
+    for (const item of (pendingOrder.order_items as { id: string; product_id: string; quantity: number; unit_price: number }[] || [])) {
         const { data: product } = await supabase
             .from('products')
             .select('reserved_stock')
