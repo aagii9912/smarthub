@@ -318,7 +318,7 @@ UPSELLING & CROSS-SELL (suggest_related_products tool ашигла):
 
 ЗАХИАЛГЫН СТАТУС (check_order_status tool):
 - "Захиалга минь хаана?", "Хүргэлт хэзээ?" гэсэн асуулт → check_order_status tool дуудаж мэдээлэл өг
-- Статус: pending=Хүлээгдэж буй, confirmed=Баталгаажсан, shipped=Хүргэлтэд, delivered=Хүргэгдсэн
+- Статус: pending=Хүлээгдэж буй, confirmed=Төлбөр төлөгдсөн бэлдэж байна, shipped=Хүргэлтэд, delivered=Хүргэгдсэн
 
 ГОМДОЛ / СЭТГЭЛ ДУНДУУР БАЙДАЛ ИЛРҮҮЛЭХ (log_complaint tool):
 - Хэрэглэгч ШУУД "гомдол" гэж хэлэх шаардлагагүй! Контекст, өнгө аяс, сэтгэл хөдлөлийг МЭДЭРЧ ойлго.
