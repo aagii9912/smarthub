@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Save, Store, CreditCard, Globe, LogOut, Trash2, AlertTriangle, Facebook, Instagram, User, Loader2, Link2, Unlink } from 'lucide-react';
+import { Save, Store, CreditCard, Globe, LogOut, Trash2, AlertTriangle, Facebook, Instagram, User, Loader2, Link2, Unlink, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
 
@@ -25,6 +25,7 @@ function SettingsContent() {
     const [bankInfo, setBankInfo] = useState({ bank_name: '', account_name: '', account_number: '' });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
+    const [qpayStatus, setQpayStatus] = useState<string>('none');
 
     // Facebook page selection state
     const [fbPages, setFbPages] = useState<FacebookPage[]>([]);
@@ -91,6 +92,7 @@ function SettingsContent() {
                 setBankInfo({ bank_name: data.shop.bank_name || '', account_name: data.shop.account_name || '', account_number: data.shop.account_number || '' });
                 setFbConnected(!!data.shop.facebook_page_id);
                 setIgConnected(!!data.shop.instagram_business_account_id);
+                setQpayStatus(data.shop.qpay_status || 'none');
             }
         } catch (e) { logger.error('Алдаа гарлаа', { error: e }); } finally { setLoading(false); }
     }
@@ -166,8 +168,16 @@ function SettingsContent() {
         setSaving(true);
         try {
             const res = await fetch('/api/shop', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' }, body: JSON.stringify(body) });
-            if (res.ok) toast.success('Амжилттай хадгалагдлаа');
-            else throw new Error('Failed');
+            const data = await res.json();
+            if (res.ok) {
+                toast.success('Амжилттай хадгалагдлаа');
+                if (data.qpay_setup?.success) {
+                    toast.success(data.qpay_setup.message || 'QPay автоматаар идэвхжлээ! ✅');
+                    setQpayStatus('active');
+                } else if (data.qpay_setup && !data.qpay_setup.success) {
+                    toast.warning(data.qpay_setup.message || 'QPay бүртгэл амжилтгүй');
+                }
+            } else throw new Error(data.error || 'Failed');
         } catch { toast.error('Хадгалахад алдаа гарлаа'); } finally { setSaving(false); }
     }
 
@@ -237,14 +247,37 @@ function SettingsContent() {
 
             {/* Bank Details */}
             <div className={cardCls}>
-                <h3 className={sectionTitleCls}><CreditCard className="w-4 h-4 text-white/30" strokeWidth={1.5} />Банкны мэдээлэл</h3>
+                <h3 className={sectionTitleCls}>
+                    <CreditCard className="w-4 h-4 text-white/30" strokeWidth={1.5} />Банкны мэдээлэл
+                    {qpayStatus === 'active' && <span className="ml-auto flex items-center gap-1 text-[11px] text-emerald-400 font-normal"><CheckCircle className="w-3 h-3" />QPay идэвхтэй</span>}
+                    {qpayStatus === 'failed' && <span className="ml-auto flex items-center gap-1 text-[11px] text-red-400 font-normal"><XCircle className="w-3 h-3" />QPay бүртгэл амжилтгүй</span>}
+                </h3>
+                <p className="text-[11px] text-white/40 mb-4 -mt-2">Банкны мэдээллээ оруулснаар QPay автоматаар идэвхжиж, хэрэглэгчид QR код, банк аппаар төлөх боломжтой болно.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label className={labelCls}>Банк</label><input type="text" value={bankInfo.bank_name} onChange={(e) => setBankInfo({ ...bankInfo, bank_name: e.target.value })} className={inputCls} placeholder="Хаан банк" /></div>
+                    <div>
+                        <label className={labelCls}>Банк</label>
+                        <select
+                            value={bankInfo.bank_name}
+                            onChange={(e) => setBankInfo({ ...bankInfo, bank_name: e.target.value })}
+                            className={`${inputCls} appearance-none cursor-pointer`}
+                        >
+                            <option value="">Банк сонгоно уу</option>
+                            <option value="Хаан банк">Хаан банк</option>
+                            <option value="Голомт банк">Голомт банк</option>
+                            <option value="Худалдаа хөгжлийн банк">Худалдаа хөгжлийн банк (TDB)</option>
+                            <option value="Хас банк">Хас банк</option>
+                            <option value="Капитрон банк">Капитрон банк</option>
+                            <option value="Төрийн банк">Төрийн банк</option>
+                            <option value="Богд банк">Богд банк</option>
+                            <option value="М банк">М банк</option>
+                            <option value="Капитал банк">Капитал банк</option>
+                        </select>
+                    </div>
                     <div><label className={labelCls}>Данс эзэмшигч</label><input type="text" value={bankInfo.account_name} onChange={(e) => setBankInfo({ ...bankInfo, account_name: e.target.value })} className={inputCls} placeholder="Нэр" /></div>
                     <div><label className={labelCls}>Дансны дугаар</label><input type="text" value={bankInfo.account_number} onChange={(e) => setBankInfo({ ...bankInfo, account_number: e.target.value })} className={inputCls} placeholder="0000000000" /></div>
                 </div>
                 <div className="flex justify-end mt-4">
-                    <button onClick={() => saveSettings(bankInfo)} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-foreground text-background rounded-md text-[12px] font-medium hover:opacity-80 transition-opacity disabled:opacity-50">
+                    <button onClick={() => saveSettings(bankInfo)} disabled={saving || !bankInfo.bank_name || !bankInfo.account_number || !bankInfo.account_name} className="flex items-center gap-1.5 px-4 py-2 bg-foreground text-background rounded-md text-[12px] font-medium hover:opacity-80 transition-opacity disabled:opacity-50">
                         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={1.5} />}Хадгалах
                     </button>
                 </div>

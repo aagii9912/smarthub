@@ -3,6 +3,7 @@ import { getAuthUser, supabaseAdmin } from '@/lib/auth/auth';
 import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
+import { registerShopAsMerchant } from '@/lib/payment/qpay-merchant';
 
 // GET - Get user's shop
 export async function GET(request: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, ai_emotion, ai_instructions, is_ai_active').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, ai_emotion, ai_instructions, is_ai_active, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -158,8 +159,8 @@ export async function PATCH(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    // Get user's shop
-    let query = supabase.from('shops').select('id').eq('user_id', userId);
+    // Get user's shop (include QPay status for auto-registration)
+    let query = supabase.from('shops').select('id, name, phone, email, qpay_merchant_id, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -222,6 +223,72 @@ export async function PATCH(request: NextRequest) {
       const dbErrMsg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : JSON.stringify(error);
       logger.error('Update shop DB error:', { error: dbErrMsg, code: (error as { code?: string }).code, details: (error as { details?: string }).details });
       return NextResponse.json({ error: dbErrMsg || 'DB update failed' }, { status: 500 });
+    }
+
+    // ── Auto QPay Merchant Registration ──
+    // When bank info is saved and shop has no QPay merchant yet, auto-register
+    const bankInfoSaved = sanitizedUpdate.account_number && sanitizedUpdate.account_name && sanitizedUpdate.bank_name;
+    const needsQPaySetup = !shop.qpay_merchant_id || shop.qpay_status !== 'active';
+
+    if (bankInfoSaved && needsQPaySetup) {
+      // Map bank_name to QPay bank code
+      const bankCodeMap: Record<string, string> = {
+        'хаан банк': '050000', 'khan bank': '050000',
+        'голомт банк': '150000', 'golomt': '150000', 'golomt bank': '150000',
+        'худалдаа хөгжлийн банк': '040000', 'tdb': '040000', 'хxб': '040000',
+        'хас банк': '320000', 'xac bank': '320000',
+        'капитрон банк': '300000', 'capitron': '300000',
+        'төрийн банк': '340000', 'state bank': '340000',
+        'богд банк': '380000', 'bogd bank': '380000',
+        'м банк': '390000', 'm bank': '390000',
+        'капитал банк': '020000', 'capital bank': '020000',
+      };
+
+      const bankName = (sanitizedUpdate.bank_name as string).toLowerCase().trim();
+      const bankCode = bankCodeMap[bankName] || Object.entries(bankCodeMap).find(([key]) => bankName.includes(key))?.[1];
+
+      if (bankCode) {
+        try {
+          logger.info('Auto-registering QPay merchant for shop:', { shopId: shop.id });
+
+          const merchant = await registerShopAsMerchant({
+            shopName: (updatedShop as any)?.name || shop.name || 'Shop',
+            bankCode,
+            accountNumber: sanitizedUpdate.account_number as string,
+            accountName: sanitizedUpdate.account_name as string,
+            phone: (updatedShop as any)?.phone || shop.phone || '',
+            email: shop.email || '',
+          });
+
+          // Save QPay merchant info
+          await supabase
+            .from('shops')
+            .update({
+              qpay_merchant_id: merchant.id,
+              qpay_bank_code: bankCode,
+              qpay_account_number: sanitizedUpdate.account_number as string,
+              qpay_account_name: sanitizedUpdate.account_name as string,
+              qpay_status: 'active',
+            })
+            .eq('id', shop.id);
+
+          logger.success('QPay merchant auto-registered:', { shopId: shop.id, merchantId: merchant.id });
+
+          return NextResponse.json({
+            shop: updatedShop,
+            qpay_setup: { success: true, merchant_id: merchant.id, message: 'QPay автоматаар идэвхжлээ! ✅' },
+          });
+        } catch (qpayErr) {
+          // QPay failed but bank info saved — non-blocking
+          logger.warn('Auto QPay registration failed (non-blocking):', { error: String(qpayErr) });
+          return NextResponse.json({
+            shop: updatedShop,
+            qpay_setup: { success: false, message: 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэл амжилтгүй — дараа дахин оролдоно уу.' },
+          });
+        }
+      } else {
+        logger.warn('Unknown bank name for QPay auto-setup:', { bankName: sanitizedUpdate.bank_name });
+      }
     }
 
     return NextResponse.json({ shop: updatedShop });
