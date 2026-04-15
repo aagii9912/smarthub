@@ -48,15 +48,24 @@ const mainMenuKeys: MenuItem[] = [
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
 ];
 
-const toolsMenuKeys: MenuItem[] = [
+const aiAutomationMenuKeys: MenuItem[] = [
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot },
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore },
-    { nameKey: 'cart', href: '/dashboard/inbox', icon: ShoppingCart, feature: 'cart_system' },
-    { nameKey: 'inbox', href: '/dashboard/inbox/messages', icon: Inbox },
+];
+
+const messagingMenuKeys: MenuItem[] = [
+    { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
+    { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
+];
+
+const analyticsMenuKeys: MenuItem[] = [
     { nameKey: 'reports', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
     { nameKey: 'aiReport', href: '/dashboard/reports/ai', icon: Sparkles },
     { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
 ];
+
+// Combined for route matching
+const toolsMenuKeys: MenuItem[] = [...aiAutomationMenuKeys, ...messagingMenuKeys, ...analyticsMenuKeys];
 
 const bottomMenuKeys: MenuItem[] = [
     { nameKey: 'help', href: '/help', icon: HelpCircle },
@@ -261,14 +270,30 @@ export function Sidebar() {
                 )}
                 <ul className="space-y-0.5">{mainMenuKeys.map(renderNavItem)}</ul>
 
-                {/* Section: Tools */}
+                {/* Section: AI & Automation */}
                 {!collapsed && (
                     <p className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.12em] px-3 mb-2 mt-6">
-                        {t.sidebar.tools}
+                        AI
                     </p>
                 )}
                 {collapsed && <div className="my-4 mx-3 h-px bg-[#151040]" />}
-                <ul className="space-y-0.5">{toolsMenuKeys.map(renderNavItem)}</ul>
+                <ul className="space-y-0.5">{aiAutomationMenuKeys.map(renderNavItem)}</ul>
+
+                {/* Section: Messaging */}
+                {!collapsed && (
+                    <p className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.12em] px-3 mb-2 mt-4">
+                        {t.sidebar.messaging || 'MESSAGING'}
+                    </p>
+                )}
+                <ul className="space-y-0.5">{messagingMenuKeys.map(renderNavItem)}</ul>
+
+                {/* Section: Analytics */}
+                {!collapsed && (
+                    <p className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.12em] px-3 mb-2 mt-4">
+                        {t.sidebar.analytics || 'ANALYTICS'}
+                    </p>
+                )}
+                <ul className="space-y-0.5">{analyticsMenuKeys.map(renderNavItem)}</ul>
             </nav>
 
             {/* ─── Plan Card ─── */}

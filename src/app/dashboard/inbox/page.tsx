@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { CustomerList } from '@/components/dashboard/CustomerList';
-import { ActiveCartWidget } from '@/components/dashboard/ActiveCartWidget';
-import { useActiveCarts } from '@/hooks/useActiveCarts';
 import { toast } from 'sonner';
-import { ShoppingCart, Loader2, ArrowLeft, Info, RefreshCcw, Send, MessageSquare, User, Bot, PauseCircle } from 'lucide-react';
+import { Loader2, Send, MessageSquare, User, Bot, PauseCircle, Search, Inbox as InboxIcon, Timer, Power, Trash2 } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { PageSkeleton } from '@/components/ui/PageSkeleton';
 
 interface ChatMessage {
     id: string;
@@ -17,68 +16,79 @@ interface ChatMessage {
 interface Conversation {
     id: string;
     customer_name: string;
+    customer_avatar: string | null;
+    last_message: string;
+    last_message_at: string;
+    unread_count: number;
     messages: ChatMessage[];
 }
 
 export default function InboxPage() {
-    const { data: carts = [], isLoading, error, refetch } = useActiveCarts();
+    const { t } = useLanguage();
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [loading, setLoading] = useState(true);
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [isConverting, setIsConverting] = useState(false);
-    const [isReminding, setIsReminding] = useState(false);
-
-    // Reply state
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [replyMessage, setReplyMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-    const [loadingChat, setLoadingChat] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [aiPauseMode, setAiPauseMode] = useState<'pause' | 'off'>('pause');
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
 
-    // Fetch chat history for selected customer
-    const fetchChatHistory = useCallback(async (customerId: string) => {
-        setLoadingChat(true);
-        setChatMessages([]);
+    // Fetch all conversations
+    const fetchConversations = useCallback(async () => {
         try {
+            setLoading(true);
             const res = await fetch('/api/dashboard/conversations', {
                 headers: { 'x-shop-id': shopId },
             });
             if (res.ok) {
                 const data = await res.json();
-                const convo = (data.conversations || []).find(
-                    (c: Conversation) => c.id === customerId
-                );
-                if (convo?.messages) {
-                    // Messages come newest-first from API, reverse for display
-                    const sorted = [...convo.messages].sort(
-                        (a: ChatMessage, b: ChatMessage) =>
-                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                    );
-                    setChatMessages(sorted.slice(-20)); // Show last 20 messages
-                }
+                setConversations(data.conversations || []);
             }
         } catch {
-            // Silent fail — chat history is supplementary
+            toast.error(t.inbox.error);
         } finally {
-            setLoadingChat(false);
+            setLoading(false);
         }
-    }, [shopId]);
+    }, [shopId, t.inbox.error]);
 
-    // Fetch chat when customer changes
     useEffect(() => {
-        if (activeId) {
-            const cart = carts.find(c => c.id === activeId);
-            if (cart?.customer?.id) {
-                fetchChatHistory(cart.customer.id);
-            }
-        } else {
-            setChatMessages([]);
-        }
-        setReplyMessage('');
-    }, [activeId, carts, fetchChatHistory]);
+        if (shopId) fetchConversations();
+    }, [shopId, fetchConversations]);
 
-    // Auto-scroll to bottom of chat
+    // Select conversation
+    const selectConversation = (convo: Conversation) => {
+        setActiveId(convo.id);
+        const sorted = [...convo.messages].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setChatMessages(sorted);
+        setReplyMessage('');
+    };
+
+    // Delete customer
+    const handleDeleteCustomer = async (customerId: string, name: string) => {
+        if (!confirm(`"${name || 'Customer'}" хэрэглэгчийг устгах уу? Чат түүх бүгд устана.`)) return;
+        try {
+            const res = await fetch(`/api/dashboard/customers?id=${customerId}`, {
+                method: 'DELETE',
+                headers: { 'x-shop-id': shopId },
+            });
+            if (!res.ok) throw new Error('Failed');
+            setActiveId(null);
+            setChatMessages([]);
+            toast.success('Хэрэглэгч устгагдлаа');
+            fetchConversations();
+        } catch {
+            toast.error('Устгахад алдаа гарлаа');
+        }
+    };
+
+    // Auto-scroll
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages]);
@@ -86,14 +96,11 @@ export default function InboxPage() {
     // Send reply
     const handleSendReply = async () => {
         if (!replyMessage.trim() || isSending || !activeId) return;
-        const cart = carts.find(c => c.id === activeId);
-        if (!cart?.customer?.id) return;
 
         const messageText = replyMessage.trim();
         setIsSending(true);
         setReplyMessage('');
 
-        // Optimistic update
         const optimisticMsg: ChatMessage = {
             id: `temp-${Date.now()}`,
             role: 'assistant',
@@ -110,25 +117,32 @@ export default function InboxPage() {
                     'x-shop-id': shopId,
                 },
                 body: JSON.stringify({
-                    customerId: cart.customer.id,
+                    customerId: activeId,
                     message: messageText,
+                    aiPauseMode,
                 }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || 'Мессеж илгээхэд алдаа гарлаа');
+                throw new Error(data.error || data.details || t.inbox.sendError);
             }
 
-            toast.success('Мессеж илгээгдлээ');
-            toast('AI agent 30 минут зогссон', {
-                icon: '⏸️',
-                description: 'Та гараар хариулж байгаа учир AI түр зогслоо.',
-            });
+            toast.success(t.inbox.messageSent);
+            if (aiPauseMode === 'off') {
+                toast('AI agent off', {
+                    icon: '⛔',
+                    description: 'AI is disabled for this customer until you turn it back on.',
+                });
+            } else {
+                toast(t.inbox.aiPaused, {
+                    icon: '⏸️',
+                    description: t.inbox.aiPausedDesc,
+                });
+            }
             inputRef.current?.focus();
         } catch (err: unknown) {
-            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
-            // Remove optimistic message on error
+            toast.error(err instanceof Error ? err.message : t.inbox.sendError);
             setChatMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
             setReplyMessage(messageText);
         } finally {
@@ -143,322 +157,223 @@ export default function InboxPage() {
         }
     };
 
-    const handleConvertToOrder = async () => {
-        if (!activeId) return;
-        const cart = carts.find(c => c.id === activeId);
-        if (!cart) return;
-
+    const formatTime = (dateStr: string) => {
         try {
-            setIsConverting(true);
-            const res = await fetch('/api/cart', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'checkout',
-                    customer_id: cart.customer.id,
-                    notes: 'Dashboard Inbox Checkout'
-                })
+            return new Date(dateStr).toLocaleTimeString('mn-MN', {
+                hour: '2-digit',
+                minute: '2-digit',
             });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Захиалга үүсгэхэд алдаа гарлаа');
-            }
-
-            toast.success(data.message || 'Захиалга амжилттай үүслээ');
-
-            await refetch();
-            setActiveId(null);
-        } catch (err: unknown) {
-            toast.error((err instanceof Error ? err.message : String(err)));
-        } finally {
-            setIsConverting(false);
+        } catch {
+            return '';
         }
     };
 
-    const handleSendReminder = async () => {
-        if (!activeId) return;
-        const cart = carts.find(c => c.id === activeId);
-        if (!cart) return;
-
+    const formatDate = (dateStr: string) => {
         try {
-            setIsReminding(true);
-            const res = await fetch('/api/dashboard/inbox/remind', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerId: cart.customer.id
-                })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Сануулга илгээхэд алдаа гарлаа');
-            }
-
-            toast.success(data.message || 'Сануулга илгээгдлээ');
-        } catch (err: unknown) {
-            toast.error((err instanceof Error ? err.message : String(err)));
-        } finally {
-            setIsReminding(false);
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diff = now.getTime() - d.getTime();
+            if (diff < 86400000) return formatTime(dateStr);
+            if (diff < 172800000) return 'Өчигдөр';
+            return d.toLocaleDateString('mn-MN', { month: 'short', day: 'numeric' });
+        } catch {
+            return '';
         }
     };
 
-    useEffect(() => {
-        if (carts.length > 0 && !activeId && window.innerWidth >= 768) {
-            setActiveId(carts[0].id);
-        }
-    }, [carts, activeId]);
+    const filtered = conversations.filter(c =>
+        c.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    const activeCart = carts.find((c) => c.id === activeId);
+    const activeConvo = conversations.find(c => c.id === activeId);
 
-    const handleSelect = (id: string) => {
-        setActiveId(id);
-    };
-
-    const handleBack = () => {
-        setActiveId(null);
-    };
-
-    // Loading State
-    if (isLoading) {
-        return (
-            <div className="flex h-[calc(100vh-140px)] items-center justify-center bg-[#0F0B2E] rounded-lg border border-white/[0.08]">
-                <div className="text-center">
-                    <Loader2 className="w-6 h-6 text-white/20 animate-spin mx-auto mb-3" />
-                    <p className="text-[13px] text-white/40 tracking-[-0.01em]">Ачаалж байна...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Error State
-    if (error) {
-        return (
-            <div className="flex flex-col h-[calc(100vh-140px)] items-center justify-center bg-[#0F0B2E] rounded-lg border border-white/[0.08]">
-                <div className="text-center text-red-500 px-4 mb-4">
-                    <p className="text-[13px] tracking-[-0.01em]">Алдаа гарлаа: {(error as Error).message}</p>
-                </div>
-                <button
-                    onClick={() => refetch()}
-                    className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors text-foreground tracking-[-0.01em]"
-                >
-                    <RefreshCcw className="w-3.5 h-3.5" /> Дахин ачаалах
-                </button>
-            </div>
-        );
-    }
-
-    // Empty State
-    if (carts.length === 0) {
-        return (
-            <div className="flex flex-col h-[calc(100vh-140px)] items-center justify-center bg-[#0F0B2E] rounded-lg border border-white/[0.08]">
-                <div className="text-center px-6">
-                    <ShoppingCart className="w-10 h-10 text-white/10 mx-auto mb-6" strokeWidth={1.5} />
-                    <h3 className="text-[15px] font-semibold text-foreground mb-2 tracking-[-0.02em]">Идэвхтэй сагс байхгүй</h3>
-                    <p className="text-[13px] text-white/40 max-w-sm mb-6 tracking-[-0.01em]">
-                        Одоогоор ямар нэгэн хэрэглэгч бараа сонирхоогүй байна.
-                    </p>
-                    <button
-                        onClick={() => refetch()}
-                        className="flex items-center gap-2 mx-auto px-3 py-1.5 text-[13px] font-medium border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors text-foreground tracking-[-0.01em]"
-                    >
-                        <RefreshCcw className="w-3.5 h-3.5" />
-                        Шинэчлэх
-                    </button>
-                </div>
-            </div>
-        );
+    if (loading) {
+        return <PageSkeleton showTable={true} />;
     }
 
     return (
-        <div className="h-[calc(100vh-140px)] bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden flex flex-col md:flex-row">
-            {/* Left: Customer List */}
-            <div className={`
-                ${activeId ? 'hidden md:block' : 'block'} 
-                w-full md:w-80 lg:w-96 border-r border-white/[0.08] h-full flex flex-col
-            `}>
-                <CustomerList
-                    carts={carts}
-                    activeId={activeId || undefined}
-                    onSelect={handleSelect}
-                />
+        <div className="flex h-[calc(100vh-80px)] bg-[#0a0a0f] rounded-xl overflow-hidden border border-white/[0.06]">
+            {/* Left: Conversation list */}
+            <div className="w-[340px] border-r border-white/[0.06] flex flex-col shrink-0">
+                {/* Search */}
+                <div className="p-3 border-b border-white/[0.06]">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <input
+                            type="text"
+                            placeholder={t.common.search + '...'}
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2.5 bg-white/[0.05] rounded-lg text-sm text-white/80 placeholder:text-white/25 border border-white/[0.06] focus:border-blue-500/40 outline-none"
+                        />
+                    </div>
+                </div>
+
+                {/* Conversations */}
+                <div className="flex-1 overflow-y-auto">
+                    {filtered.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-white/30 gap-2">
+                            <InboxIcon className="w-8 h-8" />
+                            <p className="text-sm">{t.inbox.noActiveCarts}</p>
+                        </div>
+                    ) : (
+                        filtered.map(convo => (
+                            <button
+                                key={convo.id}
+                                onClick={() => selectConversation(convo)}
+                                className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all border-b border-white/[0.03] ${
+                                    activeId === convo.id
+                                        ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
+                                        : 'hover:bg-white/[0.03]'
+                                }`}
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-violet-500/30 flex items-center justify-center shrink-0 text-sm font-bold text-white/70">
+                                    {convo.customer_name?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-white/80 truncate">
+                                            {convo.customer_name || 'Guest'}
+                                        </span>
+                                        <span className="text-[10px] text-white/25 shrink-0 ml-2">
+                                            {formatDate(convo.last_message_at)}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-white/35 truncate mt-0.5">
+                                        {convo.last_message || '...'}
+                                    </p>
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
             </div>
 
-            {/* Right: Active Cart Details + Chat */}
-            <div className={`
-                ${activeId ? 'block' : 'hidden md:block'}
-                flex-1 h-full flex flex-col min-w-0
-            `}>
-                {activeCart ? (
-                    <div className="h-full flex flex-col">
-                        {/* Mobile Header */}
-                        <div className="md:hidden flex items-center px-4 py-3 border-b border-white/[0.08]">
-                            <button onClick={handleBack} className="mr-3 p-2 -ml-2 rounded-md hover:bg-[#0F0B2E] transition-colors">
-                                <ArrowLeft className="w-5 h-5 text-white/40" strokeWidth={1.5} />
-                            </button>
-                            <div>
-                                <h3 className="font-semibold text-foreground text-[14px] tracking-[-0.01em]">{activeCart.customer.name}</h3>
-                                <p className="text-[11px] text-[#4A7CE7]">Total: {activeCart.totalAmount.toLocaleString()}₮</p>
-                            </div>
-                        </div>
-
-                        {/* Content - scrollable */}
-                        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                            <div className="max-w-2xl mx-auto space-y-5">
-                                <ActiveCartWidget
-                                    customerName={activeCart.customer.name}
-                                    items={activeCart.items}
-                                    onConvertToOrder={handleConvertToOrder}
-                                    onSendReminder={handleSendReminder}
-                                    isLoading={isConverting || isReminding}
-                                />
-
-                                {/* Chat History */}
-                                <div className="bg-[#0D0928] rounded-lg border border-white/[0.08] overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-                                        <h4 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] flex items-center gap-2">
-                                            <MessageSquare className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                            Чат түүх
-                                        </h4>
-                                        {chatMessages.length > 0 && (
-                                            <span className="text-[10px] text-white/20">{chatMessages.length} мессеж</span>
-                                        )}
-                                    </div>
-
-                                    <div className="max-h-80 overflow-y-auto p-4 space-y-3">
-                                        {loadingChat ? (
-                                            <div className="flex items-center justify-center py-8">
-                                                <Loader2 className="w-4 h-4 text-white/20 animate-spin" />
-                                            </div>
-                                        ) : chatMessages.length === 0 ? (
-                                            <div className="text-center py-8">
-                                                <MessageSquare className="w-8 h-8 text-white/[0.06] mx-auto mb-2" strokeWidth={1.5} />
-                                                <p className="text-[12px] text-white/20">Чат түүх хоосон байна</p>
-                                            </div>
-                                        ) : (
-                                            chatMessages.map((msg) => (
-                                                <div
-                                                    key={msg.id}
-                                                    className={`flex gap-2 ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
-                                                >
-                                                    {msg.role === 'user' && (
-                                                        <div className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-                                                            <User className="w-3 h-3 text-white/30" />
-                                                        </div>
-                                                    )}
-                                                    <div
-                                                        className={`max-w-[75%] rounded-xl px-3 py-2 ${msg.role === 'assistant'
-                                                            ? 'bg-blue-500/15 text-blue-200 rounded-br-sm'
-                                                            : 'bg-white/[0.06] text-white/70 rounded-bl-sm'
-                                                            }`}
-                                                    >
-                                                        <p className="text-[12px] leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                                                        <p className={`text-[9px] mt-1 ${msg.role === 'assistant' ? 'text-blue-400/40' : 'text-white/20'}`}>
-                                                            {new Date(msg.created_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                    {msg.role === 'assistant' && (
-                                                        <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                                                            <Bot className="w-3 h-3 text-blue-400/60" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))
-                                        )}
-                                        <div ref={chatEndRef} />
-                                    </div>
-                                </div>
-
-                                {/* Customer Info Card */}
-                                <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] p-5">
-                                    <h4 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-4 flex items-center gap-2">
-                                        <Info className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                        Хэрэглэгчийн мэдээлэл
-                                    </h4>
-                                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-[13px]">
-                                        <div>
-                                            <dt className="text-white/40 mb-1 tracking-[-0.01em]">Нэр</dt>
-                                            <dd className="font-medium text-foreground tracking-[-0.01em]">{activeCart.customer.name}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-white/40 mb-1 tracking-[-0.01em]">Facebook ID</dt>
-                                            <dd className="font-mono text-[12px] text-white/50">{activeCart.customer.facebookId || 'N/A'}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-white/40 mb-1 tracking-[-0.01em]">Сүүлийн үйлдэл</dt>
-                                            <dd className="text-foreground tracking-[-0.01em]">
-                                                {activeCart.lastActive
-                                                    ? new Date(activeCart.lastActive).toLocaleString()
-                                                    : 'N/A'}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-white/40 mb-1 tracking-[-0.01em]">VIP статус</dt>
-                                            <dd>
-                                                {activeCart.customer.isVip ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#4A7CE7]/10 text-[#4A7CE7]">
-                                                        VIP Хэрэглэгч
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-white/40 text-[12px]">Энгийн</span>
-                                                )}
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Reply Input — pinned at bottom */}
-                        <div className="border-t border-white/[0.08] px-4 py-3 bg-[#0D0928]">
-                            {activeCart.customer.facebookId ? (
-                                <>
-                                    <div className="max-w-2xl mx-auto flex items-center gap-2">
-                                        <input
-                                            ref={inputRef}
-                                            type="text"
-                                            value={replyMessage}
-                                            onChange={(e) => setReplyMessage(e.target.value)}
-                                            onKeyDown={handleKeyDown}
-                                            placeholder="Мессеж бичих... (Enter = илгээх)"
-                                            disabled={isSending}
-                                            className="flex-1 px-4 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-[13px] text-foreground placeholder:text-white/20 focus:outline-none focus:border-blue-500/40 transition-colors disabled:opacity-50"
-                                        />
-                                        <button
-                                            onClick={handleSendReply}
-                                            disabled={!replyMessage.trim() || isSending}
-                                            className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 text-white hover:from-blue-400 hover:to-violet-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                                        >
-                                            {isSending ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <Send className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                    </div>
-                                    <p className="max-w-2xl mx-auto text-[10px] text-white/15 mt-1.5 flex items-center gap-1">
-                                        <PauseCircle className="w-3 h-3" />
-                                        Гараар хариулахад AI agent 30 мин зогсно
-                                    </p>
-                                </>
-                            ) : (
-                                <p className="max-w-2xl mx-auto text-[11px] text-amber-400/60 flex items-center gap-1.5 py-1">
-                                    <Info className="w-3.5 h-3.5 shrink-0" />
-                                    Хэрэглэгчид Facebook ID байхгүй тул мессеж илгээх боломжгүй
-                                </p>
-                            )}
-                        </div>
+            {/* Right: Chat area */}
+            <div className="flex-1 flex flex-col">
+                {!activeConvo ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-3">
+                        <MessageSquare className="w-12 h-12" />
+                        <p className="text-sm">{t.inbox.selectCustomer}</p>
                     </div>
                 ) : (
-                    <div className="h-full flex items-center justify-center">
-                        <div className="text-center">
-                            <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-white/10" strokeWidth={1.5} />
-                            <p className="text-[13px] text-white/40 tracking-[-0.01em]">Хэрэглэгч сонгож дэлгэрэнгүйг харна уу</p>
+                    <>
+                        {/* Chat header */}
+                        <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/30 to-violet-500/30 flex items-center justify-center text-sm font-bold text-white/70">
+                                {activeConvo.customer_name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-white/90">
+                                    {activeConvo.customer_name || 'Guest'}
+                                </p>
+                                <p className="text-[11px] text-white/30">
+                                    {chatMessages.length} {t.inbox.messages}
+                                </p>
+                            </div>
+                            <div className="ml-auto">
+                                <button
+                                    onClick={() => handleDeleteCustomer(activeConvo.id, activeConvo.customer_name)}
+                                    className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors group"
+                                    title="Устгах"
+                                >
+                                    <Trash2 className="w-4 h-4 text-white/20 group-hover:text-red-400" strokeWidth={1.5} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                            {chatMessages.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-white/20 text-sm">
+                                    {t.inbox.emptyChatHistory}
+                                </div>
+                            ) : (
+                                chatMessages.map(msg => (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex gap-2.5 ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        {msg.role === 'user' && (
+                                            <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                                <User className="w-3.5 h-3.5 text-blue-400" />
+                                            </div>
+                                        )}
+                                        <div
+                                            className={`max-w-[70%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
+                                                msg.role === 'assistant'
+                                                    ? 'bg-blue-500/20 text-blue-100 rounded-br-md'
+                                                    : 'bg-white/[0.08] text-white/80 rounded-bl-md'
+                                            }`}
+                                        >
+                                            {msg.content}
+                                            <div className={`text-[10px] mt-1 ${msg.role === 'assistant' ? 'text-blue-400/40' : 'text-white/20'}`}>
+                                                {formatTime(msg.created_at)}
+                                            </div>
+                                        </div>
+                                        {msg.role === 'assistant' && (
+                                            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                                <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        {/* Reply input */}
+                        <div className="px-4 py-3 border-t border-white/[0.06]">
+                            <div className="flex items-center gap-1.5 mb-2 px-1">
+                                <span className="text-[10px] text-white/25 mr-1">AI mode:</span>
+                                <button
+                                    onClick={() => setAiPauseMode('pause')}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
+                                        aiPauseMode === 'pause'
+                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                            : 'bg-white/[0.04] text-white/30 border border-white/[0.06] hover:bg-white/[0.08]'
+                                    }`}
+                                >
+                                    <Timer className="w-3 h-3" />
+                                    30 мин түр зогсоох
+                                </button>
+                                <button
+                                    onClick={() => setAiPauseMode('off')}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
+                                        aiPauseMode === 'off'
+                                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                            : 'bg-white/[0.04] text-white/30 border border-white/[0.06] hover:bg-white/[0.08]'
+                                    }`}
+                                >
+                                    <Power className="w-3 h-3" />
+                                    AI унтраах
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={replyMessage}
+                                    onChange={e => setReplyMessage(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={t.inbox.messagePlaceholder}
+                                    disabled={isSending}
+                                    className="flex-1 px-4 py-2.5 bg-white/[0.06] rounded-xl text-sm text-white/80 placeholder:text-white/25 border border-white/[0.06] focus:border-blue-500/40 outline-none disabled:opacity-50"
+                                />
+                                <button
+                                    onClick={handleSendReply}
+                                    disabled={!replyMessage.trim() || isSending}
+                                    className="p-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:bg-white/[0.06] disabled:text-white/20 text-white transition-all"
+                                >
+                                    {isSending ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Send className="w-4 h-4" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

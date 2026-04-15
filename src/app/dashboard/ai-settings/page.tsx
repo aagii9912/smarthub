@@ -6,14 +6,10 @@ import { EMOTIONS } from '@/lib/constants/ai-setup';
 import { logger } from '@/lib/utils/logger';
 
 const TABS = [
-    { id: 'general', label: 'Ерөнхий', icon: Settings },
-    { id: 'faq', label: 'FAQ', icon: MessageSquare },
-    { id: 'replies', label: 'Хурдан хариу', icon: Zap },
-    { id: 'slogans', label: 'Слоган', icon: Hash },
-    { id: 'notifications', label: 'Мэдэгдэл', icon: Bell },
+    { id: 'persona', label: 'AI Persona', icon: Settings },
     { id: 'knowledge', label: 'Мэдлэг', icon: BookOpen },
-    { id: 'policies', label: 'Бодлого', icon: Shield },
-    { id: 'stats', label: 'Статистик', icon: BarChart3 }
+    { id: 'automation', label: 'Автоматжуулалт', icon: Zap },
+    { id: 'notifications', label: 'Мэдэгдэл', icon: Bell },
 ];
 
 const MODELS = [
@@ -29,7 +25,7 @@ const LANGUAGES = [
 ];
 
 export default function AISettingsPage() {
-    const [activeTab, setActiveTab] = useState('general');
+    const [activeTab, setActiveTab] = useState('persona');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     // General
@@ -160,10 +156,10 @@ export default function AISettingsPage() {
                 ))}
             </div>
 
-            {/* General */}
-            {activeTab === 'general' && (
+            {/* ═══ TAB: AI Persona (General + Emotion + Language + Model) ═══ */}
+            {activeTab === 'persona' && (
                 <div className={cardCls}>
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-5">AI Ерөнхий тохиргоо</h3>
+                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-5">AI Persona тохиргоо</h3>
                     <div className="space-y-6">
                         <div className="flex items-center justify-between p-4 bg-[#0D0928] rounded-xl border border-white/[0.04]">
                             <div><p className="text-[13px] font-medium text-foreground">AI Чатбот идэвхжүүлэх</p><p className="text-[11px] text-white/40 mt-0.5">Чатны автомат хариултыг асаах эсвэл унтраах</p></div>
@@ -221,72 +217,121 @@ export default function AISettingsPage() {
                 </div>
             )}
 
-            {/* FAQ */}
-            {activeTab === 'faq' && (
-                <div className={cardCls}>
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4">Түгээмэл асуулт хариулт</h3>
-                    <div className="flex gap-2 mb-4">
-                        <input value={newFaqQ} onChange={(e) => setNewFaqQ(e.target.value)} className={`${inputCls} flex-1`} placeholder="Асуулт" />
-                        <input value={newFaqA} onChange={(e) => setNewFaqA(e.target.value)} className={`${inputCls} flex-1`} placeholder="Хариулт" />
-                        <button onClick={() => { if (newFaqQ && newFaqA) { setFaqs([...faqs, { q: newFaqQ, a: newFaqA }]); setNewFaqQ(''); setNewFaqA(''); } }} disabled={!newFaqQ || !newFaqA} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+            {/* ═══ TAB: Knowledge (FAQ + Knowledge Base + Policies) ═══ */}
+            {activeTab === 'knowledge' && (
+                <div className="space-y-5">
+                    {/* FAQ Section */}
+                    <div className={cardCls}>
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4 flex items-center gap-2"><MessageSquare className="w-4 h-4 text-white/30" strokeWidth={1.5} />Түгээмэл асуулт хариулт (FAQ)</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input value={newFaqQ} onChange={(e) => setNewFaqQ(e.target.value)} className={`${inputCls} flex-1`} placeholder="Асуулт" />
+                            <input value={newFaqA} onChange={(e) => setNewFaqA(e.target.value)} className={`${inputCls} flex-1`} placeholder="Хариулт" />
+                            <button onClick={() => { if (newFaqQ && newFaqA) { setFaqs([...faqs, { q: newFaqQ, a: newFaqA }]); setNewFaqQ(''); setNewFaqA(''); } }} disabled={!newFaqQ || !newFaqA} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+                        </div>
+                        <div className="space-y-2">
+                            {faqs.length === 0 ? <div className="text-center py-6 text-[13px] text-white/30">FAQ байхгүй байна</div>
+                                : faqs.map((f, i) => (
+                                    <div key={i} className="flex items-start gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
+                                        <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[11px] font-bold text-white/40 flex-shrink-0 mt-0.5">{i + 1}</div>
+                                        <div className="flex-1 min-w-0"><p className="text-[13px] font-medium text-foreground truncate">{f.q}</p><p className="text-[12px] text-white/40 mt-1 line-clamp-2">{f.a}</p></div>
+                                        <button onClick={() => setFaqs(faqs.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
+                                    </div>
+                                ))}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        {faqs.length === 0 ? <div className="text-center py-8 text-[13px] text-white/30">FAQ байхгүй байна</div>
-                            : faqs.map((f, i) => (
-                                <div key={i} className="flex items-start gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
-                                    <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[11px] font-bold text-white/40 flex-shrink-0 mt-0.5">{i + 1}</div>
-                                    <div className="flex-1 min-w-0"><p className="text-[13px] font-medium text-foreground truncate">{f.q}</p><p className="text-[12px] text-white/40 mt-1 line-clamp-2">{f.a}</p></div>
-                                    <button onClick={() => setFaqs(faqs.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
+
+                    {/* Knowledge Base Section */}
+                    <div className={cardCls}>
+                        <div className="mb-5">
+                            <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-1 flex items-center gap-2"><BookOpen className="w-4 h-4 text-white/30" strokeWidth={1.5} />Мэдлэгийн сан</h3>
+                            <p className="text-[12px] text-white/40">AI-д танай бизнесийн түлхүүр мэдээллийг контекст байдлаар зааж өгөн ухаажуулах</p>
+                        </div>
+                        <div className="flex gap-2 mb-5">
+                            <input value={newKKey} onChange={(e) => setNewKKey(e.target.value)} className={`${inputCls} flex-1`} placeholder="Түлхүүр (жишээ: Хаяг)" />
+                            <input value={newKVal} onChange={(e) => setNewKVal(e.target.value)} className={`${inputCls} flex-[2]`} placeholder="Нарийвчилсан утга" />
+                            <button onClick={() => { if (newKKey && newKVal) { setKnowledge([...knowledge, { key: newKKey, value: newKVal }]); setNewKKey(''); setNewKVal(''); } }} disabled={!newKKey || !newKVal} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+                        </div>
+                        <div className="space-y-2">
+                            {knowledge.length === 0 ? <div className="text-center py-10 text-[13px] text-white/30"><BookOpen className="w-8 h-8 mx-auto mb-3 text-white/10" strokeWidth={1.5} />Мэдээлэл байхгүй байна</div>
+                                : knowledge.map((k, i) => (
+                                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] bg-[#0D0928] group hover:border-[#4A7CE7]/30 transition-all">
+                                        <div className="w-7 h-7 rounded-lg bg-[#4A7CE7]/10 flex items-center justify-center text-[11px] font-bold text-[#4A7CE7] flex-shrink-0">{i + 1}</div>
+                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0"><p className="font-semibold text-[13px] text-white col-span-1 truncate tracking-[-0.01em]">{k.key}</p><p className="text-[12px] text-white/60 col-span-1 md:col-span-2 truncate">{k.value}</p></div>
+                                        <button onClick={() => setKnowledge(knowledge.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
+                                    </div>
+                                ))}
+                        </div>
+                        <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.04]"><button onClick={saveKnowledge} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={2} />}Хадгалах</button></div>
+                    </div>
+
+                    {/* Policies Section */}
+                    <div className={cardCls}>
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-5 flex items-center gap-2"><Shield className="w-4 h-4 text-white/30" strokeWidth={1.5} />Дэлгүүрийн бодлого</h3>
+                        <div className="space-y-5 bg-[#0D0928]/50 p-5 rounded-xl border border-white/[0.04]">
+                            <div><label className={labelCls}>Үнэгүй хүргэлтийн босго (₮)</label><input type="number" value={policies.shipping_threshold} onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })} className={inputCls} placeholder="50000" /><p className="text-[11px] text-[#4A7CE7] mt-1.5">Энэ дүнгээс дээш захиалгад хүргэлт үнэгүй</p></div>
+                            <div><label className={labelCls}>Төлбөрийн аргууд</label>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {['QPay', 'SocialPay', 'Бэлэн мөнгө', 'Дансаар', 'StorePay', 'Pocket', 'Khaan'].map(m => (
+                                        <button key={m} onClick={() => { const c = policies.payment_methods || []; setPolicies({ ...policies, payment_methods: c.includes(m) ? c.filter(x => x !== m) : [...c, m] }); }}
+                                            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${policies.payment_methods?.includes(m) ? 'border-[#4A7CE7] bg-[#4A7CE7]/10 text-[#4A7CE7] ring-1 ring-[#4A7CE7]/30' : 'border-white/[0.08] bg-transparent text-white/40 hover:border-white/[0.2] hover:text-white'}`}>
+                                            {m}{policies.payment_methods?.includes(m) && <Check className="w-3.5 h-3.5 ml-1.5 inline" strokeWidth={2} />}
+                                        </button>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
+                            <div><label className={labelCls}>Хүргэлтийн бүс</label><input value={policies.delivery_areas?.join(', ')} onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })} className={inputCls} placeholder="Улаанбаатар, Дархан" /></div>
+                            <div><label className={labelCls}>Буцаалтын нөхцөл</label><textarea value={policies.return_policy} onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })} className={`${inputCls} resize-none min-h-[60px]`} placeholder="Жишээ: 7 хоногийн дотор сав баглаа боодолтойгоо буцаах боломжтой" /></div>
+                        </div>
+                        <div className="flex justify-end mt-5"><button onClick={savePolicies} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={2} />} Бодлого хадгалах</button></div>
                     </div>
                 </div>
             )}
 
-            {/* Quick Replies */}
-            {activeTab === 'replies' && (
-                <div className={cardCls}>
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4">Хурдан хариултууд</h3>
-                    <div className="flex gap-2 mb-4">
-                        <input value={newTrigger} onChange={(e) => setNewTrigger(e.target.value)} className={`${inputCls} flex-1`} placeholder="Гаралт (trigger үг)" />
-                        <input value={newResponse} onChange={(e) => setNewResponse(e.target.value)} className={`${inputCls} flex-1`} placeholder="Урьдчилан бэлтгэсэн хариулт" />
-                        <button onClick={() => { if (newTrigger && newResponse) { setReplies([...replies, { trigger: newTrigger, response: newResponse }]); setNewTrigger(''); setNewResponse(''); } }} disabled={!newTrigger || !newResponse} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+            {/* ═══ TAB: Automation (Quick Replies + Slogans) ═══ */}
+            {activeTab === 'automation' && (
+                <div className="space-y-5">
+                    {/* Quick Replies */}
+                    <div className={cardCls}>
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4 flex items-center gap-2"><Zap className="w-4 h-4 text-white/30" strokeWidth={1.5} />Хурдан хариултууд</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input value={newTrigger} onChange={(e) => setNewTrigger(e.target.value)} className={`${inputCls} flex-1`} placeholder="Гаралт (trigger үг)" />
+                            <input value={newResponse} onChange={(e) => setNewResponse(e.target.value)} className={`${inputCls} flex-1`} placeholder="Урьдчилан бэлтгэсэн хариулт" />
+                            <button onClick={() => { if (newTrigger && newResponse) { setReplies([...replies, { trigger: newTrigger, response: newResponse }]); setNewTrigger(''); setNewResponse(''); } }} disabled={!newTrigger || !newResponse} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+                        </div>
+                        <div className="space-y-2">
+                            {replies.length === 0 ? <div className="text-center py-8 text-[13px] text-white/30">Хурдан хариулт байхгүй байна</div>
+                                : replies.map((r, i) => (
+                                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
+                                        <Zap className="w-5 h-5 text-[#4A7CE7] flex-shrink-0" strokeWidth={1.5} />
+                                        <div className="flex-1 min-w-0"><p className="text-[13px] font-medium text-foreground truncate">{r.trigger}</p><p className="text-[12px] text-white/40 truncate mt-0.5">{r.response}</p></div>
+                                        <button onClick={() => setReplies(replies.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
+                                    </div>
+                                ))}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        {replies.length === 0 ? <div className="text-center py-8 text-[13px] text-white/30">Хурдан хариулт байхгүй байна</div>
-                            : replies.map((r, i) => (
-                                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
-                                    <Zap className="w-5 h-5 text-[#4A7CE7] flex-shrink-0" strokeWidth={1.5} />
-                                    <div className="flex-1 min-w-0"><p className="text-[13px] font-medium text-foreground truncate">{r.trigger}</p><p className="text-[12px] text-white/40 truncate mt-0.5">{r.response}</p></div>
-                                    <button onClick={() => setReplies(replies.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
-                                </div>
-                            ))}
+
+                    {/* Slogans */}
+                    <div className={cardCls}>
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4 flex items-center gap-2"><Hash className="w-4 h-4 text-white/30" strokeWidth={1.5} />Слоган / Уриа</h3>
+                        <div className="flex gap-2 mb-4">
+                            <input value={newSlogan} onChange={(e) => setNewSlogan(e.target.value)} className={`${inputCls} flex-1`} placeholder="Борлуулалтын шинэ слоган" />
+                            <button onClick={() => { if (newSlogan) { setSlogans([...slogans, newSlogan]); setNewSlogan(''); } }} disabled={!newSlogan} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
+                        </div>
+                        <div className="space-y-2">
+                            {slogans.length === 0 ? <div className="text-center py-6 text-[13px] text-white/30">Слоган байхгүй байна</div>
+                                : slogans.map((s, i) => (
+                                    <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
+                                        <Hash className="w-4 h-4 text-white/30 flex-shrink-0" strokeWidth={1.5} />
+                                        <p className="flex-1 text-[13px] text-foreground font-medium truncate">{s}</p>
+                                        <button onClick={() => setSlogans(slogans.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
+                                    </div>
+                                ))}
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Slogans */}
-            {activeTab === 'slogans' && (
-                <div className={cardCls}>
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-4">Слоган / Уриа</h3>
-                    <div className="flex gap-2 mb-4">
-                        <input value={newSlogan} onChange={(e) => setNewSlogan(e.target.value)} className={`${inputCls} flex-1`} placeholder="Борлуулалтын шинэ слоган" />
-                        <button onClick={() => { if (newSlogan) { setSlogans([...slogans, newSlogan]); setNewSlogan(''); } }} disabled={!newSlogan} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
-                    </div>
-                    <div className="space-y-2">
-                        {slogans.length === 0 ? <div className="text-center py-8 text-[13px] text-white/30">Слоган байхгүй байна</div>
-                            : slogans.map((s, i) => (
-                                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] group hover:border-white/[0.08] hover:bg-white/[0.01] transition-all">
-                                    <Hash className="w-4 h-4 text-white/30 flex-shrink-0" strokeWidth={1.5} />
-                                    <p className="flex-1 text-[13px] text-foreground font-medium truncate">{s}</p>
-                                    <button onClick={() => setSlogans(slogans.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
-                                </div>
-                            ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Notifications */}
+            {/* ═══ TAB: Notifications ═══ */}
             {activeTab === 'notifications' && (
                 <div className={cardCls}>
                     <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-5">Мэдэгдлийн тохиргоо</h3>
@@ -299,70 +344,6 @@ export default function AISettingsPage() {
                         ))}
                     </div>
                     <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.04]"><button onClick={saveGeneral} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={2} />} Тохиргоог хадгалах</button></div>
-                </div>
-            )}
-
-            {/* Knowledge */}
-            {activeTab === 'knowledge' && (
-                <div className={cardCls}>
-                    <div className="mb-5">
-                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-1">Мэдлэгийн сан</h3>
-                        <p className="text-[12px] text-white/40">AI-д танай бизнесийн түлхүүр мэдээллийг контекст байдлаар зааж өгөн ухаажуулах</p>
-                    </div>
-                    <div className="flex gap-2 mb-5">
-                        <input value={newKKey} onChange={(e) => setNewKKey(e.target.value)} className={`${inputCls} flex-1`} placeholder="Түлхүүр (жишээ: Хаяг)" />
-                        <input value={newKVal} onChange={(e) => setNewKVal(e.target.value)} className={`${inputCls} flex-[2]`} placeholder="Нарийвчилсан утга" />
-                        <button onClick={() => { if (newKKey && newKVal) { setKnowledge([...knowledge, { key: newKKey, value: newKVal }]); setNewKKey(''); setNewKVal(''); } }} disabled={!newKKey || !newKVal} className="px-3 py-2 bg-white/10 text-white rounded-md hover:bg-[#4A7CE7] disabled:opacity-30 transition-all"><Plus className="w-4 h-4" strokeWidth={2} /></button>
-                    </div>
-                    <div className="space-y-2">
-                        {knowledge.length === 0 ? <div className="text-center py-10 text-[13px] text-white/30"><BookOpen className="w-8 h-8 mx-auto mb-3 text-white/10" strokeWidth={1.5} />Мэдээлэл байхгүй байна</div>
-                            : knowledge.map((k, i) => (
-                                <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.04] bg-[#0D0928] group hover:border-[#4A7CE7]/30 transition-all">
-                                    <div className="w-7 h-7 rounded-lg bg-[#4A7CE7]/10 flex items-center justify-center text-[11px] font-bold text-[#4A7CE7] flex-shrink-0">{i + 1}</div>
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-w-0"><p className="font-semibold text-[13px] text-white col-span-1 truncate tracking-[-0.01em]">{k.key}</p><p className="text-[12px] text-white/60 col-span-1 md:col-span-2 truncate">{k.value}</p></div>
-                                    <button onClick={() => setKnowledge(knowledge.filter((_, j) => j !== i))} className="p-1.5 rounded-md text-white/20 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" strokeWidth={1.5} /></button>
-                                </div>
-                            ))}
-                    </div>
-                    <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.04]"><button onClick={saveKnowledge} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={2} />}Хадгалах</button></div>
-                </div>
-            )}
-
-            {/* Policies */}
-            {activeTab === 'policies' && (
-                <div className={cardCls}>
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.02em] mb-5">Дэлгүүрийн бодлого</h3>
-                    <div className="space-y-5 bg-[#0D0928]/50 p-5 rounded-xl border border-white/[0.04]">
-                        <div><label className={labelCls}>Үнэгүй хүргэлтийн босго (₮)</label><input type="number" value={policies.shipping_threshold} onChange={(e) => setPolicies({ ...policies, shipping_threshold: Number(e.target.value) })} className={inputCls} placeholder="50000" /><p className="text-[11px] text-[#4A7CE7] mt-1.5">Энэ дүнгээс дээш захиалгад хүргэлт үнэгүй</p></div>
-                        <div><label className={labelCls}>Төлбөрийн аргууд</label>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {['QPay', 'SocialPay', 'Бэлэн мөнгө', 'Дансаар', 'StorePay', 'Pocket', 'Khaan'].map(m => (
-                                    <button key={m} onClick={() => { const c = policies.payment_methods || []; setPolicies({ ...policies, payment_methods: c.includes(m) ? c.filter(x => x !== m) : [...c, m] }); }}
-                                        className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${policies.payment_methods?.includes(m) ? 'border-[#4A7CE7] bg-[#4A7CE7]/10 text-[#4A7CE7] ring-1 ring-[#4A7CE7]/30' : 'border-white/[0.08] bg-transparent text-white/40 hover:border-white/[0.2] hover:text-white'}`}>
-                                        {m}{policies.payment_methods?.includes(m) && <Check className="w-3.5 h-3.5 ml-1.5 inline" strokeWidth={2} />}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div><label className={labelCls}>Хүргэлтийн бүс</label><input value={policies.delivery_areas?.join(', ')} onChange={(e) => setPolicies({ ...policies, delivery_areas: e.target.value.split(',').map(s => s.trim()) })} className={inputCls} placeholder="Улаанбаатар, Дархан" /></div>
-                        <div><label className={labelCls}>Буцаалтын нөхцөл</label><textarea value={policies.return_policy} onChange={(e) => setPolicies({ ...policies, return_policy: e.target.value })} className={`${inputCls} resize-none min-h-[60px]`} placeholder="Жишээ: 7 хоногийн дотор сав баглаа боодолтойгоо буцаах боломжтой" /></div>
-                    </div>
-                    <div className="flex justify-end mt-5"><button onClick={savePolicies} disabled={saving} className={saveBtnCls}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" strokeWidth={2} />} Бодлого хадгалах</button></div>
-                </div>
-            )}
-
-            {/* Stats */}
-            {activeTab === 'stats' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[{ l: 'Нийт харилцаа', v: stats.total_conversations, i: MessageSquare }, { l: 'Нийт мессеж', v: stats.total_messages, i: Zap }, { l: 'Дундаж хариулт', v: `${stats.avg_response_time}с`, i: Bot }, { l: 'Сэтгэл ханамж', v: `${stats.satisfaction_rate}%`, i: Smile }].map(s => (
-                        <div key={s.l} className={cardCls + ' text-center hover:border-[#4A7CE7]/20 transition-colors group'}>
-                            <div className="w-10 h-10 rounded-xl bg-white/[0.04] mx-auto mb-3 flex items-center justify-center group-hover:bg-[#4A7CE7]/10 transition-colors">
-                                <s.i className="w-5 h-5 text-white/40 group-hover:text-[#4A7CE7] transition-colors" strokeWidth={1.5} />
-                            </div>
-                            <p className="text-[26px] font-bold text-foreground tabular-nums tracking-tight">{s.v}</p>
-                            <p className="text-[12px] font-medium text-white/40 mt-1">{s.l}</p>
-                        </div>
-                    ))}
                 </div>
             )}
         </div>

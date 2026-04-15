@@ -234,12 +234,12 @@ export default function ReportsPage() {
 
 function translateStatus(status: string): string {
     const statusMap: Record<string, string> = {
-        pending: 'Pending',
-        confirmed: 'Confirmed',
-        processing: 'Processing',
-        shipped: 'Shipped',
-        delivered: 'Delivered',
-        cancelled: 'Cancelled',
+        pending: 'Хүлээгдэж буй',
+        confirmed: 'Баталгаажсан',
+        processing: 'Бэлтгэж буй',
+        shipped: 'Хүргэлтэнд',
+        delivered: 'Хүргэгдсэн',
+        cancelled: 'Цуцлагдсан',
     };
     return statusMap[status] || status;
 }

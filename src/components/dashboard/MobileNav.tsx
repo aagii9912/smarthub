@@ -15,6 +15,10 @@ import {
     Bot,
     CreditCard,
     AlertTriangle,
+    MessageSquareMore,
+    Inbox,
+    Sparkles,
+    Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -34,8 +38,12 @@ export function MobileNav() {
         { name: t.sidebar.products, href: '/dashboard/products', icon: Package },
         { name: t.sidebar.customers, href: '/dashboard/customers', icon: Users },
         { name: t.sidebar.complaints, href: '/dashboard/complaints', icon: AlertTriangle },
-        { name: t.sidebar.cart, href: '/dashboard/inbox', icon: ShoppingCart },
+        { name: t.sidebar.cart, href: '/dashboard/cart', icon: ShoppingCart },
+        { name: t.sidebar.inbox, href: '/dashboard/inbox', icon: Inbox },
         { name: t.sidebar.aiSettings, href: '/dashboard/ai-settings', icon: Bot },
+        { name: t.sidebar.commentMgmt, href: '/dashboard/comment-automation', icon: MessageSquareMore },
+        { name: t.sidebar.aiReport, href: '/dashboard/reports/ai', icon: Sparkles },
+        { name: t.sidebar.paymentAudit, href: '/dashboard/payment-audit', icon: Shield },
         { name: t.setup.subscription.title, href: '/dashboard/subscription', icon: CreditCard },
         { name: t.sidebar.settings, href: '/dashboard/settings', icon: Settings },
     ];

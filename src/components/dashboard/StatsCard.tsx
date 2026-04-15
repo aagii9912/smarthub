@@ -37,14 +37,14 @@ const gradients: Record<string, { bg: string; icon: string; glow: string }> = {
         glow: 'shadow-emerald-500/20',
     },
     warning: {
-        bg: 'from-blue-500/10 to-violet-500/10',
-        icon: 'text-blue-500',
-        glow: 'shadow-blue-500/20',
+        bg: 'from-amber-500/10 to-orange-500/10',
+        icon: 'text-amber-500',
+        glow: 'shadow-amber-500/20',
     },
     gold: {
-        bg: 'from-blue-500/10 to-yellow-500/10',
-        icon: 'text-blue-500',
-        glow: 'shadow-blue-500/20',
+        bg: 'from-yellow-500/10 to-amber-500/10',
+        icon: 'text-yellow-500',
+        glow: 'shadow-yellow-500/20',
     },
 };
 

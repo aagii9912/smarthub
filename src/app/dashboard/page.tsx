@@ -82,7 +82,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                             <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-[12px] font-semibold text-emerald-600 text-emerald-400">{t.dashboard.active}</span>
+                            <span className="text-[12px] font-semibold text-emerald-400">{t.dashboard.active}</span>
                         </div>
                     </div>
 
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                                                 className="px-5 py-3.5 flex items-center justify-between hover:bg-muted transition-colors"
                                             >
                                                 <div className="flex items-center gap-3.5 overflow-hidden">
-                                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.04] from-white/[0.08] to-white/[0.04] flex items-center justify-center shrink-0">
+                                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.04] flex items-center justify-center shrink-0">
                                                         <Package className="w-4 h-4 text-white/25" strokeWidth={1.5} />
                                                     </div>
                                                     <div className="min-w-0">
