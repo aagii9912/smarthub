@@ -250,7 +250,9 @@ function SettingsContent() {
                 <h3 className={sectionTitleCls}>
                     <CreditCard className="w-4 h-4 text-white/30" strokeWidth={1.5} />Банкны мэдээлэл
                     {qpayStatus === 'active' && <span className="ml-auto flex items-center gap-1 text-[11px] text-emerald-400 font-normal"><CheckCircle className="w-3 h-3" />QPay идэвхтэй</span>}
-                    {qpayStatus === 'failed' && <span className="ml-auto flex items-center gap-1 text-[11px] text-red-400 font-normal"><XCircle className="w-3 h-3" />QPay бүртгэл амжилтгүй</span>}
+                    {qpayStatus === 'failed' && <span className="ml-auto flex items-center gap-1 text-[11px] text-red-400 font-normal"><XCircle className="w-3 h-3" />QPay бүртгэл амжилтгүй — дахин хадгалаарай</span>}
+                    {qpayStatus === 'pending' && <span className="ml-auto flex items-center gap-1 text-[11px] text-yellow-400 font-normal"><Loader2 className="w-3 h-3 animate-spin" />QPay бүртгэлийг боловсруулж байна...</span>}
+                    {(!qpayStatus || qpayStatus === 'none') && <span className="ml-auto text-[11px] text-white/30 font-normal">QPay идэвхгүй</span>}
                 </h3>
                 <p className="text-[11px] text-white/40 mb-4 -mt-2">Банкны мэдээллээ оруулснаар QPay автоматаар идэвхжиж, хэрэглэгчид QR код, банк аппаар төлөх боломжтой болно.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
