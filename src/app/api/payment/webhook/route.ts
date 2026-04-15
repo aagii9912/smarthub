@@ -338,7 +338,7 @@ async function handleOrderPayment(
     try {
         const { data: orderData } = await supabase
             .from('orders')
-            .select('*, customers(name, email), shops(name)')
+            .select('*, customers(name, email, facebook_id), shops(name, facebook_page_access_token)')
             .eq('id', orderId)
             .single();
 
@@ -357,8 +357,26 @@ async function handleOrderPayment(
 
             logger.success('Payment confirmation email sent');
         }
+
+        // ── Send Messenger confirmation to customer ──
+        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
+            try {
+                const { sendTextMessage } = await import('@/lib/facebook/messenger');
+                const amount = Number(payment.amount).toLocaleString();
+                
+                await sendTextMessage({
+                    recipientId: orderData.customers.facebook_id,
+                    message: `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`,
+                    pageAccessToken: orderData.shops.facebook_page_access_token,
+                });
+
+                logger.success('Payment confirmation sent to customer via Messenger');
+            } catch (msgErr) {
+                logger.warn('Messenger confirmation failed (non-critical):', { error: String(msgErr) });
+            }
+        }
     } catch (emailError: unknown) {
-        logger.error('Failed to send email (non-critical)', {
+        logger.error('Failed to send notifications (non-critical)', {
             error: emailError instanceof Error ? emailError.message : String(emailError),
         });
     }
