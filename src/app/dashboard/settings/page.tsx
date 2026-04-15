@@ -22,7 +22,7 @@ function SettingsContent() {
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     const [shopInfo, setShopInfo] = useState({ name: '', description: '', phone: '', address: '', working_hours: '' });
-    const [bankInfo, setBankInfo] = useState({ bank_name: '', account_name: '', account_number: '' });
+    const [bankInfo, setBankInfo] = useState({ bank_name: '', account_name: '', account_number: '', register_number: '' });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
     const [qpayStatus, setQpayStatus] = useState<string>('none');
@@ -89,7 +89,7 @@ function SettingsContent() {
             if (data.shop) {
                 setShop(data.shop);
                 setShopInfo({ name: data.shop.name || '', description: data.shop.description || '', phone: data.shop.phone || '', address: data.shop.address || '', working_hours: data.shop.working_hours || '' });
-                setBankInfo({ bank_name: data.shop.bank_name || '', account_name: data.shop.account_name || '', account_number: data.shop.account_number || '' });
+                setBankInfo({ bank_name: data.shop.bank_name || '', account_name: data.shop.account_name || '', account_number: data.shop.account_number || '', register_number: data.shop.register_number || '' });
                 setFbConnected(!!data.shop.facebook_page_id);
                 setIgConnected(!!data.shop.instagram_business_account_id);
                 setQpayStatus(data.shop.qpay_status || 'none');
@@ -277,6 +277,7 @@ function SettingsContent() {
                     </div>
                     <div><label className={labelCls}>Данс эзэмшигч</label><input type="text" value={bankInfo.account_name} onChange={(e) => setBankInfo({ ...bankInfo, account_name: e.target.value })} className={inputCls} placeholder="Нэр" /></div>
                     <div><label className={labelCls}>Дансны дугаар</label><input type="text" value={bankInfo.account_number} onChange={(e) => setBankInfo({ ...bankInfo, account_number: e.target.value })} className={inputCls} placeholder="0000000000" /></div>
+                    <div><label className={labelCls}>Регистрийн дугаар</label><input type="text" value={bankInfo.register_number} onChange={(e) => setBankInfo({ ...bankInfo, register_number: e.target.value })} className={inputCls} placeholder="РД / ХХК Регистр" /></div>
                 </div>
                 <div className="flex justify-end mt-4">
                     <button onClick={() => saveSettings(bankInfo)} disabled={saving || !bankInfo.bank_name || !bankInfo.account_number || !bankInfo.account_name} className="flex items-center gap-1.5 px-4 py-2 bg-foreground text-background rounded-md text-[12px] font-medium hover:opacity-80 transition-opacity disabled:opacity-50">
