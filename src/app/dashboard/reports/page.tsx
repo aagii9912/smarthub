@@ -235,7 +235,7 @@ export default function ReportsPage() {
 function translateStatus(status: string): string {
     const statusMap: Record<string, string> = {
         pending: 'Хүлээгдэж буй',
-        confirmed: 'Баталгаажсан',
+        confirmed: 'Төлбөр төлөгдсөн',
         processing: 'Бэлтгэж буй',
         shipped: 'Хүргэлтэнд',
         delivered: 'Хүргэгдсэн',

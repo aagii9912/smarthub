@@ -331,7 +331,7 @@ export const mn = {
     filterActive: 'Шүүлтүүр идэвхтэй',
     all: 'Бүгд',
     statusPending: 'Хүлээгдэж буй',
-    statusConfirmed: 'Баталгаажсан',
+    statusConfirmed: 'Төлбөр төлөгдсөн',
     statusProcessing: 'Бэлтгэж буй',
     statusShipped: 'Хүргэлтэд',
     statusDelivered: 'Хүргэгдсэн',
