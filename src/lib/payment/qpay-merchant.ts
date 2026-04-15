@@ -136,6 +136,7 @@ export async function registerShopAsMerchant(params: {
         }
     } else {
         // Person merchant: use accountName as last/first name
+        body.business_name = params.shopName;
         const nameParts = params.accountName.split(' ');
         body.last_name = nameParts[0] || params.accountName;
         body.first_name = nameParts[1] || params.accountName;
