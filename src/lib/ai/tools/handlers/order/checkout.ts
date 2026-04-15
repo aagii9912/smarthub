@@ -136,22 +136,13 @@ export async function executeCheckout(
     const amount = cart.total_amount.toLocaleString();
 
     if (qpaySuccess && paymentLink) {
-        // QPay SUCCESS: Clean single-button response
+        // QPay SUCCESS: Send payment link as plain text (NOT as button)
+        // Reason: Messenger WebView blocks web_url buttons from loading our domain
+        // Plain text URLs open in Safari/Chrome when tapped → works reliably
         return {
             success: true,
-            message: `Захиалга чинь амжилттай үүслээ! 🎉\n\nНийт: ${amount}₮\n\nДоорх товч дээр дарж төлбөрөө төлнө үү 👇`,
+            message: `Захиалга амжилттай үүслээ! 🎉\n\nНийт: ${amount}₮\n\n💳 Төлбөр төлөх линк:\n${paymentLink}\n\n👆 Линк дээр дарж төлбөрөө төлнө үү`,
             data: { order_id: orderId, payment_id: paymentId, payment_link: paymentLink, qpay: true },
-            actions: [{
-                type: 'payment_method',
-                buttons: [{
-                    id: 'pay_qpay',
-                    label: '💳 Төлбөр төлөх',
-                    icon: 'qpay',
-                    variant: 'primary' as const,
-                    payload: `OPEN_URL:${paymentLink}`,
-                }],
-                context: { order_id: orderId },
-            }],
         };
     }
 
