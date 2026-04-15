@@ -19,29 +19,15 @@ export async function GET(
 
     const supabase = supabaseAdmin();
 
+    // Simple flat query - no joins to avoid Supabase 400 errors
     const { data: payment, error } = await supabase
         .from('payments')
-        .select(`
-            id,
-            amount,
-            status,
-            payment_method,
-            qpay_invoice_id,
-            qpay_qr_text,
-            qpay_qr_image,
-            metadata,
-            expires_at,
-            created_at,
-            payment_type,
-            subscription_plan_slug,
-            order_id,
-            shop_id,
-            orders(id, shops(name))
-        `)
+        .select('id, amount, status, payment_method, qpay_invoice_id, qpay_qr_text, qpay_qr_image, metadata, expires_at, created_at, payment_type, subscription_plan_slug, order_id, shop_id')
         .eq('id', id)
         .single();
 
     if (error || !payment) {
+        logger.error('Payment query failed:', { id, error: error?.message });
         return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
@@ -129,15 +115,17 @@ export async function GET(
     // Check if expired
     const isExpired = payment.expires_at && new Date(payment.expires_at) < new Date();
 
-    // Get shop info
+    // Get shop name via separate query
     let shopName = 'Syncly';
     if (payment.payment_type === 'subscription') {
         shopName = 'Syncly';
-    } else if (payment.orders) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const order = payment.orders as any;
-        const shop = order?.shops;
-        shopName = (shop?.name as string) || 'Shop';
+    } else if (payment.shop_id) {
+        const { data: shop } = await supabase
+            .from('shops')
+            .select('name')
+            .eq('id', payment.shop_id)
+            .single();
+        shopName = shop?.name || 'Shop';
     }
 
     // Extract bank deeplinks from metadata
