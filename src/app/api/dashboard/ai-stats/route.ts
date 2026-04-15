@@ -11,42 +11,30 @@
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { logger } from '@/lib/utils/logger';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthUserShop } from '@/lib/auth/auth';
 import { getPlanTypeFromSubscription, checkTokenLimit, getPlanConfig } from '@/lib/ai/config/plans';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || 'month';
 
-        // Auth check
-        const cookieStore = await cookies();
-        const supabaseAuth = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-            cookies: { getAll: () => cookieStore.getAll() },
-        } as any);
-        
-        const { data: { user } } = await supabaseAuth.auth.getUser();
-        if (!user) {
+        // Auth check using standard helper
+        const shop = await getAuthUserShop();
+        if (!shop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabase = supabaseAdmin();
 
-        // Get user's shop
-        const { data: shop } = await supabase
+        // Get subscription info
+        const { data: shopFull } = await supabase
             .from('shops')
-            .select('id, subscription_plan, subscription_status, token_usage_total, token_usage_reset_at')
-            .eq('user_id', user.id)
+            .select('subscription_plan, subscription_status, token_usage_total, token_usage_reset_at')
+            .eq('id', shop.id)
             .single();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
-        }
 
         // Calculate date range
         const now = new Date();
@@ -134,11 +122,11 @@ export async function GET(request: Request) {
 
         // Token usage
         const planType = getPlanTypeFromSubscription({
-            plan: shop.subscription_plan || 'lite',
-            status: shop.subscription_status || 'active',
+            plan: shopFull?.subscription_plan || 'lite',
+            status: shopFull?.subscription_status || 'active',
         });
         const planConfig = getPlanConfig(planType);
-        const tokenCheck = checkTokenLimit(planType, shop.token_usage_total || 0);
+        const tokenCheck = checkTokenLimit(planType, shopFull?.token_usage_total || 0);
 
         // Top customers
         const topCustomers = (topCustomersRes.data || []).map(c => ({
@@ -158,11 +146,11 @@ export async function GET(request: Request) {
             totalConversations: totalCustomersWithMessages,
             totalMessages: chatHistory.length,
             tokenUsage: {
-                total: shop.token_usage_total || 0,
+                total: shopFull?.token_usage_total || 0,
                 limit: tokenCheck.limit,
                 percent: tokenCheck.usagePercent,
                 remaining: tokenCheck.remaining,
-                resetAt: shop.token_usage_reset_at,
+                resetAt: shopFull?.token_usage_reset_at,
             },
             plan: {
                 type: planType,
