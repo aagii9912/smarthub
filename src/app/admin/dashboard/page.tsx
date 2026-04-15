@@ -3,6 +3,7 @@ import { logger } from '@/lib/utils/logger';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
+import Link from 'next/link';
 import {
     Users, CreditCard, TrendingUp, Package,
     ArrowUpRight, Clock, FileText
@@ -83,7 +84,8 @@ export default function AdminDashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Total Shops */}
-                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow">
+                <Link href="/admin/shops">
+                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
                     <CardContent className="p-6 relative">
                         <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                             <Users className="w-16 h-16" />
@@ -103,9 +105,11 @@ export default function AdminDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+                </Link>
 
                 {/* Active Subscriptions */}
-                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow">
+                <Link href="/admin/subscriptions">
+                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
                     <CardContent className="p-6 relative">
                         <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                             <CreditCard className="w-16 h-16" />
@@ -123,7 +127,7 @@ export default function AdminDashboard() {
                                 </h3>
                                 {data.stats.subscriptions.past_due > 0 && (
                                     <p className="text-xs font-medium text-amber-600 mt-1.5 flex items-center gap-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                         {data.stats.subscriptions.past_due} past due
                                     </p>
                                 )}
@@ -131,9 +135,11 @@ export default function AdminDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+                </Link>
 
                 {/* Total Revenue */}
-                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow">
+                <Link href="/admin/invoices">
+                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
                     <CardContent className="p-6 relative">
                         <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                             <TrendingUp className="w-16 h-16" />
@@ -156,9 +162,11 @@ export default function AdminDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+                </Link>
 
                 {/* Plans */}
-                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow">
+                <Link href="/admin/plans">
+                <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
                     <CardContent className="p-6 relative">
                         <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                             <Package className="w-16 h-16" />
@@ -178,6 +186,7 @@ export default function AdminDashboard() {
                         </div>
                     </CardContent>
                 </Card>
+                </Link>
             </div>
 
             {/* Two Column Layout */}
@@ -197,13 +206,13 @@ export default function AdminDashboard() {
                         ) : (
                             <div className="divide-y divide-gray-50">
                                 {data.recent_shops.map((shop) => (
-                                    <div key={shop.id} className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors group">
+                                    <Link key={shop.id} href="/admin/shops" className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors group cursor-pointer">
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-medium text-sm border border-gray-200">
                                                 {shop.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-medium text-gray-900">{shop.name}</p>
+                                                <p className="text-sm font-medium text-gray-900 group-hover:text-violet-600 transition-colors">{shop.name}</p>
                                                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500">
                                                     <Clock className="w-3 h-3" />
                                                     {new Date(shop.created_at).toLocaleDateString('mn-MN')}
@@ -213,7 +222,7 @@ export default function AdminDashboard() {
                                         <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 group-hover:text-violet-600 group-hover:border-violet-200 transition-colors">
                                             <ArrowUpRight className="w-4 h-4" />
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         )}
@@ -234,10 +243,13 @@ export default function AdminDashboard() {
                         ) : (
                             <div className="divide-y divide-gray-50">
                                 {data.recent_invoices.map((invoice) => (
-                                    <div key={invoice.id} className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors">
+                                    <Link key={invoice.id} href="/admin/invoices" className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors cursor-pointer group">
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">{invoice.shops?.name}</p>
+                                            <p className="text-sm font-medium text-gray-900 group-hover:text-violet-600 transition-colors">{invoice.shops?.name}</p>
                                             <p className="text-sm font-semibold text-gray-700 mt-0.5">{formatMoney(invoice.amount)}</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                {new Date(invoice.created_at).toLocaleDateString('mn-MN')}
+                                            </p>
                                         </div>
                                         <span className={`px-2.5 py-1 text-xs rounded-lg font-medium border ${invoice.status === 'paid'
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
@@ -247,7 +259,7 @@ export default function AdminDashboard() {
                                             }`}>
                                             {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                                         </span>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         )}
@@ -263,7 +275,7 @@ export default function AdminDashboard() {
                 <CardContent className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {data.plans.map((plan) => (
-                            <div key={plan.id} className="p-5 bg-gray-50/50 border border-gray-100 rounded-xl text-center hover:bg-gray-50 transition-colors">
+                            <Link key={plan.id} href="/admin/plans" className="p-5 bg-gray-50/50 border border-gray-100 rounded-xl text-center hover:bg-gray-50 hover:border-violet-200 transition-colors cursor-pointer block">
                                 <p className="text-sm font-medium text-gray-700">{plan.name}</p>
                                 <div className="mt-2 flex items-baseline justify-center gap-1">
                                     <p className="text-xl font-bold text-gray-900 tracking-tight">
@@ -271,7 +283,7 @@ export default function AdminDashboard() {
                                     </p>
                                     <p className="text-xs font-medium text-gray-500">/mo</p>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </CardContent>

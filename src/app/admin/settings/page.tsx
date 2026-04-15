@@ -196,7 +196,7 @@ export default function AdminSettingsPage() {
                         : 'border-transparent text-gray-500 hover:text-gray-800'
                         }`}
                 >
-                    <Settings className="w-4.5 h-4.5" />
+                    <Settings className="w-[18px] h-[18px]" />
                     Ерөнхий тохиргоо
                 </button>
                 <button
@@ -206,7 +206,7 @@ export default function AdminSettingsPage() {
                         : 'border-transparent text-gray-500 hover:text-gray-800'
                         }`}
                 >
-                    <Users className="w-4.5 h-4.5" />
+                    <Users className="w-[18px] h-[18px]" />
                     Админууд
                 </button>
             </div>
@@ -219,7 +219,7 @@ export default function AdminSettingsPage() {
                         <CardContent className="p-6">
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2.5">
                                 <span className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
-                                    <Shield className="w-4.5 h-4.5 text-violet-600" />
+                                    <Shield className="w-[18px] h-[18px] text-violet-600" />
                                 </span>
                                 Үндсэн тохиргоо
                             </h3>
@@ -251,7 +251,7 @@ export default function AdminSettingsPage() {
                         <CardContent className="p-6">
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2.5">
                                 <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <Bell className="w-4.5 h-4.5 text-blue-600" />
+                                    <Bell className="w-[18px] h-[18px] text-blue-600" />
                                 </span>
                                 Мэдэгдэл
                             </h3>
@@ -264,8 +264,8 @@ export default function AdminSettingsPage() {
                                             onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, email_enabled: e.target.checked } })}
                                             className="peer sr-only"
                                         />
-                                        <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
-                                        <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5 shadow-sm"></div>
+                                        <div className="w-10 h-[22px] bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
+                                        <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-[18px] shadow-sm"></div>
                                     </div>
                                     <span className="text-sm font-medium text-gray-800">Имэйл мэдэгдэл идэвхжүүлэх</span>
                                 </label>
@@ -277,8 +277,8 @@ export default function AdminSettingsPage() {
                                             onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, push_enabled: e.target.checked } })}
                                             className="peer sr-only"
                                         />
-                                        <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
-                                        <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5 shadow-sm"></div>
+                                        <div className="w-10 h-[22px] bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
+                                        <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-[18px] shadow-sm"></div>
                                     </div>
                                     <span className="text-sm font-medium text-gray-800">Push notification идэвхжүүлэх</span>
                                 </label>
@@ -291,7 +291,7 @@ export default function AdminSettingsPage() {
                         <CardContent className="p-6">
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2.5">
                                 <span className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                                    <CreditCard className="w-4.5 h-4.5 text-green-600" />
+                                    <CreditCard className="w-[18px] h-[18px] text-green-600" />
                                 </span>
                                 Төлбөр
                             </h3>
@@ -323,7 +323,7 @@ export default function AdminSettingsPage() {
                         <CardContent className="p-6">
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2.5">
                                 <span className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                                    <Bot className="w-4.5 h-4.5 text-orange-600" />
+                                    <Bot className="w-[18px] h-[18px] text-orange-600" />
                                 </span>
                                 AI тохиргоо
                             </h3>
@@ -420,116 +420,116 @@ export default function AdminSettingsPage() {
                 <div className="space-y-6">
                     {/* Add Admin Form - Super Admin Only */}
                     {isSuperAdmin && (
-                        <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden">
-                            <div className="bg-gray-50/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100">
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-900">Шинэ Admin нэмэх</h3>
-                                    <p className="text-xs text-gray-500 mt-0.5">Системд шинэ хандах эрх нэмэх</p>
-                                </div>
-                                <div className="flex flex-col md:flex-row items-center gap-3">
-                                    <input
-                                        type="email"
-                                        placeholder="Имэйл хаяг"
-                                        value={newAdminEmail}
-                                        onChange={(e) => setNewAdminEmail(e.target.value)}
-                                        className="w-full md:w-64 px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
-                                    />
-                                    <select
-                                        value={newAdminRole}
-                                        onChange={(e) => setNewAdminRole(e.target.value as 'admin' | 'support')}
-                                        className="w-full md:w-40 px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all cursor-pointer bg-white"
-                                    >
-                                        <option value="admin">Admin</option>
-                                        <option value="support">Support</option>
-                                    </select>
-                                    <button
-                                        onClick={addAdmin}
-                                        disabled={addingAdmin || !newAdminEmail}
-                                        className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Нэмэх
-                                    </button>
-                                </div>
+                        <div className="bg-gray-50/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-gray-100 rounded-2xl">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900">Шинэ Admin нэмэх</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Системд шинэ хандах эрх нэмэх</p>
                             </div>
+                            <div className="flex flex-col md:flex-row items-center gap-3">
+                                <input
+                                    type="email"
+                                    placeholder="Имэйл хаяг"
+                                    value={newAdminEmail}
+                                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                                    className="w-full md:w-64 px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                                />
+                                <select
+                                    value={newAdminRole}
+                                    onChange={(e) => setNewAdminRole(e.target.value as 'admin' | 'support')}
+                                    className="w-full md:w-40 px-3.5 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all cursor-pointer bg-white"
+                                >
+                                    <option value="admin">Admin</option>
+                                    <option value="support">Support</option>
+                                </select>
+                                <button
+                                    onClick={addAdmin}
+                                    disabled={addingAdmin || !newAdminEmail}
+                                    className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Нэмэх
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
-                            {/* Admins List */}
-                            <CardContent className="p-0">
-                                <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="w-full min-w-[600px]">
-                                        <thead className="bg-white border-b border-gray-100">
-                                            <tr>
-                                                <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Имэйл</th>
-                                                <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Эрх</th>
-                                                <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Статус</th>
-                                                <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Нэмэгдсэн</th>
-                                                {isSuperAdmin && (
-                                                    <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Үйлдэл</th>
-                                                )}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {admins.map((admin) => (
-                                                <tr key={admin.id} className="hover:bg-gray-50/80 transition-colors group">
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-sm font-medium text-gray-900">{admin.email}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {isSuperAdmin && admin.role !== 'super_admin' ? (
-                                                            <select
-                                                                value={admin.role}
-                                                                onChange={(e) => updateAdminRole(admin.id, e.target.value)}
-                                                                className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-white cursor-pointer hover:border-gray-300"
-                                                            >
-                                                                <option value="admin">Admin</option>
-                                                                <option value="support">Support</option>
-                                                            </select>
+                    {/* Admins List */}
+                    <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden">
+                        <CardContent className="p-0">
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full min-w-[600px]">
+                                    <thead className="bg-white border-b border-gray-100">
+                                        <tr>
+                                            <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Имэйл</th>
+                                            <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Эрх</th>
+                                            <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Статус</th>
+                                            <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Нэмэгдсэн</th>
+                                            {isSuperAdmin && (
+                                                <th className="text-left px-6 py-4 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Үйлдэл</th>
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {admins.map((admin) => (
+                                            <tr key={admin.id} className="hover:bg-gray-50/80 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <span className="text-sm font-medium text-gray-900">{admin.email}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {isSuperAdmin && admin.role !== 'super_admin' ? (
+                                                        <select
+                                                            value={admin.role}
+                                                            onChange={(e) => updateAdminRole(admin.id, e.target.value)}
+                                                            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-white cursor-pointer hover:border-gray-300"
+                                                        >
+                                                            <option value="admin">Admin</option>
+                                                            <option value="support">Support</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${admin.role === 'super_admin' ? 'bg-violet-100 text-violet-700 border border-violet-200/50' :
+                                                            getRoleBadge(admin.role)
+                                                            }`}>
+                                                            {admin.role.replace('_', ' ')}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border border-transparent ${admin.is_active ? 'bg-green-50 text-green-700 border-green-200/50' : 'bg-red-50 text-red-700 border-red-200/50'
+                                                        }`}>
+                                                        {admin.is_active ? (
+                                                            <><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Идэвхтэй</>
                                                         ) : (
-                                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${admin.role === 'super_admin' ? 'bg-violet-100 text-violet-700 border border-violet-200/50' :
-                                                                getRoleBadge(admin.role).replace('bg-', 'bg-').replace('text-', 'text-')
-                                                                }`}>
-                                                                {admin.role.replace('_', ' ')}
-                                                            </span>
+                                                            <><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Идэвхгүй</>
+                                                        )}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-sm text-gray-500">
+                                                        {new Date(admin.created_at).toLocaleDateString('mn-MN')}
+                                                    </span>
+                                                </td>
+                                                {isSuperAdmin && (
+                                                    <td className="px-6 py-4 text-right">
+                                                        {admin.role !== 'super_admin' ? (
+                                                            <button
+                                                                onClick={() => deleteAdmin(admin.id)}
+                                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Устгах"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400 italic">No actions</span>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border border-transparent ${admin.is_active ? 'bg-green-50 text-green-700 border-green-200/50' : 'bg-red-50 text-red-700 border-red-200/50'
-                                                            }`}>
-                                                            {admin.is_active ? (
-                                                                <><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Идэвхтэй</>
-                                                            ) : (
-                                                                <><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Идэвхгүй</>
-                                                            )}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="text-sm text-gray-500">
-                                                            {new Date(admin.created_at).toLocaleDateString('mn-MN')}
-                                                        </span>
-                                                    </td>
-                                                    {isSuperAdmin && (
-                                                        <td className="px-6 py-4 text-right">
-                                                            {admin.role !== 'super_admin' ? (
-                                                                <button
-                                                                    onClick={() => deleteAdmin(admin.id)}
-                                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                    title="Устгах"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            ) : (
-                                                                <span className="text-xs text-gray-400 italic">No actions</span>
-                                                            )}
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>

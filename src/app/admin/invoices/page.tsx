@@ -3,9 +3,10 @@ import { logger } from '@/lib/utils/logger';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
+import Link from 'next/link';
 import {
-    FileText, Search, Plus, ChevronLeft, ChevronRight,
-    CheckCircle, Clock, AlertCircle, Download
+    FileText, Search, ChevronLeft, ChevronRight,
+    CheckCircle, Clock, AlertCircle
 } from 'lucide-react';
 
 interface Invoice {
@@ -201,7 +202,7 @@ export default function AdminInvoicesPage() {
                                         <tr key={inv.id} className="hover:bg-gray-50/80 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-gray-900 group-hover:text-violet-600 transition-colors">{inv.shops?.name}</span>
+                                                    <Link href="/admin/shops" className="text-sm font-semibold text-gray-900 hover:text-violet-600 transition-colors">{inv.shops?.name}</Link>
                                                     <span className="text-xs text-gray-500 mt-0.5">{inv.shops?.email}</span>
                                                 </div>
                                             </td>

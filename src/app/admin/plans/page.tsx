@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
-    Plus, Edit2, Trash2, Check, X, GripVertical,
-    Loader2, Package
+    Plus, Edit2, Trash2, Check, X,
+    Loader2, Package, Power
 } from 'lucide-react';
 
 interface Plan {
@@ -29,6 +29,8 @@ export default function PlansPage() {
     const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+    const [togglingPlan, setTogglingPlan] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState<{
@@ -178,14 +180,13 @@ export default function PlansPage() {
     }
 
     async function deletePlan(id: string) {
-        if (!confirm('Are you sure you want to delete this plan?')) return;
-
         try {
             const res = await fetch(`/api/admin/plans?id=${id}`, {
                 method: 'DELETE'
             });
 
             if (res.ok) {
+                setConfirmingDelete(null);
                 fetchPlans();
             } else {
                 const error = await res.json();
@@ -193,6 +194,39 @@ export default function PlansPage() {
             }
         } catch (error: unknown) {
             logger.error('Delete plan error:', { error: error });
+        }
+    }
+
+    async function togglePlanActive(plan: Plan) {
+        setTogglingPlan(plan.id);
+        try {
+            const res = await fetch('/api/admin/plans', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: plan.id,
+                    name: plan.name,
+                    slug: plan.slug,
+                    description: plan.description,
+                    price_monthly: plan.price_monthly,
+                    price_yearly: plan.price_yearly,
+                    is_active: !plan.is_active,
+                    is_featured: plan.is_featured,
+                    features: plan.features,
+                    limits: plan.limits
+                })
+            });
+
+            if (res.ok) {
+                fetchPlans();
+            } else {
+                const error = await res.json();
+                alert(error.error || 'Failed to toggle plan');
+            }
+        } catch (error: unknown) {
+            logger.error('Toggle plan error:', { error: error });
+        } finally {
+            setTogglingPlan(null);
         }
     }
 
@@ -245,13 +279,32 @@ export default function PlansPage() {
                                     >
                                         <Edit2 className="w-4 h-4" />
                                     </button>
-                                    <button
-                                        onClick={() => deletePlan(plan.id)}
-                                        className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors"
-                                        title="Delete plan"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    {confirmingDelete === plan.id ? (
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => deletePlan(plan.id)}
+                                                className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                                title="Confirm delete"
+                                            >
+                                                <Check className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirmingDelete(null)}
+                                                className="p-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-colors"
+                                                title="Cancel"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmingDelete(plan.id)}
+                                            className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors"
+                                            title="Delete plan"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -290,12 +343,22 @@ export default function PlansPage() {
                             </div>
 
                             <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between text-xs">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-md font-medium ${plan.is_active
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                    : 'bg-gray-50 text-gray-600 border border-gray-200'
-                                    }`}>
-                                    {plan.is_active ? 'Active Status' : 'Inactive'}
-                                </span>
+                                <label className="flex items-center gap-2.5 cursor-pointer group" title={plan.is_active ? 'Идэвхгүй болгох' : 'Идэвхжүүлэх'}>
+                                    <div className="relative flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={plan.is_active}
+                                            onChange={() => togglePlanActive(plan)}
+                                            disabled={togglingPlan === plan.id}
+                                            className="peer sr-only"
+                                        />
+                                        <div className={`w-9 h-5 rounded-full transition-colors ${togglingPlan === plan.id ? 'bg-gray-300 animate-pulse' : 'bg-gray-200 peer-checked:bg-emerald-500'}`}></div>
+                                        <div className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${togglingPlan === plan.id ? '' : 'peer-checked:translate-x-4'}`}></div>
+                                    </div>
+                                    <span className={`font-semibold ${plan.is_active ? 'text-emerald-700' : 'text-gray-500'}`}>
+                                        {togglingPlan === plan.id ? '...' : plan.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </label>
                                 <span className="text-gray-400 flex items-center gap-1">
                                     Order: {plan.sort_order}
                                 </span>
@@ -615,8 +678,8 @@ export default function PlansPage() {
                                                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                                                 className="peer sr-only"
                                             />
-                                            <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-emerald-500 transition-colors"></div>
-                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5"></div>
+                                            <div className="w-10 h-[22px] bg-gray-200 rounded-full peer-checked:bg-emerald-500 transition-colors"></div>
+                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-[18px]"></div>
                                         </div>
                                         <span className="text-sm font-semibold text-gray-800">Plan is Active</span>
                                     </label>
@@ -628,8 +691,8 @@ export default function PlansPage() {
                                                 onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
                                                 className="peer sr-only"
                                             />
-                                            <div className="w-10 h-5.5 bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
-                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-4.5"></div>
+                                            <div className="w-10 h-[22px] bg-gray-200 rounded-full peer-checked:bg-violet-600 transition-colors"></div>
+                                            <div className="absolute left-1 top-1 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-[18px]"></div>
                                         </div>
                                         <span className="text-sm font-semibold text-gray-800">Highlight as Featured</span>
                                     </label>

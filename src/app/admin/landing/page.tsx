@@ -537,7 +537,7 @@ export default function LandingCMSPage() {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">Боломжууд (мөр бүр нэг)</label>
                             <textarea
-                                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3.5 py-2.5 text-[13px] text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 min-h-[100px] resize-y transition-all"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:bg-white min-h-[100px] resize-y transition-all"
                                 value={content.pricing[plan].features.join('\n')}
                                 onChange={(e) => updateContent('pricing', {
                                     ...content.pricing,
@@ -597,7 +597,7 @@ export default function LandingCMSPage() {
                                                 </button>
                                             ) : (
                                                 <input
-                                                    className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-[12px] text-white text-center focus:outline-none focus:border-indigo-500/50"
+                                                    className="w-full bg-white border border-gray-200 rounded px-2 py-1.5 text-[12px] text-gray-900 text-center focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
                                                     value={row[plan] as string}
                                                     onChange={(e) => {
                                                         const updated = [...content.comparison];
