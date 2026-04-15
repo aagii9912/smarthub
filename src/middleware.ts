@@ -34,15 +34,23 @@ function matchesPath(pathname: string, paths: string[]): boolean {
 }
 
 export default async function middleware(req: NextRequest) {
+    // ── FAST BYPASS: Payment pages must work in Messenger WebView ──
+    // Messenger in-app browser doesn't support cookies/auth
+    // These routes need ZERO middleware processing
+    const pathname = req.nextUrl.pathname;
+    if (pathname.startsWith('/pay') || pathname.startsWith('/api/pay/')) {
+        return NextResponse.next();
+    }
+
     const { supabase, supabaseResponse } = createSupabaseMiddlewareClient(req);
 
     // Rate limiting for API routes
-    if (req.nextUrl.pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/api/')) {
         let routeType: 'strict' | 'standard' | 'webhook' = 'standard';
 
-        if (matchesPath(req.nextUrl.pathname, aiPaths)) {
+        if (matchesPath(pathname, aiPaths)) {
             routeType = 'strict';
-        } else if (matchesPath(req.nextUrl.pathname, webhookPaths)) {
+        } else if (matchesPath(pathname, webhookPaths)) {
             routeType = 'webhook';
         }
 
@@ -53,7 +61,7 @@ export default async function middleware(req: NextRequest) {
     }
 
     // Allow public routes
-    if (matchesPath(req.nextUrl.pathname, publicPaths)) {
+    if (matchesPath(pathname, publicPaths)) {
         // Still refresh the session even on public routes
         await supabase.auth.getUser();
         return supabaseResponse;

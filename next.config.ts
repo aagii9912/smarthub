@@ -31,8 +31,39 @@ const nextConfig: NextConfig = {
     ],
   },
   headers: async () => [
+    // ── Payment pages: relaxed headers for Messenger WebView ──
     {
-      source: '/(.*)',
+      source: '/pay/:path*',
+      headers: [
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        {
+          key: 'Referrer-Policy',
+          value: 'no-referrer-when-downgrade',
+        },
+        // NO X-Frame-Options — allow Messenger WebView
+        // Relaxed CSP for QPay images and bank deeplinks
+        {
+          key: 'Content-Security-Policy',
+          value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.qpay.mn; frame-ancestors 'self' https://*.facebook.com https://*.messenger.com;",
+        },
+      ],
+    },
+    {
+      source: '/api/pay/:path*',
+      headers: [
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        // No X-Frame-Options for API too
+      ],
+    },
+    // ── All other routes: strict security ──
+    {
+      source: '/((?!pay/).*)',
       headers: [
         {
           key: 'X-Frame-Options',
