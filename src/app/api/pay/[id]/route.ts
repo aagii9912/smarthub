@@ -36,8 +36,7 @@ export async function GET(
             subscription_plan_slug,
             order_id,
             shop_id,
-            orders(id, shops(name, logo_url)),
-            shop_id
+            orders(id, shops(name))
         `)
         .eq('id', id)
         .single();
@@ -132,7 +131,6 @@ export async function GET(
 
     // Get shop info
     let shopName = 'Syncly';
-    let shopLogo = null;
     if (payment.payment_type === 'subscription') {
         shopName = 'Syncly';
     } else if (payment.orders) {
@@ -140,7 +138,6 @@ export async function GET(
         const order = payment.orders as any;
         const shop = order?.shops;
         shopName = (shop?.name as string) || 'Shop';
-        shopLogo = shop?.logo_url || null;
     }
 
     // Extract bank deeplinks from metadata
@@ -156,7 +153,7 @@ export async function GET(
         amount: payment.amount,
         status: isExpired && effectiveStatus === 'pending' ? 'expired' : effectiveStatus,
         shopName,
-        shopLogo,
+        shopLogo: null,
         paymentType: payment.payment_type,
         planSlug: payment.subscription_plan_slug,
         banks: urls.map(u => ({
