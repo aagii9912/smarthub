@@ -134,13 +134,31 @@ export async function executeCheckout(
 
     // ── Build response message ──
     const amount = cart.total_amount.toLocaleString();
-    let paymentMsg = `✅ Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ!\nНийт дүн: ${amount}₮\n`;
 
     if (qpaySuccess && paymentLink) {
-        // PRIMARY: Send a payment link (not QR code!)
-        paymentMsg += `\n💳 Төлбөр төлөх:\n${paymentLink}\n\nДээрх линкээр орж банкны аппаа сонгоод төлнө үү.`;
-    } else if (shop?.account_number) {
-        // FALLBACK: Bank transfer
+        // QPay SUCCESS: Clean single-button response
+        return {
+            success: true,
+            message: `Захиалга чинь амжилттай үүслээ! 🎉\n\nНийт: ${amount}₮\n\nДоорх товч дээр дарж төлбөрөө төлнө үү 👇`,
+            data: { order_id: orderId, payment_id: paymentId, payment_link: paymentLink, qpay: true },
+            actions: [{
+                type: 'payment_method',
+                buttons: [{
+                    id: 'pay_qpay',
+                    label: '💳 Төлбөр төлөх',
+                    icon: 'qpay',
+                    variant: 'primary' as const,
+                    payload: `OPEN_URL:${paymentLink}`,
+                }],
+                context: { order_id: orderId },
+            }],
+        };
+    }
+
+    // FALLBACK: No QPay — bank transfer
+    let paymentMsg = `✅ Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ!\nНийт дүн: ${amount}₮\n`;
+
+    if (shop?.account_number) {
         paymentMsg += `\n💳 Дансаар шилжүүлэх:\nБанк: ${shop.bank_name || 'Банк'}\nДанс: ${shop.account_number}\nНэр: ${shop.account_name || 'Дэлгүүр'}\nГүйлгээний утга: ${orderId.substring(0, 8)}`;
         paymentMsg += `\n\n*Шилжүүлсэн бол баримтаа илгээнэ үү.`;
     } else {
@@ -150,47 +168,19 @@ export async function executeCheckout(
     return {
         success: true,
         message: paymentMsg,
-        data: { order_id: orderId, payment_id: paymentId, payment_link: paymentLink, qpay: qpaySuccess },
+        data: { order_id: orderId, payment_id: paymentId, payment_link: null, qpay: false },
         actions: [
-            {
+            ...(shop?.account_number ? [{
                 type: 'payment_method',
-                buttons: [
-                    ...(qpaySuccess ? [{
-                        id: 'pay_qpay',
-                        label: '💳 Төлбөр төлөх',
-                        icon: 'qpay',
-                        variant: 'primary' as const,
-                        payload: `OPEN_URL:${paymentLink}`,
-                    }] : []),
-                    ...(shop?.account_number ? [{
-                        id: 'pay_bank',
-                        label: 'Дансаар шилжүүлэх',
-                        icon: 'bank',
-                        variant: 'secondary' as const,
-                        payload: 'PAY_BANK',
-                    }] : []),
-                ],
+                buttons: [{
+                    id: 'pay_bank',
+                    label: '💳 Дансаар шилжүүлэх',
+                    icon: 'bank',
+                    variant: 'primary' as const,
+                    payload: 'PAY_BANK',
+                }],
                 context: { order_id: orderId },
-            },
-            {
-                type: 'order_actions',
-                buttons: [
-                    {
-                        id: 'check_payment',
-                        label: '💰 Төлбөр шалгах',
-                        variant: 'secondary' as const,
-                        payload: 'CHECK_PAYMENT',
-                    },
-                    {
-                        id: 'cancel_order',
-                        label: 'Цуцлах',
-                        icon: 'cancel',
-                        variant: 'danger' as const,
-                        payload: 'CANCEL_ORDER',
-                    },
-                ],
-                context: { order_id: orderId },
-            },
+            }] : []),
         ],
     };
 }
