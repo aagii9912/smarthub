@@ -149,7 +149,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     pro: {
         provider: 'gemini',
         model: 'gemini-2.5-flash',
-        maxTokens: 800,
+        maxTokens: 2048,
         messagesPerMonth: 10000,      // Legacy analytics
         tokensPerMonth: 12_000_000,   // ~12M tokens/month
         maxShops: 3,
@@ -200,7 +200,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     enterprise: {
         provider: 'gemini',
         model: 'gemini-2.5-pro',
-        maxTokens: 1500,
+        maxTokens: 4096,
         messagesPerMonth: 100000,     // Legacy analytics
         tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited)
         maxShops: 1000,           // Effectively unlimited
