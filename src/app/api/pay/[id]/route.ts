@@ -92,6 +92,30 @@ export async function GET(
                 }
 
                 effectiveStatus = 'paid';
+
+                // ── Audit log entry (pay page poll confirmation) ──
+                try {
+                    await supabase
+                        .from('payment_audit_logs')
+                        .insert({
+                            payment_id: payment.id,
+                            shop_id: payment.shop_id,
+                            order_id: payment.order_id,
+                            action: 'paid',
+                            old_status: 'pending',
+                            new_status: 'paid',
+                            amount: Number(payment.amount),
+                            payment_method: 'qpay',
+                            actor: 'pay_page_poll',
+                            metadata: {
+                                qpay_transaction_id: transactionId,
+                                confirmed_via: 'pay_page_poll',
+                            },
+                        });
+                } catch (auditErr) {
+                    logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
+                }
+
                 logger.success('Payment confirmed via pay page poll:', {
                     payment_id: payment.id,
                     order_id: payment.order_id,

@@ -155,6 +155,28 @@ export async function POST(request: NextRequest) {
                 shop_merchant: shop.qpay_merchant_id,
             });
 
+            // ── Audit log entry (shop owner created QPay payment) ──
+            try {
+                await supabase
+                    .from('payment_audit_logs')
+                    .insert({
+                        payment_id: payment.id,
+                        shop_id: authShop.id,
+                        order_id: order.id,
+                        action: 'created',
+                        new_status: 'pending',
+                        amount: Number(order.total_amount),
+                        payment_method: 'qpay',
+                        actor: 'shop_owner',
+                        metadata: {
+                            qpay_invoice_id: qpayInvoice.invoice_id,
+                            shop_merchant_id: shop.qpay_merchant_id,
+                        },
+                    });
+            } catch (auditErr) {
+                logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
+            }
+
             // FIX: Update order payment_method to 'qpay'
             await supabase
                 .from('orders')
@@ -198,6 +220,24 @@ export async function POST(request: NextRequest) {
                 .eq('id', orderId);
 
             logger.success(`${paymentMethod} payment created:`, { payment_id: payment.id });
+
+            // ── Audit log entry (shop owner created manual payment) ──
+            try {
+                await supabase
+                    .from('payment_audit_logs')
+                    .insert({
+                        payment_id: payment.id,
+                        shop_id: authShop.id,
+                        order_id: order.id,
+                        action: 'created',
+                        new_status: 'pending',
+                        amount: Number(order.total_amount),
+                        payment_method: paymentMethod,
+                        actor: 'shop_owner',
+                    });
+            } catch (auditErr) {
+                logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
+            }
 
             return NextResponse.json({
                 success: true,

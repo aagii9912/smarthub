@@ -305,6 +305,29 @@ async function handleOrderPayment(
         logger.error('Stock deduction failed (non-critical):', { error: stockErr instanceof Error ? stockErr.message : String(stockErr) });
     }
 
+    // ── Audit log entry (webhook confirmation) ──
+    try {
+        await supabase
+            .from('payment_audit_logs')
+            .insert({
+                payment_id: payment.id as string,
+                shop_id: payment.shop_id as string,
+                order_id: orderId,
+                action: 'paid',
+                old_status: 'pending',
+                new_status: 'paid',
+                amount: Number(payment.amount),
+                payment_method: payment.payment_method as string,
+                actor: 'webhook',
+                metadata: {
+                    qpay_transaction_id: transactionId,
+                    confirmed_via: 'qpay_webhook',
+                },
+            });
+    } catch (auditErr) {
+        logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
+    }
+
     logger.success('Order payment confirmed:', {
         payment_id: payment.id,
         order_id: orderId,

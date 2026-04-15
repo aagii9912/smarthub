@@ -22,6 +22,7 @@ import {
     Globe,
     MessageSquareMore,
     Inbox,
+    Shield,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -54,6 +55,7 @@ const toolsMenuKeys: MenuItem[] = [
     { nameKey: 'inbox', href: '/dashboard/inbox/messages', icon: Inbox },
     { nameKey: 'reports', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
     { nameKey: 'aiReport', href: '/dashboard/reports/ai', icon: Sparkles },
+    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
 ];
 
 const bottomMenuKeys: MenuItem[] = [
