@@ -24,7 +24,7 @@ export type CheckoutArgs = z.infer<typeof CheckoutSchema>;
 export const CART_TOOLS: ToolDefinition[] = [
     {
         name: 'add_to_cart',
-        description: 'Add a product to shopping cart. Use this FIRST when customer wants to buy something. Ask to confirm checkout after.',
+        description: 'Add a product to shopping cart. Use this IMMEDIATELY when customer wants to buy something. Do NOT ask for confirmation before adding — just add it directly.',
         parameters: { type: 'object', properties: { product_name: { type: 'string', description: 'Name of the product to add (fuzzy match)' }, quantity: { type: 'number', description: 'Quantity to add', default: 1 }, color: { type: 'string', description: 'Color variant (optional)' }, size: { type: 'string', description: 'Size variant (optional)' } }, required: ['product_name'] }
     },
     {
@@ -39,7 +39,7 @@ export const CART_TOOLS: ToolDefinition[] = [
     },
     {
         name: 'checkout',
-        description: 'Finalize cart and create order. Use when customer confirms they want to complete their purchase and checkout.',
+        description: 'Finalize cart and create order with payment link. Call this IMMEDIATELY when customer clicks checkout button, says "төлбөр төлөх", "checkout", or wants to pay. Do NOT ask for reconfirmation — execute directly.',
         parameters: { type: 'object', properties: { notes: { type: 'string', description: 'Any special notes for the order' } }, required: [] }
     }
 ];
