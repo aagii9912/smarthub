@@ -40,8 +40,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
  */
 const MODEL_MAPPING: Record<AIModel, string> = {
     'gemini-3.1-flash-lite-preview': 'gemini-3.1-flash-lite-preview',
-    'gemini-2.5-flash-preview-05-20': 'gemini-2.5-flash-preview-05-20',
-    'gemini-2.5-pro-preview-05-06': 'gemini-2.5-pro-preview-05-06',
+    'gemini-2.5-flash': 'gemini-2.5-flash',
+    'gemini-2.5-pro': 'gemini-2.5-pro',
 };
 
 /**

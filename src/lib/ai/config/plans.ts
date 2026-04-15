@@ -5,13 +5,13 @@
  * Strategy: Tiered Gemini models per plan
  * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1M tokens (Chatbot only)
  * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2.4M tokens
- * - Pro: Gemini 2.5 Flash - ₮379,000/сар - 12M tokens (better tool calling)
- * - Enterprise: Gemini 2.5 Pro - Тохиролцоно - 100M tokens (best reasoning)
+ * - Pro: Gemini 2.5 Flash (stable) - ₮379,000/сар - 12M tokens (better tool calling)
+ * - Enterprise: Gemini 2.5 Pro (stable) - Тохиролцоно - 100M tokens (best reasoning)
  */
 
 export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
-export type AIModel = 'gemini-3.1-flash-lite-preview' | 'gemini-2.5-flash-preview-05-20' | 'gemini-2.5-pro-preview-05-06';
+export type AIModel = 'gemini-3.1-flash-lite-preview' | 'gemini-2.5-flash' | 'gemini-2.5-pro';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -148,7 +148,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     pro: {
         provider: 'gemini',
-        model: 'gemini-2.5-flash-preview-05-20',
+        model: 'gemini-2.5-flash',
         maxTokens: 800,
         messagesPerMonth: 10000,      // Legacy analytics
         tokensPerMonth: 12_000_000,   // ~12M tokens/month
@@ -199,7 +199,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     enterprise: {
         provider: 'gemini',
-        model: 'gemini-2.5-pro-preview-05-06',
+        model: 'gemini-2.5-pro',
         maxTokens: 1500,
         messagesPerMonth: 100000,     // Legacy analytics
         tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited)
@@ -364,8 +364,8 @@ export function checkShopLimit(
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
     'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
-    'gemini-2.5-flash-preview-05-20': 'Gemini 2.5 Flash',
-    'gemini-2.5-pro-preview-05-06': 'Gemini 2.5 Pro',
+    'gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'gemini-2.5-pro': 'Gemini 2.5 Pro',
 };
 
 /**
