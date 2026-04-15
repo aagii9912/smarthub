@@ -171,7 +171,7 @@ export async function executeCheckout(
         data: { order_id: orderId, payment_id: paymentId, payment_link: null, qpay: false },
         actions: [
             ...(shop?.account_number ? [{
-                type: 'payment_method',
+                type: 'payment_method' as const,
                 buttons: [{
                     id: 'pay_bank',
                     label: '💳 Дансаар шилжүүлэх',
