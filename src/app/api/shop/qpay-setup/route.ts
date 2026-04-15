@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        // FIX: Block re-registration when pending (prevent duplicate merchants)
+        if (shop.qpay_status === 'pending') {
+            return NextResponse.json({
+                error: 'QPay бүртгэл боловсруулагдаж байна. Түр хүлээнэ үү.',
+                status: 'pending',
+            }, { status: 400 });
+        }
+
         // Set status to pending
         await supabase
             .from('shops')

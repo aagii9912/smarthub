@@ -88,6 +88,12 @@ export async function executeCheckout(
                     paymentId = payment.id;
                     paymentLink = `${SITE_URL}/pay/${payment.id}`;
                     qpaySuccess = true;
+
+                    // FIX: Update order payment_method
+                    await supabase
+                        .from('orders')
+                        .update({ payment_method: 'qpay' })
+                        .eq('id', orderId);
                 }
             }
         } catch (err) {

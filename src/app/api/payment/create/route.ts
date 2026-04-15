@@ -46,19 +46,42 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
-        // Check if payment already exists
-        const { data: existingPayment } = await supabase
+        // FIX: Check for existing paid OR active pending payment
+        const { data: existingPayments } = await supabase
             .from('payments')
-            .select('id, shop_id, amount, status, created_at')
+            .select('id, shop_id, amount, status, expires_at, created_at')
             .eq('order_id', orderId)
-            .eq('status', 'paid')
-            .single();
+            .in('status', ['paid', 'pending'])
+            .order('created_at', { ascending: false });
 
-        if (existingPayment) {
-            return NextResponse.json({
-                error: 'Order already paid',
-                payment: existingPayment
-            }, { status: 400 });
+        if (existingPayments && existingPayments.length > 0) {
+            const paidPayment = existingPayments.find(p => p.status === 'paid');
+            if (paidPayment) {
+                return NextResponse.json({
+                    error: 'Order already paid',
+                    payment: paidPayment
+                }, { status: 400 });
+            }
+
+            // Check for non-expired pending payment
+            const activePending = existingPayments.find(p =>
+                p.status === 'pending' && p.expires_at && new Date(p.expires_at) > new Date()
+            );
+            if (activePending) {
+                return NextResponse.json({
+                    error: 'Идэвхтэй нэхэмжлэл байна. Хугацаа дуусахыг хүлээнэ үү.',
+                    payment: activePending,
+                    code: 'PENDING_PAYMENT_EXISTS',
+                }, { status: 400 });
+            }
+
+            // Cancel expired pending payments
+            const expiredPending = existingPayments.filter(p =>
+                p.status === 'pending' && (!p.expires_at || new Date(p.expires_at) <= new Date())
+            );
+            for (const ep of expiredPending) {
+                await supabase.from('payments').update({ status: 'expired' }).eq('id', ep.id);
+            }
         }
 
         // Handle different payment methods
@@ -131,6 +154,12 @@ export async function POST(request: NextRequest) {
                 invoice_id: qpayInvoice.invoice_id,
                 shop_merchant: shop.qpay_merchant_id,
             });
+
+            // FIX: Update order payment_method to 'qpay'
+            await supabase
+                .from('orders')
+                .update({ payment_method: 'qpay' })
+                .eq('id', orderId);
 
             return NextResponse.json({
                 success: true,

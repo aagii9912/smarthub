@@ -111,7 +111,6 @@ export async function registerShopAsMerchant(params: {
     const token = await getAccessToken();
 
     const body: Record<string, unknown> = {
-        register_number: params.registerNumber || '',
         company_name: params.shopName,
         name: params.shopName,
         mcc_code: params.mccCode || DEFAULT_MCC_CODE,
@@ -127,6 +126,11 @@ export async function registerShopAsMerchant(params: {
             is_default: true,
         }],
     };
+
+    // FIX: Only include register_number if provided (empty string causes QPay rejection)
+    if (params.registerNumber) {
+        body.register_number = params.registerNumber;
+    }
 
     logger.info('Registering shop as QPay merchant:', { shopName: params.shopName });
 
