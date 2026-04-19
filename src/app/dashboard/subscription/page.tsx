@@ -12,11 +12,20 @@ export default function SubscriptionPage() {
     const [currentPlan, setCurrentPlan] = useState('starter');
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const [usage, setUsage] = useState({ products: 0, orders: 0, messages: 0, tokens: 0 });
-    const [billingHistory, setBillingHistory] = useState<any[]>([]);
+    interface BillingEntry {
+        id?: string;
+        amount?: number;
+        status?: string;
+        created_at?: string;
+        date?: string;
+        description?: string;
+    }
+    interface QpayUrl { name?: string; description?: string; link?: string }
+    const [billingHistory, setBillingHistory] = useState<BillingEntry[]>([]);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
     const [upgrading, setUpgrading] = useState(false);
-    const [paymentInfo, setPaymentInfo] = useState<{ invoice_id?: string; qr_code?: string; urls?: any[] } | null>(null);
+    const [paymentInfo, setPaymentInfo] = useState<{ invoice_id?: string; qr_code?: string; urls?: QpayUrl[] } | null>(null);
 
     useEffect(() => { fetchData(); }, []);
 
@@ -31,25 +40,55 @@ export default function SubscriptionPage() {
             let fetchedPlans: Plan[] = [];
             if (plansRes.ok) {
                 const { plans: p } = await plansRes.json();
-                fetchedPlans = p.map((plan: any) => {
-                    const feats = typeof plan.features === 'object' && plan.features ? plan.features : {};
-                    const lmt = typeof plan.limits === 'object' && plan.limits ? plan.limits : {};
+                interface RawPlanLimits {
+                    max_products?: number;
+                    max_customers?: number;
+                    max_messages?: number;
+                    max_tokens?: number;
+                }
+                interface RawPlanFeatures {
+                    ai_enabled?: boolean;
+                    shops_limit?: number;
+                    analytics?: string;
+                    priority_support?: boolean;
+                }
+                interface RawPlan {
+                    id: string;
+                    slug: string;
+                    name: string;
+                    price_monthly?: number;
+                    price_yearly?: number;
+                    is_featured?: boolean;
+                    features?: RawPlanFeatures | null;
+                    limits?: RawPlanLimits | null;
+                }
+                fetchedPlans = (p as RawPlan[]).map((plan) => {
+                    const feats: RawPlanFeatures = (plan.features ?? {}) as RawPlanFeatures;
+                    const lmt: RawPlanLimits = (plan.limits ?? {}) as RawPlanLimits;
 
                     // Dynamically build string features from JSON boolean flags
                     const mappedFeatures: string[] = [];
-                    if (lmt.max_products > 0) mappedFeatures.push(`${lmt.max_products} бараа`);
-                    else if (lmt.max_products === -1) mappedFeatures.push('Хязгааргүй бараа');
+                    const maxProducts = lmt.max_products ?? 0;
+                    const maxCustomers = lmt.max_customers ?? 0;
+                    const maxMessages = lmt.max_messages ?? 0;
+                    const maxTokens = lmt.max_tokens ?? 0;
+                    const shopsLimit = feats.shops_limit ?? 0;
 
-                    
-                    
+                    if (maxProducts > 0) mappedFeatures.push(`${maxProducts} бараа`);
+                    else if (maxProducts === -1) mappedFeatures.push('Хязгааргүй бараа');
+
                     const planConfig = getPlanConfig((plan.slug || 'lite') as PlanType);
-                    
-                    if (lmt.max_tokens > 0) mappedFeatures.push(`${lmt.max_tokens.toLocaleString()} токен/сар`);
-                    else if (planConfig.tokensPerMonth > 0) mappedFeatures.push(`${planConfig.tokensPerMonth.toLocaleString()} токен/сар`);
-                    else mappedFeatures.push('Хязгааргүй токен');
+
+                    const effectiveTokens = maxTokens > 0 ? maxTokens : planConfig.tokensPerMonth;
+                    if (effectiveTokens > 0) {
+                        const credits = Math.floor(effectiveTokens / 1000);
+                        mappedFeatures.push(`${credits.toLocaleString()} credit/сар`);
+                    } else {
+                        mappedFeatures.push('Хязгааргүй credit');
+                    }
 
                     if (feats.ai_enabled) mappedFeatures.push('AI чатбот');
-                    if (feats.shops_limit > 1) mappedFeatures.push('Бүх платформ (FB/IG)');
+                    if (shopsLimit > 1) mappedFeatures.push('Бүх платформ (FB/IG)');
                     else mappedFeatures.push('Facebook холболт');
                     if (feats.analytics && feats.analytics !== 'none') mappedFeatures.push('Тайлан & Analytics');
                     if (feats.priority_support) mappedFeatures.push('Priority support');
@@ -61,13 +100,13 @@ export default function SubscriptionPage() {
                         price_yearly: plan.price_yearly || 0,
                         features: mappedFeatures,
                         limits: {
-                            products: lmt.max_products > 0 ? lmt.max_products : 99999,
-                            orders: lmt.max_customers > 0 ? lmt.max_customers : 99999,
-                            messages: lmt.max_messages > 0 ? lmt.max_messages : 99999,
+                            products: maxProducts > 0 ? maxProducts : 99999,
+                            orders: maxCustomers > 0 ? maxCustomers : 99999,
+                            messages: maxMessages > 0 ? maxMessages : 99999,
                             tokens: planConfig.tokensPerMonth || 99999
                         },
-                        highlighted: plan.is_featured
-                    }
+                        highlighted: !!plan.is_featured
+                    } satisfies Plan;
                 });
 
                 // Sort to keep deterministic order
@@ -104,8 +143,8 @@ export default function SubscriptionPage() {
             } else {
                 setPaymentInfo(data);
             }
-        } catch (e: any) {
-            toast.error(e.message);
+        } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
             setShowUpgrade(false);
         } finally {
             setUpgrading(false);
@@ -117,10 +156,12 @@ export default function SubscriptionPage() {
     ];
     const PLANS = safePlans;
     const plan = PLANS.find(p => p.id === currentPlan) || PLANS[0];
+    const creditsUsed = Math.ceil((usage.tokens || 0) / 1000);
+    const creditsMax = Math.floor((plan.limits.tokens || 0) / 1000);
     const usageItems = [
         { label: 'Бүтээгдэхүүн', value: usage.products, max: plan.limits.products, icon: Package },
         { label: 'Захиалга', value: usage.orders, max: plan.limits.orders, icon: BarChart3 },
-        { label: 'Токен', value: usage.tokens || 0, max: plan.limits.tokens, icon: Zap }
+        { label: 'AI Credit', value: creditsUsed, max: creditsMax, icon: Zap },
     ];
 
     const cardCls = "bg-[#0F0B2E] rounded-lg border border-white/[0.08]";
@@ -208,8 +249,8 @@ export default function SubscriptionPage() {
                         <tbody className="divide-y divide-white/[0.06]">
                             {billingHistory.map((b, i) => (
                                 <tr key={i} className="hover:bg-[#0D0928]">
-                                    <td className="px-5 py-3 text-[12px] text-white/60">{new Date(b.date).toLocaleDateString('mn-MN')}</td>
-                                    <td className="px-5 py-3 text-[12px] text-foreground">{b.description}</td>
+                                    <td className="px-5 py-3 text-[12px] text-white/60">{new Date(b.date || b.created_at || '').toLocaleDateString('mn-MN')}</td>
+                                    <td className="px-5 py-3 text-[12px] text-foreground">{b.description || ''}</td>
                                     <td className="px-5 py-3 text-right text-[12px] font-medium text-foreground tabular-nums">₮{Number(b.amount).toLocaleString()}</td>
                                 </tr>
                             ))}

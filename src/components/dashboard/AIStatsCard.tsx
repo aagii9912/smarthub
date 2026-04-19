@@ -6,8 +6,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 interface AIStatsCardProps {
     totalConversations: number;
     totalMessages: number;
-    tokenUsage: {
-        total: number;
+    creditUsage: {
+        used: number;
         limit: number;
         percent: number;
         remaining: number;
@@ -17,23 +17,24 @@ interface AIStatsCardProps {
     planType: string;
 }
 
-function formatTokenCount(count: number): string {
+function formatCreditCount(count: number): string {
     if (count >= 1_000_000) {
         return `${(count / 1_000_000).toFixed(1)}M`;
     }
     if (count >= 1_000) {
-        return `${(count / 1_000).toFixed(0)}K`;
+        return `${(count / 1_000).toFixed(1)}K`;
     }
     return count.toString();
 }
 
 export function AIStatsCard({
-    totalConversations,
+    totalConversations: _totalConversations,
     totalMessages,
-    tokenUsage,
+    creditUsage,
     contactsCollected,
     planType,
 }: AIStatsCardProps) {
+    void _totalConversations;
     const { t } = useLanguage();
 
     // Gradient color based on usage percentage
@@ -43,12 +44,12 @@ export function AIStatsCard({
         return { bar: 'from-emerald-400 to-cyan-500', text: 'text-emerald-400', bg: 'bg-emerald-500/10' };
     };
 
-    const usageColors = getUsageColor(tokenUsage.percent);
+    const usageColors = getUsageColor(creditUsage.percent);
 
     const miniStats = [
         {
             icon: MessageSquare,
-            label: t.features.tokenUsage || 'Чат',
+            label: t.features.creditUsage || 'Чат',
             value: totalMessages.toLocaleString(),
             sublabel: 'мессеж',
             iconColor: 'text-violet-400',
@@ -56,15 +57,15 @@ export function AIStatsCard({
         },
         {
             icon: Cpu,
-            label: 'Token',
-            value: `${tokenUsage.percent}%`,
-            sublabel: formatTokenCount(tokenUsage.total),
+            label: 'Credits',
+            value: `${creditUsage.percent}%`,
+            sublabel: `${formatCreditCount(creditUsage.used)} credit`,
             iconColor: usageColors.text,
             bgColor: usageColors.bg,
         },
         {
             icon: Phone,
-            label: t.features.tokenUsageDesc || 'Утас',
+            label: t.features.creditUsageDesc || 'Утас',
             value: contactsCollected.toString(),
             sublabel: 'цуглуулсан',
             iconColor: 'text-blue-400',
@@ -74,7 +75,7 @@ export function AIStatsCard({
             icon: Zap,
             label: 'Plan',
             value: planType.charAt(0).toUpperCase() + planType.slice(1),
-            sublabel: formatTokenCount(tokenUsage.limit) + '/сар',
+            sublabel: `${formatCreditCount(creditUsage.limit)} credit/сар`,
             iconColor: 'text-amber-400',
             bgColor: 'bg-amber-500/10',
         },
@@ -115,23 +116,23 @@ export function AIStatsCard({
                 ))}
             </div>
 
-            {/* Token Usage Progress Bar */}
+            {/* Credit Usage Progress Bar */}
             <div className="px-5 py-4 border-t border-white/[0.04]">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] text-white/40 font-medium">Token хэрэглээ</span>
+                    <span className="text-[11px] text-white/40 font-medium">AI Credit хэрэглээ</span>
                     <span className={`text-[11px] font-semibold tabular-nums ${usageColors.text}`}>
-                        {formatTokenCount(tokenUsage.total)} / {formatTokenCount(tokenUsage.limit)}
+                        {creditUsage.used.toLocaleString()} / {creditUsage.limit.toLocaleString()}
                     </span>
                 </div>
                 <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
                     <div
                         className={`h-full rounded-full bg-gradient-to-r ${usageColors.bar} transition-all duration-1000 ease-out`}
-                        style={{ width: `${Math.min(tokenUsage.percent, 100)}%` }}
+                        style={{ width: `${Math.min(creditUsage.percent, 100)}%` }}
                     />
                 </div>
-                {tokenUsage.resetAt && (
+                {creditUsage.resetAt && (
                     <p className="text-[10px] text-white/20 mt-1.5">
-                        Дахин тоолно: {new Date(tokenUsage.resetAt).toLocaleDateString('mn-MN')}
+                        Дахин тоолно: {new Date(creditUsage.resetAt).toLocaleDateString('mn-MN')}
                     </p>
                 )}
             </div>

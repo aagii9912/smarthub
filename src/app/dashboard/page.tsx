@@ -59,7 +59,15 @@ export default function DashboardPage() {
     const { data: aiStats } = useAIStats(timeFilter);
 
     const stats = data?.stats || { todayOrders: 0, pendingOrders: 0, totalRevenue: 0, totalCustomers: 0 };
-    const recentOrders = data?.recentOrders || [];
+    interface RecentOrder {
+        id: string;
+        status: string;
+        total_amount: number | string;
+        created_at: string;
+        customers?: { name?: string } | { name?: string }[] | null;
+        order_items?: Array<{ products?: { name?: string } | { name?: string }[] | null }>;
+    }
+    const recentOrders: RecentOrder[] = data?.recentOrders || [];
     const activeConversations = data?.activeConversations || [];
     const lowStockProducts = data?.lowStockProducts || [];
     const unansweredCount = data?.unansweredCount || 0;
@@ -155,7 +163,7 @@ export default function DashboardPage() {
                         <AIStatsCard
                             totalConversations={aiStats.totalConversations}
                             totalMessages={aiStats.totalMessages}
-                            tokenUsage={aiStats.tokenUsage}
+                            creditUsage={aiStats.creditUsage}
                             contactsCollected={aiStats.contactsCollected}
                             planType={aiStats.plan.type}
                         />
@@ -189,9 +197,12 @@ export default function DashboardPage() {
                             </div>
                             <div className="divide-y divide-white/[0.06]">
                                 {recentOrders.length > 0 ? (
-                                    recentOrders.slice(0, 5).map((order: any) => {
-                                        const customerName = order.customers?.name || t.dashboard.customer;
-                                        const productName = order.order_items?.[0]?.products?.name || t.dashboard.product;
+                                    recentOrders.slice(0, 5).map((order) => {
+                                        const cust = Array.isArray(order.customers) ? order.customers[0] : order.customers;
+                                        const firstItem = order.order_items?.[0];
+                                        const prod = Array.isArray(firstItem?.products) ? firstItem?.products[0] : firstItem?.products;
+                                        const customerName = cust?.name || t.dashboard.customer;
+                                        const productName = prod?.name || t.dashboard.product;
                                         return (
                                             <Link
                                                 key={order.id}
@@ -234,7 +245,14 @@ export default function DashboardPage() {
                         <ActionCenter
                             conversations={activeConversations}
                             lowStockProducts={lowStockProducts}
-                            pendingOrders={recentOrders.filter((o: any) => o.status === 'pending')}
+                            pendingOrders={recentOrders.filter((o) => o.status === 'pending').map((o) => {
+                                const cust = Array.isArray(o.customers) ? o.customers[0] : o.customers;
+                                return {
+                                    ...o,
+                                    total_amount: Number(o.total_amount),
+                                    customers: cust && cust.name ? { name: cust.name } : null,
+                                };
+                            })}
                             unansweredCount={unansweredCount}
                         />
                     </motion.div>

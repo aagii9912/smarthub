@@ -5,6 +5,13 @@ import useSWR from 'swr';
 interface AIStats {
     totalConversations: number;
     totalMessages: number;
+    creditUsage: {
+        used: number;
+        limit: number;
+        percent: number;
+        remaining: number;
+        resetAt: string | null;
+    };
     tokenUsage: {
         total: number;
         limit: number;
@@ -16,6 +23,7 @@ interface AIStats {
         type: string;
         name: string;
         tokensPerMonth: number;
+        creditsPerMonth: number;
     };
     intentBreakdown: Record<string, number>;
     dailyMessages: Array<{ date: string; count: number }>;

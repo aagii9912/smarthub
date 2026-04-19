@@ -14,7 +14,13 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUserShop } from '@/lib/auth/auth';
-import { getPlanTypeFromSubscription, checkTokenLimit, getPlanConfig } from '@/lib/ai/config/plans';
+import {
+    getPlanTypeFromSubscription,
+    checkTokenLimit,
+    checkCreditLimit,
+    getPlanConfig,
+    getCreditsPerMonth,
+} from '@/lib/ai/config/plans';
 
 export async function GET(request: Request) {
     try {
@@ -126,7 +132,9 @@ export async function GET(request: Request) {
             status: shopFull?.subscription_status || 'active',
         });
         const planConfig = getPlanConfig(planType);
-        const tokenCheck = checkTokenLimit(planType, shopFull?.token_usage_total || 0);
+        const tokensTotal = shopFull?.token_usage_total || 0;
+        const tokenCheck = checkTokenLimit(planType, tokensTotal);
+        const creditCheck = checkCreditLimit(planType, tokensTotal);
 
         // Top customers
         const topCustomers = (topCustomersRes.data || []).map(c => ({
@@ -145,8 +153,15 @@ export async function GET(request: Request) {
         return NextResponse.json({
             totalConversations: totalCustomersWithMessages,
             totalMessages: chatHistory.length,
+            creditUsage: {
+                used: creditCheck.used,
+                limit: creditCheck.limit,
+                percent: creditCheck.usagePercent,
+                remaining: creditCheck.remaining,
+                resetAt: shopFull?.token_usage_reset_at,
+            },
             tokenUsage: {
-                total: shopFull?.token_usage_total || 0,
+                total: tokensTotal,
                 limit: tokenCheck.limit,
                 percent: tokenCheck.usagePercent,
                 remaining: tokenCheck.remaining,
@@ -156,6 +171,7 @@ export async function GET(request: Request) {
                 type: planType,
                 name: planConfig.model,
                 tokensPerMonth: planConfig.tokensPerMonth,
+                creditsPerMonth: getCreditsPerMonth(planType),
             },
             intentBreakdown,
             dailyMessages,

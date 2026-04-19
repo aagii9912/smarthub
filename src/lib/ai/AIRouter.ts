@@ -1,7 +1,8 @@
 /**
  * AIRouter - Routes AI requests to Gemini models
- * 
- * Billing: Token-based (primary) + message count (analytics)
+ *
+ * Billing: Credit-based user-facing / Token-based backend accounting (1 credit = 1000 tokens).
+ * Per-customer `messageCount` is analytics-only and never enforced.
  * Strategy:
  * - All plans use Gemini models
  * - Plan determines the specific model (flash-lite, flash)
@@ -24,8 +25,9 @@ import {
     getPlanTypeFromSubscription,
     isToolEnabledForPlan,
     getEnabledToolsForPlan,
-    checkMessageLimit,
     checkTokenLimit,
+    tokensToCredits,
+    getCreditsPerMonth,
     AIModel,
 } from './config/plans';
 
@@ -50,6 +52,7 @@ export interface RouterChatContext extends ChatContext {
         plan?: string;
         status?: string;
     };
+    /** Per-customer message count — analytics only, not billing. */
     messageCount?: number;
     tokenUsageTotal?: number;  // Current month's total token usage for the shop
 }
@@ -61,11 +64,15 @@ export interface RouterResponse extends ChatResponse {
     usage?: {
         plan: PlanType;
         model: string;
+        /** Per-customer message count — analytics only. */
         messagesUsed: number;
-        messagesRemaining: number;
         tokensUsed?: number;
         tokensRemaining?: number;
         tokenUsagePercent?: number;
+        /** User-facing credit metrics (1 credit = 1000 tokens). */
+        creditsUsed?: number;
+        creditsRemaining?: number;
+        creditsLimit?: number;
     };
     limitReached?: boolean;
 }
@@ -228,29 +235,34 @@ export async function routeToAI(
         }
     }
 
-    // Also track message count for analytics (legacy)
+    // Per-customer message count — analytics only, not enforced.
     const messageCount = context.messageCount || 0;
-    const messageLimitCheck = checkMessageLimit(planType, messageCount);
+    const creditsLimit = getCreditsPerMonth(planType);
+    const creditsUsed = tokensToCredits(currentTokenUsage);
 
     if (!tokenLimitCheck.allowed) {
-        logger.warn('Token limit reached', {
+        logger.warn('Credit limit reached', {
             plan: planType,
             tokensUsed: currentTokenUsage,
             tokenLimit: tokenLimitCheck.limit,
+            creditsUsed,
+            creditsLimit,
             usagePercent: tokenLimitCheck.usagePercent,
         });
 
         return {
-            text: `Уучлаарай, та энэ сарын AI токен лимитдээ хүрсэн байна (${(tokenLimitCheck.limit / 1_000_000).toFixed(1)}M токен). Илүү их хэрэглэхийг хүсвэл план-аа шинэчлэнэ үү! 📈`,
+            text: `Уучлаарай, та энэ сарын AI credit лимитдээ хүрсэн байна (${creditsUsed.toLocaleString()}/${creditsLimit.toLocaleString()} credits). Илүү их хэрэглэхийг хүсвэл план-аа шинэчлэнэ үү! 📈`,
             limitReached: true,
             usage: {
                 plan: planType,
                 model: planConfig.model,
                 messagesUsed: messageCount,
-                messagesRemaining: Math.max(0, messageLimitCheck.remaining),
                 tokensUsed: currentTokenUsage,
                 tokensRemaining: 0,
                 tokenUsagePercent: 100,
+                creditsUsed,
+                creditsRemaining: 0,
+                creditsLimit,
             },
         };
     }
@@ -483,6 +495,7 @@ export async function routeToAI(
 
             logger.success(`AIRouter response received (${planType}/${planConfig.model}, ${totalTokensConsumed} tokens)`);
 
+            const tokensRemaining = Math.max(0, tokenLimitCheck.remaining - totalTokensConsumed);
             return {
                 text: finalResponseText,
                 imageAction,
@@ -492,10 +505,12 @@ export async function routeToAI(
                     plan: planType,
                     model: planConfig.model,
                     messagesUsed: messageCount + 1,
-                    messagesRemaining: Math.max(0, messageLimitCheck.remaining - 1),
                     tokensUsed: totalTokensConsumed,
-                    tokensRemaining: Math.max(0, tokenLimitCheck.remaining - totalTokensConsumed),
+                    tokensRemaining,
                     tokenUsagePercent: tokenLimitCheck.usagePercent,
+                    creditsUsed: tokensToCredits(currentTokenUsage + totalTokensConsumed),
+                    creditsRemaining: Math.floor(tokensRemaining / 1000),
+                    creditsLimit,
                 },
             };
         });
@@ -582,7 +597,11 @@ export type { PlanType, AIModel } from './config/plans';
 export {
     getPlanConfig,
     getPlanTypeFromSubscription,
-    checkMessageLimit,
     getEnabledToolsForPlan,
-    PLAN_CONFIGS
+    tokensToCredits,
+    creditsToTokens,
+    getCreditsPerMonth,
+    checkCreditLimit,
+    TOKENS_PER_CREDIT,
+    PLAN_CONFIGS,
 } from './config/plans';

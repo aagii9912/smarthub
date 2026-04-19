@@ -254,46 +254,46 @@ export default function AIReportPage() {
                 </div>
             </div>
 
-            {/* Token Usage Detail */}
-            {data?.tokenUsage && (
+            {/* Credit Usage Detail */}
+            {data?.creditUsage && (
                 <div className="bg-[#0F0B2E] rounded-xl border border-white/[0.08] p-5">
                     <div className="flex items-center gap-2 mb-4">
                         <Cpu className="w-4 h-4 text-violet-500" strokeWidth={1.5} />
-                        <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Token хэрэглээ</span>
+                        <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">AI Credit хэрэглээ</span>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <p className="text-[11px] text-white/30 mb-1">Ашигласан</p>
                             <p className="text-[18px] font-bold text-foreground tabular-nums">
-                                {(data.tokenUsage.total / 1_000_000).toFixed(2)}M
+                                {data.creditUsage.used.toLocaleString()}
                             </p>
                         </div>
                         <div>
                             <p className="text-[11px] text-white/30 mb-1">Лимит</p>
                             <p className="text-[18px] font-bold text-foreground tabular-nums">
-                                {(data.tokenUsage.limit / 1_000_000).toFixed(1)}M
+                                {data.creditUsage.limit.toLocaleString()}
                             </p>
                         </div>
                         <div>
                             <p className="text-[11px] text-white/30 mb-1">Үлдсэн</p>
                             <p className="text-[18px] font-bold text-emerald-400 tabular-nums">
-                                {(data.tokenUsage.remaining / 1_000_000).toFixed(2)}M
+                                {data.creditUsage.remaining.toLocaleString()}
                             </p>
                         </div>
                     </div>
                     <div className="mt-4 h-3 rounded-full bg-white/[0.06] overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                                data.tokenUsage.percent >= 90 ? 'bg-gradient-to-r from-red-500 to-rose-600'
-                                : data.tokenUsage.percent >= 70 ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                data.creditUsage.percent >= 90 ? 'bg-gradient-to-r from-red-500 to-rose-600'
+                                : data.creditUsage.percent >= 70 ? 'bg-gradient-to-r from-amber-500 to-orange-500'
                                 : 'bg-gradient-to-r from-emerald-400 to-cyan-500'
                             }`}
-                            style={{ width: `${Math.min(data.tokenUsage.percent, 100)}%` }}
+                            style={{ width: `${Math.min(data.creditUsage.percent, 100)}%` }}
                         />
                     </div>
                     <p className="text-[11px] text-white/20 mt-2 tabular-nums">
-                        {data.tokenUsage.percent}% ашигласан
-                        {data.tokenUsage.resetAt && ` • Дахин тоолно: ${new Date(data.tokenUsage.resetAt).toLocaleDateString('mn-MN')}`}
+                        {data.creditUsage.percent}% ашигласан • 1 credit ≈ 1000 token
+                        {data.creditUsage.resetAt && ` • Дахин тоолно: ${new Date(data.creditUsage.resetAt).toLocaleDateString('mn-MN')}`}
                     </p>
                 </div>
             )}

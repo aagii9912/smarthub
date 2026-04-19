@@ -2,10 +2,14 @@
 import { describe, it, expect } from 'vitest';
 import {
     getPlanTypeFromSubscription,
-    checkMessageLimit,
     checkTokenLimit,
+    checkCreditLimit,
+    getCreditsPerMonth,
+    tokensToCredits,
+    creditsToTokens,
+    TOKENS_PER_CREDIT,
     getEnabledToolsForPlan,
-    PLAN_CONFIGS
+    PLAN_CONFIGS,
 } from '../config/plans';
 
 describe('AIRouter', () => {
@@ -45,20 +49,42 @@ describe('AIRouter', () => {
         });
     });
 
-    describe('checkMessageLimit (legacy)', () => {
-        it('should allow messages within limit', () => {
-            expect(checkMessageLimit('starter', 10).allowed).toBe(true);
-            expect(checkMessageLimit('pro', 500).allowed).toBe(true);
+    describe('credit helpers', () => {
+        it('should convert tokens to credits (round up partial)', () => {
+            expect(tokensToCredits(0)).toBe(0);
+            expect(tokensToCredits(1)).toBe(1);
+            expect(tokensToCredits(1000)).toBe(1);
+            expect(tokensToCredits(1001)).toBe(2);
+            expect(tokensToCredits(2_400_000)).toBe(2400);
         });
 
-        it('should block messages over limit', () => {
-            const starterLimit = PLAN_CONFIGS.starter.messagesPerMonth;
-            expect(checkMessageLimit('starter', starterLimit).allowed).toBe(false);
-            expect(checkMessageLimit('starter', starterLimit + 1).allowed).toBe(false);
+        it('should convert credits to tokens', () => {
+            expect(creditsToTokens(0)).toBe(0);
+            expect(creditsToTokens(100)).toBe(100 * TOKENS_PER_CREDIT);
+            expect(creditsToTokens(2400)).toBe(2_400_000);
         });
 
-        it('should always allow enterprise messages', () => {
-            expect(checkMessageLimit('enterprise', 1000).allowed).toBe(true);
+        it('should derive creditsPerMonth from plan tokens', () => {
+            expect(getCreditsPerMonth('lite')).toBe(1_000);
+            expect(getCreditsPerMonth('starter')).toBe(2_400);
+            expect(getCreditsPerMonth('pro')).toBe(12_000);
+            expect(getCreditsPerMonth('enterprise')).toBe(100_000);
+        });
+
+        it('checkCreditLimit mirrors checkTokenLimit in credit units', () => {
+            const half = PLAN_CONFIGS.starter.tokensPerMonth / 2;
+            const cr = checkCreditLimit('starter', half);
+            expect(cr.allowed).toBe(true);
+            expect(cr.limit).toBe(2_400);
+            expect(cr.used).toBe(1_200);
+            expect(cr.remaining).toBe(1_200);
+            expect(cr.usagePercent).toBe(50);
+        });
+
+        it('checkCreditLimit blocks at limit', () => {
+            const cr = checkCreditLimit('starter', PLAN_CONFIGS.starter.tokensPerMonth);
+            expect(cr.allowed).toBe(false);
+            expect(cr.remaining).toBe(0);
         });
     });
 

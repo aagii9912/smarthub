@@ -50,6 +50,11 @@ interface ShopData {
     subscription_status: string | null;
     trial_ends_at: string | null;
     token_usage_total?: number;
+    facebook_page_id?: string;
+    notify_on_order?: boolean | null;
+    notify_on_contact?: boolean | null;
+    notify_on_support?: boolean | null;
+    notify_on_cancel?: boolean | null;
     products: Array<{
         id: string;
         name: string;
@@ -203,6 +208,16 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
     // Get AI features
     const aiFeatures = await getAIFeatures(shopId);
 
+    const mappedProducts: AIProduct[] = shopData.products.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description || undefined,
+        price: p.price || 0,
+        stock: p.stock ?? 0,
+        variants: undefined,
+        discount_percent: p.discount_percent ?? undefined,
+    }));
+
     try {
         let aiResponse: string = '';
         let imageAnalysisResult: string | null = null;
@@ -250,16 +265,6 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
             const intent = detectIntent(combinedText);
             const previousHistory: ChatMessage[] = await getChatHistory(shopId, customerId);
 
-            const mappedProducts: AIProduct[] = shopData.products.map(p => ({
-                id: p.id,
-                name: p.name,
-                description: p.description || undefined,
-                price: p.price || 0,
-                stock: p.stock ?? 0,
-                variants: undefined,
-                discount_percent: p.discount_percent ?? undefined,
-            }));
-
             const response = await routeToAI(
                 combinedText,
                 {
@@ -276,7 +281,22 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     faqs: aiFeatures.faqs,
                     quickReplies: aiFeatures.quickReplies,
                     slogans: aiFeatures.slogans,
-                    notifySettings: buildNotifySettings(shopData as any),
+                    notifySettings: buildNotifySettings({
+                        id: shopData.id,
+                        name: shopData.name,
+                        description: shopData.description ?? null,
+                        ai_instructions: shopData.ai_instructions ?? null,
+                        ai_emotion: (shopData.ai_emotion ?? null) as 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful' | null,
+                        facebook_page_id: shopData.facebook_page_id ?? '',
+                        products: mappedProducts,
+                        notify_on_order: shopData.notify_on_order,
+                        notify_on_contact: shopData.notify_on_contact,
+                        notify_on_support: shopData.notify_on_support,
+                        notify_on_cancel: shopData.notify_on_cancel,
+                        subscription_plan: shopData.subscription_plan ?? null,
+                        subscription_status: shopData.subscription_status ?? null,
+                        token_usage_total: shopData.token_usage_total,
+                    }),
                     subscription: {
                         plan: shopData.subscription_plan || 'starter',
                         status: shopData.subscription_status || 'active',
@@ -302,7 +322,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         } else if (aiResponse) {
             finalResponse = aiResponse;
         } else {
-            finalResponse = generateFallbackResponse({ intent: 'GREETING', confidence: 0, entities: {} }, shopData.name, shopData.products as any);
+            finalResponse = generateFallbackResponse({ intent: 'GREETING', confidence: 0, entities: {} }, shopData.name, mappedProducts);
         }
 
         // Send response
@@ -318,6 +338,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
             : combinedText;
 
         await saveChatHistory(shopId, customerId, userMessageSummary, finalResponse, 'BATCHED');
+        // Analytics only — billing is via AIRouter token/credit accounting
         await incrementMessageCount(customerId);
 
         logger.success(`Processed batch of ${messages.length} messages for sender ${senderId}`);
@@ -328,7 +349,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         // Send fallback message
         await sendTextMessage({
             recipientId: senderId,
-            message: generateFallbackResponse({ intent: 'GREETING', confidence: 0, entities: {} }, shopData.name, shopData.products as any),
+            message: generateFallbackResponse({ intent: 'GREETING', confidence: 0, entities: {} }, shopData.name, mappedProducts),
             pageAccessToken: accessToken,
         });
     }

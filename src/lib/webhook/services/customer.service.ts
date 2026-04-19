@@ -214,6 +214,11 @@ export async function updateCustomerInfo(
     return updatedCustomer;
 }
 
+/**
+ * Per-customer message counter — ANALYTICS ONLY.
+ * Not used for billing; billing is credit/token-based at shop level via AIRouter.
+ * Backed by `customers.message_count` with monthly auto-reset.
+ */
 export async function incrementMessageCount(customerId: string): Promise<number> {
     const supabase = supabaseAdmin();
 

@@ -104,14 +104,14 @@ export const defaultLandingContent: LandingContent = {
             desc: "Бүтээгдэхүүн танилцуулах",
             monthly: { price: "₮89,000", period: "/сар" },
             yearly: { price: "₮890,000", period: "/жил", savings: "2 сар үнэгүй" },
-            features: ["1 хуудас", "1,000 мессеж/сар", "20 бүтээгдэхүүн", "Тусгай борлуулагч Agent (Basic)"],
+            features: ["1 хуудас", "1,000 AI credit/сар", "20 бүтээгдэхүүн", "Тусгай борлуулагч Agent (Basic)"],
         },
         starter: {
             label: "Starter",
             desc: "Жижиг бизнест",
             monthly: { price: "₮179,000", period: "/сар" },
             yearly: { price: "₮1,790,000", period: "/жил", savings: "2 сар үнэгүй" },
-            features: ["1 Facebook/Instagram хуудас", "2,400 мессеж/сар", "50 бүтээгдэхүүн", "Тусгай борлуулагч Agent"],
+            features: ["1 Facebook/Instagram хуудас", "2,400 AI credit/сар", "50 бүтээгдэхүүн", "Тусгай борлуулагч Agent"],
         },
         pro: {
             label: "Pro",
@@ -119,7 +119,7 @@ export const defaultLandingContent: LandingContent = {
             recommended: true,
             monthly: { price: "₮379,000", period: "/сар" },
             yearly: { price: "₮3,379,000", period: "/жил", savings: "2 сар үнэгүй" },
-            features: ["3 Facebook/Instagram хуудас", "12,000 мессеж/сар", "300 бүтээгдэхүүн", "Тусгай борлуулагч Agent", "QPay холболт", "Тайлан, аналитик"],
+            features: ["3 Facebook/Instagram хуудас", "12,000 AI credit/сар", "300 бүтээгдэхүүн", "Тусгай борлуулагч Agent", "QPay холболт", "Тайлан, аналитик"],
         },
         enterprise: {
             label: "Enterprise",
@@ -132,7 +132,7 @@ export const defaultLandingContent: LandingContent = {
 
     comparison: [
         { name: "Facebook/Instagram хуудас", lite: "1", starter: "1", pro: "3", enterprise: "Хязгааргүй" },
-        { name: "Сарын мессеж", lite: "1,000", starter: "2,400", pro: "12,000", enterprise: "Хязгааргүй" },
+        { name: "Сарын AI credit", lite: "1,000", starter: "2,400", pro: "12,000", enterprise: "Хязгааргүй" },
         { name: "Бүтээгдэхүүн", lite: "20", starter: "50", pro: "300", enterprise: "Хязгааргүй" },
         { name: "Тусгай борлуулагч Agent", lite: true, starter: true, pro: true, enterprise: true },
         { name: "Зураг таних (Vision)", lite: false, starter: true, pro: true, enterprise: true },

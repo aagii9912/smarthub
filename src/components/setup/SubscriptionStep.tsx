@@ -78,7 +78,8 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             ai_enabled: { icon: '🤖', label: t.features.aiEnabled },
             cart_system: { icon: '🛒', label: t.features.cartSystem },
             crm_analytics: { icon: '📊', label: t.features.crmAnalytics },
-            max_messages: { icon: '💬', label: t.features.messagesPerMonth, showValue: true },
+            max_messages: { icon: '💬', label: t.features.creditsPerMonth, showValue: true },
+            max_credits: { icon: '💬', label: t.features.creditsPerMonth, showValue: true },
             max_products: { icon: '📦', label: t.features.productCount, showValue: true },
             priority_support: { icon: '⭐', label: t.features.prioritySupport },
         };

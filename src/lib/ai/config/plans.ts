@@ -1,13 +1,31 @@
 /**
  * Syncly AI Plan Configuration - Gemini Family
- * 
- * Billing: Token-based (primary) + message count (analytics)
+ *
+ * Billing: Credit-based (user-facing) / Token-based (backend accounting)
+ *   1 credit = 1000 tokens (see TOKENS_PER_CREDIT)
+ *
  * Strategy: Tiered Gemini models per plan
- * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1M tokens (Chatbot only)
- * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2.4M tokens
- * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12M tokens (better tool calling)
- * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100M tokens
+ * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1,000 credits (Chatbot only)
+ * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2,400 credits
+ * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12,000 credits (better tool calling)
+ * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100,000 credits
+ *
+ * Per-customer `customers.message_count` is analytics-only and NOT part of billing.
  */
+
+/**
+ * Conversion rate between user-facing credits and backend tokens.
+ * Change with care — existing plan sizing assumes 1000.
+ */
+export const TOKENS_PER_CREDIT = 1000;
+
+export function tokensToCredits(tokens: number): number {
+    return Math.ceil(tokens / TOKENS_PER_CREDIT);
+}
+
+export function creditsToTokens(credits: number): number {
+    return credits * TOKENS_PER_CREDIT;
+}
 
 export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
@@ -23,8 +41,7 @@ export interface PlanAIConfig {
     provider: AIProvider;
     model: AIModel;
     maxTokens: number;
-    messagesPerMonth: number;   // Legacy: kept for analytics
-    tokensPerMonth: number;     // Primary billing metric
+    tokensPerMonth: number;     // Backend accounting — user-facing value is credits (tokensPerMonth / TOKENS_PER_CREDIT)
     maxShops: number;
     maxProducts: number;
     price: {
@@ -64,8 +81,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 300,
-        messagesPerMonth: 1000,       // Legacy analytics
-        tokensPerMonth: 1_000_000,    // ~1M tokens/month
+        tokensPerMonth: 1_000_000,    // ~1M tokens/month ≈ 1,000 credits
         maxShops: 1,
         maxProducts: 20,
         price: {
@@ -104,8 +120,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 500,
-        messagesPerMonth: 2000,       // Legacy analytics
-        tokensPerMonth: 2_400_000,    // ~2.4M tokens/month
+        tokensPerMonth: 2_400_000,    // ~2.4M tokens/month ≈ 2,400 credits
         maxShops: 1,
         maxProducts: 50,
         price: {
@@ -150,8 +165,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 800,
-        messagesPerMonth: 10000,      // Legacy analytics
-        tokensPerMonth: 12_000_000,   // ~12M tokens/month
+        tokensPerMonth: 12_000_000,   // ~12M tokens/month ≈ 12,000 credits
         maxShops: 3,
         maxProducts: 300,
         price: {
@@ -201,8 +215,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 1500,
-        messagesPerMonth: 100000,     // Legacy analytics
-        tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited)
+        tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited) ≈ 100,000 credits
         maxShops: 1000,           // Effectively unlimited
         maxProducts: 100000,      // Effectively unlimited
         price: {
@@ -304,25 +317,14 @@ export function getEnabledToolsForPlan(plan: PlanType): ToolName[] {
 }
 
 /**
- * Check message limit (legacy — kept for analytics)
+ * Credits available per month for a plan (user-facing billing unit).
  */
-export function checkMessageLimit(
-    plan: PlanType,
-    currentCount: number
-): { allowed: boolean; remaining: number; limit: number } {
-    const config = getPlanConfig(plan);
-    const limit = config.messagesPerMonth;
-    const remaining = Math.max(0, limit - currentCount);
-
-    return {
-        allowed: currentCount < limit,
-        remaining,
-        limit,
-    };
+export function getCreditsPerMonth(plan: PlanType): number {
+    return Math.floor(getPlanConfig(plan).tokensPerMonth / TOKENS_PER_CREDIT);
 }
 
 /**
- * Check token limit (primary billing metric)
+ * Check token limit (backend accounting — exact cost).
  */
 export function checkTokenLimit(
     plan: PlanType,
@@ -338,6 +340,24 @@ export function checkTokenLimit(
         remaining,
         limit,
         usagePercent,
+    };
+}
+
+/**
+ * Check credit limit (user-facing billing unit).
+ * Wraps checkTokenLimit — tokens are the authoritative backend value.
+ */
+export function checkCreditLimit(
+    plan: PlanType,
+    currentTokens: number
+): { allowed: boolean; remaining: number; limit: number; used: number; usagePercent: number } {
+    const tokenCheck = checkTokenLimit(plan, currentTokens);
+    return {
+        allowed: tokenCheck.allowed,
+        used: tokensToCredits(currentTokens),
+        remaining: Math.floor(tokenCheck.remaining / TOKENS_PER_CREDIT),
+        limit: getCreditsPerMonth(plan),
+        usagePercent: tokenCheck.usagePercent,
     };
 }
 
