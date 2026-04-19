@@ -89,7 +89,17 @@ export async function GET() {
         }
 
         // Try to get plan from joined data, or lookup by subscription_plan field
-        let planData = shop.plans as any;
+        interface PlanData {
+            id?: string;
+            slug: string;
+            name?: string;
+            features?: Record<string, unknown>;
+            limits?: Record<string, unknown>;
+        }
+        const rawPlans = shop.plans ?? null;
+        let planData: PlanData | null = Array.isArray(rawPlans)
+            ? ((rawPlans[0] ?? null) as PlanData | null)
+            : (rawPlans as PlanData | null);
 
         // If no plan_id but subscription_plan exists, lookup the plan
         if (!planData && shop.subscription_plan) {

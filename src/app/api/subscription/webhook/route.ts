@@ -143,8 +143,7 @@ async function activateSubscriptionForShop(
             .eq('shop_id', shopId);
 
         // Update shop's plan
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const planSlug = planSlugOverride || (subscription as any).plans?.slug || 'professional';
+        const planSlug = planSlugOverride || (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
         await supabase
             .from('shops')
             .update({

@@ -3,6 +3,10 @@ import { logger } from '@/lib/utils/logger';
 import { getProductFromDB } from '../../../helpers/stockHelpers';
 import type { UpdateOrderArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
+import { pickOne, type OrderItemRow } from '@/types/supabase-helpers';
+
+const productName = (item: OrderItemRow): string =>
+    pickOne(item.products)?.name ?? '';
 
 export async function executeUpdateOrder(
     args: UpdateOrderArgs,
@@ -37,11 +41,10 @@ export async function executeUpdateOrder(
                     return { success: false, error: 'Барааны нэр болон шинэ тоо хэмжээг оруулна уу.' };
                 }
 
-                const orderItems = pendingOrder.order_items as any[];
-                const item = orderItems?.find((i: any) => {
-                    const name = i.products?.[0]?.name || i.products?.name || '';
-                    return name.toLowerCase().includes(product_name.toLowerCase());
-                });
+                const orderItems = (pendingOrder.order_items ?? []) as OrderItemRow[];
+                const item = orderItems.find((i) =>
+                    productName(i).toLowerCase().includes(product_name.toLowerCase())
+                );
 
                 if (!item) {
                     return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
@@ -54,7 +57,7 @@ export async function executeUpdateOrder(
 
                 if (updateError) throw updateError;
 
-                const newTotal = orderItems.reduce((sum: number, i: any) => {
+                const newTotal = orderItems.reduce((sum, i) => {
                     const qty = i.id === item.id ? new_quantity : i.quantity;
                     return sum + (i.unit_price * qty);
                 }, 0);
@@ -63,7 +66,7 @@ export async function executeUpdateOrder(
 
                 return {
                     success: true,
-                    message: `✅ "${item.products?.[0]?.name || item.products?.name || 'Бараа'}" тоо хэмжээг ${new_quantity} болгож өөрчиллөө. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
+                    message: `✅ "${productName(item) || 'Бараа'}" тоо хэмжээг ${new_quantity} болгож өөрчиллөө. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
                     data: { order_id: orderId, new_quantity, new_total: newTotal }
                 };
             }
@@ -73,11 +76,10 @@ export async function executeUpdateOrder(
                     return { success: false, error: 'Хасах барааны нэрийг оруулна уу.' };
                 }
 
-                const orderItems = pendingOrder.order_items as any[];
-                const item = orderItems?.find((i: any) => {
-                    const name = i.products?.[0]?.name || i.products?.name || '';
-                    return name.toLowerCase().includes(product_name.toLowerCase());
-                });
+                const orderItems = (pendingOrder.order_items ?? []) as OrderItemRow[];
+                const item = orderItems.find((i) =>
+                    productName(i).toLowerCase().includes(product_name.toLowerCase())
+                );
 
                 if (!item) {
                     return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
@@ -86,8 +88,9 @@ export async function executeUpdateOrder(
                 await supabase.from('order_items').delete().eq('id', item.id);
 
                 const remainingItems = orderItems.filter((i) => i.id !== item.id);
-                const newTotal = remainingItems.reduce((sum: number, i: any) =>
-                    sum + (i.unit_price * i.quantity), 0
+                const newTotal = remainingItems.reduce(
+                    (sum, i) => sum + i.unit_price * i.quantity,
+                    0
                 );
 
                 if (remainingItems.length === 0) {
@@ -98,7 +101,7 @@ export async function executeUpdateOrder(
 
                     return {
                         success: true,
-                        message: `✅ "${item.products?.[0]?.name || item.products?.name || 'Бараа'}" хасагдлаа. Захиалгад бараа үлдээгүй тул цуцлагдлаа.`,
+                        message: `✅ "${productName(item) || 'Бараа'}" хасагдлаа. Захиалгад бараа үлдээгүй тул цуцлагдлаа.`,
                         data: { order_id: orderId, cancelled: true }
                     };
                 }
@@ -107,7 +110,7 @@ export async function executeUpdateOrder(
 
                 return {
                     success: true,
-                    message: `✅ "${item.products?.[0]?.name || item.products?.name || 'Бараа'}" захиалгаас хасагдлаа. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
+                    message: `✅ "${productName(item) || 'Бараа'}" захиалгаас хасагдлаа. Шинэ нийт дүн: ${newTotal.toLocaleString()}₮`,
                     data: { order_id: orderId, new_total: newTotal }
                 };
             }
@@ -146,9 +149,10 @@ export async function executeUpdateOrder(
                     unit_price: unitPrice
                 });
 
-                const orderItems = pendingOrder.order_items as any[];
-                const currentTotal = orderItems.reduce((sum: number, i: any) =>
-                    sum + (i.unit_price * i.quantity), 0
+                const orderItems = (pendingOrder.order_items ?? []) as OrderItemRow[];
+                const currentTotal = orderItems.reduce(
+                    (sum, i) => sum + i.unit_price * i.quantity,
+                    0
                 );
                 const newTotal = currentTotal + (unitPrice * quantity);
 

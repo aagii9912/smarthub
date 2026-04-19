@@ -170,8 +170,8 @@ export default function CustomersPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 {[{ l: 'Нэр', k: 'name', icon: null }, { l: 'Утас', k: 'phone', icon: Phone }, { l: 'И-мэйл', k: 'email', icon: Mail }, { l: 'Хаяг', k: 'address', icon: null }].map(f => (
                                     <div key={f.k}><label className="block text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-1.5">{f.l}</label>
-                                        {editMode ? <input type="text" value={(editForm as any)[f.k]} onChange={(e) => setEditForm({ ...editForm, [f.k]: e.target.value })} className={inputCls} />
-                                            : <p className="flex items-center gap-1.5 text-[13px] text-foreground">{f.icon && <f.icon className="w-3 h-3 text-white/20" strokeWidth={1.5} />}{(selectedCustomer as any)[f.k] || '-'}</p>}
+                                        {editMode ? <input type="text" value={(editForm as Record<string, string>)[f.k] ?? ''} onChange={(e) => setEditForm({ ...editForm, [f.k]: e.target.value })} className={inputCls} />
+                                            : <p className="flex items-center gap-1.5 text-[13px] text-foreground">{f.icon && <f.icon className="w-3 h-3 text-white/20" strokeWidth={1.5} />}{(selectedCustomer as unknown as Record<string, unknown>)[f.k] as string || '-'}</p>}
                                     </div>
                                 ))}
                             </div>

@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import type { CheckDeliveryStatusArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
+import { pickOne, type OrderItemRow } from '@/types/supabase-helpers';
 
 /** Estimated delivery times by status (in hours) */
 const DELIVERY_ESTIMATES: Record<string, { label: string; eta: string; progress: number }> = {
@@ -60,9 +61,9 @@ export async function executeCheckDeliveryStatus(
 
         const deliveries = orders.map(order => {
             const statusInfo = DELIVERY_ESTIMATES[order.status] || DELIVERY_ESTIMATES.pending;
-            const items = (order.order_items as any[])?.map(
-                (item: any) => `${item.products?.[0]?.name || item.products?.name || 'Бараа'} x${item.quantity}`
-            ).join(', ') || '';
+            const items = ((order.order_items ?? []) as OrderItemRow[])
+                .map((item) => `${pickOne(item.products)?.name ?? 'Бараа'} x${item.quantity}`)
+                .join(', ');
 
             // Calculate time since order
             const orderDate = new Date(order.created_at);

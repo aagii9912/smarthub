@@ -3,6 +3,13 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
 import { logger } from '@/lib/utils/logger';
+import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
+
+interface ReportProduct {
+    id: string;
+    name: string;
+    images?: string[] | null;
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -128,7 +135,7 @@ export async function GET(request: NextRequest) {
         }>();
 
         orderItems.forEach(item => {
-            const product = item.products as any;
+            const product = pickOne(item.products as SupabaseRelation<ReportProduct>);
             if (!product) return;
 
             const existing = productSalesMap.get(product.id);

@@ -5,6 +5,9 @@
 // Database types
 export * from './database';
 
+// Supabase join helpers
+export * from './supabase-helpers';
+
 // AI types
 export * from './ai';
 

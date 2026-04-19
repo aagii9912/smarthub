@@ -16,7 +16,15 @@ function SettingsContent() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [shop, setShop] = useState<any>(null);
+    interface ShopRecord {
+        name?: string;
+        description?: string;
+        phone?: string;
+        address?: string;
+        working_hours?: string;
+        [key: string]: unknown;
+    }
+    const [shop, setShop] = useState<ShopRecord | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');

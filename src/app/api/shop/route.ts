@@ -259,13 +259,13 @@ export async function PATCH(request: NextRequest) {
           } catch { /* non-critical */ }
 
           const merchant = await registerShopAsMerchant({
-            shopName: (updatedShop as any)?.name || shop.name || 'Shop',
+            shopName: (updatedShop as { name?: string } | null)?.name || shop.name || 'Shop',
             merchantType: (sanitizedUpdate.merchant_type as 'company' | 'person') || (body.merchant_type as 'company' | 'person') || 'person',
             registerNumber: (sanitizedUpdate.register_number as string) || (body.register_number as string) || undefined,
             bankCode,
             accountNumber: sanitizedUpdate.account_number as string,
             accountName: sanitizedUpdate.account_name as string,
-            phone: (updatedShop as any)?.phone || shop.phone || '',
+            phone: (updatedShop as { phone?: string } | null)?.phone || shop.phone || '',
             email: userEmail || `${shop.id.substring(0, 8)}@syncly.mn`,
           });
 

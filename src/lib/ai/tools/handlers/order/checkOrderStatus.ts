@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import type { CheckOrderStatusArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
+import { pickOne, type OrderItemRow } from '@/types/supabase-helpers';
 
 export async function executeCheckOrderStatus(
     args: CheckOrderStatusArgs,
@@ -49,9 +50,9 @@ export async function executeCheckOrderStatus(
                 cancelled: '❌ Цуцлагдсан'
             };
 
-            const items = (order.order_items as any[])?.map(
-                (item: any) => `${item.products?.[0]?.name || item.products?.name || 'Бараа'} x${item.quantity}`
-            ).join(', ') || '';
+            const items = ((order.order_items ?? []) as OrderItemRow[])
+                .map((item) => `${pickOne(item.products)?.name ?? 'Бараа'} x${item.quantity}`)
+                .join(', ');
 
             return {
                 id: order.id.substring(0, 8).toUpperCase(),

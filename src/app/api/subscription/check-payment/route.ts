@@ -117,8 +117,7 @@ export async function POST(request: NextRequest) {
                     .eq('shop_id', shop.id);
 
                 // 4. Update shop's plan + subscription_plan + subscription_status
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const planSlug = (subscription as any).plans?.slug || 'professional';
+                const planSlug = (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
                 await supabase
                     .from('shops')
                     .update({

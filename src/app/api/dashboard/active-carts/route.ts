@@ -3,6 +3,35 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
+import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
+
+interface CartCustomer {
+    id: string;
+    name: string | null;
+    facebook_id?: string | null;
+    is_vip?: boolean | null;
+    phone?: string | null;
+}
+
+interface CartItemProduct {
+    name: string;
+    image_url?: string | null;
+}
+
+interface CartItem {
+    id: string;
+    quantity: number;
+    unit_price: number;
+    products?: SupabaseRelation<CartItemProduct>;
+}
+
+interface CartRow {
+    id: string;
+    updated_at: string;
+    created_at: string;
+    customers?: SupabaseRelation<CartCustomer>;
+    cart_items?: CartItem[];
+}
 
 export async function GET() {
     try {
@@ -47,31 +76,34 @@ export async function GET() {
         }
 
         // Transform data for frontend
-        const formattedCarts = carts.map((cart: any) => {
-            const items = cart.cart_items || [];
-            // Calculate totals manually to be safe
-            const totalAmount = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unit_price), 0);
-            const itemCount = items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const formattedCarts = ((carts as unknown as CartRow[]) || []).map((cart) => {
+            const items = cart.cart_items ?? [];
+            const customer = pickOne(cart.customers);
+            const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+            const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
             return {
-                id: cart.customers?.id || cart.id, // Use customer ID as key if available
+                id: customer?.id ?? cart.id,
                 cartId: cart.id,
                 customer: {
-                    id: cart.customers?.id,
-                    name: cart.customers?.name || 'Guest',
-                    facebookId: cart.customers?.facebook_id,
-                    isVip: cart.customers?.is_vip
+                    id: customer?.id,
+                    name: customer?.name || 'Guest',
+                    facebookId: customer?.facebook_id,
+                    isVip: customer?.is_vip,
                 },
                 lastActive: cart.updated_at,
                 itemCount,
                 totalAmount,
-                items: items.map((item: any) => ({
-                    id: item.id,
-                    name: item.products?.name || 'Unknown Product',
-                    price: item.unit_price,
-                    quantity: item.quantity,
-                    image: item.products?.image_url
-                }))
+                items: items.map((item) => {
+                    const product = pickOne(item.products);
+                    return {
+                        id: item.id,
+                        name: product?.name || 'Unknown Product',
+                        price: item.unit_price,
+                        quantity: item.quantity,
+                        image: product?.image_url,
+                    };
+                }),
             };
         });
 

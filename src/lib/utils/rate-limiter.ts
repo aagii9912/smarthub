@@ -36,7 +36,30 @@ export const RATE_LIMIT_CONFIGS = {
 
     // Webhook: External service callbacks
     webhook: { windowMs: 60000, maxRequests: 500 },
+
+    // Dashboard: Frequently polled stats endpoints
+    dashboard: { windowMs: 60000, maxRequests: 30 },
+
+    // Heavy: Expensive read/compute operations
+    heavy: { windowMs: 60000, maxRequests: 10 },
+
+    // Auth: Login, register, password reset
+    auth: { windowMs: 60000, maxRequests: 5 },
 } as const;
+
+/**
+ * Build standard rate-limit response headers
+ */
+export function getRateLimitHeaders(
+    result: { remaining: number; resetAt: number },
+    maxRequests: number
+): Record<string, string> {
+    return {
+        'X-RateLimit-Limit': String(maxRequests),
+        'X-RateLimit-Remaining': String(result.remaining),
+        'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1000)),
+    };
+}
 
 /**
  * Check rate limit for a given key (async, supports Redis)

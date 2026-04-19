@@ -3,6 +3,9 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { logger } from '@/lib/utils/logger';
+import { pickOne, type CustomerSummary, type OrderItemRow } from '@/types/supabase-helpers';
+
+type ExportOrderItem = OrderItemRow & { color?: string | null; size?: string | null };
 
 export async function GET() {
     try {
@@ -38,10 +41,10 @@ export async function GET() {
 
         // Transform data for Excel - printable format
         const excelData = (orders || []).map((order, index) => {
-            const customer = order.customers as any;
-            const items = (order.order_items || []) as any[];
+            const customer = pickOne(order.customers as import('@/types/supabase-helpers').SupabaseRelation<CustomerSummary & { address?: string | null }>);
+            const items = ((order.order_items ?? []) as ExportOrderItem[]);
             const productsText = items.map(i =>
-                `${i.products?.name || 'Unknown'} (x${i.quantity})${i.color ? ` - ${i.color}` : ''}${i.size ? ` - ${i.size}` : ''}`
+                `${pickOne(i.products)?.name || 'Unknown'} (x${i.quantity})${i.color ? ` - ${i.color}` : ''}${i.size ? ` - ${i.size}` : ''}`
             ).join('; ');
 
             return {

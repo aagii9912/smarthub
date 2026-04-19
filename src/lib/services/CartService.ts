@@ -6,6 +6,17 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { DatabaseError, NotFoundError } from '@/types/errors';
 import type { CartItem } from '@/types/ai';
+import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
+
+interface CartItemProductRel { name: string }
+interface CartItemRowDb {
+    id: string;
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+    variant_specs?: Record<string, string> | null;
+    products?: SupabaseRelation<CartItemProductRel>;
+}
 
 export interface AddToCartData {
     productId: string;
@@ -162,10 +173,10 @@ export class CartService {
         }
 
         // Transform to CartWithItems format
-        const items: CartItem[] = (data.cart_items || []).map((item: any) => ({
+        const items: CartItem[] = ((data.cart_items || []) as CartItemRowDb[]).map((item) => ({
             id: item.id,
             product_id: item.product_id,
-            name: item.products?.name || item.products?.[0]?.name || 'Unknown',
+            name: pickOne(item.products)?.name ?? 'Unknown',
             variant_specs: item.variant_specs || {},
             quantity: item.quantity,
             unit_price: item.unit_price,
@@ -341,10 +352,10 @@ export class CartService {
             throw new NotFoundError('Cart', cartId);
         }
 
-        const items: CartItem[] = (data.cart_items || []).map((item: any) => ({
+        const items: CartItem[] = ((data.cart_items || []) as CartItemRowDb[]).map((item) => ({
             id: item.id,
             product_id: item.product_id,
-            name: item.products?.name || item.products?.[0]?.name || 'Unknown',
+            name: pickOne(item.products)?.name ?? 'Unknown',
             variant_specs: item.variant_specs || {},
             quantity: item.quantity,
             unit_price: item.unit_price,

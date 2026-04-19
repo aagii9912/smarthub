@@ -84,7 +84,7 @@ export async function GET() {
         // Build real usage summary
         const usageSummary: Record<string, number> = {
             messages: messagesRes.count || 0,
-            tokens: parseInt((shop as any).token_usage_total || '0', 10),
+            tokens: parseInt(String((shop as { token_usage_total?: number | string }).token_usage_total ?? '0'), 10),
             products: productsRes.count || 0,
             customers: customersRes.count || 0,
             orders: ordersRes.count || 0,

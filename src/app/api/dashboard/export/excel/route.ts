@@ -3,6 +3,7 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import * as XLSX from 'xlsx';
 import { logger } from '@/lib/utils/logger';
+import { pickOne, type CustomerSummary, type OrderItemRow, type SupabaseRelation } from '@/types/supabase-helpers';
 
 export async function GET(request: NextRequest) {
     try {
@@ -38,15 +39,18 @@ export async function GET(request: NextRequest) {
                 .order('created_at', { ascending: false })
                 .limit(500);
 
-            const exportData = orders?.map(order => ({
-                'Огноо': new Date(order.created_at).toLocaleDateString('mn-MN'),
-                'Харилцагч': (order.customers as any)?.name || '-',
-                'Утас': (order.customers as any)?.phone || '-',
-                'Дүн': Number(order.total_amount),
-                'Төлөв': translateStatus(order.status),
-                'Хүргэлтийн хаяг': order.delivery_address || '-',
-                'Тэмдэглэл': order.notes || '-',
-            })) || [];
+            const exportData = orders?.map(order => {
+                const customer = pickOne(order.customers as SupabaseRelation<CustomerSummary>);
+                return {
+                    'Огноо': new Date(order.created_at).toLocaleDateString('mn-MN'),
+                    'Харилцагч': customer?.name || '-',
+                    'Утас': customer?.phone || '-',
+                    'Дүн': Number(order.total_amount),
+                    'Төлөв': translateStatus(order.status),
+                    'Хүргэлтийн хаяг': order.delivery_address || '-',
+                    'Тэмдэглэл': order.notes || '-',
+                };
+            }) || [];
 
             workbook = XLSX.utils.book_new();
             const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -101,11 +105,11 @@ export async function GET(request: NextRequest) {
             const exportData: Record<string, string | number>[] = [];
 
             orders?.forEach(order => {
-                const items = order.order_items as any[];
-                items?.forEach(item => {
+                const items = (order.order_items ?? []) as OrderItemRow[];
+                items.forEach(item => {
                     exportData.push({
                         'Огноо': new Date(order.created_at).toLocaleDateString('mn-MN'),
-                        'Бүтээгдэхүүн': item.products?.name || '-',
+                        'Бүтээгдэхүүн': pickOne(item.products)?.name || '-',
                         'Тоо ширхэг': item.quantity,
                         'Нэгж үнэ': Number(item.unit_price),
                         'Нийт': item.quantity * Number(item.unit_price),

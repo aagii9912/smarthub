@@ -106,9 +106,17 @@ export const isPWA = (): boolean => {
 };
 
 // Network information (if available)
+interface NetworkInformation { effectiveType?: string }
+interface NavigatorWithConnection extends Navigator {
+    connection?: NetworkInformation;
+    mozConnection?: NetworkInformation;
+    webkitConnection?: NetworkInformation;
+}
+
 export const getNetworkType = (): string => {
     if (typeof navigator === 'undefined') return 'unknown';
-    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    const nav = navigator as NavigatorWithConnection;
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
     return connection?.effectiveType || 'unknown';
 };
 

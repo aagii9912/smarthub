@@ -27,7 +27,7 @@
 | Auth | Supabase Auth (Email, Google, Facebook OAuth) | 0.8.0 |
 | AI | Google Generative AI (`@google/generative-ai`) + Vercel AI SDK | 0.24.1 / 6.0.33 |
 | Validation | Zod | 4.x |
-| ORM | Drizzle ORM | 0.45.1 |
+| DB Client | `@supabase/supabase-js` + `postgres` (raw) | 2.89 / 3.4 |
 | Monitoring | Sentry (client + server + edge) | 10.34.0 |
 | Email | Resend | 6.7.0 |
 | Push | Web Push (VAPID) | 3.6.7 |
@@ -273,7 +273,7 @@ These features have base code but are NOT fully implemented:
 - **Email notifications** — Resend SDK installed, not fully implemented
 - **Excel export** — xlsx dependency exists, full UI not built
 - **Instagram content publishing** — Only DM/comment replies, no post publishing
-- **Multi-language** — Mongolian only
+- **Multi-language** — `src/i18n/` supports `mn` (default) + `en`, but coverage is partial (most pages still hard-code Mongolian strings). Prefer `useTranslations()` from `LanguageContext` when adding new UI text
 
 ---
 
@@ -348,7 +348,7 @@ SENTRY_AUTH_TOKEN=
 2. **Use the correct Supabase client** — browser vs server vs service-role matters
 3. **Tailwind v4** uses CSS-first config — no `tailwind.config.ts` file, styles are in `globals.css`
 4. **Port 4001** — Dev server runs on `localhost:4001`, not the default 3000
-5. **Mongolian UI** — All user-facing text is in Mongolian
+5. **Mongolian UI** — Default user-facing language is Mongolian; partial English translations live in `src/i18n/en.ts`. New UI should go through `useTranslations()` rather than hard-coding strings
 6. **Path alias** — Always use `@/` for imports (resolves to `src/`)
 7. **Vercel deployment** — Only `main` branch deploys, `sin1` region (Singapore)
 8. **CRON** — Daily midnight job at `/api/cron/process-messages`

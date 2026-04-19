@@ -90,11 +90,13 @@ class InMemoryRedis implements RedisClient {
 // ==============================
 // Upstash Redis wrapper
 // ==============================
+import type { Redis as UpstashRedis } from '@upstash/redis';
+
 class UpstashRedisWrapper implements RedisClient {
-    private client: any; // Upstash Redis instance
+    private client: UpstashRedis;
     isRedis = true;
 
-    constructor(client: any) {
+    constructor(client: UpstashRedis) {
         this.client = client;
     }
 

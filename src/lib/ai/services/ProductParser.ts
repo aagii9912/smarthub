@@ -80,7 +80,18 @@ Response Format (JSON only):
             return [];
         }
 
-        return parsed.products.map((p: any) => ({
+        interface ParsedProduct {
+            name?: string;
+            price?: number | string;
+            stock?: number | string;
+            description?: string;
+            type?: 'service' | 'physical';
+            unit?: string;
+            colors?: string[];
+            sizes?: string[];
+        }
+
+        return (parsed.products as ParsedProduct[]).map((p) => ({
             name: p.name || 'Unnamed',
             price: Number(p.price) || 0,
             stock: Number(p.stock) || 0,

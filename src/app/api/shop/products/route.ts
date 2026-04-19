@@ -20,16 +20,29 @@ export async function POST(request: NextRequest) {
 
     const supabase = supabaseAdmin();
 
+    interface ProductInput {
+      name?: string;
+      price?: string | number;
+      description?: string | null;
+      type?: 'physical' | 'service' | 'appointment';
+      stock?: string | number | null;
+      colors?: string[];
+      sizes?: string[];
+      discount_percent?: number;
+      images?: string[];
+      image_url?: string;
+    }
+
     // Filter valid products
-    const validProducts = products
-      .filter((p: any) => p.name && p.price)
-      .map((p: any) => ({
+    const validProducts = (products as ProductInput[])
+      .filter((p) => p.name && p.price)
+      .map((p) => ({
         shop_id: shop.id,
         name: p.name,
-        price: parseFloat(p.price) || 0,
+        price: parseFloat(String(p.price ?? 0)) || 0,
         description: p.description || null,
         type: p.type || 'physical',
-        stock: p.type === 'service' ? null : (p.stock !== undefined && p.stock !== null && p.stock !== '' ? parseInt(p.stock) : 0),
+        stock: p.type === 'service' ? null : (p.stock !== undefined && p.stock !== null && p.stock !== '' ? parseInt(String(p.stock), 10) : 0),
         colors: p.colors || [],
         sizes: p.sizes || [],
         images: p.images || [],

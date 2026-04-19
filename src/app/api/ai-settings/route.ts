@@ -72,7 +72,13 @@ export async function GET(request: NextRequest) {
             };
 
             // Get top questions (may not exist yet if tables not created)
-            let topQuestions: any[] = [];
+            interface TopQuestion {
+                question_pattern: string;
+                sample_question: string;
+                category: string;
+                count: number;
+            }
+            let topQuestions: TopQuestion[] = [];
             try {
                 const { data } = await supabase
                     .from('ai_question_stats')

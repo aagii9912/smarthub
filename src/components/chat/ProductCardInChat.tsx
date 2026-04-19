@@ -1,6 +1,16 @@
 import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 
+interface ChatProductVariant {
+    id?: string;
+    name?: string;
+    price?: number;
+    options?: Record<string, string>;
+    color?: string | null;
+    size?: string | null;
+    stock?: number;
+}
+
 interface ProductCardInChatProps {
     product: {
         id: string;
@@ -9,7 +19,7 @@ interface ProductCardInChatProps {
         price: number;
         image_url?: string;
         has_variants?: boolean;
-        variants?: any[];
+        variants?: ChatProductVariant[];
     };
     onAddToCart?: (productId: string, variantId?: string) => void;
 }
@@ -25,10 +35,11 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
     const optionNames = React.useMemo(() => {
         if (!hasVariants) return [];
         const names = new Set<string>();
-        product.variants?.forEach((v: any) => {
+        product.variants?.forEach((v) => {
             if (v.options) Object.keys(v.options).forEach(k => names.add(k));
         });
         return Array.from(names);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [product]);
 
     // Handle option selection
@@ -41,15 +52,16 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
         if (!hasVariants) return null;
         if (Object.keys(selectedOptions).length !== optionNames.length) return null;
 
-        return product.variants?.find((v: any) => {
-            return Object.entries(v.options).every(([key, val]) => selectedOptions[key] === val);
+        return product.variants?.find((v) => {
+            const opts = v.options ?? {};
+            return Object.entries(opts).every(([key, val]) => selectedOptions[key] === val);
         });
     }, [product, selectedOptions, optionNames, hasVariants]);
 
     // Get available values for an option name (can depend on previous selections if we want to be fancy, simplified here)
     const getValuesForOption = (name: string) => {
         const values = new Set<string>();
-        product.variants?.forEach((v: any) => {
+        product.variants?.forEach((v) => {
             if (v.options && v.options[name]) values.add(v.options[name]);
         });
         return Array.from(values);
@@ -59,7 +71,7 @@ export function ProductCardInChat({ product, onAddToCart }: ProductCardInChatPro
         if (!onAddToCart) return;
         if (hasVariants) {
             if (selectedVariant) {
-                onAddToCart(product.id, selectedVariant.id);
+                onAddToCart(product.id, selectedVariant.id ?? undefined);
             } else {
                 setShowOptions(true);
             }

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth/auth';
+import { pickOne, type OrderItemRow } from '@/types/supabase-helpers';
 import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
@@ -53,9 +54,9 @@ export async function GET(request: NextRequest) {
 
                 csvContent = 'Order ID,Status,Total (₮),Date,Items\n';
                 (orders || []).forEach(order => {
-                    const items = (order.order_items as any[])
-                        ?.map((i: any) => `${i.products?.[0]?.name || i.products?.name || 'Бараа'} x${i.quantity}`)
-                        .join('; ') || '';
+                    const items = ((order.order_items ?? []) as OrderItemRow[])
+                        .map((i) => `${pickOne(i.products)?.name ?? 'Бараа'} x${i.quantity}`)
+                        .join('; ');
                     csvContent += `${order.id},${order.status},${order.total_amount},${order.created_at},"${items}"\n`;
                 });
                 filename = `syncly-orders-${days}d.csv`;

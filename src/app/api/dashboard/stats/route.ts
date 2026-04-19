@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
-import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_CONFIGS } from '@/lib/utils/rate-limiter';
 import { apiError } from '@/lib/utils/api-response';
 import { logger } from '@/lib/utils/logger';
 import * as Sentry from '@sentry/nextjs';
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Rate limiting (identify by shop ID or use IP fallback)
     const identifier = authShop?.id || request.headers.get('x-forwarded-for') || 'anonymous';
-    const rateLimitResult = checkRateLimit(`stats:${identifier}`, RATE_LIMITS.dashboard);
+    const rateLimitResult = await checkRateLimit(`stats:${identifier}`, RATE_LIMIT_CONFIGS.dashboard);
 
     if (!rateLimitResult.allowed) {
       const response = apiError('Too many requests. Please try again later.', null, {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         code: 'RATE_LIMIT_EXCEEDED',
       });
       // Add rate limit headers
-      const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMITS.dashboard.maxRequests);
+      const headers = getRateLimitHeaders(rateLimitResult, RATE_LIMIT_CONFIGS.dashboard.maxRequests);
       Object.entries(headers).forEach(([key, value]) => {
         response.headers.set(key, value);
       });

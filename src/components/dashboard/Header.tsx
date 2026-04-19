@@ -13,7 +13,9 @@ import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/utils/logger';
 
-function getGreeting(t: any): string {
+import type { Translations } from '@/i18n';
+
+function getGreeting(t: Translations): string {
     const hour = new Date().getHours();
     if (hour < 6) return t.header.goodNight;
     if (hour < 12) return t.header.goodMorning;

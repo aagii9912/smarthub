@@ -29,6 +29,9 @@ const aiPaths = ['/api/chat', '/api/ai'];
 // Webhook routes (relaxed rate limit)
 const webhookPaths = ['/api/webhook', '/api/subscription/webhook', '/api/payment/webhook'];
 
+// Debug / test-only routes — 404 in production
+const devOnlyPaths = ['/api/debug', '/api/debug-auth', '/test', '/test-ui'];
+
 function matchesPath(pathname: string, paths: string[]): boolean {
     return paths.some(path => pathname === path || pathname.startsWith(path + '/') || pathname.startsWith(path + '?'));
 }
@@ -40,6 +43,11 @@ export default async function middleware(req: NextRequest) {
     const pathname = req.nextUrl.pathname;
     if (pathname.startsWith('/pay') || pathname.startsWith('/api/pay/')) {
         return NextResponse.next();
+    }
+
+    // Block dev-only debug/test routes in production
+    if (process.env.NODE_ENV === 'production' && matchesPath(pathname, devOnlyPaths)) {
+        return new NextResponse('Not Found', { status: 404 });
     }
 
     const { supabase, supabaseResponse } = createSupabaseMiddlewareClient(req);

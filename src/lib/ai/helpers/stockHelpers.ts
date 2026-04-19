@@ -5,6 +5,16 @@
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
+
+interface CartItemDbRow {
+    id: string;
+    product_id: string;
+    quantity: number;
+    unit_price: number | string;
+    variant_specs?: Record<string, string> | null;
+    products?: SupabaseRelation<{ name: string }>;
+}
 
 /**
  * Check product stock from DB (not context) - prevents stale data
@@ -144,13 +154,13 @@ export async function getCartFromDB(shopId: string, customerId: string): Promise
         return { id: cart.id, items: [], total_amount: 0 };
     }
 
-    const mappedItems = items.map((item: any) => ({
+    const mappedItems = (items as CartItemDbRow[]).map((item) => ({
         id: item.id,
         product_id: item.product_id,
-        name: item.products?.name || item.products?.[0]?.name || 'Unknown',
-        variant_specs: item.variant_specs as Record<string, string>,
+        name: pickOne(item.products)?.name ?? 'Unknown',
+        variant_specs: (item.variant_specs ?? {}) as Record<string, string>,
         quantity: item.quantity,
-        unit_price: Number(item.unit_price)
+        unit_price: Number(item.unit_price),
     }));
 
     const total = mappedItems.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0);

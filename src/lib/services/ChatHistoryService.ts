@@ -7,6 +7,7 @@ import { logger } from '@/lib/utils/logger';
 import { DatabaseError } from '@/types/errors';
 import type { ChatMessage } from '@/types/ai';
 import type { IntentType } from '@/lib/ai/intent-detector';
+import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
 
 export interface SaveChatData {
     shopId: string;
@@ -247,10 +248,7 @@ export class ChatHistoryService {
             }
 
             // Handle Supabase join result which may be array or object
-            const customers = entry.customers as any;
-            const customerName = Array.isArray(customers)
-                ? customers[0]?.name
-                : customers?.name;
+            const customerName = pickOne(entry.customers as SupabaseRelation<{ name: string | null }>)?.name ?? null;
 
             customerMap.set(entry.customer_id, {
                 customerId: entry.customer_id,

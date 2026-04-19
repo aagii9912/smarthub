@@ -38,7 +38,7 @@ function SetupContent() {
   const [step, setStepLocal] = useState(1);
   const [error, setError] = useState('');
   const [fbPages, setFbPages] = useState([]);
-  const [igAccounts, setIgAccounts] = useState<any[]>([]);
+  const [igAccounts, setIgAccounts] = useState<Array<{ pageId: string; pageName: string; pageAccessToken: string; instagramId: string; instagramUsername: string; instagramName: string; profilePicture: string }>>([]);
   const [isInitializing, setIsInitializing] = useState(true);
   const [fbToken, setFbToken] = useState<string>('');
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -195,7 +195,7 @@ function SetupContent() {
     }
   };
 
-  const handleShopSave = async (data: any) => {
+  const handleShopSave = async (data: Record<string, unknown>) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (shop?.id && !isNewShopMode) headers['x-shop-id'] = shop.id;
 
@@ -216,11 +216,11 @@ function SetupContent() {
     }
 
     // Sync preview
-    setPreviewShopName(data.name || '');
-    setPreviewOwnerName(data.owner_name || '');
-    setPreviewPhone(data.phone || '');
-    setPreviewBankName(data.bank_name || '');
-    setPreviewAccountNumber(data.account_number || '');
+    setPreviewShopName(String(data.name || ''));
+    setPreviewOwnerName(String(data.owner_name || ''));
+    setPreviewPhone(String(data.phone || ''));
+    setPreviewBankName(String(data.bank_name || ''));
+    setPreviewAccountNumber(String(data.account_number || ''));
 
     await refreshShop();
     setStep(2);
@@ -273,7 +273,7 @@ function SetupContent() {
     setStep(3);
   };
 
-  const handleManualFacebookSave = async (data: any) => {
+  const handleManualFacebookSave = async (data: { pageId: string; pageName: string; accessToken: string }) => {
     if (data.accessToken) {
       setFbToken(data.accessToken);
     }
@@ -317,7 +317,7 @@ function SetupContent() {
     setStep(4);
   };
 
-  const handleInstagramSelect = async (account: any) => {
+  const handleInstagramSelect = async (account: { instagramId: string; instagramUsername: string; pageAccessToken: string }) => {
     const res = await fetch('/api/shop', {
       method: 'PATCH',
       headers: {
@@ -338,7 +338,7 @@ function SetupContent() {
     setStep(4);
   };
 
-  const handleProductsComplete = async (products: any[]) => {
+  const handleProductsComplete = async (products: Record<string, unknown>[]) => {
     const res = await fetch('/api/shop/products', {
       method: 'POST',
       headers: {
@@ -352,7 +352,7 @@ function SetupContent() {
     setStep(5);
   };
 
-  const handleAIComplete = async (aiData: any) => {
+  const handleAIComplete = async (aiData: Record<string, unknown> & { ai_emotion?: string } | null) => {
     if (aiData) {
       await fetch('/api/shop', {
         method: 'PATCH',
@@ -478,7 +478,7 @@ function SetupContent() {
                   phone: shop?.phone || ''
                 }}
                 onNext={handleShopSave}
-                onPreviewUpdate={(data: any) => {
+                onPreviewUpdate={(data: Partial<{ name: string; owner_name: string; phone: string; bank_name: string; account_number: string }>) => {
                   if (data.name !== undefined) setPreviewShopName(data.name);
                   if (data.owner_name !== undefined) setPreviewOwnerName(data.owner_name);
                   if (data.phone !== undefined) setPreviewPhone(data.phone);
