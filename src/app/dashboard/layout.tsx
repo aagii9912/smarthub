@@ -26,9 +26,9 @@ export default function DashboardLayout({
             </div>
 
             <Sidebar />
-            <div className="md:ml-[260px] transition-all duration-300 min-h-screen flex flex-col relative">
+            <div className="md:ml-[72px] transition-all duration-300 min-h-screen flex flex-col relative">
                 <Header />
-                <main className="flex-1 px-4 md:px-6 lg:px-8 pb-20 md:pb-8 pt-2" role="main" aria-label="Dashboard content">
+                <main className="flex-1 px-4 md:px-6 lg:px-8 pb-24 md:pb-8 pt-4 md:pt-6" role="main" aria-label="Dashboard content">
                     {children}
                 </main>
             </div>
