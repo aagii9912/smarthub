@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Inter, Playfair_Display } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -8,15 +8,11 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from 'sonner';
 
-// Premium Typography: Playfair Display for headings, Inter for body
+// Typography: Inter for body UI, Geist Mono for numerics.
+// GIP (display/brand) is self-hosted via @font-face in globals.css
+// and exposed through --font-display / --font-serif.
 const inter = Inter({
   variable: "--font-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  variable: "--font-serif",
   subsets: ["latin"],
   display: "swap",
 });
@@ -68,7 +64,7 @@ export default function RootLayout({
   return (
     <html lang="mn" className="font-sans">
       <body
-        className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <ServiceWorkerRegistration />
         <PWAInstallPrompt />
