@@ -2,13 +2,25 @@ import { forwardRef, type HTMLAttributes, type ImgHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 /* ─── Avatar ─── */
+type AvatarTone = 'indigo' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan';
+
 interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
     src?: string | null;
     alt?: string;
     fallback?: string;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
     status?: 'online' | 'offline' | 'away' | 'busy';
+    tone?: AvatarTone;
 }
+
+const toneClasses: Record<AvatarTone, string> = {
+    indigo: 'bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo)]',
+    violet: 'bg-[color-mix(in_oklab,var(--brand-violet-500)_18%,transparent)] text-[var(--brand-violet-500)]',
+    emerald: 'bg-[color-mix(in_oklab,var(--status-success)_18%,transparent)] text-[var(--status-success)]',
+    amber: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
+    rose: 'bg-[color-mix(in_oklab,var(--status-danger)_18%,transparent)] text-[var(--status-danger)]',
+    cyan: 'bg-[color-mix(in_oklab,var(--brand-cyan)_18%,transparent)] text-[var(--brand-cyan)]',
+};
 
 const sizeClasses = {
     xs: 'h-6 w-6 text-[10px]',
@@ -44,11 +56,12 @@ function getInitials(name?: string): string {
 }
 
 const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
-    ({ src, alt, fallback, size = 'md', status, className, ...props }, ref) => (
+    ({ src, alt, fallback, size = 'md', status, tone, className, ...props }, ref) => (
         <div ref={ref} className={cn('relative inline-flex shrink-0', className)} {...props}>
             <div
                 className={cn(
-                    'rounded-full bg-secondary flex items-center justify-center font-medium text-muted-foreground overflow-hidden',
+                    'rounded-full flex items-center justify-center font-medium overflow-hidden',
+                    tone ? toneClasses[tone] : 'bg-secondary text-muted-foreground',
                     sizeClasses[size]
                 )}
             >

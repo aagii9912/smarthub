@@ -17,6 +17,10 @@ const buttonVariants = cva(
                 ghost: 'hover:bg-secondary text-foreground',
                 destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm',
                 gold: 'bg-gradient-to-r from-gold-dark via-gold to-gold-light text-neutral-900 font-semibold shadow-md shadow-gold/20 hover:shadow-lg hover:shadow-gold/30',
+                // v1.2 brand pill — indigo→violet gradient with glow
+                pill: 'pill-cta',
+                // v1.2 gold pill — softer than `gold`, used for premium CTAs
+                'pill-gold': 'pill-gold',
                 link: 'text-primary underline-offset-4 hover:underline p-0 h-auto',
             },
             size: {
@@ -28,6 +32,8 @@ const buttonVariants = cva(
                 icon: 'h-10 w-10 rounded-lg',
                 'icon-sm': 'h-8 w-8 rounded-md',
                 'icon-lg': 'h-12 w-12 rounded-xl',
+                // pill sizing (padding baked into .pill-cta / .pill-gold)
+                pill: 'h-auto px-0 py-0',
             },
         },
         defaultVariants: {

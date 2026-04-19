@@ -2,12 +2,19 @@ import { forwardRef, type HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 /* ─── Card ─── */
-const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> & { hover?: boolean; glass?: boolean }>(
-    ({ className, hover, glass, ...props }, ref) => (
+type CardVariant = 'default' | 'outlined' | 'featured';
+
+const Card = forwardRef<
+    HTMLDivElement,
+    HTMLAttributes<HTMLDivElement> & { hover?: boolean; glass?: boolean; variant?: CardVariant }
+>(
+    ({ className, hover, glass, variant = 'default', ...props }, ref) => (
         <div
             ref={ref}
             className={cn(
-                'rounded-xl border border-border bg-card text-card-foreground shadow-sm',
+                variant === 'default' && 'rounded-xl border border-border bg-card text-card-foreground shadow-sm',
+                variant === 'outlined' && 'card-outlined',
+                variant === 'featured' && 'card-featured',
                 hover && 'card-hover-lift cursor-pointer',
                 glass && 'glass',
                 className

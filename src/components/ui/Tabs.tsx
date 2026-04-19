@@ -71,9 +71,10 @@ interface TabsTriggerProps {
     className?: string;
     disabled?: boolean;
     variant?: 'underline' | 'pill';
+    count?: number;
 }
 
-function TabsTrigger({ value, children, className, disabled, variant = 'underline' }: TabsTriggerProps) {
+function TabsTrigger({ value, children, className, disabled, variant = 'underline', count }: TabsTriggerProps) {
     const { value: selectedValue, onChange } = useTabs();
     const isActive = selectedValue === value;
 
@@ -84,7 +85,7 @@ function TabsTrigger({ value, children, className, disabled, variant = 'underlin
             disabled={disabled}
             onClick={() => onChange(value)}
             className={cn(
-                'relative px-3 py-2 text-sm font-medium transition-all duration-200',
+                'relative inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 'disabled:pointer-events-none disabled:opacity-50',
                 variant === 'underline' && [
@@ -103,6 +104,18 @@ function TabsTrigger({ value, children, className, disabled, variant = 'underlin
             )}
         >
             {children}
+            {typeof count === 'number' && count > 0 && (
+                <span
+                    className={cn(
+                        'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold tabular-nums',
+                        isActive
+                            ? 'bg-foreground/10 text-foreground'
+                            : 'bg-secondary text-muted-foreground'
+                    )}
+                >
+                    {count > 99 ? '99+' : count}
+                </span>
+            )}
         </button>
     );
 }
