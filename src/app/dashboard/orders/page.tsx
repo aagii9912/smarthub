@@ -6,6 +6,8 @@ import { DataTable, createSelectColumn } from '@/components/ui/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { OrderStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { PageHero } from '@/components/ui/PageHero';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { formatDate } from '@/lib/utils/date';
 import { useOrders, OrderWithDetails } from '@/hooks/useOrders';
 import { useUpdateOrder, useBulkUpdateOrders } from '@/hooks/useUpdateOrder';
@@ -164,32 +166,38 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      {/* Toolbar */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium text-white/50 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors tracking-[-0.01em]"
-          onClick={() => window.open('/api/orders/export', '_blank')}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" strokeWidth={1.5} />
-          Export
-        </button>
-        <button
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="p-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 text-white/40 ${isRefetching ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      <PageHero
+        eyebrow={t.orders.all}
+        title={t.header.pageTitles['/dashboard/orders']}
+        subtitle={`${orders.length} ${t.orders.all.toLowerCase()}`}
+        actions={
+          <>
+            <button
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium text-white/60 bg-card border border-border rounded-lg hover:border-[var(--brand-indigo)]/40 transition-colors tracking-[-0.01em]"
+              onClick={() => window.open('/api/orders/export', '_blank')}
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Export
+            </button>
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="p-1.5 bg-card border border-border rounded-lg hover:border-[var(--brand-indigo)]/40 transition-colors"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 text-white/50 ${isRefetching ? 'animate-spin' : ''}`} />
+            </button>
+          </>
+        }
+      />
 
       {/* Date Filter */}
-      <div className="flex flex-wrap gap-4 items-end bg-[#0F0B2E] p-4 rounded-lg border border-white/[0.08]">
+      <div className="flex flex-wrap gap-4 items-end card-outlined p-4">
         <div>
-          <label className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-1 block">{t.orders.startDate}</label>
+          <label className="text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-1 block">{t.orders.startDate}</label>
           <input
             type="date"
             value={dateFromInput}
-            className="px-3 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em]"
+            className="px-3 py-2 border border-border rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[var(--brand-indigo)] transition-colors tracking-[-0.01em]"
             onChange={(e) => {
               setDateFromInput(e.target.value);
               setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }));
@@ -197,11 +205,11 @@ export default function OrdersPage() {
           />
         </div>
         <div>
-          <label className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mb-1 block">{t.orders.endDate}</label>
+          <label className="text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-1 block">{t.orders.endDate}</label>
           <input
             type="date"
             value={dateToInput}
-            className="px-3 py-2 border border-white/[0.08] rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[#4A7CE7] transition-colors tracking-[-0.01em]"
+            className="px-3 py-2 border border-border rounded-md text-[13px] bg-transparent focus:outline-none focus:border-[var(--brand-indigo)] transition-colors tracking-[-0.01em]"
             onChange={(e) => {
               setDateToInput(e.target.value);
               setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(new Date(e.target.value).setHours(23, 59, 59, 999)) : undefined }));
@@ -209,46 +217,38 @@ export default function OrdersPage() {
           />
         </div>
         {(dateRange.from || dateRange.to) && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4A7CE7]/10 text-[#4A7CE7] rounded-md text-[11px] font-medium mb-0.5">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[color-mix(in_oklab,var(--brand-indigo)_14%,transparent)] text-[var(--brand-indigo)] rounded-md text-[11px] font-medium mb-0.5">
             <span>{t.orders.filterActive}</span>
-            <button onClick={() => {
-              setDateFromInput('');
-              setDateToInput('');
-              setDateRange({ from: undefined, to: undefined });
-            }} className="hover:bg-[#4A7CE7]/20 rounded p-0.5 transition-colors">
-              <X className="w-3 h-3" />
+            <button
+              onClick={() => {
+                setDateFromInput('');
+                setDateToInput('');
+                setDateRange({ from: undefined, to: undefined });
+              }}
+              className="hover:bg-[color-mix(in_oklab,var(--brand-indigo)_24%,transparent)] rounded p-0.5 transition-colors"
+            >
+              <X className="h-3 w-3" />
             </button>
           </div>
         )}
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-2 no-scrollbar">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-md font-medium text-[12px] whitespace-nowrap transition-all tracking-[-0.01em] ${filter === 'all'
-            ? 'bg-[#1C1650] text-foreground'
-            : 'text-white/40 hover:bg-[#0F0B2E]'
-            }`}
-        >
-          {t.orders.all} ({orders.length})
-        </button>
-        {statusOptions.map((status) => {
-          const count = orders.filter(o => o.status === status.value).length;
-          return (
-            <button
-              key={status.value}
-              onClick={() => setFilter(status.value)}
-              className={`px-3 py-1.5 rounded-md font-medium text-[12px] whitespace-nowrap transition-all tracking-[-0.01em] ${filter === status.value
-                ? 'bg-[#1C1650] text-foreground'
-                : 'text-white/40 hover:bg-[#0F0B2E]'
-                }`}
-            >
-              {status.label} ({count})
-            </button>
-          );
-        })}
-      </div>
+      <Tabs value={filter} onValueChange={setFilter}>
+        <TabsList variant="underline" className="overflow-x-auto no-scrollbar">
+          <TabsTrigger variant="underline" value="all" count={orders.length}>
+            {t.orders.all}
+          </TabsTrigger>
+          {statusOptions.map((status) => {
+            const count = orders.filter((o) => o.status === status.value).length;
+            return (
+              <TabsTrigger key={status.value} variant="underline" value={status.value} count={count}>
+                {status.label}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Orders DataTable - Desktop */}
@@ -269,7 +269,7 @@ export default function OrdersPage() {
         {/* Orders List - Mobile Cards */}
         <div className="lg:col-span-2 md:hidden space-y-3">
           {filteredOrders.length === 0 ? (
-            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] py-12 text-center">
+            <div className="bg-[var(--panel-bg,#0F0B2E)] rounded-lg border border-white/[0.08] py-12 text-center">
               <Package className="w-10 h-10 mx-auto mb-4 text-white/15" strokeWidth={1.5} />
               <p className="text-[13px] text-white/40 tracking-[-0.01em]">{t.orders.noOrders}</p>
             </div>
@@ -277,9 +277,9 @@ export default function OrdersPage() {
             filteredOrders.map((order) => (
               <div
                 key={order.id}
-                className={`bg-[#0F0B2E] rounded-lg border cursor-pointer transition-colors ${selectedOrderId === order.id
-                  ? 'border-[#4A7CE7]/40'
-                  : 'border-white/[0.08] hover:border-[#4A7CE7]/20'
+                className={`bg-[var(--panel-bg,#0F0B2E)] rounded-lg border cursor-pointer transition-colors ${selectedOrderId === order.id
+                  ? 'border-[var(--brand-indigo)]/50'
+                  : 'border-white/[0.08] hover:border-[var(--brand-indigo)]/30'
                   }`}
                 onClick={() => setSelectedOrderId(order.id)}
               >
@@ -325,7 +325,7 @@ export default function OrdersPage() {
         {/* Order Detail */}
         <div className="lg:col-span-1">
           {selectedOrder ? (
-            <div className="sticky top-6 bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
+            <div className="sticky top-6 bg-[var(--panel-bg,#0F0B2E)] rounded-lg border border-white/[0.08] overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
                 <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">{t.orders.details}</span>
                 <OrderStatusBadge status={selectedOrder.status} />
@@ -334,7 +334,7 @@ export default function OrdersPage() {
                 {/* Customer Info */}
                 <div className="space-y-2">
                   <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.orders.customerInfo}</h3>
-                  <div className="bg-[#0F0B2E] rounded-md p-3 space-y-2">
+                  <div className="bg-[var(--panel-bg,#0F0B2E)] rounded-md p-3 space-y-2">
                     <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{selectedOrder.customers?.name || t.orders.noName}</p>
                     {selectedOrder.customers?.phone && (
                       <p className="text-[12px] text-white/40 flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function OrdersPage() {
                   <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.orders.products}</h3>
                   <div className="space-y-1.5">
                     {selectedOrder.order_items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-[#0F0B2E] rounded-md p-3">
+                      <div key={idx} className="flex justify-between items-center bg-[var(--panel-bg,#0F0B2E)] rounded-md p-3">
                         <div>
                           <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{item.products?.name}</p>
                           <p className="text-[11px] text-white/40">
@@ -387,7 +387,7 @@ export default function OrdersPage() {
                 {selectedOrder.notes && (
                   <div className="space-y-2">
                     <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.orders.notes}</h3>
-                    <p className="text-[13px] text-white/60 bg-[#0F0B2E] rounded-md p-3 tracking-[-0.01em]">
+                    <p className="text-[13px] text-white/60 bg-[var(--panel-bg,#0F0B2E)] rounded-md p-3 tracking-[-0.01em]">
                       {selectedOrder.notes}
                     </p>
                   </div>
@@ -410,8 +410,8 @@ export default function OrdersPage() {
                           }}
                           disabled={isActive}
                           className={`flex items-center gap-2 px-3 py-2 rounded-md text-[12px] font-medium transition-all tracking-[-0.01em] ${isActive
-                            ? 'bg-[#4A7CE7]/10 text-[#4A7CE7] cursor-default'
-                            : 'bg-[#0F0B2E] text-white/50 hover:bg-[#151040]'
+                            ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_14%,transparent)] text-[var(--brand-indigo)] cursor-default'
+                            : 'bg-[var(--panel-bg,#0F0B2E)] text-white/50 hover:bg-white/[0.06]'
                             }`}
                         >
                           <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -430,7 +430,7 @@ export default function OrdersPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] py-12 text-center">
+            <div className="bg-[var(--panel-bg,#0F0B2E)] rounded-lg border border-white/[0.08] py-12 text-center">
               <Package className="w-10 h-10 mx-auto mb-4 text-white/10" strokeWidth={1.5} />
               <p className="text-[13px] text-white/40 tracking-[-0.01em]">{t.orders.selectOrder}</p>
             </div>
@@ -441,7 +441,7 @@ export default function OrdersPage() {
       {/* Bulk Status Update Modal */}
       {showBulkStatusModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#141414] rounded-lg border border-white/[0.08] w-full max-w-md p-6 m-4">
+          <div className="bg-card rounded-lg border border-white/[0.08] w-full max-w-md p-6 m-4">
             <h2 className="text-base font-semibold text-foreground mb-4 tracking-[-0.02em]">
               {bulkSelectedOrders.length} {t.orders.bulkChangeStatus}
             </h2>
@@ -452,7 +452,7 @@ export default function OrdersPage() {
                   <button
                     key={status.value}
                     onClick={() => handleBulkStatusUpdate(status.value)}
-                    className="flex items-center gap-2 px-4 py-3 rounded-md bg-[#0F0B2E] text-foreground hover:bg-[#151040] transition-colors font-medium text-[13px] tracking-[-0.01em]"
+                    className="flex items-center gap-2 px-4 py-3 rounded-md bg-[var(--panel-bg,#0F0B2E)] text-foreground hover:bg-white/[0.06] transition-colors font-medium text-[13px] tracking-[-0.01em]"
                   >
                     <Icon className="w-4 h-4 text-white/30" strokeWidth={1.5} />
                     {status.label}

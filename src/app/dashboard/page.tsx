@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, Variants } from 'framer-motion';
-import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActionCenter } from '@/components/dashboard/ActionCenter';
 import { AIStatsCard } from '@/components/dashboard/AIStatsCard';
 import { OrderStatusBadge } from '@/components/ui/Badge';
@@ -11,6 +10,8 @@ import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Dropdown, DropdownItem } from '@/components/ui/Dropdown';
+import { PageHero } from '@/components/ui/PageHero';
+import { KPI } from '@/components/ui/KPI';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useDashboard } from '@/hooks/useDashboard';
@@ -26,8 +27,6 @@ import {
     RefreshCw,
     Calendar,
     ChevronDown,
-    Sparkles,
-    Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -82,78 +81,90 @@ export default function DashboardPage() {
 
     const currentFilterLabel = t.dashboard[timeFilterOptions.find((o) => o.value === timeFilter)?.labelKey || 'today'];
 
+    const revenueDisplay =
+        stats.totalRevenue >= 1000000
+            ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
+            : `₮${stats.totalRevenue.toLocaleString()}`;
+
     return (
         <PullToRefresh onRefresh={handleRefresh}>
             <div className="space-y-6 max-w-[1400px] mx-auto">
-                {/* ─── Toolbar ─── */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                            <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-[12px] font-semibold text-emerald-400">{t.dashboard.active}</span>
-                        </div>
-                    </div>
+                {/* ─── Page Hero ─── */}
+                <PageHero
+                    eyebrow={t.dashboard.active}
+                    eyebrowTone="emerald"
+                    live
+                    title={shop?.name || t.header.fallbackTitle}
+                    subtitle={`${new Date().toLocaleDateString('mn-MN', { weekday: 'long', month: 'short', day: 'numeric' })}`}
+                    actions={
+                        <>
+                            <Dropdown
+                                align="right"
+                                trigger={
+                                    <button className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/60 bg-card border border-border rounded-xl hover:border-[var(--brand-indigo)]/40 transition-all duration-200">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        {currentFilterLabel}
+                                        <ChevronDown className="h-3 w-3" />
+                                    </button>
+                                }
+                            >
+                                {timeFilterOptions.map((option) => (
+                                    <DropdownItem
+                                        key={option.value}
+                                        onClick={() => setTimeFilter(option.value)}
+                                        className={timeFilter === option.value ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_14%,transparent)] text-[var(--brand-indigo)] font-semibold' : ''}
+                                    >
+                                        {t.dashboard[option.labelKey]}
+                                    </DropdownItem>
+                                ))}
+                            </Dropdown>
+                            <button
+                                onClick={() => refetch()}
+                                disabled={isRefetching}
+                                className="p-2 bg-card border border-border rounded-xl hover:border-[var(--brand-indigo)]/40 transition-all duration-200"
+                                title={t.dashboard.refresh}
+                            >
+                                <RefreshCw className={cn('h-3.5 w-3.5 text-white/50', isRefetching && 'animate-spin')} />
+                            </button>
+                        </>
+                    }
+                />
 
-                    <div className="flex items-center gap-2">
-                        <Dropdown
-                            align="right"
-                            trigger={
-                                <button className="flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/50 bg-card backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    {currentFilterLabel}
-                                    <ChevronDown className="w-3 h-3" />
-                                </button>
-                            }
-                        >
-                            {timeFilterOptions.map((option) => (
-                                <DropdownItem
-                                    key={option.value}
-                                    onClick={() => setTimeFilter(option.value)}
-                                    className={timeFilter === option.value ? 'bg-blue-500/10 text-blue-600 text-blue-400 font-semibold' : ''}
-                                >
-                                    {t.dashboard[option.labelKey]}
-                                </DropdownItem>
-                            ))}
-                        </Dropdown>
-
-                        <button
-                            onClick={() => refetch()}
-                            disabled={isRefetching}
-                            className="p-2 bg-card backdrop-blur-sm border border-white/[0.08] rounded-xl hover:border-[#4A7CE7]/30 transition-all duration-200"
-                            title={t.dashboard.refresh}
-                        >
-                            <RefreshCw className={cn('w-3.5 h-3.5 text-white/40', isRefetching && 'animate-spin')} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* ─── Stats Grid ─── */}
-                <motion.div 
-                    variants={containerVariants} 
-                    initial="hidden" 
-                    animate="show" 
+                {/* ─── KPI Grid ─── */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
                     className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4"
                 >
                     <motion.div variants={itemVariants}>
-                        <StatsCard title={t.dashboard.todayOrders} value={stats.todayOrders.toString()} icon={ShoppingCart} iconColor="gold" />
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                        <StatsCard
-                            title={t.dashboard.revenue}
-                            value={
-                                stats.totalRevenue >= 1000000
-                                    ? `₮${(stats.totalRevenue / 1000000).toFixed(1)}M`
-                                    : `₮${stats.totalRevenue.toLocaleString()}`
-                            }
-                            icon={TrendingUp}
-                            iconColor="blue"
+                        <KPI
+                            label={t.dashboard.todayOrders}
+                            value={stats.todayOrders.toString()}
+                            icon={<ShoppingCart className="h-4 w-4" strokeWidth={1.5} />}
+                            featured
                         />
                     </motion.div>
                     <motion.div variants={itemVariants}>
-                        <StatsCard title={t.dashboard.customers} value={stats.totalCustomers.toString()} icon={Users} iconColor="purple" />
+                        <KPI
+                            label={t.dashboard.revenue}
+                            value={revenueDisplay}
+                            icon={<TrendingUp className="h-4 w-4" strokeWidth={1.5} />}
+                        />
                     </motion.div>
                     <motion.div variants={itemVariants}>
-                        <StatsCard title={t.dashboard.pending} value={stats.pendingOrders.toString()} icon={Clock} iconColor="warning" />
+                        <KPI
+                            label={t.dashboard.customers}
+                            value={stats.totalCustomers.toString()}
+                            icon={<Users className="h-4 w-4" strokeWidth={1.5} />}
+                        />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <KPI
+                            label={t.dashboard.pending}
+                            value={stats.pendingOrders.toString()}
+                            icon={<Clock className="h-4 w-4" strokeWidth={1.5} />}
+                        />
                     </motion.div>
                 </motion.div>
 
@@ -179,19 +190,19 @@ export default function DashboardPage() {
                 >
                     {/* Recent Orders — spans 2 cols */}
                     <motion.div variants={itemVariants} className="lg:col-span-2">
-                        <div className="rounded-2xl bg-card backdrop-blur-sm border border-white/[0.08] overflow-hidden transition-all duration-300 hover:border-[#4A7CE7]/20">
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04]">
+                        <div className="card-outlined overflow-hidden transition-all duration-300 hover:border-[var(--brand-indigo)]/30">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 flex items-center justify-center">
-                                        <Package className="w-4 h-4 text-violet-500" strokeWidth={1.5} />
+                                    <div className="h-8 w-8 rounded-xl bg-[color-mix(in_oklab,var(--brand-violet-500)_14%,transparent)] flex items-center justify-center">
+                                        <Package className="h-4 w-4 text-[var(--brand-violet-500)]" strokeWidth={1.5} />
                                     </div>
-                                    <div>
-                                        <span className="text-[14px] font-bold text-foreground tracking-[-0.02em]">{t.dashboard.recentOrders}</span>
-                                    </div>
+                                    <span className="text-[14px] font-bold text-foreground tracking-[-0.02em]">
+                                        {t.dashboard.recentOrders}
+                                    </span>
                                 </div>
                                 <Link href="/dashboard/orders">
-                                    <span className="text-[12px] text-white/40 hover:text-blue-500 transition-colors flex items-center gap-1.5 font-medium">
-                                        {t.dashboard.viewAll} <ArrowRight className="w-3.5 h-3.5" />
+                                    <span className="text-[12px] text-white/50 hover:text-[var(--brand-indigo)] transition-colors flex items-center gap-1.5 font-medium">
+                                        {t.dashboard.viewAll} <ArrowRight className="h-3.5 w-3.5" />
                                     </span>
                                 </Link>
                             </div>
