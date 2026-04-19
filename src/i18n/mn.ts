@@ -281,6 +281,8 @@ export const mn = {
     home: 'Нүүр',
     orders: 'Захиалга',
     reports: 'Тайлан',
+    inbox: 'Чат',
+    newAction: 'Шинэ',
     more: 'Бусад',
     closeMenu: 'Цэс хаах',
     mobileNavigation: 'Гар утасны навигаци',

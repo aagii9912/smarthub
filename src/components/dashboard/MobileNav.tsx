@@ -2,108 +2,111 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
-    Package,
     ShoppingCart,
-    BarChart3,
-    Menu,
-    X,
-    Users,
-    Settings,
-    Bot,
-    CreditCard,
-    AlertTriangle,
-    MessageSquareMore,
     Inbox,
+    MoreHorizontal,
+    Plus,
+    X,
+    Package,
+    Users,
+    AlertTriangle,
+    Bot,
+    MessageSquareMore,
+    BarChart3,
     Sparkles,
     Shield,
+    CreditCard,
+    Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export function MobileNav() {
     const pathname = usePathname();
+    const router = useRouter();
     const { t } = useLanguage();
     const [showMore, setShowMore] = useState(false);
 
-    const primaryNavItems = [
-        { name: t.mobileNav.home, href: '/dashboard', icon: LayoutDashboard },
-        { name: t.mobileNav.orders, href: '/dashboard/orders', icon: ShoppingCart },
-        { name: t.mobileNav.reports, href: '/dashboard/reports', icon: BarChart3 },
+    const tabs = [
+        { id: 'home', href: '/dashboard', icon: LayoutDashboard, label: t.mobileNav.home },
+        { id: 'orders', href: '/dashboard/orders', icon: ShoppingCart, label: t.mobileNav.orders },
+        { id: 'inbox', href: '/dashboard/inbox', icon: Inbox, label: t.mobileNav.inbox },
     ];
 
-    const secondaryNavItems = [
+    const moreItems = [
         { name: t.sidebar.products, href: '/dashboard/products', icon: Package },
         { name: t.sidebar.customers, href: '/dashboard/customers', icon: Users },
         { name: t.sidebar.complaints, href: '/dashboard/complaints', icon: AlertTriangle },
         { name: t.sidebar.cart, href: '/dashboard/cart', icon: ShoppingCart },
-        { name: t.sidebar.inbox, href: '/dashboard/inbox', icon: Inbox },
         { name: t.sidebar.aiSettings, href: '/dashboard/ai-settings', icon: Bot },
         { name: t.sidebar.commentMgmt, href: '/dashboard/comment-automation', icon: MessageSquareMore },
+        { name: t.sidebar.reports, href: '/dashboard/reports', icon: BarChart3 },
         { name: t.sidebar.aiReport, href: '/dashboard/reports/ai', icon: Sparkles },
         { name: t.sidebar.paymentAudit, href: '/dashboard/payment-audit', icon: Shield },
         { name: t.setup.subscription.title, href: '/dashboard/subscription', icon: CreditCard },
         { name: t.sidebar.settings, href: '/dashboard/settings', icon: Settings },
     ];
 
-    // Close on Escape key
     useEffect(() => {
         if (!showMore) return;
-        const handleEscape = (e: KeyboardEvent) => {
+        const onEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') setShowMore(false);
         };
-        document.addEventListener('keydown', handleEscape);
-        return () => document.removeEventListener('keydown', handleEscape);
+        document.addEventListener('keydown', onEscape);
+        return () => document.removeEventListener('keydown', onEscape);
     }, [showMore]);
 
-    const isActiveItem = (href: string) => {
-        return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+    const isActive = (href: string) => {
+        if (href === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/';
+        return pathname === href || (pathname?.startsWith(href + '/') ?? false);
     };
 
-    const isMoreActive = secondaryNavItems.some((item) => isActiveItem(item.href));
+    const isMoreActive = moreItems.some((item) => isActive(item.href));
 
     return (
         <>
-            {/* More Menu Overlay */}
             {showMore && (
-                <div className="fixed inset-0 z-40 md:hidden" onClick={() => setShowMore(false)}>
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
+                <div className="fixed inset-0 z-40 block md:hidden" onClick={() => setShowMore(false)}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
                     <div
-                        className="absolute bottom-20 left-3 right-3 rounded-2xl overflow-hidden animate-fade-in-up bg-[#1a1a20]/90 backdrop-blur-2xl border border-white/[0.08] shadow-2xl"
+                        className="absolute bottom-24 left-3 right-3 rounded-2xl overflow-hidden animate-fade-in-up bg-[#1a1a20]/95 backdrop-blur-2xl border border-white/[0.08] shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-2">
                             <div className="flex items-center justify-between px-4 py-3">
-                                <span className="font-bold text-foreground text-sm tracking-[-0.03em]">{t.mobileNav.more}</span>
+                                <span className="font-bold text-foreground text-sm tracking-[-0.03em]">
+                                    {t.mobileNav.more}
+                                </span>
                                 <button
                                     onClick={() => setShowMore(false)}
                                     aria-label={t.mobileNav.closeMenu}
-                                    className="p-2 rounded-xl hover:bg-[#151040] transition-colors"
+                                    className="p-2 rounded-xl hover:bg-white/[0.06] transition-colors"
                                 >
-                                    <X className="w-4 h-4 text-white/40" />
+                                    <X className="h-4 w-4 text-white/40" />
                                 </button>
                             </div>
                             <div className="grid grid-cols-3 gap-1.5 p-3 pt-0">
-                                {secondaryNavItems.map((item) => (
+                                {moreItems.map((item) => (
                                     <Link
                                         key={item.href}
                                         href={item.href}
                                         onClick={() => setShowMore(false)}
                                         className={cn(
                                             'flex flex-col items-center gap-2 p-3.5 rounded-xl transition-all duration-200',
-                                            isActiveItem(item.href)
-                                                ? 'bg-gradient-to-b from-blue-500/10 to-violet-500/5 text-foreground border border-blue-500/20'
-                                                : 'hover:bg-[#0F0B2E] text-white/40'
+                                            isActive(item.href)
+                                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_14%,transparent)] text-foreground border border-[color-mix(in_oklab,var(--brand-indigo)_30%,transparent)]'
+                                                : 'hover:bg-white/[0.06] text-white/50'
                                         )}
                                     >
                                         <item.icon
                                             className={cn(
-                                                'w-5 h-5',
-                                                isActiveItem(item.href) && 'text-blue-500'
+                                                'h-5 w-5',
+                                                isActive(item.href) && 'text-[var(--brand-indigo)]'
                                             )}
-                                            strokeWidth={isActiveItem(item.href) ? 2 : 1.5}
+                                            strokeWidth={isActive(item.href) ? 2 : 1.5}
                                         />
                                         <span className="text-[10px] font-medium text-center leading-tight tracking-[-0.01em]">
                                             {item.name}
@@ -116,67 +119,84 @@ export function MobileNav() {
                 </div>
             )}
 
-            {/* Bottom Navigation Bar */}
-            <nav className="fixed bottom-3 left-3 right-3 z-50 block md:hidden" aria-label={t.mobileNav.mobileNavigation} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                <div className="bg-[#141418]/70 backdrop-blur-2xl rounded-2xl border border-white/[0.08] shadow-lg">
-                    <ul className="flex justify-around items-stretch h-[58px]">
-                        {primaryNavItems.map((item) => {
-                            const isActive = isActiveItem(item.href);
+            {/* Floating FAB — above pill, right-aligned */}
+            <button
+                onClick={() => router.push('/dashboard/orders?new=1')}
+                aria-label={t.mobileNav.newAction}
+                className="fixed bottom-[92px] right-4 z-50 block md:hidden h-12 w-12 rounded-full pill-cta flex items-center justify-center active:scale-95 transition-transform"
+                style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+            >
+                <Plus className="h-5 w-5" strokeWidth={2.4} />
+            </button>
+
+            {/* Floating pill tab bar */}
+            <nav
+                aria-label={t.mobileNav.mobileNavigation}
+                className="fixed bottom-3 left-3 right-3 z-40 block md:hidden"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+                <div className="bg-[#141418]/80 backdrop-blur-2xl rounded-full border border-white/[0.08] shadow-lg">
+                    <ul className="flex items-stretch justify-around h-[58px] px-2">
+                        {tabs.map((tab) => {
+                            const active = isActive(tab.href);
+                            const Icon = tab.icon;
                             return (
-                                <li key={item.href} className="flex-1">
+                                <li key={tab.id} className="flex-1">
                                     <Link
-                                        href={item.href}
+                                        href={tab.href}
                                         className={cn(
                                             'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
-                                            isActive ? 'text-foreground' : 'text-white/30'
+                                            active ? 'text-foreground' : 'text-white/40'
                                         )}
                                     >
                                         <div className="relative">
-                                            {isActive && (
-                                                <span className="absolute inset-[-6px] bg-blue-500/10 rounded-xl" />
+                                            {active && (
+                                                <span className="absolute inset-[-8px] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] rounded-full" />
                                             )}
-                                            <item.icon
-                                                className={cn('w-5 h-5 relative', isActive && 'text-blue-500')}
-                                                strokeWidth={isActive ? 2 : 1.5}
+                                            <Icon
+                                                className={cn(
+                                                    'h-[22px] w-[22px] relative',
+                                                    active && 'text-[var(--brand-indigo)]'
+                                                )}
+                                                strokeWidth={active ? 2.1 : 1.7}
                                             />
                                         </div>
-                                        <span className={cn(
-                                            'text-[10px] tracking-[-0.01em]',
-                                            isActive ? 'font-bold text-blue-600 text-blue-400' : 'font-medium'
-                                        )}>
-                                            {item.name}
-                                        </span>
+                                        {active && (
+                                            <span className="text-[10px] font-semibold tracking-[-0.01em] text-[var(--brand-indigo)]">
+                                                {tab.label}
+                                            </span>
+                                        )}
                                     </Link>
                                 </li>
                             );
                         })}
-
-                        {/* More Button */}
                         <li className="flex-1">
                             <button
-                                onClick={() => setShowMore(!showMore)}
+                                onClick={() => setShowMore((v) => !v)}
                                 aria-label={t.mobileNav.additionalMenu}
                                 aria-expanded={showMore}
                                 className={cn(
                                     'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
-                                    showMore || isMoreActive ? 'text-foreground' : 'text-white/30'
+                                    showMore || isMoreActive ? 'text-foreground' : 'text-white/40'
                                 )}
                             >
                                 <div className="relative">
                                     {(showMore || isMoreActive) && (
-                                        <span className="absolute inset-[-6px] bg-blue-500/10 rounded-xl" />
+                                        <span className="absolute inset-[-8px] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] rounded-full" />
                                     )}
-                                    <Menu
-                                        className={cn('w-5 h-5 relative', (showMore || isMoreActive) && 'text-blue-500')}
-                                        strokeWidth={showMore || isMoreActive ? 2 : 1.5}
+                                    <MoreHorizontal
+                                        className={cn(
+                                            'h-[22px] w-[22px] relative',
+                                            (showMore || isMoreActive) && 'text-[var(--brand-indigo)]'
+                                        )}
+                                        strokeWidth={showMore || isMoreActive ? 2.1 : 1.7}
                                     />
                                 </div>
-                                <span className={cn(
-                                    'text-[10px] tracking-[-0.01em]',
-                                    (showMore || isMoreActive) ? 'font-bold text-blue-600 text-blue-400' : 'font-medium'
-                                )}>
-                                    {t.mobileNav.more}
-                                </span>
+                                {(showMore || isMoreActive) && (
+                                    <span className="text-[10px] font-semibold tracking-[-0.01em] text-[var(--brand-indigo)]">
+                                        {t.mobileNav.more}
+                                    </span>
+                                )}
                             </button>
                         </li>
                     </ul>

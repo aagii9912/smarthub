@@ -283,6 +283,8 @@ export const en: Translations = {
     home: 'Home',
     orders: 'Orders',
     reports: 'Reports',
+    inbox: 'Inbox',
+    newAction: 'New',
     more: 'More',
     closeMenu: 'Close menu',
     mobileNavigation: 'Mobile navigation',
