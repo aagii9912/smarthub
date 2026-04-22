@@ -10,6 +10,7 @@ export function FloatingCartButton({ itemCount, onClick }: FloatingCartButtonPro
     return (
         <button
             onClick={onClick}
+            aria-label="Сагс харах"
             className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-50 
                  w-14 h-14 rounded-full 
                  bg-gradient-to-r from-violet-600 to-indigo-600 
