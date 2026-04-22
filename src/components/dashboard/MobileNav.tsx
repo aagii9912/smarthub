@@ -119,23 +119,23 @@ export function MobileNav() {
                 </div>
             )}
 
-            {/* Floating FAB — above pill, right-aligned */}
-            <button
-                onClick={() => router.push('/dashboard/orders?new=1')}
-                aria-label={t.mobileNav.newAction}
-                className="fixed bottom-[92px] right-4 z-50 block md:hidden h-12 w-12 rounded-full pill-cta flex items-center justify-center active:scale-95 transition-transform"
-                style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-            >
-                <Plus className="h-5 w-5" strokeWidth={2.4} />
-            </button>
-
-            {/* Floating pill tab bar */}
-            <nav
-                aria-label={t.mobileNav.mobileNavigation}
-                className="fixed bottom-3 left-3 right-3 z-40 block md:hidden"
+            {/* Floating tab bar + inline FAB (matches prototype .syn-tabs layout) */}
+            <div
+                className="fixed bottom-3 left-3 right-3 z-40 flex md:hidden items-center justify-center gap-2.5"
                 style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-                <div className="bg-[#141418]/80 backdrop-blur-2xl rounded-full border border-white/[0.08] shadow-lg">
+                <button
+                    onClick={() => router.push('/dashboard/orders?new=1')}
+                    aria-label={t.mobileNav.newAction}
+                    className="shrink-0 h-[60px] w-[60px] rounded-full pill-cta flex items-center justify-center active:scale-95 transition-transform"
+                >
+                    <Plus className="h-[22px] w-[22px]" strokeWidth={2.4} />
+                </button>
+
+                <nav
+                    aria-label={t.mobileNav.mobileNavigation}
+                    className="flex-1 bg-[#141418]/80 backdrop-blur-2xl rounded-full border border-white/[0.08] shadow-lg"
+                >
                     <ul className="flex items-stretch justify-around h-[58px] px-2">
                         {tabs.map((tab) => {
                             const active = isActive(tab.href);
@@ -200,8 +200,8 @@ export function MobileNav() {
                             </button>
                         </li>
                     </ul>
-                </div>
-            </nav>
+                </nav>
+            </div>
         </>
     );
 }

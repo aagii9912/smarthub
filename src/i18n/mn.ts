@@ -326,6 +326,43 @@ export const mn = {
     product: 'Бүтээгдэхүүн',
     noOrders: 'Захиалга байхгүй',
     noOrdersDesc: 'Захиалга ирсэн тохиолдолд энд харагдана',
+    // Overview hero
+    liveEyebrow: 'Амьд явц',
+    greeting: 'Сайн байна уу',
+    greetingSubtitle: 'Өнөөдрийн дэлгүүрийн явц. AI агент тань {count} ярианд тусалж байна.',
+    export: 'Экспорт',
+    newOrder: 'Шинэ захиалга',
+    // KPI labels
+    kpiTodayOrders: 'Өнөөдрийн захиалга',
+    kpiRevenue: 'Өнөөдрийн орлого',
+    kpiAIAnswered: 'AI хариулсан',
+    kpiAvgOrder: 'Дундаж захиалга',
+    trendVsYesterday: 'өчигдрөөс',
+    // Live orders
+    liveOrders: 'Амьд захиалгууд',
+    liveOrdersSubtitle: 'Сүүлийн захиалгууд · AI хариулсан',
+    tabAll: 'Бүгд',
+    tabPending: 'Хүлээгдэж',
+    tabPaid: 'Төлөгдсөн',
+    colOrder: 'Захиалга',
+    colCustomer: 'Харилцагч',
+    colStatus: 'Төлөв',
+    colAmount: 'Дүн',
+    // Activity
+    activity: 'Идэвхжил',
+    lastHour: 'Сүүлийн 1 цаг',
+    activityNewOrder: 'Шинэ захиалга',
+    activityAIAgent: 'AI агент',
+    activityLowStock: 'Бараа дуусч байна',
+    // Hourly + AI performance
+    hourlyOrders: 'Өнөөдрийн захиалга (цаг тутам)',
+    hourlyRange: '00:00 → 23:59',
+    aiAgentProgress: 'AI агентийн явц',
+    answered: 'Хариулсан',
+    messages: 'зурвас',
+    conversion: 'Захиалга болсон',
+    avgResponse: 'Дундаж хариу',
+    seconds: 'секунд',
   },
 
   // ─── Orders Page ───

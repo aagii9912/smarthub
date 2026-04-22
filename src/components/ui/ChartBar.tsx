@@ -21,7 +21,8 @@ export function ChartBar({ data, height = 120, color = 'var(--brand-indigo)', cl
                     key={i}
                     className="flex-1 rounded-t-sm transition-all duration-300"
                     style={{
-                        height: `${Math.max((v / max) * 100, 2)}%`,
+                        height: `${(v / max) * 100}%`,
+                        minHeight: 6,
                         background: `linear-gradient(to top, ${color}, color-mix(in oklab, ${color} 40%, transparent))`,
                     }}
                     title={String(v)}

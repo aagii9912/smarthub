@@ -28,13 +28,13 @@ export function KPI({
         <div
             className={cn(
                 featured ? 'card-featured' : 'card-outlined',
-                'p-4 md:p-5 flex flex-col gap-2',
+                'p-5 md:p-6 flex flex-col gap-2.5',
                 className
             )}
             {...props}
         >
             <div className="flex items-start justify-between gap-2">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     {label}
                 </div>
                 {icon && <div className="text-muted-foreground shrink-0">{icon}</div>}
@@ -43,7 +43,7 @@ export function KPI({
             {trend && (
                 <div
                     className={cn(
-                        'inline-flex items-center gap-1 text-xs font-medium',
+                        'inline-flex items-center gap-1 text-[12px] font-medium',
                         trend === 'up' ? 'text-[var(--status-success)]' : 'text-[var(--status-danger)]'
                     )}
                 >
@@ -53,7 +53,7 @@ export function KPI({
             )}
             {spark && spark.length > 0 && (
                 <div className="mt-1">
-                    <Sparkline data={spark} height={36} />
+                    <Sparkline data={spark} height={40} />
                 </div>
             )}
         </div>

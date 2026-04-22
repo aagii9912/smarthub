@@ -79,21 +79,26 @@ export function Sidebar() {
         const label = getLabel(item.nameKey);
         const Icon = item.icon;
 
-        const base = cn(
-            'relative group flex items-center justify-center h-11 w-11 rounded-xl transition-all duration-200',
+        const rowBase = cn(
+            'relative flex items-center gap-3 h-11 px-3 mx-2 rounded-xl transition-all duration-200',
             active
-                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_20%,transparent)] text-[var(--brand-indigo)] shadow-[var(--glow-active-rail,0_0_0_1px_rgba(74,124,231,0.4)),0_0_16px_rgba(74,124,231,0.25)]'
-                : 'text-white/55 hover:text-white hover:bg-white/[0.06]',
-            locked && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-white/55'
+                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_20%,transparent)] text-[var(--brand-indigo)] before:absolute before:-left-2 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-r-full before:bg-[var(--brand-indigo)] before:shadow-[0_0_10px_var(--brand-indigo)]'
+                : 'text-white/60 hover:text-white hover:bg-white/[0.06]',
+            locked && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-white/60'
         );
 
-        const tooltip = (
-            <span
-                role="tooltip"
-                className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-[#141418] border border-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 z-50"
-            >
-                {label}
-            </span>
+        const content = (
+            <>
+                <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={active ? 2 : 1.5} />
+                <span
+                    className={cn(
+                        'text-[13px] font-medium tracking-[-0.01em] whitespace-nowrap',
+                        'opacity-0 group-hover/rail:opacity-100 -translate-x-1 group-hover/rail:translate-x-0 transition-all duration-200 delay-[30ms]'
+                    )}
+                >
+                    {label}
+                </span>
+            </>
         );
 
         if (locked) {
@@ -109,10 +114,9 @@ export function Sidebar() {
                                 },
                             })
                         }
-                        className={base}
+                        className={cn(rowBase, 'w-full')}
                     >
-                        <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-                        {tooltip}
+                        {content}
                     </button>
                 </li>
             );
@@ -120,9 +124,8 @@ export function Sidebar() {
 
         return (
             <li key={item.nameKey}>
-                <Link href={item.href} aria-label={label} className={base}>
-                    <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2 : 1.5} />
-                    {tooltip}
+                <Link href={item.href} aria-label={label} className={rowBase}>
+                    {content}
                 </Link>
             </li>
         );
@@ -131,31 +134,35 @@ export function Sidebar() {
     return (
         <aside
             className={cn(
-                'fixed left-0 top-0 z-50 hidden md:flex h-screen w-[72px] flex-col items-center',
+                'group/rail fixed left-0 top-0 z-50 hidden md:flex h-screen',
+                'w-[72px] hover:w-[240px] transition-[width] duration-300 ease-[cubic-bezier(.2,.7,.2,1)]',
                 'bg-[#0c0c0f]/95 backdrop-blur-2xl border-r border-white/[0.06]',
-                'py-3'
+                'py-3 flex-col overflow-hidden'
             )}
             role="navigation"
             aria-label={t.sidebar.main}
         >
             <Link
                 href="/dashboard"
-                className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl"
+                className="mx-3 mb-3 flex h-11 items-center gap-3 px-2 rounded-xl"
                 aria-label="Syncly"
             >
-                <Image src="/logo.png" alt="Syncly" width={30} height={30} className="rounded-lg" />
+                <Image src="/logo.png" alt="Syncly" width={30} height={30} className="rounded-lg shrink-0" />
+                <span className="text-[15px] font-bold text-foreground tracking-[-0.02em] whitespace-nowrap opacity-0 group-hover/rail:opacity-100 transition-opacity duration-200 delay-[30ms]">
+                    Syncly
+                </span>
             </Link>
 
-            <div className="mx-auto mb-3 h-px w-8 bg-white/[0.06]" />
+            <div className="mx-4 mb-2 h-px bg-white/[0.06]" />
 
-            <nav className="flex-1 w-full overflow-y-auto overflow-x-visible scrollbar-hide">
-                <ul className="flex flex-col items-center gap-1.5">{primaryItems.map(renderItem)}</ul>
-                <div className="mx-auto my-3 h-px w-8 bg-white/[0.06]" />
-                <ul className="flex flex-col items-center gap-1.5">{secondaryItems.map(renderItem)}</ul>
+            <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden scrollbar-hide">
+                <ul className="flex flex-col gap-1">{primaryItems.map(renderItem)}</ul>
+                <div className="mx-4 my-3 h-px bg-white/[0.06]" />
+                <ul className="flex flex-col gap-1">{secondaryItems.map(renderItem)}</ul>
             </nav>
 
-            <div className="mt-auto flex flex-col items-center gap-1.5 pt-3 border-t border-white/[0.04] w-full">
-                <ul className="flex flex-col items-center gap-1.5">{bottomItems.map(renderItem)}</ul>
+            <div className="mt-auto flex flex-col gap-1 pt-3 border-t border-white/[0.04] w-full">
+                <ul className="flex flex-col gap-1">{bottomItems.map(renderItem)}</ul>
             </div>
         </aside>
     );
