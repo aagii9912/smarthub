@@ -22,18 +22,31 @@ export async function GET(request: NextRequest) {
     const stateParam = searchParams.get('state');
     const origin = request.nextUrl.origin;
 
-    // Parse state to determine source and shop_id
+    // Parse state to determine source, shop_id, and verify CSRF
     let source = 'setup';
     let shopId = '';
+    let csrfTokenFromState = '';
+
     if (stateParam) {
         try {
             const stateData = JSON.parse(Buffer.from(stateParam, 'base64').toString());
             source = stateData.source || 'setup';
             shopId = stateData.shopId || '';
+            csrfTokenFromState = stateData.csrfToken || '';
         } catch { /* ignore parse errors */ }
     }
 
     const redirectBase = source === 'settings' ? '/dashboard/settings' : '/setup';
+
+    const cookieStore = await cookies();
+
+    // SEC: Verify CSRF state token
+    const savedState = cookieStore.get('ig_oauth_state')?.value;
+    if (!stateParam || !savedState || csrfTokenFromState !== savedState) {
+        return NextResponse.redirect(`${origin}${redirectBase}?ig_error=csrf_validation_failed`);
+    }
+    // Clear the state cookie
+    cookieStore.delete('ig_oauth_state');
 
     // Handle error from Facebook
     if (error) {
@@ -136,7 +149,6 @@ export async function GET(request: NextRequest) {
         const accountsJson = JSON.stringify(instagramAccounts);
         const encodedAccounts = Buffer.from(accountsJson).toString('base64');
 
-        const cookieStore = await cookies();
         cookieStore.set('ig_accounts', encodedAccounts, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
