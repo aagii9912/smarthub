@@ -86,36 +86,44 @@ export async function POST(request: NextRequest) {
       throw orderError;
     }
 
-    // 2. Create Order Items and Reserve Stock
-    for (const item of items) {
-      const { error: itemError } = await supabase
-        .from('order_items')
-        .insert({
-          order_id: order.id,
-          product_id: item.productId,
-          quantity: item.quantity,
-          unit_price: item.unitPrice
+    // 2. Create Order Items in bulk
+    const orderItems = items.map(item => ({
+      order_id: order.id,
+      product_id: item.productId,
+      quantity: item.quantity,
+      unit_price: item.unitPrice
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      // If items fail, we should ideally roll back the order, but for now just throw
+      throw itemsError;
+    }
+
+    // 3. Reserve Stock in bulk using RPC
+    const reservationItems = items.map(item => ({
+      product_id: item.productId,
+      quantity: item.quantity
+    }));
+
+    const { data: reserveSuccess, error: reserveError } = await supabase.rpc('reserve_stock_bulk', {
+      p_items: reservationItems
+    });
+
+    if (reserveError) {
+      logger.error('Bulk stock reservation RPC failed:', { reserveError });
+      // Fallback to individual reservation if RPC fails (backward compatibility or missing migration)
+      for (const item of items) {
+        await supabase.rpc('reserve_stock', {
+          p_product_id: item.productId,
+          p_quantity: item.quantity
         });
-
-      if (itemError) throw itemError;
-
-      // Reserve stock (using RPC or direct update)
-      // Ideally we should use a transaction or RPC, but for now simple update
-      const { data: product } = await supabase
-        .from('products')
-        .select('reserved_stock')
-        .eq('id', item.productId)
-        .single();
-
-      if (product) {
-        await supabase
-          .from('products')
-          .update({
-            reserved_stock: (product.reserved_stock || 0) + item.quantity,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.productId);
       }
+    } else if (!reserveSuccess) {
+      throw new Error('Уучлаарай, зарим барааны үлдэгдэл хүрэлцээгүй байна.');
     }
 
     return NextResponse.json({
