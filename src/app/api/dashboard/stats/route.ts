@@ -80,7 +80,6 @@ export async function GET(request: NextRequest) {
       periodOrdersListResult,
       prevPeriodOrdersResult,
       pendingOrdersResult,
-      allOrdersDataResult,
       totalCustomersResult,
       recentOrdersResult,
       recentChatsResult,
@@ -107,13 +106,6 @@ export async function GET(request: NextRequest) {
         .select('*', { count: 'exact', head: true })
         .eq('shop_id', shopId)
         .eq('status', 'pending'),
-
-      // Нийт орлого (бүх хугацаанд)
-      supabase
-        .from('orders')
-        .select('total_amount')
-        .eq('shop_id', shopId)
-        .in('status', REVENUE_STATUSES),
 
       // Нийт харилцагч
       supabase
@@ -212,7 +204,6 @@ export async function GET(request: NextRequest) {
     const revenueTrend = calcTrend(periodRevenue, prevRevenue);
 
     const pendingOrders = pendingOrdersResult.count;
-    const totalRevenue = allOrdersDataResult.data?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
     const totalCustomers = totalCustomersResult.count;
     const recentOrders = recentOrdersResult.data;
     const recentChats = recentChatsResult.data;
@@ -273,7 +264,8 @@ export async function GET(request: NextRequest) {
       stats: {
         todayOrders: periodOrders || 0,
         pendingOrders: pendingOrders || 0,
-        totalRevenue: Math.round(totalRevenue),
+        // period-filtered revenue (tied to ?period=today|week|month)
+        totalRevenue: Math.round(periodRevenue),
         totalCustomers: totalCustomers || 0,
       },
       prevStats: {
