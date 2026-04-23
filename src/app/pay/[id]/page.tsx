@@ -126,6 +126,30 @@ export default function PaymentPage() {
 
     // ── Paid ──
     if (payment.status === 'paid') {
+        const handleBackToChat = () => {
+            // Try MessengerExtensions SDK first (works in Messenger WebView)
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const MessengerExtensions = (window as any).MessengerExtensions;
+                if (MessengerExtensions?.requestCloseBrowser) {
+                    MessengerExtensions.requestCloseBrowser(
+                        () => { /* success */ },
+                        () => { window.close(); } // fallback
+                    );
+                    return;
+                }
+            } catch { /* not in Messenger WebView */ }
+
+            // Fallback: try window.close (works for popup windows)
+            try {
+                window.close();
+            } catch { /* ignore */ }
+
+            // If nothing worked, show hint to tap "Done" 
+            const hint = document.getElementById('close-hint');
+            if (hint) hint.style.display = 'block';
+        };
+
         return (
             <div className="pay-container">
                 <div className="pay-card">
@@ -170,6 +194,18 @@ export default function PaymentPage() {
                         </div>
                     )}
                     <p className="pay-success-msg">Баярлалаа! Таны төлбөр хүлээн авлаа.</p>
+                    <p className="pay-chat-hint">💬 Баталгаажуулалт чатруу илгээгдсэн</p>
+
+                    {/* Back to chat button */}
+                    <button 
+                        className="pay-back-btn"
+                        onClick={handleBackToChat}
+                    >
+                        💬 Чатруу буцах
+                    </button>
+                    <p id="close-hint" className="pay-close-hint" style={{ display: 'none' }}>
+                        Дээд талын <strong>&quot;Done&quot;</strong> товч дарж хаана уу
+                    </p>
                 </div>
             </div>
         );

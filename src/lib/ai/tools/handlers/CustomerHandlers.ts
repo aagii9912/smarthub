@@ -56,9 +56,20 @@ export async function executeCollectContact(
         });
     }
 
+    // Build natural confirmation
+    const savedParts = [];
+    if (phone) savedParts.push(`📱 ${phone}`);
+    if (address) savedParts.push(`📍 ${address}`);
+    if (name) savedParts.push(`👤 ${name}`);
+
     return {
         success: true,
-        message: `Saved: ${phone ? 'phone ' : ''}${address ? 'address ' : ''}${name ? 'name' : ''}`
+        message: `Мэдээлэл хадгалагдлаа! ✅\n${savedParts.join('\n')}\n\nОдоо төлбөрийн хэсэг рүү шилжинэ...`,
+        data: { 
+            phone: phone || null, 
+            address: address || null,
+            auto_checkout: true,  // Signal AI to auto-proceed with checkout
+        },
     };
 }
 

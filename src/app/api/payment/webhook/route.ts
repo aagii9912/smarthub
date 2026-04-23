@@ -363,7 +363,9 @@ async function handleOrderPayment(
         }
 
         // ── Send Messenger confirmation to customer ──
-        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
+        // Check if pay page poll already sent this (prevent duplicates)
+        const paymentMeta = (payment.metadata as Record<string, unknown>) || {};
+        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token && !paymentMeta.messenger_notified) {
             try {
                 const { sendTextMessage } = await import('@/lib/facebook/messenger');
                 const amount = Number(payment.amount).toLocaleString();
@@ -387,6 +389,17 @@ async function handleOrderPayment(
                     message: confirmMsg,
                     pageAccessToken: orderData.shops.facebook_page_access_token,
                 });
+
+                // Mark as notified to prevent duplicate from pay page poll
+                await supabase
+                    .from('payments')
+                    .update({
+                        metadata: {
+                            ...paymentMeta,
+                            messenger_notified: true,
+                        },
+                    })
+                    .eq('id', payment.id as string);
 
                 logger.success('Payment confirmation sent to customer via Messenger');
             } catch (msgErr) {

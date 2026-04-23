@@ -42,17 +42,20 @@ export async function GET(
                 const transactionId = getTransactionId(paymentCheck);
 
                 // Update payment to paid
+                const updatedMetadata = {
+                    ...(payment.metadata as Record<string, unknown> || {}),
+                    payment_details: paymentCheck.rows?.[0] ?? null,
+                    confirmed_via: 'pay_page_poll',
+                    messenger_notified: true, // Mark to prevent duplicate
+                };
+
                 await supabase
                     .from('payments')
                     .update({
                         status: 'paid',
                         paid_at: new Date().toISOString(),
                         qpay_transaction_id: transactionId,
-                        metadata: {
-                            ...(payment.metadata as Record<string, unknown> || {}),
-                            payment_details: paymentCheck.rows?.[0] ?? null,
-                            confirmed_via: 'pay_page_poll',
-                        },
+                        metadata: updatedMetadata,
                     })
                     .eq('id', payment.id);
 
@@ -73,6 +76,42 @@ export async function GET(
                         await deductStockForOrder(payment.order_id);
                     } catch (stockErr) {
                         logger.error('Stock deduction failed (pay page):', { error: String(stockErr) });
+                    }
+
+                    // ── Send Messenger confirmation (backup for missed webhooks) ──
+                    try {
+                        const { data: orderData } = await supabase
+                            .from('orders')
+                            .select('*, customers(name, facebook_id), shops(name, facebook_page_access_token, address)')
+                            .eq('id', payment.order_id)
+                            .single();
+
+                        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
+                            const { sendTextMessage } = await import('@/lib/facebook/messenger');
+                            const amount = Number(payment.amount).toLocaleString();
+                            const deliveryFee = Number(orderData.delivery_fee || 0);
+                            const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
+
+                            let confirmMsg = '';
+                            if (orderData.delivery_method === 'pickup') {
+                                const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
+                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+                            } else {
+                                const deliveryAddress = orderData.delivery_address || '';
+                                const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
+                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+                            }
+
+                            await sendTextMessage({
+                                recipientId: orderData.customers.facebook_id,
+                                message: confirmMsg,
+                                pageAccessToken: orderData.shops.facebook_page_access_token,
+                            });
+
+                            logger.success('Messenger confirmation sent via pay page poll (backup)');
+                        }
+                    } catch (msgErr) {
+                        logger.warn('Messenger backup notification failed:', { error: String(msgErr) });
                     }
                 }
 

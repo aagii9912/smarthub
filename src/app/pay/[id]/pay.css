@@ -554,3 +554,53 @@ details[open] .pay-qr-toggle::before {
     .pay-cart-item { gap: 8px; }
 }
 
+/* ──────────────────────────────────────────────
+   Back to Chat Button (Success Page)
+   ────────────────────────────────────────────── */
+
+.pay-chat-hint {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(105, 240, 174, 0.7);
+    margin: 4px 0 0;
+    animation: pay-fade-in 0.5s ease-out 0.3s both;
+}
+
+.pay-back-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 16px 24px;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(135deg, #0084ff, #00b4ff);
+    box-shadow: 0 4px 20px rgba(0, 132, 255, 0.35);
+    transition: all 0.2s ease;
+    animation: pay-fade-in 0.5s ease-out 0.5s both;
+}
+
+.pay-back-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(0, 132, 255, 0.5);
+}
+
+.pay-back-btn:active {
+    transform: scale(0.98);
+}
+
+.pay-close-hint {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 171, 64, 0.8);
+    margin-top: 12px;
+    animation: pay-fade-in 0.3s ease-out;
+}
+
+@keyframes pay-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
