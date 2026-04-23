@@ -367,7 +367,7 @@ async function handleOrderPayment(
         const paymentMeta = (payment.metadata as Record<string, unknown>) || {};
         if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token && !paymentMeta.messenger_notified) {
             try {
-                const { sendTextMessage } = await import('@/lib/facebook/messenger');
+                const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
                 const amount = Number(payment.amount).toLocaleString();
                 
                 // Build delivery-aware confirmation message
@@ -384,10 +384,12 @@ async function handleOrderPayment(
                     confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
                 }
 
-                await sendTextMessage({
+                // Use POST_PURCHASE_UPDATE tag — works even outside 24hr messaging window
+                await sendTaggedMessage({
                     recipientId: orderData.customers.facebook_id,
                     message: confirmMsg,
                     pageAccessToken: orderData.shops.facebook_page_access_token,
+                    tag: 'POST_PURCHASE_UPDATE',
                 });
 
                 // Mark as notified to prevent duplicate from pay page poll

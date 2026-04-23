@@ -87,7 +87,7 @@ export async function GET(
                             .single();
 
                         if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
-                            const { sendTextMessage } = await import('@/lib/facebook/messenger');
+                            const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
                             const amount = Number(payment.amount).toLocaleString();
                             const deliveryFee = Number(orderData.delivery_fee || 0);
                             const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
@@ -102,10 +102,12 @@ export async function GET(
                                 confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
                             }
 
-                            await sendTextMessage({
+                            // Use POST_PURCHASE_UPDATE tag — works even outside 24hr window
+                            await sendTaggedMessage({
                                 recipientId: orderData.customers.facebook_id,
                                 message: confirmMsg,
                                 pageAccessToken: orderData.shops.facebook_page_access_token,
+                                tag: 'POST_PURCHASE_UPDATE',
                             });
 
                             logger.success('Messenger confirmation sent via pay page poll (backup)');
