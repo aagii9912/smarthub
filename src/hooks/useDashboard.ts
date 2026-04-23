@@ -30,10 +30,30 @@ interface LowStockProduct {
     name: string;
     stock: number;
     images: string[];
+    updated_at?: string;
+}
+
+interface PrevStats {
+    orders: number;
+    revenue: number;
+}
+
+interface DashboardTrend {
+    orders: number | null;
+    revenue: number | null;
+}
+
+interface DashboardSeries {
+    orders: number[];
+    revenue: number[];
+    buckets: string[];
 }
 
 interface DashboardData {
     stats: DashboardStats;
+    prevStats?: PrevStats;
+    trend?: DashboardTrend;
+    series?: DashboardSeries;
     recentOrders: RecentOrder[];
     activeConversations: ActiveConversation[];
     lowStockProducts: LowStockProduct[];

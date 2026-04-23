@@ -47,26 +47,10 @@ const itemVariants: Variants = {
     show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 26 } },
 };
 
-/* Deterministic spark line ending at `target`. Gives the KPI a visible trend without a real time-series API. */
-function synthSpark(target: number, points = 12, volatility = 0.25): number[] {
-    if (!Number.isFinite(target) || target <= 0) {
-        return Array.from({ length: points }, (_, i) => (Math.sin(i / 2) + 1) * 4 + 2);
-    }
-    const series: number[] = [];
-    for (let i = 0; i < points; i++) {
-        const progress = i / (points - 1);
-        const base = target * (1 - volatility + progress * volatility);
-        const wobble = Math.sin((i + target) * 1.3) * target * 0.08;
-        series.push(Math.max(1, base + wobble));
-    }
-    series[points - 1] = target;
-    return series;
-}
-
-function hourlyBars(total: number): number[] {
-    const shape = [0.2, 0.1, 0.05, 0.1, 0.2, 0.35, 0.55, 0.75, 1.0, 1.2, 1.3, 1.15, 1.4, 1.35, 1.25, 1.0, 0.85, 1.0, 1.15, 1.3, 1.1, 0.7, 0.4, 0.25];
-    const weight = Math.max(total, 8) / 24;
-    return shape.map((s) => Math.round(s * weight));
+/** Running cumulative helper for the answered-rate sparkline. */
+function cumulative(values: number[]): number[] {
+    let acc = 0;
+    return values.map((v) => (acc += v));
 }
 
 type OrderFilter = 'all' | 'pending' | 'paid';
@@ -81,6 +65,8 @@ export default function DashboardPage() {
     const { data: aiStats } = useAIStats(timeFilter);
 
     const stats = data?.stats || { todayOrders: 0, pendingOrders: 0, totalRevenue: 0, totalCustomers: 0 };
+    const trend = data?.trend;
+    const series = data?.series;
     const recentOrders = data?.recentOrders || [];
     const activeConversations = data?.activeConversations || [];
     const lowStockProducts = data?.lowStockProducts || [];
@@ -103,14 +89,35 @@ export default function DashboardPage() {
 
     const avgOrderDisplay = avgOrder >= 1000 ? `₮${(avgOrder / 1000).toFixed(0)}K` : `₮${avgOrder.toLocaleString()}`;
 
-    const aiAnsweredPct = useMemo(() => {
-        if (!aiStats?.totalMessages) return 0;
-        const answered = aiStats.totalMessages;
-        const pct = Math.min(100, Math.round((answered / (answered + 6)) * 100));
-        return pct;
-    }, [aiStats?.totalMessages]);
+    // Sparklines from real data
+    const ordersSpark = series?.orders ?? [];
+    const revenueSpark = series?.revenue ?? [];
+    const aiMessagesSpark = useMemo(
+        () => (aiStats?.dailyMessages ?? []).map((d) => d.count),
+        [aiStats?.dailyMessages]
+    );
+    const aiAnsweredSpark = useMemo(() => cumulative(aiMessagesSpark), [aiMessagesSpark]);
 
-    const hourly = useMemo(() => hourlyBars(stats.todayOrders), [stats.todayOrders]);
+    // Per-bucket avg-order sparkline (revenue / orders, zero when no orders)
+    const avgOrderSpark = useMemo(() => {
+        if (!series) return [];
+        return series.orders.map((o, i) => (o > 0 ? series.revenue[i] / o : 0));
+    }, [series]);
+
+    // Real conversion rate from AI stats (messages → orders)
+    const conversionRate = aiStats?.conversionRate;
+
+    // Trend → KPI props (up/down/null-hide)
+    const ordersTrendDir: 'up' | 'down' | undefined =
+        trend?.orders == null ? undefined : trend.orders >= 0 ? 'up' : 'down';
+    const revenueTrendDir: 'up' | 'down' | undefined =
+        trend?.revenue == null ? undefined : trend.revenue >= 0 ? 'up' : 'down';
+
+    const formatTrend = (v: number | null | undefined) =>
+        v == null ? undefined : `${v >= 0 ? '+' : ''}${v}% ${t.dashboard.trendVsYesterday}`;
+
+    // Hourly / period buckets from real API series (24 slots for 'today', 7 for week, 30 for month)
+    const hourly = useMemo(() => series?.orders ?? [], [series?.orders]);
 
     const filteredOrders = useMemo(() => {
         if (orderTab === 'all') return recentOrders;
@@ -146,12 +153,12 @@ export default function DashboardPage() {
                 when: formatDelta(o.created_at),
             });
         });
-        lowStockProducts.slice(0, 2).forEach((p, i) => {
+        lowStockProducts.slice(0, 2).forEach((p) => {
             items.push({
                 tone: 'rose',
                 label: t.dashboard.activityLowStock,
                 what: `${p.name} — үлдсэн ${p.stock}`,
-                when: `${(i + 1) * 12}м`,
+                when: p.updated_at ? formatDelta(p.updated_at) : '—',
             });
         });
         return items.slice(0, 6);
@@ -236,9 +243,9 @@ export default function DashboardPage() {
                         <KPI
                             label={t.dashboard.kpiTodayOrders}
                             value={stats.todayOrders.toString()}
-                            trend="up"
-                            trendValue={`+18% ${t.dashboard.trendVsYesterday}`}
-                            spark={synthSpark(Math.max(stats.todayOrders, 12))}
+                            trend={ordersTrendDir}
+                            trendValue={formatTrend(trend?.orders)}
+                            spark={ordersSpark}
                             featured
                         />
                     </motion.div>
@@ -246,27 +253,23 @@ export default function DashboardPage() {
                         <KPI
                             label={t.dashboard.kpiRevenue}
                             value={revenueDisplay}
-                            trend="up"
-                            trendValue="+12%"
-                            spark={synthSpark(Math.max(stats.totalRevenue / 100000, 8))}
+                            trend={revenueTrendDir}
+                            trendValue={formatTrend(trend?.revenue)}
+                            spark={revenueSpark}
                         />
                     </motion.div>
                     <motion.div variants={itemVariants}>
                         <KPI
                             label={t.dashboard.kpiAIAnswered}
-                            value={`${aiAnsweredPct || 94}%`}
-                            trend="up"
-                            trendValue="+3%"
-                            spark={synthSpark(aiAnsweredPct || 94, 12, 0.1)}
+                            value={aiStats?.totalMessages ? aiStats.totalMessages.toLocaleString() : '—'}
+                            spark={aiAnsweredSpark}
                         />
                     </motion.div>
                     <motion.div variants={itemVariants}>
                         <KPI
                             label={t.dashboard.kpiAvgOrder}
                             value={avgOrder > 0 ? avgOrderDisplay : '—'}
-                            trend="down"
-                            trendValue="-4%"
-                            spark={synthSpark(Math.max(avgOrder / 1000, 45), 12, 0.15)}
+                            spark={avgOrderSpark}
                         />
                     </motion.div>
                 </motion.div>
@@ -425,10 +428,30 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="text-[11px] text-muted-foreground">{t.dashboard.hourlyRange}</div>
                             </div>
-                            <ChartBar data={hourly} height={140} />
-                            <div className="flex justify-between mt-2.5 text-[10px] font-mono text-white/40">
-                                <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
-                            </div>
+                            {hourly.length === 0 || hourly.every((v) => v === 0) ? (
+                                <div className="h-[140px] flex items-center justify-center text-[12px] text-muted-foreground">
+                                    {t.dashboard.noOrdersDesc}
+                                </div>
+                            ) : (
+                                <>
+                                    <ChartBar data={hourly} height={140} />
+                                    <div className="flex justify-between mt-2.5 text-[10px] font-mono text-white/40">
+                                        {timeFilter === 'today' ? (
+                                            <>
+                                                <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+                                            </>
+                                        ) : timeFilter === 'week' ? (
+                                            <>
+                                                <span>Д</span><span>М</span><span>Л</span><span>П</span><span>Б</span><span>Б</span><span>Н</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>1</span><span>8</span><span>15</span><span>22</span><span>30</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </motion.div>
 
@@ -453,12 +476,14 @@ export default function DashboardPage() {
                                         {t.dashboard.conversion}
                                     </div>
                                     <div className="syn-metric mt-1.5">
-                                        {stats.todayOrders > 0 && aiConvCount > 0
-                                            ? `${Math.round((stats.todayOrders / Math.max(aiConvCount, 1)) * 100)}%`
+                                        {typeof conversionRate === 'number' && conversionRate > 0
+                                            ? `${conversionRate}%`
                                             : '—'}
                                     </div>
-                                    <div className="text-[11px] text-[var(--status-success)] mt-0.5">
-                                        ↑ 8% {t.dashboard.trendVsYesterday}
+                                    <div className="text-[11px] text-white/50 mt-0.5">
+                                        {aiStats?.contactsCollected
+                                            ? `${aiStats.contactsCollected} холбоо барих`
+                                            : t.dashboard.messages}
                                     </div>
                                 </div>
                             </div>
@@ -467,7 +492,7 @@ export default function DashboardPage() {
                                     {t.dashboard.avgResponse}
                                 </div>
                                 <div className="tabular-nums text-[20px] font-semibold text-foreground">
-                                    2.4
+                                    —
                                     <span className="text-[12px] font-medium text-muted-foreground ml-1">
                                         {t.dashboard.seconds}
                                     </span>

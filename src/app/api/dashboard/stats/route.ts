@@ -42,6 +42,19 @@ export async function GET(request: NextRequest) {
           totalRevenue: 0,
           totalCustomers: 0,
         },
+        prevStats: {
+          orders: 0,
+          revenue: 0,
+        },
+        trend: {
+          orders: null,
+          revenue: null,
+        },
+        series: {
+          orders: [],
+          revenue: [],
+          buckets: [],
+        },
         recentOrders: [],
         recentChats: [],
         activeConversations: [],
@@ -53,10 +66,19 @@ export async function GET(request: NextRequest) {
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
     const periodStart = getStartOfPeriod(period);
+    const now = new Date();
+
+    // Previous-period window (same length, immediately before current)
+    const periodMs = now.getTime() - periodStart.getTime();
+    const prevStart = new Date(periodStart.getTime() - periodMs);
+    const prevEnd = periodStart;
+
+    const REVENUE_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered', 'paid'];
 
     // 🚀 Бүх query-г зэрэгцүүлэн ажиллуулах (Promise.all)
     const [
-      periodOrdersResult,
+      periodOrdersListResult,
+      prevPeriodOrdersResult,
       pendingOrdersResult,
       allOrdersDataResult,
       totalCustomersResult,
@@ -64,12 +86,20 @@ export async function GET(request: NextRequest) {
       recentChatsResult,
       lowStockResult,
     ] = await Promise.all([
-      // Захиалгууд (period-д тулгуурласан)
+      // Захиалгууд (period — цаг/огноогоор bucket хийхэд хэрэгтэй)
       supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true })
+        .select('created_at, total_amount, status')
         .eq('shop_id', shopId)
         .gte('created_at', periodStart.toISOString()),
+
+      // Өмнөх period-ийн захиалга + орлого (trend бодоход)
+      supabase
+        .from('orders')
+        .select('total_amount, status')
+        .eq('shop_id', shopId)
+        .gte('created_at', prevStart.toISOString())
+        .lt('created_at', prevEnd.toISOString()),
 
       // Хүлээгдэж буй захиалгууд
       supabase
@@ -78,12 +108,12 @@ export async function GET(request: NextRequest) {
         .eq('shop_id', shopId)
         .eq('status', 'pending'),
 
-      // Нийт орлого
+      // Нийт орлого (бүх хугацаанд)
       supabase
         .from('orders')
         .select('total_amount')
         .eq('shop_id', shopId)
-        .in('status', ['confirmed', 'processing', 'shipped', 'delivered']),
+        .in('status', REVENUE_STATUSES),
 
       // Нийт харилцагч
       supabase
@@ -127,7 +157,7 @@ export async function GET(request: NextRequest) {
       // Low stock products (stock < 5)
       supabase
         .from('products')
-        .select('id, name, stock, images')
+        .select('id, name, stock, images, updated_at')
         .eq('shop_id', shopId)
         .eq('is_active', true)
         .eq('type', 'physical')
@@ -136,7 +166,51 @@ export async function GET(request: NextRequest) {
         .limit(5),
     ]);
 
-    const periodOrders = periodOrdersResult.count;
+    const periodOrdersList = periodOrdersListResult.data || [];
+    const periodOrders = periodOrdersList.length;
+
+    // Period revenue (only "realized" orders)
+    const periodRevenue = periodOrdersList
+      .filter((o) => REVENUE_STATUSES.includes(o.status))
+      .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+
+    // Previous period stats (for trend %)
+    const prevPeriodOrdersList = prevPeriodOrdersResult.data || [];
+    const prevOrders = prevPeriodOrdersList.length;
+    const prevRevenue = prevPeriodOrdersList
+      .filter((o) => REVENUE_STATUSES.includes(o.status))
+      .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+
+    // Bucket orders into series (24 slots for today, 7 for week, 30 for month)
+    const bucketCount = period === 'today' ? 24 : period === 'week' ? 7 : 30;
+    const bucketMs = periodMs / bucketCount;
+    const ordersSeries = Array.from({ length: bucketCount }, () => 0);
+    const revenueSeries = Array.from({ length: bucketCount }, () => 0);
+    const buckets: string[] = Array.from({ length: bucketCount }, (_, i) => {
+      const t = new Date(periodStart.getTime() + i * bucketMs);
+      return t.toISOString();
+    });
+
+    periodOrdersList.forEach((o) => {
+      const t = new Date(o.created_at).getTime();
+      const idx = Math.min(
+        bucketCount - 1,
+        Math.max(0, Math.floor((t - periodStart.getTime()) / bucketMs))
+      );
+      ordersSeries[idx] += 1;
+      if (REVENUE_STATUSES.includes(o.status)) {
+        revenueSeries[idx] += Number(o.total_amount || 0);
+      }
+    });
+
+    // Trend % (integer rounded). null when prev has no signal (avoid div-by-zero mocks)
+    const calcTrend = (curr: number, prev: number): number | null => {
+      if (prev <= 0) return curr > 0 ? null : null;
+      return Math.round(((curr - prev) / prev) * 100);
+    };
+    const ordersTrend = calcTrend(periodOrders, prevOrders);
+    const revenueTrend = calcTrend(periodRevenue, prevRevenue);
+
     const pendingOrders = pendingOrdersResult.count;
     const totalRevenue = allOrdersDataResult.data?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
     const totalCustomers = totalCustomersResult.count;
@@ -201,6 +275,19 @@ export async function GET(request: NextRequest) {
         pendingOrders: pendingOrders || 0,
         totalRevenue: Math.round(totalRevenue),
         totalCustomers: totalCustomers || 0,
+      },
+      prevStats: {
+        orders: prevOrders,
+        revenue: Math.round(prevRevenue),
+      },
+      trend: {
+        orders: ordersTrend,
+        revenue: revenueTrend,
+      },
+      series: {
+        orders: ordersSeries,
+        revenue: revenueSeries,
+        buckets,
       },
       recentOrders: recentOrders || [],
       recentChats: recentChats || [], // backward compatibility
