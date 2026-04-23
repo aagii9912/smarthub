@@ -11,6 +11,15 @@ interface BankInfo {
     link: string;
 }
 
+interface OrderItem {
+    id: string;
+    name: string;
+    image: string | null;
+    quantity: number;
+    unitPrice: number;
+    variantSpecs: Record<string, string>;
+}
+
 interface PaymentData {
     id: string;
     amount: number;
@@ -19,6 +28,7 @@ interface PaymentData {
     shopLogo: string | null;
     paymentType: string;
     planSlug: string | null;
+    orderItems: OrderItem[];
     banks: BankInfo[];
     qrImage: string | null;
     expiresAt: string | null;
@@ -126,6 +136,39 @@ export default function PaymentPage() {
                         <span className="pay-currency">₮</span>
                         <span className="pay-amount-value">{formatAmount(payment.amount)}</span>
                     </div>
+                    {/* Show ordered items on success */}
+                    {payment.orderItems && payment.orderItems.length > 0 && (
+                        <div className="pay-cart-summary pay-cart-success">
+                            <div className="pay-cart-header">
+                                <span className="pay-cart-title">📦 {payment.orderItems.length} бараа</span>
+                            </div>
+                            <div className="pay-cart-items">
+                                {payment.orderItems.map((item) => (
+                                    <div key={item.id} className="pay-cart-item">
+                                        <div className="pay-cart-item-image">
+                                            {item.image ? (
+                                                <img src={item.image} alt={item.name} />
+                                            ) : (
+                                                <div className="pay-cart-item-placeholder">📦</div>
+                                            )}
+                                        </div>
+                                        <div className="pay-cart-item-info">
+                                            <span className="pay-cart-item-name">{item.name}</span>
+                                            {Object.keys(item.variantSpecs).length > 0 && (
+                                                <span className="pay-cart-item-variant">
+                                                    {Object.values(item.variantSpecs).join(' / ')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="pay-cart-item-right">
+                                            <span className="pay-cart-item-qty">{item.quantity}ш</span>
+                                            <span className="pay-cart-item-price">₮{formatAmount(item.unitPrice * item.quantity)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <p className="pay-success-msg">Баярлалаа! Таны төлбөр хүлээн авлаа.</p>
                 </div>
             </div>
@@ -180,6 +223,45 @@ export default function PaymentPage() {
                         <p className="pay-plan-badge">{payment.planSlug.toUpperCase()} план</p>
                     )}
                 </div>
+
+                {/* ── Cart Summary (Order Items) ── */}
+                {payment.orderItems && payment.orderItems.length > 0 && (
+                    <details className="pay-cart-summary" open>
+                        <summary className="pay-cart-header">
+                            <span className="pay-cart-title">📦 Таны захиалга ({payment.orderItems.length} бараа)</span>
+                            <span className="pay-cart-chevron">▾</span>
+                        </summary>
+                        <div className="pay-cart-items">
+                            {payment.orderItems.map((item) => (
+                                <div key={item.id} className="pay-cart-item">
+                                    <div className="pay-cart-item-image">
+                                        {item.image ? (
+                                            <img src={item.image} alt={item.name} />
+                                        ) : (
+                                            <div className="pay-cart-item-placeholder">📦</div>
+                                        )}
+                                    </div>
+                                    <div className="pay-cart-item-info">
+                                        <span className="pay-cart-item-name">{item.name}</span>
+                                        {Object.keys(item.variantSpecs).length > 0 && (
+                                            <span className="pay-cart-item-variant">
+                                                {Object.values(item.variantSpecs).join(' / ')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="pay-cart-item-right">
+                                        <span className="pay-cart-item-qty">{item.quantity}ш</span>
+                                        <span className="pay-cart-item-price">₮{formatAmount(item.unitPrice * item.quantity)}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="pay-cart-total">
+                            <span>Нийт дүн</span>
+                            <span>₮{formatAmount(payment.amount)}</span>
+                        </div>
+                    </details>
+                )}
 
                 {/* Divider */}
                 <div className="pay-divider" />
@@ -239,3 +321,4 @@ export default function PaymentPage() {
         </div>
     );
 }
+

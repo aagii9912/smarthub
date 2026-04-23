@@ -238,6 +238,7 @@ async function handleSubscriptionPayment(
             plan_id: plan.id,
             subscription_plan: plan.slug,
             subscription_status: 'active',
+            setup_completed: true,
         })
         .eq('id', resolvedShopId);
 

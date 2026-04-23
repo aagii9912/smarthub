@@ -1,19 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, Filter } from 'lucide-react';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/dashboard/products/ProductForm';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { PageHero } from '@/components/ui/PageHero';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
+
+// Unused but kept for API parity
+void useCreateProduct;
+void useUpdateProduct;
+
+interface ImportPreviewRow {
+    name?: string;
+    type?: 'physical' | 'service' | 'appointment' | string;
+    price?: number;
+    stock?: number;
+    unit?: string;
+    description?: string;
+}
 
 export default function ProductsPage() {
     const { data: products = [], isLoading } = useProducts();
-    const createProduct = useCreateProduct();
-    const updateProduct = useUpdateProduct();
     const deleteProduct = useDeleteProduct();
     const queryClient = useQueryClient();
     const { user } = useAuth();
@@ -23,16 +36,17 @@ export default function ProductsPage() {
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-    const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
-    const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>('physical');
+    const [, setImageFile] = useState<File | null>(null);
+    const [, setProductType] = useState<'physical' | 'service' | 'appointment'>('physical');
 
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
-    const [importPreview, setImportPreview] = useState<any[]>([]);
+    const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
     const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
+
+    void user;
 
     useEffect(() => {
         if (showModal) {
@@ -50,6 +64,7 @@ export default function ProductsPage() {
             }
             setImagePreview(null);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showModal, editingProduct]);
 
     useEffect(() => {
@@ -59,27 +74,6 @@ export default function ProductsPage() {
             }
         };
     }, [imagePreview]);
-
-    const uploadImage = async (file: File) => {
-        if (!user) throw new Error(t.products.notLoggedIn);
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/api/dashboard/upload', { method: 'POST', body: formData });
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Image upload failed');
-        }
-        const data = await res.json();
-        return data.url;
-    };
-
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        }
-    };
 
     async function handleDelete(id: string) {
         if (!confirm(t.products.confirmDelete)) return;
@@ -140,230 +134,253 @@ export default function ProductsPage() {
         }
     }
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <div className="w-5 h-5 border-2 border-white/10 border-t-white/40 rounded-full animate-spin"></div>
-            </div>
-        );
-    }
-
     const filteredProducts = products.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const activeCount = products.filter((p) => p.is_active).length;
+    const lowStockCount = products.filter((p) => p.type === 'physical' && ((p.stock || 0) - (p.reserved_stock || 0)) < 5 && ((p.stock || 0) - (p.reserved_stock || 0)) > 0).length;
+    const outOfStockCount = products.filter((p) => p.type === 'physical' && ((p.stock || 0) - (p.reserved_stock || 0)) <= 0).length;
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="h-24 card-outlined animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="h-56 card-outlined animate-pulse" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-5">
+        <div className="space-y-6">
+            <PageHero
+                eyebrow="Бүтээгдэхүүний каталог"
+                title="Бүтээгдэхүүн"
+                subtitle={
+                    <>
+                        <span className="text-foreground font-medium tabular-nums">{products.length}</span> бүтээгдэхүүн ·
+                        {' '}
+                        <span className="text-[var(--success)] font-medium tabular-nums">{activeCount}</span> идэвхтэй
+                        {lowStockCount > 0 && (
+                            <>
+                                {' · '}
+                                <span className="text-[var(--warning)] font-medium tabular-nums">{lowStockCount}</span> цөөхөн үлдсэн
+                            </>
+                        )}
+                    </>
+                }
+                actions={
+                    <>
+                        <Button
+                            variant="ghost"
+                            size="md"
+                            leftIcon={<FileSpreadsheet className="h-4 w-4" strokeWidth={1.5} />}
+                            onClick={() => window.open('/api/dashboard/products/export', '_blank')}
+                        >
+                            Экспорт
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="md"
+                            leftIcon={<Upload className="h-4 w-4" strokeWidth={1.5} />}
+                            onClick={() => setShowImportModal(true)}
+                        >
+                            Импорт
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="md"
+                            leftIcon={<Plus className="h-4 w-4" strokeWidth={1.8} />}
+                            onClick={() => { setEditingProduct(null); setShowModal(true); }}
+                        >
+                            <span className="hidden md:inline">{t.products.addNew}</span>
+                            <span className="md:hidden">{t.products.add}</span>
+                        </Button>
+                    </>
+                }
+            />
+
             {/* Toolbar */}
-            <div className="flex items-center justify-end gap-1.5">
-                <button
-                    onClick={() => window.open('/api/dashboard/products/export', '_blank')}
-                    className="p-2 md:px-3 md:py-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors flex items-center gap-1.5"
-                    title="Export Excel"
-                >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-white/40" strokeWidth={1.5} />
-                    <span className="hidden md:inline text-[12px] font-medium text-foreground tracking-[-0.01em]">Export</span>
-                </button>
-                <button
-                    onClick={() => setShowImportModal(true)}
-                    className="p-2 md:px-3 md:py-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors flex items-center gap-1.5"
-                    title="Import"
-                >
-                    <Upload className="w-3.5 h-3.5 text-white/40" strokeWidth={1.5} />
-                    <span className="hidden md:inline text-[12px] font-medium text-foreground tracking-[-0.01em]">Import</span>
-                </button>
-                <button
-                    onClick={() => { setEditingProduct(null); setShowModal(true); }}
-                    className="px-3 py-1.5 bg-foreground text-background rounded-md hover:opacity-80 transition-opacity flex items-center gap-1.5 text-[12px] font-medium tracking-[-0.01em]"
-                >
-                    <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    <span className="hidden md:inline">{t.products.addNew}</span>
-                    <span className="md:hidden">{t.products.add}</span>
-                </button>
+            <div className="card-outlined p-4 flex items-center gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" strokeWidth={1.5} />
+                    <input
+                        type="text"
+                        placeholder="Нэр хайх..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 h-10 border border-white/[0.08] rounded-lg text-[13px] bg-white/[0.02] focus:outline-none focus:border-[var(--brand-indigo)] focus:bg-white/[0.04] transition-colors tracking-[-0.01em] placeholder:text-white/30"
+                    />
+                </div>
+                <Button variant="ghost" size="md" leftIcon={<Filter className="h-4 w-4" strokeWidth={1.5} />}>
+                    Шүүлтүүр
+                </Button>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="grid grid-cols-1 gap-3 md:hidden">
-                {filteredProducts.map((product) => (
-                    <div key={product.id} className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="w-16 h-16 rounded-md bg-[#0F0B2E] flex-shrink-0 overflow-hidden border border-white/[0.08]">
-                                {product.images?.[0] ? (
-                                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <Package className="w-6 h-6 text-white/10" strokeWidth={1.5} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="font-medium text-foreground text-[13px] truncate tracking-[-0.01em]">{product.name}</p>
-                                        {(product.discount_percent || 0) > 0 ? (
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[11px] text-white/40 line-through">₮{product.price.toLocaleString()}</span>
-                                                <span className="text-[13px] font-semibold text-red-500">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</span>
-                                            </div>
+            {/* Empty state */}
+            {filteredProducts.length === 0 ? (
+                <div className="card-outlined p-12 text-center">
+                    <Package className="w-12 h-12 text-white/10 mx-auto mb-4" strokeWidth={1.5} />
+                    <p className="text-[14px] text-white/60 font-medium tracking-[-0.01em]">{t.products.noProducts}</p>
+                    <p className="text-[12px] text-white/40 mt-1">{t.products.noProductsHint}</p>
+                </div>
+            ) : (
+                /* Product Grid — responsive 1/2/3 columns */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredProducts.map((product) => {
+                        const available = (product.stock || 0) - (product.reserved_stock || 0);
+                        const isService = product.type !== 'physical';
+                        const finalPrice = (product.discount_percent || 0) > 0
+                            ? Math.round(product.price * (1 - product.discount_percent! / 100))
+                            : product.price;
+
+                        return (
+                            <div
+                                key={product.id}
+                                className="card-outlined overflow-hidden group hover:-translate-y-[2px] hover:shadow-lg transition-all duration-300"
+                            >
+                                {/* Image */}
+                                <div className="relative aspect-[1.6/1] bg-gradient-to-br from-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)] to-[color-mix(in_oklab,var(--brand-violet-500)_8%,transparent)] overflow-hidden">
+                                    {product.images?.[0] ? (
+                                        <img
+                                            src={product.images[0]}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Package className="w-10 h-10 text-white/20" strokeWidth={1.2} />
+                                        </div>
+                                    )}
+                                    {/* Status badge (top-left) */}
+                                    <div className="absolute top-2.5 left-2.5">
+                                        {!product.is_active ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-black/40 text-white/70 backdrop-blur-sm">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                                                {t.products.inactiveStatus}
+                                            </span>
+                                        ) : !isService && available <= 0 ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-[color-mix(in_oklab,var(--destructive)_28%,transparent)] text-[var(--destructive)] backdrop-blur-sm">
+                                                {t.products.outOfStock}
+                                            </span>
+                                        ) : !isService && available < 5 ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-[color-mix(in_oklab,var(--warning)_28%,transparent)] text-[var(--warning)] backdrop-blur-sm">
+                                                Цөөхөн үлдсэн
+                                            </span>
                                         ) : (
-                                            <p className="text-[13px] text-white/50 mt-0.5 tabular-nums">₮{product.price.toLocaleString()}</p>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-[color-mix(in_oklab,var(--success)_28%,transparent)] text-[var(--success)] backdrop-blur-sm">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+                                                Идэвхтэй
+                                            </span>
                                         )}
                                     </div>
-                                    <div className="flex gap-1">
+                                    {/* Discount badge (top-right) */}
+                                    {(product.discount_percent || 0) > 0 && (
+                                        <div className="absolute top-2.5 right-2.5">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-[var(--destructive)] text-white">
+                                                -{product.discount_percent}%
+                                            </span>
+                                        </div>
+                                    )}
+                                    {/* Actions (shown on hover) */}
+                                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                                            className="p-1.5 hover:bg-[#0F0B2E] rounded-md transition-colors"
+                                            aria-label="Засах"
+                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/50 backdrop-blur-md hover:bg-black/70 transition-colors"
                                         >
-                                            <Edit2 className="w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
+                                            <Edit2 className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(product.id)}
-                                            className="p-1.5 hover:bg-red-900/20 rounded-md transition-colors"
+                                            aria-label="Устгах"
+                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/50 backdrop-blur-md hover:bg-[var(--destructive)]/80 transition-colors"
                                         >
-                                            <Trash2 className="w-3.5 h-3.5 text-white/30 hover:text-red-500" strokeWidth={1.5} />
+                                            <Trash2 className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
                                         </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-[#151040] text-white/50">
-                                        {product.type === 'service' ? t.products.service : product.type === 'appointment' ? t.products.appointment : t.products.physical}
-                                    </span>
-                                    {product.type === 'physical' && (() => {
-                                        const available = (product.stock || 0) - (product.reserved_stock || 0);
-                                        return (
-                                            <span className={`text-[11px] ${available > 0 ? 'text-white/40' : 'text-red-500'}`}>
-                                                {available > 0 ? `${t.products.stock}: ${available}` : t.products.outOfStock}
-                                            </span>
-                                        );
-                                    })()}
+
+                                {/* Body */}
+                                <div className="p-4 space-y-2">
+                                    <div>
+                                        <p className="font-semibold text-[13.5px] text-foreground tracking-[-0.01em] line-clamp-1">
+                                            {product.name}
+                                        </p>
+                                        {product.description && (
+                                            <p className="text-[11.5px] text-white/40 mt-0.5 line-clamp-1">
+                                                {product.description}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex items-end justify-between pt-1">
+                                        <div>
+                                            {(product.discount_percent || 0) > 0 ? (
+                                                <>
+                                                    <p className="text-[10.5px] text-white/35 line-through tabular-nums leading-none">
+                                                        ₮{product.price.toLocaleString()}
+                                                    </p>
+                                                    <p className="text-[16px] font-bold text-[var(--destructive)] tabular-nums mt-0.5">
+                                                        ₮{finalPrice.toLocaleString()}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <p className="text-[16px] font-bold text-foreground tabular-nums">
+                                                    ₮{product.price.toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                                {isService
+                                                    ? product.type === 'service'
+                                                        ? t.products.service
+                                                        : t.products.appointment
+                                                    : 'Нөөц'}
+                                            </p>
+                                            <p
+                                                className={cn(
+                                                    'text-[13px] font-semibold tabular-nums',
+                                                    isService
+                                                        ? 'text-white/45'
+                                                        : available <= 0
+                                                            ? 'text-[var(--destructive)]'
+                                                            : available < 5
+                                                                ? 'text-[var(--warning)]'
+                                                                : 'text-foreground'
+                                                )}
+                                            >
+                                                {isService ? '—' : `${available} ${t.products.pcs}`}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden md:block bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-white/[0.08]">
-                            <th className="text-left px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.productCol}</th>
-                            <th className="text-left px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.typeCol}</th>
-                            <th className="text-left px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.priceCol}</th>
-                            <th className="text-left px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.stockCol}</th>
-                            <th className="text-left px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.statusCol}</th>
-                            <th className="text-right px-5 py-3 text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">{t.products.actionCol}</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                        {filteredProducts.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="px-5 py-12 text-center">
-                                    <Package className="w-10 h-10 text-white/10 mx-auto mb-3" strokeWidth={1.5} />
-                                    <p className="text-[13px] text-white/40 tracking-[-0.01em]">{t.products.noProducts}</p>
-                                    <p className="text-[11px] text-white/30 mt-1">{t.products.noProductsHint}</p>
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-[#0D0928] transition-colors">
-                                    <td className="px-5 py-3.5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-md bg-[#0F0B2E] flex-shrink-0 overflow-hidden border border-white/[0.08]">
-                                                {product.images?.[0] ? (
-                                                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Package className="w-4 h-4 text-white/10" strokeWidth={1.5} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{product.name}</p>
-                                                <p className="text-[11px] text-white/40 truncate max-w-[200px]">{product.description}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-[#151040] text-white/50">
-                                            {product.type === 'service' ? t.products.service : product.type === 'appointment' ? t.products.appointment : t.products.physical}
-                                        </span>
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        {(product.discount_percent || 0) > 0 ? (
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] text-white/40 line-through tabular-nums">₮{product.price.toLocaleString()}</span>
-                                                    <span className="px-1.5 py-0.5 bg-red-900/20 text-red-500 text-[10px] font-medium rounded">-{product.discount_percent}%</span>
-                                                </div>
-                                                <p className="font-semibold text-[13px] text-red-500 tabular-nums">₮{Math.round(product.price * (1 - product.discount_percent! / 100)).toLocaleString()}</p>
-                                            </div>
-                                        ) : (
-                                            <p className="font-semibold text-[13px] text-foreground tabular-nums">₮{product.price.toLocaleString()}</p>
-                                        )}
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        {product.type === 'physical' ? (
-                                            (() => {
-                                                const available = (product.stock || 0) - (product.reserved_stock || 0);
-                                                return (
-                                                    <p className={`font-medium text-[13px] tabular-nums ${available > 0 ? 'text-foreground' : 'text-red-500'}`}>
-                                                        {available > 0 ? `${available} ${t.products.pcs}` : t.products.outOfStock}
-                                                    </p>
-                                                );
-                                            })()
-                                        ) : (
-                                            <span className="text-[12px] text-white/30">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        {product.is_active ? (
-                                            <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 text-emerald-400">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                Идэвхтэй
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1.5 text-[11px] font-medium text-white/40">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-white/20"></span>
-                                                {t.products.inactiveStatus}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-5 py-3.5">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <button
-                                                onClick={() => { setEditingProduct(product); setShowModal(true); }}
-                                                className="p-1.5 hover:bg-[#0F0B2E] rounded-md transition-colors"
-                                            >
-                                                <Edit2 className="w-3.5 h-3.5 text-white/30" strokeWidth={1.5} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                className="p-1.5 hover:bg-red-900/20 rounded-md transition-colors"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5 text-white/30 hover:text-red-500" strokeWidth={1.5} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Add/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
-                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-4xl p-5 m-4 relative">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
+                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-4xl p-5 m-4 relative shadow-2xl">
                         <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
+                            <h2 className="text-[16px] font-semibold text-foreground tracking-[-0.02em]">
                                 {editingProduct ? t.products.edit : t.products.newEntry}
                             </h2>
-                            <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-[#0F0B2E] rounded-md transition-colors">
-                                <X className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                            </button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close"
+                                onClick={() => setShowModal(false)}
+                            >
+                                <X className="w-4 h-4" strokeWidth={1.8} />
+                            </Button>
                         </div>
 
                         <ProductForm
@@ -377,35 +394,43 @@ export default function ProductsPage() {
 
             {/* Import Modal */}
             {showImportModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
-                    <div className="bg-[#0A0220] rounded-lg border border-white/[0.08] w-full max-w-3xl p-5 m-4 relative">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
+                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-3xl p-5 m-4 relative shadow-2xl">
                         <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
+                            <h2 className="text-[16px] font-semibold text-foreground tracking-[-0.02em]">
                                 {t.products.importFromFile}
                             </h2>
-                            <button onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }} className="p-1.5 hover:bg-[#0F0B2E] rounded-md transition-colors">
-                                <X className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                            </button>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Close"
+                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }}
+                            >
+                                <X className="w-4 h-4" strokeWidth={1.8} />
+                            </Button>
                         </div>
 
                         {/* File Upload Area */}
-                        <div className="border border-dashed border-white/[0.12] rounded-lg p-8 text-center hover:border-[#4A7CE7] transition-colors relative">
+                        <div className="border border-dashed border-white/[0.12] rounded-xl p-8 text-center hover:border-[var(--brand-indigo)] transition-colors relative bg-white/[0.02]">
                             {importFile ? (
                                 <div className="flex items-center justify-center gap-3">
-                                    <FileSpreadsheet className="w-6 h-6 text-white/20" strokeWidth={1.5} />
+                                    <FileSpreadsheet className="w-6 h-6 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                                     <div className="text-left">
                                         <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{importFile.name}</p>
                                         <p className="text-[11px] text-white/40">{(importFile.size / 1024).toFixed(1)} KB</p>
                                     </div>
-                                    <button onClick={() => { setImportFile(null); setImportPreview([]); }} className="ml-4 text-white/30 hover:text-red-500">
+                                    <button
+                                        onClick={() => { setImportFile(null); setImportPreview([]); }}
+                                        className="ml-4 p-1.5 rounded-lg text-white/30 hover:text-[var(--destructive)] hover:bg-white/[0.04] transition-colors"
+                                    >
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
                             ) : (
                                 <>
-                                    <FileSpreadsheet className="w-10 h-10 text-white/10 mx-auto mb-3" strokeWidth={1.5} />
-                                    <p className="text-[13px] text-foreground mb-1 tracking-[-0.01em]">{t.products.selectFile}</p>
-                                    <p className="text-[11px] text-white/30">xlsx, xls, csv, docx</p>
+                                    <FileSpreadsheet className="w-10 h-10 text-white/15 mx-auto mb-3" strokeWidth={1.5} />
+                                    <p className="text-[13.5px] text-foreground mb-1 tracking-[-0.01em] font-medium">{t.products.selectFile}</p>
+                                    <p className="text-[11.5px] text-white/35">xlsx, xls, csv, docx</p>
                                 </>
                             )}
                             <input
@@ -417,23 +442,25 @@ export default function ProductsPage() {
                         </div>
 
                         {importError && (
-                            <div className="mt-4 p-3 bg-red-900/20 border border-red-800 rounded-md text-red-400 text-[13px]">
+                            <div className="mt-4 p-3 bg-[color-mix(in_oklab,var(--destructive)_18%,transparent)] border border-[color-mix(in_oklab,var(--destructive)_30%,transparent)] rounded-lg text-[var(--destructive)] text-[13px]">
                                 {importError}
                             </div>
                         )}
 
                         {importPreview.length > 0 && (
                             <div className="mt-5">
-                                <h3 className="font-medium text-[13px] text-foreground mb-3 tracking-[-0.01em]">{t.products.preview} ({importPreview.length} {t.products.productCol})</h3>
-                                <div className="max-h-64 overflow-auto border border-white/[0.08] rounded-md">
+                                <h3 className="font-semibold text-[13px] text-foreground mb-3 tracking-[-0.01em]">
+                                    {t.products.preview} ({importPreview.length} {t.products.productCol})
+                                </h3>
+                                <div className="max-h-64 overflow-auto border border-white/[0.06] rounded-lg">
                                     <table className="w-full text-[12px]">
-                                        <thead>
-                                            <tr className="border-b border-white/[0.08]">
-                                                <th className="text-left px-3 py-2 font-medium text-white/40 uppercase tracking-[0.05em] text-[10px]">{t.products.name}</th>
-                                                <th className="text-left px-3 py-2 font-medium text-white/40 uppercase tracking-[0.05em] text-[10px]">{t.products.type}</th>
-                                                <th className="text-left px-3 py-2 font-medium text-white/40 uppercase tracking-[0.05em] text-[10px]">{t.products.price}</th>
-                                                <th className="text-left px-3 py-2 font-medium text-white/40 uppercase tracking-[0.05em] text-[10px]">{t.products.quantity}</th>
-                                                <th className="text-left px-3 py-2 font-medium text-white/40 uppercase tracking-[0.05em] text-[10px]">{t.products.description}</th>
+                                        <thead className="bg-white/[0.02] sticky top-0">
+                                            <tr className="border-b border-white/[0.06]">
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.name}</th>
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.type}</th>
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.price}</th>
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.quantity}</th>
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.description}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/[0.04]">
@@ -441,48 +468,55 @@ export default function ProductsPage() {
                                                 <tr key={i}>
                                                     <td className="px-3 py-2 text-foreground">{p.name}</td>
                                                     <td className="px-3 py-2">
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-[#151040] text-white/50">
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/[0.06] text-white/60">
                                                             {p.type === 'service' ? t.products.service : p.type === 'appointment' ? t.products.appointment : t.products.physical}
                                                         </span>
                                                     </td>
-                                                    <td className="px-3 py-2 text-white/50 tabular-nums">₮{p.price?.toLocaleString()}</td>
-                                                    <td className="px-3 py-2 text-white/50 tabular-nums">{p.stock || 0} {p.unit}</td>
-                                                    <td className="px-3 py-2 text-white/40 truncate max-w-[200px]">{p.description || '—'}</td>
+                                                    <td className="px-3 py-2 text-white/60 tabular-nums">₮{p.price?.toLocaleString()}</td>
+                                                    <td className="px-3 py-2 text-white/60 tabular-nums">{p.stock || 0} {p.unit}</td>
+                                                    <td className="px-3 py-2 text-white/45 truncate max-w-[200px]">{p.description || '—'}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
                                 {importPreview.length > 10 && (
-                                    <p className="text-[11px] text-white/30 mt-2">... {t.products.andMore.replace('{count}', String(importPreview.length - 10))}</p>
+                                    <p className="text-[11px] text-white/35 mt-2">
+                                        ... {t.products.andMore.replace('{count}', String(importPreview.length - 10))}
+                                    </p>
                                 )}
                             </div>
                         )}
 
-                        <div className="mt-5 p-4 bg-[#0D0928] rounded-md border border-white/[0.04]">
-                            <h4 className="font-medium text-[12px] text-foreground mb-2 tracking-[-0.01em]">{t.products.formatGuide}</h4>
-                            <ul className="text-[11px] text-white/40 space-y-1">
+                        <div className="mt-5 card-outlined p-4">
+                            <h4 className="font-semibold text-[12px] text-foreground mb-2 tracking-[-0.01em]">
+                                {t.products.formatGuide}
+                            </h4>
+                            <ul className="text-[11.5px] text-white/50 space-y-1">
                                 <li><strong className="text-foreground">Excel:</strong> {t.products.excelFormat}</li>
                                 <li><strong className="text-foreground">Word:</strong> {t.products.wordFormat}</li>
                             </ul>
                         </div>
 
-                        <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-white/[0.08]">
-                            <button
-                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }}
+                        <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-white/[0.06]">
+                            <Button
+                                variant="ghost"
+                                size="md"
                                 disabled={importing}
-                                className="px-3 py-1.5 text-[12px] font-medium border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors text-foreground tracking-[-0.01em]"
+                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }}
                             >
                                 {t.orders.cancel}
-                            </button>
-                            <button
-                                onClick={handleImportConfirm}
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="md"
                                 disabled={importing || importPreview.length === 0}
-                                className="px-3 py-1.5 text-[12px] font-medium bg-foreground text-background rounded-md hover:opacity-80 transition-opacity disabled:opacity-50 tracking-[-0.01em]"
+                                onClick={handleImportConfirm}
                             >
                                 {importing ? t.products.importing : `${importPreview.length} ${t.products.importProducts}`}
-                            </button>
+                            </Button>
                         </div>
+                        {outOfStockCount > 0 && false /* placeholder, not used */}
                     </div>
                 </div>
             )}

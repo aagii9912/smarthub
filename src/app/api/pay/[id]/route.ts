@@ -128,6 +128,37 @@ export async function GET(
         shopName = shop?.name || 'Shop';
     }
 
+    // ── Fetch order items with product details ──
+    let orderItems: Array<{
+        id: string;
+        name: string;
+        image: string | null;
+        quantity: number;
+        unitPrice: number;
+        variantSpecs: Record<string, string>;
+    }> = [];
+
+    if (payment.order_id) {
+        const { data: items } = await supabase
+            .from('order_items')
+            .select('id, quantity, unit_price, variant_specs, product_id, products(name, image_url)')
+            .eq('order_id', payment.order_id);
+
+        if (items) {
+            orderItems = items.map((item: Record<string, unknown>) => {
+                const product = item.products as Record<string, unknown> | null;
+                return {
+                    id: item.id as string,
+                    name: (product?.name as string) || 'Бүтээгдэхүүн',
+                    image: (product?.image_url as string) || null,
+                    quantity: item.quantity as number,
+                    unitPrice: Number(item.unit_price),
+                    variantSpecs: (item.variant_specs as Record<string, string>) || {},
+                };
+            });
+        }
+    }
+
     // Extract bank deeplinks from metadata
     const urls = (payment.metadata as Record<string, unknown>)?.urls as Array<{
         name: string;
@@ -144,6 +175,7 @@ export async function GET(
         shopLogo: null,
         paymentType: payment.payment_type,
         planSlug: payment.subscription_plan_slug,
+        orderItems,
         banks: urls.map(u => ({
             name: u.name,
             description: u.description,

@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
     Upload, FileSpreadsheet, X, Check,
-    AlertCircle, Loader2, Download
+    AlertCircle, Loader2, Download, Sparkles, Table
 } from 'lucide-react';
 
 interface Product {
@@ -12,6 +12,8 @@ interface Product {
     price: number;
     description?: string;
     image_url?: string;
+    stock?: number;
+    type?: string;
 }
 
 interface ProductImportModalProps {
@@ -57,9 +59,15 @@ const SAMPLE_CSV = `name,price,description,image_url
 Өмд (Цэнхэр),55000,Цэнхэр жинс өмд,
 Малгай,15000,Дулаан өвлийн малгай,`;
 
+type ImportMode = 'csv' | 'excel';
+type ModalStep = 'upload' | 'mapping' | 'ai-processing' | 'preview';
+
 export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportModalProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [file, setFile] = useState<File | null>(null);
+    const [importMode, setImportMode] = useState<ImportMode>('excel');
+
+    // CSV state
     const [parsedData, setParsedData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
     const [columnMapping, setColumnMapping] = useState<Record<string, number>>({
         name: -1,
@@ -67,22 +75,21 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
         description: -1,
         image_url: -1
     });
+
+    // Excel AI state
+    const [aiProducts, setAiProducts] = useState<Product[]>([]);
+    const [aiSource, setAiSource] = useState<'ai' | 'manual_fallback' | null>(null);
+
+    // Common state
     const [error, setError] = useState('');
     const [importing, setImporting] = useState(false);
-    const [step, setStep] = useState<'upload' | 'mapping' | 'preview'>('upload');
+    const [step, setStep] = useState<ModalStep>('upload');
 
     const requiredColumns = ['name', 'price'];
     const optionalColumns = ['description', 'image_url'];
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (!selectedFile) return;
-
-        if (!selectedFile.name.endsWith('.csv')) {
-            setError('Зөвхөн CSV файл оруулна уу');
-            return;
-        }
-
+    // ═══════════ CSV Handler ═══════════
+    const handleCSVSelect = async (selectedFile: File) => {
         try {
             const content = await selectedFile.text();
             const parsed = parseCSV(content);
@@ -118,6 +125,78 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
         }
     };
 
+    // ═══════════ Excel AI Handler ═══════════
+    const handleExcelSelect = async (selectedFile: File) => {
+        setFile(selectedFile);
+        setError('');
+        setStep('ai-processing');
+        setAiProducts([]);
+        setAiSource(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            const res = await fetch('/api/shop/products/import-excel', {
+                method: 'POST',
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '',
+                },
+                body: formData,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Excel файл уншихад алдаа гарлаа');
+            }
+
+            if (!data.products || data.products.length === 0) {
+                throw new Error('Бараа олдсонгүй. Файлын бүтцийг шалгана уу.');
+            }
+
+            // Map AI results to our Product interface
+            const mapped: Product[] = data.products.map((p: {
+                name?: string;
+                price?: number;
+                stock?: number;
+                description?: string;
+                type?: string;
+            }) => ({
+                name: p.name || '',
+                price: Number(p.price) || 0,
+                description: p.description || undefined,
+                stock: Number(p.stock) || 0,
+                type: p.type || 'physical',
+            })).filter((p: Product) => p.name && p.price > 0);
+
+            setAiProducts(mapped);
+            setAiSource(data.source || 'ai');
+            setStep('preview');
+        } catch (err: unknown) {
+            setError((err instanceof Error ? err.message : String(err)) || 'Excel импорт алдаа');
+            setStep('upload');
+        }
+    };
+
+    // ═══════════ File Select Router ═══════════
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (!selectedFile) return;
+
+        const name = selectedFile.name.toLowerCase();
+
+        if (name.endsWith('.csv')) {
+            setImportMode('csv');
+            await handleCSVSelect(selectedFile);
+        } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+            setImportMode('excel');
+            await handleExcelSelect(selectedFile);
+        } else {
+            setError('CSV эсвэл Excel (.xlsx) файл оруулна уу');
+        }
+    };
+
     const handleColumnMap = (field: string, columnIndex: number) => {
         setColumnMapping(prev => ({ ...prev, [field]: columnIndex }));
     };
@@ -138,21 +217,16 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
         }
     };
 
-    const getPreviewProducts = (): Product[] => {
+    // Get products based on import mode
+    const getProducts = (limit?: number): Product[] => {
+        if (importMode === 'excel') {
+            return limit ? aiProducts.slice(0, limit) : aiProducts;
+        }
+
         if (!parsedData) return [];
 
-        return parsedData.rows.slice(0, 5).map(row => ({
-            name: columnMapping.name >= 0 ? row[columnMapping.name] || '' : '',
-            price: columnMapping.price >= 0 ? parseFloat(row[columnMapping.price]) || 0 : 0,
-            description: columnMapping.description >= 0 ? row[columnMapping.description] : undefined,
-            image_url: columnMapping.image_url >= 0 ? row[columnMapping.image_url] : undefined
-        })).filter(p => p.name && p.price > 0);
-    };
-
-    const getAllProducts = (): Product[] => {
-        if (!parsedData) return [];
-
-        return parsedData.rows.map(row => ({
+        const rows = limit ? parsedData.rows.slice(0, limit) : parsedData.rows;
+        return rows.map(row => ({
             name: columnMapping.name >= 0 ? row[columnMapping.name] || '' : '',
             price: columnMapping.price >= 0 ? parseFloat(row[columnMapping.price]) || 0 : 0,
             description: columnMapping.description >= 0 ? row[columnMapping.description] : undefined,
@@ -161,7 +235,7 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
     };
 
     const handleImport = async () => {
-        const products = getAllProducts();
+        const products = getProducts();
         if (products.length === 0) {
             setError('Оруулах бүтээгдэхүүн олдсонгүй');
             return;
@@ -192,11 +266,17 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
         setFile(null);
         setParsedData(null);
         setColumnMapping({ name: -1, price: -1, description: -1, image_url: -1 });
+        setAiProducts([]);
+        setAiSource(null);
         setError('');
         setStep('upload');
+        setImportMode('excel');
     };
 
     if (!isOpen) return null;
+
+    const allProducts = getProducts();
+    const previewProducts = getProducts(5);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -204,14 +284,25 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                            <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            importMode === 'excel'
+                                ? 'bg-emerald-100'
+                                : 'bg-green-100'
+                        }`}>
+                            {importMode === 'excel' ? (
+                                <Sparkles className="w-5 h-5 text-emerald-600" />
+                            ) : (
+                                <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                            )}
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900">CSV Import</h3>
+                            <h3 className="font-bold text-gray-900">
+                                {importMode === 'excel' ? 'Excel AI Import' : 'CSV Import'}
+                            </h3>
                             <p className="text-xs text-gray-500">
                                 {step === 'upload' && 'Файл сонгох'}
                                 {step === 'mapping' && 'Багана тохируулах'}
+                                {step === 'ai-processing' && 'AI боловсруулж байна...'}
                                 {step === 'preview' && 'Урьдчилан харах'}
                             </p>
                         </div>
@@ -241,14 +332,20 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                 className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-violet-300 hover:bg-violet-50/50 transition-all"
                             >
                                 <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                                <p className="font-medium text-gray-700">CSV файл оруулах</p>
-                                <p className="text-sm text-gray-500 mt-1">Дарж эсвэл чирж оруулна уу</p>
+                                <p className="font-medium text-gray-700">Excel эсвэл CSV файл оруулах</p>
+                                <p className="text-sm text-gray-500 mt-1">.xlsx, .xls, .csv файл дэмжигдэнэ</p>
+                                <div className="flex items-center justify-center gap-2 mt-3">
+                                    <span className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full border border-emerald-100">
+                                        <Sparkles className="w-3 h-3" />
+                                        AI автомат таних
+                                    </span>
+                                </div>
                             </div>
 
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".csv"
+                                accept=".csv,.xlsx,.xls"
                                 onChange={handleFileSelect}
                                 className="hidden"
                             />
@@ -258,13 +355,30 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                 className="w-full flex items-center justify-center gap-2 text-sm text-violet-600 hover:text-violet-700 py-2"
                             >
                                 <Download className="w-4 h-4" />
-                                Загвар файл татах
+                                CSV загвар файл татах
                             </button>
                         </div>
                     )}
 
-                    {/* Step 2: Column Mapping */}
-                    {step === 'mapping' && parsedData && (
+                    {/* Step: AI Processing (Excel only) */}
+                    {step === 'ai-processing' && (
+                        <div className="py-12 text-center space-y-4">
+                            <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+                                <Sparkles className="w-8 h-8 text-emerald-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">AI боловсруулж байна</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    &quot;{file?.name}&quot; файлыг уншиж, барааны мэдээллийг таньж байна...
+                                </p>
+                            </div>
+                            <Loader2 className="w-6 h-6 animate-spin text-violet-500 mx-auto" />
+                            <p className="text-xs text-gray-400">Энэ процесс хэдхэн секунд үргэлжилнэ</p>
+                        </div>
+                    )}
+
+                    {/* Step 2: Column Mapping (CSV only) */}
+                    {step === 'mapping' && parsedData && importMode === 'csv' && (
                         <div className="space-y-4">
                             <div className="bg-gray-50 p-3 rounded-xl">
                                 <p className="text-sm font-medium text-gray-700">
@@ -305,8 +419,29 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                     {/* Step 3: Preview */}
                     {step === 'preview' && (
                         <div className="space-y-4">
+                            {/* AI badge */}
+                            {importMode === 'excel' && aiSource && (
+                                <div className={`flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium ${
+                                    aiSource === 'ai'
+                                        ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
+                                        : 'bg-amber-50 border border-amber-100 text-amber-700'
+                                }`}>
+                                    {aiSource === 'ai' ? (
+                                        <>
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            AI автоматаар {allProducts.length} бараа таньлаа
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Table className="w-3.5 h-3.5" />
+                                            Баганы нэрээр {allProducts.length} бараа олдлоо
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                             <p className="text-sm font-medium text-gray-900">
-                                Урьдчилан харах ({getAllProducts().length} бүтээгдэхүүн)
+                                Урьдчилан харах ({allProducts.length} бүтээгдэхүүн)
                             </p>
 
                             <div className="border rounded-xl overflow-hidden">
@@ -315,24 +450,39 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                         <tr>
                                             <th className="px-3 py-2 text-left font-medium text-gray-600">Нэр</th>
                                             <th className="px-3 py-2 text-right font-medium text-gray-600">Үнэ</th>
+                                            {importMode === 'excel' && (
+                                                <th className="px-3 py-2 text-right font-medium text-gray-600">Тоо</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {getPreviewProducts().map((product, idx) => (
+                                        {previewProducts.map((product, idx) => (
                                             <tr key={idx}>
-                                                <td className="px-3 py-2 text-gray-900">{product.name}</td>
-                                                <td className="px-3 py-2 text-right text-gray-600">
+                                                <td className="px-3 py-2 text-gray-900">
+                                                    {product.name}
+                                                    {product.description && (
+                                                        <span className="block text-xs text-gray-400 truncate max-w-[200px]">
+                                                            {product.description}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
                                                     {product.price.toLocaleString()}₮
                                                 </td>
+                                                {importMode === 'excel' && (
+                                                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">
+                                                        {product.stock || 0}
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
 
-                            {getAllProducts().length > 5 && (
+                            {allProducts.length > 5 && (
                                 <p className="text-xs text-gray-500 text-center">
-                                    ... болон {getAllProducts().length - 5} бусад бүтээгдэхүүн
+                                    ... болон {allProducts.length - 5} бусад бүтээгдэхүүн
                                 </p>
                             )}
                         </div>
@@ -343,6 +493,12 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                 <div className="flex gap-3 p-4 border-t bg-gray-50">
                     {step === 'upload' && (
                         <Button variant="secondary" className="flex-1" onClick={onClose}>
+                            Болих
+                        </Button>
+                    )}
+
+                    {step === 'ai-processing' && (
+                        <Button variant="secondary" className="flex-1" onClick={() => { resetState(); }}>
                             Болих
                         </Button>
                     )}
@@ -360,7 +516,13 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
 
                     {step === 'preview' && (
                         <>
-                            <Button variant="secondary" onClick={() => setStep('mapping')}>
+                            <Button variant="secondary" onClick={() => {
+                                if (importMode === 'csv') {
+                                    setStep('mapping');
+                                } else {
+                                    resetState();
+                                }
+                            }}>
                                 Буцах
                             </Button>
                             <Button
@@ -373,7 +535,7 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                 ) : (
                                     <>
                                         <Check className="w-4 h-4 mr-2" />
-                                        Import ({getAllProducts().length})
+                                        Import ({allProducts.length})
                                     </>
                                 )}
                             </Button>

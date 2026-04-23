@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Store, ArrowRight, Building2, AlertCircle } from 'lucide-react';
+import { Store, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -10,17 +10,11 @@ interface ShopInfoStepProps {
     name: string;
     owner_name: string;
     phone: string;
-    bank_name?: string;
-    account_number?: string;
-    account_name?: string;
   };
   onNext: (data: {
     name: string;
     owner_name: string;
     phone: string;
-    bank_name?: string;
-    account_number?: string;
-    account_name?: string;
   }) => Promise<void>;
   onPreviewUpdate?: (data: Record<string, string>) => void;
 }
@@ -30,9 +24,6 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
   const [name, setName] = useState(initialData.name || '');
   const [ownerName, setOwnerName] = useState(initialData.owner_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
-  const [bankName, setBankName] = useState(initialData.bank_name || '');
-  const [accountNumber, setAccountNumber] = useState(initialData.account_number || '');
-  const [accountName, setAccountName] = useState(initialData.account_name || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,10 +40,6 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
 
     if (phone && !/^[0-9]{8}$/.test(phone.replace(/\s/g, ''))) {
       newErrors.phone = t.setup.shop.phoneError;
-    }
-
-    if (accountNumber && !/^[0-9]{8,16}$/.test(accountNumber.replace(/\s/g, ''))) {
-      newErrors.accountNumber = t.setup.shop.accountNumberError;
     }
 
     setErrors(newErrors);
@@ -72,9 +59,6 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
         name,
         owner_name: ownerName,
         phone,
-        bank_name: bankName,
-        account_number: accountNumber,
-        account_name: accountName
       });
       toast.success(t.setup.shop.savedSuccess);
     } catch (err: unknown) {
@@ -145,45 +129,6 @@ export function ShopInfoStep({ initialData, onNext, onPreviewUpdate }: ShopInfoS
           )}
         </div>
 
-        <div className="pt-3 border-t border-gray-100 shrink-0">
-          <div className="flex items-center gap-2 mb-3">
-            <Building2 className="w-4 h-4 text-violet-600" />
-            <h3 className="text-base font-semibold text-gray-900">{t.setup.shop.bankInfo}</h3>
-            <span className="text-[11px] text-gray-500">({t.common.optional})</span>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t.setup.shop.bankName}</label>
-              <input
-                type="text"
-                value={bankName}
-                onChange={(e) => { setBankName(e.target.value); onPreviewUpdate?.({ bank_name: e.target.value }); }}
-                placeholder={t.setup.shop.bankNamePlaceholder}
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t.setup.shop.accountNumber}</label>
-              <input
-                type="text"
-                value={accountNumber}
-                onChange={(e) => { setAccountNumber(e.target.value); onPreviewUpdate?.({ account_number: e.target.value }); }}
-                placeholder="5000000000"
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">{t.setup.shop.accountName}</label>
-              <input
-                type="text"
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value)}
-                placeholder={t.setup.shop.accountNamePlaceholder}
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all shadow-sm"
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className="mt-auto shrink-0 pt-2">

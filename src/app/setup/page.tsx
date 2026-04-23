@@ -16,6 +16,7 @@ import { FacebookStep } from '@/components/setup/FacebookStep';
 import { InstagramStep } from '@/components/setup/InstagramStep';
 import { ProductStep } from '@/components/setup/ProductStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
+import { PayoutSetupStep } from '@/components/setup/PayoutSetupStep';
 import { SubscriptionStep } from '@/components/setup/SubscriptionStep';
 import { PWAInstallBanner } from '@/components/setup/PWAInstallBanner';
 import { SetupPreview } from '@/components/setup/SetupPreview';
@@ -27,6 +28,7 @@ const stepLabels = [
   'Instagram',
   'Бараа',
   'AI',
+  'Орлогын данс',
   'Төлбөр',
 ];
 
@@ -68,7 +70,7 @@ function SetupContent() {
 
   const setStep = (newStep: number) => {
     if (newStep > step) {
-      if (newStep === 6) {
+      if (newStep === 7) {
         triggerFinal();
       } else {
         triggerSmall();
@@ -219,8 +221,6 @@ function SetupContent() {
     setPreviewShopName(String(data.name || ''));
     setPreviewOwnerName(String(data.owner_name || ''));
     setPreviewPhone(String(data.phone || ''));
-    setPreviewBankName(String(data.bank_name || ''));
-    setPreviewAccountNumber(String(data.account_number || ''));
 
     await refreshShop();
     setStep(2);
@@ -436,13 +436,13 @@ function SetupContent() {
           </Link>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
             <span className="text-sm font-semibold text-slate-700">{step}</span>
-            <span className="text-sm font-medium text-slate-400">/ 6</span>
+            <span className="text-sm font-medium text-slate-400">/ 7</span>
           </div>
         </div>
 
         {/* Minimal Progress Dots */}
         <div className="px-8 pb-4 flex items-center justify-center gap-2 shrink-0">
-          {[1, 2, 3, 4, 5, 6].map((s) => {
+          {[1, 2, 3, 4, 5, 6, 7].map((s) => {
             const isActive = s === step;
             const isDone = s < step;
             return (
@@ -478,12 +478,10 @@ function SetupContent() {
                   phone: shop?.phone || ''
                 }}
                 onNext={handleShopSave}
-                onPreviewUpdate={(data: Partial<{ name: string; owner_name: string; phone: string; bank_name: string; account_number: string }>) => {
+                onPreviewUpdate={(data: Partial<{ name: string; owner_name: string; phone: string }>) => {
                   if (data.name !== undefined) setPreviewShopName(data.name);
                   if (data.owner_name !== undefined) setPreviewOwnerName(data.owner_name);
                   if (data.phone !== undefined) setPreviewPhone(data.phone);
-                  if (data.bank_name !== undefined) setPreviewBankName(data.bank_name);
-                  if (data.account_number !== undefined) setPreviewAccountNumber(data.account_number);
                 }}
               />
             )}
@@ -569,6 +567,19 @@ function SetupContent() {
             )}
 
             {step === 6 && (
+              <PayoutSetupStep
+                onComplete={() => setStep(7)}
+                initialData={{
+                  bank_name: shop?.bank_name || '',
+                  account_name: shop?.account_name || '',
+                  account_number: shop?.account_number || '',
+                  register_number: shop?.register_number || '',
+                  merchant_type: (shop?.merchant_type as 'person' | 'company') || 'person',
+                }}
+              />
+            )}
+
+            {step === 7 && (
               <SubscriptionStep
                 onComplete={() => router.push('/dashboard')}
               />

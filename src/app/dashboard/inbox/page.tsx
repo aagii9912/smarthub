@@ -2,9 +2,26 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Send, MessageSquare, User, Bot, PauseCircle, Search, Inbox as InboxIcon, Timer, Power, Trash2 } from 'lucide-react';
+import {
+    Loader2,
+    Send,
+    MessageSquare,
+    User,
+    Bot,
+    Search,
+    Inbox as InboxIcon,
+    Timer,
+    Power,
+    Trash2,
+    Sparkles,
+    Phone,
+    MoreHorizontal,
+} from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { PageSkeleton } from '@/components/ui/PageSkeleton';
+import { PageHero } from '@/components/ui/PageHero';
+import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 interface ChatMessage {
     id: string;
@@ -23,6 +40,14 @@ interface Conversation {
     messages: ChatMessage[];
 }
 
+type AvatarTone = 'indigo' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan';
+const TONES: AvatarTone[] = ['indigo', 'violet', 'emerald', 'cyan', 'rose', 'amber'];
+function toneFor(id: string): AvatarTone {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return TONES[h % TONES.length];
+}
+
 export default function InboxPage() {
     const { t } = useLanguage();
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -36,9 +61,9 @@ export default function InboxPage() {
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
+    const shopId =
+        typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
 
-    // Fetch all conversations
     const fetchConversations = useCallback(async () => {
         try {
             setLoading(true);
@@ -60,7 +85,6 @@ export default function InboxPage() {
         if (shopId) fetchConversations();
     }, [shopId, fetchConversations]);
 
-    // Select conversation
     const selectConversation = (convo: Conversation) => {
         setActiveId(convo.id);
         const sorted = [...convo.messages].sort(
@@ -70,9 +94,9 @@ export default function InboxPage() {
         setReplyMessage('');
     };
 
-    // Delete customer
     const handleDeleteCustomer = async (customerId: string, name: string) => {
-        if (!confirm(`"${name || 'Customer'}" хэрэглэгчийг устгах уу? Чат түүх бүгд устана.`)) return;
+        if (!confirm(`"${name || 'Customer'}" хэрэглэгчийг устгах уу? Чат түүх бүгд устана.`))
+            return;
         try {
             const res = await fetch(`/api/dashboard/customers?id=${customerId}`, {
                 method: 'DELETE',
@@ -88,12 +112,10 @@ export default function InboxPage() {
         }
     };
 
-    // Auto-scroll
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages]);
 
-    // Send reply
     const handleSendReply = async () => {
         if (!replyMessage.trim() || isSending || !activeId) return;
 
@@ -107,7 +129,7 @@ export default function InboxPage() {
             content: messageText,
             created_at: new Date().toISOString(),
         };
-        setChatMessages(prev => [...prev, optimisticMsg]);
+        setChatMessages((prev) => [...prev, optimisticMsg]);
 
         try {
             const res = await fetch('/api/dashboard/conversations/reply', {
@@ -143,7 +165,7 @@ export default function InboxPage() {
             inputRef.current?.focus();
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : t.inbox.sendError);
-            setChatMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+            setChatMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
             setReplyMessage(messageText);
         } finally {
             setIsSending(false);
@@ -181,200 +203,344 @@ export default function InboxPage() {
         }
     };
 
-    const filtered = conversations.filter(c =>
+    const filtered = conversations.filter((c) =>
         c.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const activeConvo = conversations.find(c => c.id === activeId);
+    const activeConvo = conversations.find((c) => c.id === activeId);
 
     if (loading) {
-        return <PageSkeleton showTable={true} />;
+        return (
+            <div className="space-y-6">
+                <div className="h-24 card-outlined animate-pulse" />
+                <div className="h-[calc(100vh-260px)] card-outlined animate-pulse" />
+            </div>
+        );
     }
 
     return (
-        <div className="flex h-[calc(100vh-80px)] bg-[#0a0a0f] rounded-xl overflow-hidden border border-white/[0.06]">
-            {/* Left: Conversation list */}
-            <div className="w-[340px] border-r border-white/[0.06] flex flex-col shrink-0">
-                {/* Search */}
-                <div className="p-3 border-b border-white/[0.06]">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                        <input
-                            type="text"
-                            placeholder={t.common.search + '...'}
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2.5 bg-white/[0.05] rounded-lg text-sm text-white/80 placeholder:text-white/25 border border-white/[0.06] focus:border-blue-500/40 outline-none"
+        <div className="space-y-6 h-full flex flex-col">
+            <PageHero
+                eyebrow="Харилцан яриа"
+                live
+                title="Хавсарга"
+                subtitle="Facebook Messenger болон Instagram-ын бүх ярианууд нэг дороос."
+                actions={
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
+                        <MessageSquare
+                            className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]"
+                            strokeWidth={1.5}
                         />
+                        <span className="font-medium tabular-nums tracking-[-0.01em]">
+                            {conversations.length} харилцагч
+                        </span>
                     </div>
-                </div>
+                }
+            />
 
-                {/* Conversations */}
-                <div className="flex-1 overflow-y-auto">
-                    {filtered.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-white/30 gap-2">
-                            <InboxIcon className="w-8 h-8" />
-                            <p className="text-sm">{t.inbox.noActiveCarts}</p>
+            <div className="flex-1 min-h-[520px] card-outlined overflow-hidden grid grid-cols-1 md:grid-cols-[340px_1fr]">
+                {/* Left: Conversation list */}
+                <div className="flex flex-col border-b md:border-b-0 md:border-r border-white/[0.06] min-h-0">
+                    {/* Search */}
+                    <div className="p-3 border-b border-white/[0.06]">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35" />
+                            <input
+                                type="text"
+                                placeholder={t.common.search + '...'}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2.5 bg-white/[0.03] rounded-xl text-[13px] text-foreground placeholder:text-white/35 border border-white/[0.06] focus:border-[var(--border-accent)] focus:bg-white/[0.05] outline-none transition-colors"
+                            />
                         </div>
-                    ) : (
-                        filtered.map(convo => (
-                            <button
-                                key={convo.id}
-                                onClick={() => selectConversation(convo)}
-                                className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all border-b border-white/[0.03] ${
-                                    activeId === convo.id
-                                        ? 'bg-blue-500/10 border-l-2 border-l-blue-500'
-                                        : 'hover:bg-white/[0.03]'
-                                }`}
-                            >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-violet-500/30 flex items-center justify-center shrink-0 text-sm font-bold text-white/70">
-                                    {convo.customer_name?.[0]?.toUpperCase() || '?'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-white/80 truncate">
-                                            {convo.customer_name || 'Guest'}
-                                        </span>
-                                        <span className="text-[10px] text-white/25 shrink-0 ml-2">
-                                            {formatDate(convo.last_message_at)}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-white/35 truncate mt-0.5">
-                                        {convo.last_message || '...'}
-                                    </p>
-                                </div>
-                            </button>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* Right: Chat area */}
-            <div className="flex-1 flex flex-col">
-                {!activeConvo ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-3">
-                        <MessageSquare className="w-12 h-12" />
-                        <p className="text-sm">{t.inbox.selectCustomer}</p>
                     </div>
-                ) : (
-                    <>
-                        {/* Chat header */}
-                        <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/30 to-violet-500/30 flex items-center justify-center text-sm font-bold text-white/70">
-                                {activeConvo.customer_name?.[0]?.toUpperCase() || '?'}
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold text-white/90">
-                                    {activeConvo.customer_name || 'Guest'}
-                                </p>
-                                <p className="text-[11px] text-white/30">
-                                    {chatMessages.length} {t.inbox.messages}
-                                </p>
-                            </div>
-                            <div className="ml-auto">
-                                <button
-                                    onClick={() => handleDeleteCustomer(activeConvo.id, activeConvo.customer_name)}
-                                    className="p-1.5 hover:bg-red-500/10 rounded-md transition-colors group"
-                                    title="Устгах"
-                                >
-                                    <Trash2 className="w-4 h-4 text-white/20 group-hover:text-red-400" strokeWidth={1.5} />
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                            {chatMessages.length === 0 ? (
-                                <div className="flex items-center justify-center h-full text-white/20 text-sm">
-                                    {t.inbox.emptyChatHistory}
-                                </div>
-                            ) : (
-                                chatMessages.map(msg => (
-                                    <div
-                                        key={msg.id}
-                                        className={`flex gap-2.5 ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        {msg.role === 'user' && (
-                                            <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                                                <User className="w-3.5 h-3.5 text-blue-400" />
-                                            </div>
+                    {/* Conversations */}
+                    <div className="flex-1 overflow-y-auto">
+                        {filtered.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-white/30 gap-2 py-12">
+                                <InboxIcon className="w-8 h-8" strokeWidth={1.5} />
+                                <p className="text-[13px]">{t.inbox.noActiveCarts}</p>
+                            </div>
+                        ) : (
+                            filtered.map((convo) => {
+                                const isActive = activeId === convo.id;
+                                return (
+                                    <button
+                                        key={convo.id}
+                                        onClick={() => selectConversation(convo)}
+                                        className={cn(
+                                            'w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all border-b border-white/[0.04]',
+                                            isActive
+                                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)] shadow-[inset_2px_0_0_var(--brand-indigo)]'
+                                                : 'hover:bg-white/[0.02]'
                                         )}
-                                        <div
-                                            className={`max-w-[70%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
-                                                msg.role === 'assistant'
-                                                    ? 'bg-blue-500/20 text-blue-100 rounded-br-md'
-                                                    : 'bg-white/[0.08] text-white/80 rounded-bl-md'
-                                            }`}
-                                        >
-                                            {msg.content}
-                                            <div className={`text-[10px] mt-1 ${msg.role === 'assistant' ? 'text-blue-400/40' : 'text-white/20'}`}>
-                                                {formatTime(msg.created_at)}
+                                    >
+                                        <Avatar
+                                            tone={toneFor(convo.id)}
+                                            fallback={convo.customer_name}
+                                            size="md"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span
+                                                    className={cn(
+                                                        'text-[13px] truncate tracking-[-0.01em]',
+                                                        convo.unread_count > 0
+                                                            ? 'font-semibold text-foreground'
+                                                            : 'font-medium text-white/80'
+                                                    )}
+                                                >
+                                                    {convo.customer_name || 'Guest'}
+                                                </span>
+                                                <span className="text-[10px] text-white/40 shrink-0 tabular-nums font-mono">
+                                                    {formatDate(convo.last_message_at)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p
+                                                    className={cn(
+                                                        'text-[12px] truncate flex-1',
+                                                        convo.unread_count > 0
+                                                            ? 'text-white/85 font-medium'
+                                                            : 'text-white/45'
+                                                    )}
+                                                >
+                                                    {convo.last_message || '…'}
+                                                </p>
+                                                {convo.unread_count > 0 && (
+                                                    <span
+                                                        className="inline-flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-bold text-white tabular-nums"
+                                                        style={{
+                                                            background: 'var(--brand-indigo)',
+                                                            boxShadow: 'var(--shadow-cta-indigo)',
+                                                        }}
+                                                    >
+                                                        {convo.unread_count}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                        {msg.role === 'assistant' && (
-                                            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                                                <Bot className="w-3.5 h-3.5 text-emerald-400" />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                            <div ref={chatEndRef} />
-                        </div>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
 
-                        {/* Reply input */}
-                        <div className="px-4 py-3 border-t border-white/[0.06]">
-                            <div className="flex items-center gap-1.5 mb-2 px-1">
-                                <span className="text-[10px] text-white/25 mr-1">AI mode:</span>
-                                <button
-                                    onClick={() => setAiPauseMode('pause')}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
-                                        aiPauseMode === 'pause'
-                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                            : 'bg-white/[0.04] text-white/30 border border-white/[0.06] hover:bg-white/[0.08]'
-                                    }`}
-                                >
-                                    <Timer className="w-3 h-3" />
-                                    30 мин түр зогсоох
-                                </button>
-                                <button
-                                    onClick={() => setAiPauseMode('off')}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all ${
-                                        aiPauseMode === 'off'
-                                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                            : 'bg-white/[0.04] text-white/30 border border-white/[0.06] hover:bg-white/[0.08]'
-                                    }`}
-                                >
-                                    <Power className="w-3 h-3" />
-                                    AI унтраах
-                                </button>
+                {/* Right: Chat area */}
+                <div className="flex flex-col min-h-0">
+                    {!activeConvo ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3 p-10">
+                            <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                                <MessageSquare className="w-7 h-7" strokeWidth={1.5} />
                             </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={replyMessage}
-                                    onChange={e => setReplyMessage(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={t.inbox.messagePlaceholder}
-                                    disabled={isSending}
-                                    className="flex-1 px-4 py-2.5 bg-white/[0.06] rounded-xl text-sm text-white/80 placeholder:text-white/25 border border-white/[0.06] focus:border-blue-500/40 outline-none disabled:opacity-50"
-                                />
-                                <button
-                                    onClick={handleSendReply}
-                                    disabled={!replyMessage.trim() || isSending}
-                                    className="p-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:bg-white/[0.06] disabled:text-white/20 text-white transition-all"
-                                >
-                                    {isSending ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Send className="w-4 h-4" />
-                                    )}
-                                </button>
-                            </div>
+                            <p className="text-[13px] tracking-[-0.01em]">{t.inbox.selectCustomer}</p>
                         </div>
-                    </>
-                )}
+                    ) : (
+                        <>
+                            {/* Chat header */}
+                            <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-3">
+                                <Avatar
+                                    tone={toneFor(activeConvo.id)}
+                                    fallback={activeConvo.customer_name}
+                                    size="md"
+                                    status="online"
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-[14px] font-semibold text-foreground tracking-[-0.01em] truncate">
+                                        {activeConvo.customer_name || 'Guest'}
+                                    </p>
+                                    <p className="text-[11px] text-white/45 tabular-nums">
+                                        {chatMessages.length} {t.inbox.messages}
+                                    </p>
+                                </div>
+                                <div className="ml-auto flex items-center gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label="Phone"
+                                    >
+                                        <Phone className="w-4 h-4" strokeWidth={1.5} />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label="More"
+                                    >
+                                        <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        aria-label="Delete"
+                                        onClick={() =>
+                                            handleDeleteCustomer(
+                                                activeConvo.id,
+                                                activeConvo.customer_name
+                                            )
+                                        }
+                                        className="text-white/40 hover:text-[var(--destructive)]"
+                                    >
+                                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* AI handoff banner */}
+                            <div className="mx-5 mt-4 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px]"
+                                style={{
+                                    background:
+                                        'linear-gradient(90deg, color-mix(in oklab, var(--brand-indigo) 14%, transparent), transparent 70%)',
+                                    border: '1px solid color-mix(in oklab, var(--brand-indigo) 24%, transparent)',
+                                }}
+                            >
+                                <Sparkles
+                                    className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]"
+                                    strokeWidth={1.8}
+                                />
+                                <span className="text-white/55 tracking-[-0.01em]">
+                                    <span className="font-semibold text-foreground">AI агент</span>{' '}
+                                    энэ харилцан яриаг удирдаж байна
+                                </span>
+                            </div>
+
+                            {/* Messages */}
+                            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                                {chatMessages.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full text-white/30 text-[13px]">
+                                        {t.inbox.emptyChatHistory}
+                                    </div>
+                                ) : (
+                                    chatMessages.map((msg) => (
+                                        <div
+                                            key={msg.id}
+                                            className={cn(
+                                                'flex gap-2.5',
+                                                msg.role === 'assistant'
+                                                    ? 'justify-end'
+                                                    : 'justify-start'
+                                            )}
+                                        >
+                                            {msg.role === 'user' && (
+                                                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo-400)]">
+                                                    <User className="w-3.5 h-3.5" />
+                                                </div>
+                                            )}
+                                            <div
+                                                className={cn(
+                                                    'max-w-[72%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed tracking-[-0.01em]',
+                                                    msg.role === 'assistant'
+                                                        ? 'rounded-br-md text-foreground'
+                                                        : 'rounded-bl-md bg-white/[0.05] text-white/85'
+                                                )}
+                                                style={
+                                                    msg.role === 'assistant'
+                                                        ? {
+                                                              background:
+                                                                  'linear-gradient(135deg, var(--brand-indigo), var(--brand-violet-500))',
+                                                              boxShadow: 'var(--shadow-cta-indigo)',
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                {msg.content}
+                                                <div
+                                                    className={cn(
+                                                        'text-[10px] mt-1 tabular-nums',
+                                                        msg.role === 'assistant'
+                                                            ? 'text-white/60'
+                                                            : 'text-white/30'
+                                                    )}
+                                                >
+                                                    {formatTime(msg.created_at)}
+                                                </div>
+                                            </div>
+                                            {msg.role === 'assistant' && (
+                                                <div
+                                                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                                                    style={{
+                                                        background:
+                                                            'color-mix(in oklab, var(--success) 18%, transparent)',
+                                                        color: 'var(--success)',
+                                                    }}
+                                                >
+                                                    <Bot className="w-3.5 h-3.5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+
+                            {/* Reply input */}
+                            <div className="px-4 py-3 border-t border-white/[0.06]">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
+                                    <span className="text-[10px] text-white/35 mr-1 uppercase tracking-[0.08em]">
+                                        AI mode
+                                    </span>
+                                    <button
+                                        onClick={() => setAiPauseMode('pause')}
+                                        className={cn(
+                                            'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-all tracking-[-0.01em]',
+                                            aiPauseMode === 'pause'
+                                                ? 'border-[color-mix(in_oklab,var(--warning)_35%,transparent)] bg-[color-mix(in_oklab,var(--warning)_16%,transparent)] text-[var(--warning)]'
+                                                : 'border-white/[0.06] bg-white/[0.03] text-white/45 hover:bg-white/[0.05]'
+                                        )}
+                                    >
+                                        <Timer className="w-3 h-3" strokeWidth={2} />
+                                        30 мин түр зогсоох
+                                    </button>
+                                    <button
+                                        onClick={() => setAiPauseMode('off')}
+                                        className={cn(
+                                            'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium border transition-all tracking-[-0.01em]',
+                                            aiPauseMode === 'off'
+                                                ? 'border-[color-mix(in_oklab,var(--destructive)_35%,transparent)] bg-[color-mix(in_oklab,var(--destructive)_16%,transparent)] text-[var(--destructive)]'
+                                                : 'border-white/[0.06] bg-white/[0.03] text-white/45 hover:bg-white/[0.05]'
+                                        )}
+                                    >
+                                        <Power className="w-3 h-3" strokeWidth={2} />
+                                        AI унтраах
+                                    </button>
+                                </div>
+                                <div className="flex items-end gap-2 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-2.5 focus-within:border-[var(--border-accent)] focus-within:bg-white/[0.05] transition-colors">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={replyMessage}
+                                        onChange={(e) => setReplyMessage(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={t.inbox.messagePlaceholder}
+                                        disabled={isSending}
+                                        className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-white/35 outline-none px-1.5 py-1 disabled:opacity-50 tracking-[-0.01em]"
+                                    />
+                                    <button
+                                        onClick={handleSendReply}
+                                        disabled={!replyMessage.trim() || isSending}
+                                        className="h-9 w-9 rounded-lg flex items-center justify-center text-white disabled:opacity-30 disabled:pointer-events-none transition-transform active:scale-95"
+                                        style={{
+                                            background:
+                                                'linear-gradient(135deg, var(--brand-indigo), var(--brand-violet-500))',
+                                            boxShadow: 'var(--shadow-cta-indigo)',
+                                        }}
+                                        aria-label="Send"
+                                    >
+                                        {isSending ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Send className="w-4 h-4" strokeWidth={2} />
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="mt-2 flex items-center gap-3 text-[11px] text-white/35 px-1 tracking-[-0.01em]">
+                                    <span>⌘ + Enter илгээх</span>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

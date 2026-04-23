@@ -66,6 +66,48 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        // ── Idempotency Guard ──
+        // Check if this payment was already processed (by webhook or a previous poll)
+        // to prevent duplicate subscription activations
+        const { data: existingPaid } = await supabase
+            .from('invoices')
+            .select('id, status')
+            .eq('qpay_invoice_id', qpayInvoiceId)
+            .eq('status', 'paid')
+            .limit(1)
+            .maybeSingle();
+
+        if (existingPaid) {
+            logger.info('Payment already processed (idempotency guard)', {
+                invoice_id: existingPaid.id,
+                qpay_invoice_id: qpayInvoiceId,
+            });
+            return NextResponse.json({
+                status: 'paid',
+                message: 'Төлбөр амжилттай! Subscription идэвхжлээ 🎉'
+            });
+        }
+
+        // Also check payments table
+        if (paymentRecordId) {
+            const { data: existingPaidPayment } = await supabase
+                .from('payments')
+                .select('id, status')
+                .eq('id', paymentRecordId)
+                .eq('status', 'paid')
+                .maybeSingle();
+
+            if (existingPaidPayment) {
+                logger.info('Payment record already processed (idempotency guard)', {
+                    payment_id: existingPaidPayment.id,
+                });
+                return NextResponse.json({
+                    status: 'paid',
+                    message: 'Төлбөр амжилттай! Subscription идэвхжлээ 🎉'
+                });
+            }
+        }
+
         // Check QPay payment status
         const paymentCheck = await checkPaymentStatus(qpayInvoiceId);
 
@@ -116,14 +158,15 @@ export async function POST(request: NextRequest) {
                     })
                     .eq('shop_id', shop.id);
 
-                // 4. Update shop's plan + subscription_plan + subscription_status
+                // 4. Update shop's plan + subscription_plan + subscription_status + setup_completed
                 const planSlug = (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
                 await supabase
                     .from('shops')
                     .update({
                         plan_id: subscription.plan_id,
                         subscription_plan: planSlug,
-                        subscription_status: 'active'
+                        subscription_status: 'active',
+                        setup_completed: true
                     })
                     .eq('id', shop.id);
             } else {
@@ -159,7 +202,8 @@ export async function POST(request: NextRequest) {
                         .update({
                             plan_id: plan.id,
                             subscription_plan: plan.slug,
-                            subscription_status: 'active'
+                            subscription_status: 'active',
+                            setup_completed: true
                         })
                         .eq('id', shop.id);
                 }

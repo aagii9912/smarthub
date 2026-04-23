@@ -61,11 +61,8 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    // Mark setup as complete
-    await supabase
-      .from('shops')
-      .update({ setup_completed: true })
-      .eq('id', shop.id);
+    // Note: setup_completed is set AFTER subscription payment is verified
+    // in check-payment or webhook handler — NOT here
 
     return NextResponse.json({
       products: insertedProducts,

@@ -1,11 +1,11 @@
 'use client';
 import { logger } from '@/lib/utils/logger';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
     Crown, Rocket, Building2, Sparkles,
-    CreditCard, X, Loader2, ArrowRight
+    CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -19,6 +19,23 @@ interface Plan {
     price_yearly: number | null;
     features: Record<string, unknown> | string[] | null;
     is_featured: boolean;
+}
+
+interface QPayUrl {
+    name?: string;
+    description?: string;
+    logo?: string;
+    link?: string;
+}
+
+interface PaymentInfo {
+    invoice_id?: string;
+    qr_code?: string;
+    urls?: QPayUrl[];
+    amount?: number;
+    payment_required?: boolean;
+    qpay_error?: boolean;
+    message?: string;
 }
 
 interface SubscriptionStepProps {
@@ -45,6 +62,10 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [subscribing, setSubscribing] = useState(false);
+    const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+    const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'paid' | 'error'>('idle');
+    const [pollingError, setPollingError] = useState('');
+    const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
 
     // Fetch plans
@@ -61,6 +82,16 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             }
         };
         fetchPlans();
+    }, []);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+            }
+        };
     }, []);
 
     const formatCurrency = (amount: number) => {
@@ -102,34 +133,147 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
         return featureStrings;
     };
 
+    // Start polling for payment status
+    const startPolling = useCallback((invoiceId: string) => {
+        // Clear existing polling
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+        }
+
+        setPaymentStatus('pending');
+
+        pollingRef.current = setInterval(async () => {
+            try {
+                const res = await fetch('/api/subscription/check-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoice_id: invoiceId }),
+                });
+                const data = await res.json();
+
+                if (data.status === 'paid') {
+                    // Payment confirmed!
+                    if (pollingRef.current) {
+                        clearInterval(pollingRef.current);
+                        pollingRef.current = null;
+                    }
+                    setPaymentStatus('paid');
+
+                    // Wait a moment for the success animation, then complete
+                    setTimeout(() => {
+                        onComplete();
+                    }, 2500);
+                }
+                // If still pending, continue polling
+            } catch (err) {
+                logger.error('Polling error:', { error: err });
+                // Don't stop polling on network errors
+            }
+        }, 3000);
+    }, [onComplete]);
+
     const handleSelectPlan = (planSlug: string) => {
         setSelectedPlan(planSlug);
+        setPaymentInfo(null);
+        setPaymentStatus('idle');
+        setPollingError('');
         setShowPaymentModal(true);
     };
 
+    // Create subscription invoice and get real QR
     const handleSubscribe = async () => {
         if (!selectedPlan) return;
         setSubscribing(true);
+        setPollingError('');
 
         try {
             const res = await fetch('/api/subscription/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    planSlug: selectedPlan,
-                    billingPeriod
+                    plan_id: selectedPlan,
+                    billing_cycle: billingPeriod
                 })
             });
 
-            if (res.ok) {
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Алдаа гарлаа');
+            }
+
+            if (data.payment_required) {
+                setPaymentInfo(data);
+
+                if (data.qpay_error) {
+                    // QPay unavailable — show error
+                    setPollingError(data.message || 'QPay түр ажиллахгүй байна');
+                    setPaymentStatus('error');
+                } else if (data.qr_code) {
+                    // QR code received — start polling
+                    startPolling(data.invoice_id);
+                }
+            } else {
+                // Free plan (shouldn't happen given current backend but handle gracefully)
                 onComplete();
             }
         } catch (err) {
             logger.error('Subscription error:', { error: err });
+            setPollingError(err instanceof Error ? err.message : 'Алдаа гарлаа');
+            setPaymentStatus('error');
         } finally {
             setSubscribing(false);
         }
     };
+
+    // Manual payment check
+    const handleManualCheck = async () => {
+        if (!paymentInfo?.invoice_id) return;
+        setSubscribing(true);
+
+        try {
+            const res = await fetch('/api/subscription/check-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invoice_id: paymentInfo.invoice_id }),
+            });
+            const data = await res.json();
+
+            if (data.status === 'paid') {
+                if (pollingRef.current) {
+                    clearInterval(pollingRef.current);
+                    pollingRef.current = null;
+                }
+                setPaymentStatus('paid');
+                setTimeout(() => {
+                    onComplete();
+                }, 2500);
+            } else if (data.status === 'pending') {
+                setPollingError('Төлбөр хүлээгдэж байна. QR код уншуулсны дараа дахин шалгана уу.');
+            } else {
+                setPollingError(data.message || 'Алдаа гарлаа');
+            }
+        } catch {
+            setPollingError('Төлбөр шалгахад алдаа гарлаа');
+        } finally {
+            setSubscribing(false);
+        }
+    };
+
+    // Close modal and clean up
+    const handleCloseModal = () => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+        }
+        setShowPaymentModal(false);
+        setPaymentInfo(null);
+        setPaymentStatus('idle');
+        setPollingError('');
+    };
+
+    // Detect if user is on mobile
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
     if (loading) {
         return (
@@ -245,7 +389,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             {/* Payment Modal */}
             {showPaymentModal && selected && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-100">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200 border border-gray-100 max-h-[90vh] overflow-y-auto">
                         {/* Header */}
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
@@ -258,7 +402,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                                 </div>
                             </div>
                             <button
-                                onClick={() => setShowPaymentModal(false)}
+                                onClick={handleCloseModal}
                                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                             >
                                 <X className="w-5 h-5 text-gray-400" />
@@ -287,35 +431,152 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                             </div>
                         </div>
 
-                        {/* QR Placeholder */}
-                        <div className="text-center mb-6">
-                            <p className="text-sm font-medium text-gray-700 mb-3">{t.setup.subscription.scanWithBank}</p>
-                            <div className="w-48 h-48 bg-gray-100 rounded-xl mx-auto flex items-center justify-center">
-                                <span className="text-gray-400 text-sm">QPay QR</span>
-                            </div>
-                        </div>
+                        {/* ═══════════ Payment States ═══════════ */}
 
-                        {/* Actions */}
-                        <div className="flex gap-3">
-                            <Button
-                                variant="secondary"
-                                className="flex-1"
-                                onClick={() => setShowPaymentModal(false)}
-                            >
-                                {t.common.back}
-                            </Button>
-                            <Button
-                                className="flex-1"
-                                onClick={handleSubscribe}
-                                disabled={subscribing}
-                            >
-                                {subscribing ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    t.setup.subscription.paid
+                        {/* State: Payment Success */}
+                        {paymentStatus === 'paid' && (
+                            <div className="text-center py-8">
+                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-in zoom-in duration-300">
+                                    <CheckCircle2 className="w-10 h-10 text-green-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">Төлбөр амжилттай! 🎉</h3>
+                                <p className="text-sm text-gray-500">Dashboard руу шилжиж байна...</p>
+                            </div>
+                        )}
+
+                        {/* State: No payment yet — show "Create Invoice" button */}
+                        {paymentStatus === 'idle' && !paymentInfo && (
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1"
+                                    onClick={handleCloseModal}
+                                >
+                                    {t.common.back}
+                                </Button>
+                                <Button
+                                    className="flex-1"
+                                    onClick={handleSubscribe}
+                                    disabled={subscribing}
+                                >
+                                    {subscribing ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        'QPay төлбөр үүсгэх'
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* State: QR Code displayed — waiting for payment */}
+                        {paymentInfo?.qr_code && paymentStatus === 'pending' && (
+                            <>
+                                <div className="text-center mb-5">
+                                    <p className="text-sm font-medium text-gray-700 mb-3">{t.setup.subscription.scanWithBank}</p>
+                                    <div className="w-52 h-52 bg-white border-2 border-gray-100 rounded-2xl mx-auto flex items-center justify-center overflow-hidden p-2 shadow-sm">
+                                        <img
+                                            src={`data:image/png;base64,${paymentInfo.qr_code}`}
+                                            alt="QPay QR"
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+
+                                    {/* Polling indicator */}
+                                    <div className="flex items-center justify-center gap-2 mt-3">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
+                                        <span className="text-xs text-gray-500">Төлбөр хүлээж байна...</span>
+                                    </div>
+                                </div>
+
+                                {/* Bank App Links (for mobile) */}
+                                {isMobile && paymentInfo.urls && paymentInfo.urls.length > 0 && (
+                                    <div className="mb-5">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Smartphone className="w-4 h-4 text-gray-500" />
+                                            <span className="text-xs font-medium text-gray-700">Банкны аппаар төлөх:</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {paymentInfo.urls.slice(0, 9).map((url, idx) => (
+                                                <a
+                                                    key={idx}
+                                                    href={url.link}
+                                                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-gray-100 hover:border-violet-300 hover:bg-violet-50/50 transition-all text-center"
+                                                >
+                                                    {url.logo ? (
+                                                        <img src={url.logo} alt={url.name || ''} className="w-8 h-8 rounded-lg object-contain" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                                                            <CreditCard className="w-4 h-4 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                    <span className="text-[10px] text-gray-600 leading-tight line-clamp-1">
+                                                        {url.name || url.description || `Банк ${idx + 1}`}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
-                            </Button>
-                        </div>
+
+                                {pollingError && (
+                                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs text-center">
+                                        {pollingError}
+                                    </div>
+                                )}
+
+                                {/* Actions */}
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1"
+                                        onClick={handleCloseModal}
+                                    >
+                                        {t.common.back}
+                                    </Button>
+                                    <Button
+                                        className="flex-1"
+                                        onClick={handleManualCheck}
+                                        disabled={subscribing}
+                                    >
+                                        {subscribing ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            'Төлбөр шалгах'
+                                        )}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* State: QPay Error */}
+                        {paymentStatus === 'error' && (
+                            <div className="text-center py-6">
+                                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <X className="w-8 h-8 text-red-500" />
+                                </div>
+                                <p className="text-sm text-red-600 mb-4">{pollingError || 'Төлбөрийн систем түр ажиллахгүй байна'}</p>
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="secondary"
+                                        className="flex-1"
+                                        onClick={handleCloseModal}
+                                    >
+                                        {t.common.back}
+                                    </Button>
+                                    <Button
+                                        className="flex-1"
+                                        onClick={handleSubscribe}
+                                        disabled={subscribing}
+                                    >
+                                        {subscribing ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            'Дахин оролдох'
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

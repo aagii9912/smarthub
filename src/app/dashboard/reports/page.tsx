@@ -3,20 +3,20 @@ import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { PageHero } from '@/components/ui/PageHero';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { BestSellersTable } from '@/components/dashboard/BestSellersTable';
 import { RevenueStats } from '@/components/dashboard/RevenueStats';
 import { SmartInsights } from '@/components/dashboard/SmartInsights';
 import { FeatureGate } from '@/components/FeatureGate';
 import { useReports } from '@/hooks/useReports';
+import { cn } from '@/lib/utils';
 import {
     RefreshCw,
     Download,
     TrendingUp,
     Trophy,
-    BarChart3,
     FileSpreadsheet,
     Package,
     ShoppingCart,
@@ -54,7 +54,7 @@ export default function ReportsPage() {
         }
     };
 
-    const periodOptions = [
+    const periodOptions: { value: Period; label: string }[] = [
         { value: 'today', label: t.dashboard.today },
         { value: 'week', label: t.dashboard.week },
         { value: 'month', label: t.dashboard.month },
@@ -63,41 +63,67 @@ export default function ReportsPage() {
 
     if (isLoading) {
         return (
-            <div className="space-y-5">
-                <div className="h-6 w-48 bg-[#0F0B2E] rounded animate-pulse" />
+            <div className="space-y-6">
+                <div className="h-24 card-outlined animate-pulse" />
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-28 bg-[#0F0B2E] rounded-lg animate-pulse border border-white/[0.08]" />
+                        <div key={i} className="h-28 card-outlined animate-pulse" />
                     ))}
                 </div>
-                <div className="h-80 bg-[#0F0B2E] rounded-lg animate-pulse border border-white/[0.08]" />
+                <div className="h-80 card-outlined animate-pulse" />
             </div>
         );
     }
 
     return (
-        <div className="space-y-5">
-            {/* Toolbar */}
-            <div className="flex items-center justify-end gap-2">
-                <button
-                    onClick={() => refetch()}
-                    disabled={isRefetching}
-                    className="p-1.5 border border-white/[0.08] rounded-md hover:border-white/[0.15] transition-colors"
-                >
-                    <RefreshCw className={`w-3.5 h-3.5 text-white/40 ${isRefetching ? 'animate-spin' : ''}`} />
-                </button>
-            </div>
+        <div className="space-y-6">
+            <PageHero
+                eyebrow="Борлуулалтын тайлан"
+                title={t.reports.title}
+                subtitle="Ажиллаж буй дэлгүүрийн гүйцэтгэл, орлого, захиалгуудыг энд танилцуулж байна."
+                actions={
+                    <>
+                        <div className="hidden md:flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1">
+                            {periodOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => setPeriod(option.value)}
+                                    className={cn(
+                                        'px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-[-0.01em] transition-all',
+                                        period === option.value
+                                            ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-foreground shadow-[inset_0_0_0_1px_var(--border-accent)]'
+                                            : 'text-white/50 hover:text-white'
+                                    )}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Refresh"
+                            onClick={() => refetch()}
+                            disabled={isRefetching}
+                        >
+                            <RefreshCw className={cn('h-4 w-4', isRefetching && 'animate-spin')} />
+                        </Button>
+                    </>
+                }
+            />
 
-            {/* Period Filter */}
-            <div className="flex gap-1">
+            {/* Mobile period toggle */}
+            <div className="flex md:hidden items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1 w-fit">
                 {periodOptions.map((option) => (
                     <button
                         key={option.value}
-                        onClick={() => setPeriod(option.value as Period)}
-                        className={`px-3 py-1.5 rounded-md font-medium text-[12px] transition-all tracking-[-0.01em] ${period === option.value
-                            ? 'bg-[#1C1650] text-foreground'
-                            : 'text-white/40 hover:bg-[#0F0B2E]'
-                            }`}
+                        onClick={() => setPeriod(option.value)}
+                        className={cn(
+                            'px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-[-0.01em] transition-all',
+                            period === option.value
+                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-foreground'
+                                : 'text-white/50'
+                        )}
                     >
                         {option.label}
                     </button>
@@ -128,52 +154,52 @@ export default function ReportsPage() {
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Sales Chart */}
-                <div className="lg:col-span-2 bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
-                    <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08]">
+                <div className="lg:col-span-2 card-outlined overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
                         <div className="flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                            <TrendingUp className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                             <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">{t.reports.title}</span>
                         </div>
-                        <div className="flex gap-0.5">
+                        <div className="flex gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-lg p-1">
                             <button
                                 onClick={() => setChartType('line')}
-                                className={`px-2.5 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors ${chartType === 'line'
-                                    ? 'bg-[#1C1650] text-foreground font-medium'
-                                    : 'text-white/40 hover:text-foreground'
-                                    }`}
+                                className={cn(
+                                    'px-3 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors',
+                                    chartType === 'line'
+                                        ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-foreground font-medium'
+                                        : 'text-white/45 hover:text-foreground'
+                                )}
                             >
                                 Line
                             </button>
                             <button
                                 onClick={() => setChartType('bar')}
-                                className={`px-2.5 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors ${chartType === 'bar'
-                                    ? 'bg-[#1C1650] text-foreground font-medium'
-                                    : 'text-white/40 hover:text-foreground'
-                                    }`}
+                                className={cn(
+                                    'px-3 py-1 text-[11px] rounded-md tracking-[-0.01em] transition-colors',
+                                    chartType === 'bar'
+                                        ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-foreground font-medium'
+                                        : 'text-white/45 hover:text-foreground'
+                                )}
                             >
                                 Bar
                             </button>
                         </div>
                     </div>
                     <div className="p-5">
-                        <SalesChart
-                            data={data?.chartData || []}
-                            type={chartType}
-                            height={350}
-                        />
+                        <SalesChart data={data?.chartData || []} type={chartType} height={350} />
                     </div>
                 </div>
 
                 {/* Order Status */}
-                <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
-                    <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
-                        <ShoppingCart className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                <div className="card-outlined overflow-hidden">
+                    <div className="flex items-center gap-2 px-5 py-4 border-b border-white/[0.06]">
+                        <ShoppingCart className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                         <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">{t.reports.orders}</span>
                     </div>
                     <div className="p-5 space-y-3">
                         {data && Object.entries(data.orderStatus).map(([status, count]) => (
                             <div key={status} className="flex items-center justify-between">
-                                <span className="text-[13px] text-white/50 tracking-[-0.01em]">
+                                <span className="text-[13px] text-white/55 tracking-[-0.01em]">
                                     {translateStatus(status)}
                                 </span>
                                 <span className="text-[13px] font-semibold text-foreground tabular-nums">
@@ -186,9 +212,9 @@ export default function ReportsPage() {
             </div>
 
             {/* Best Sellers */}
-            <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
-                    <Trophy className="w-4 h-4 text-[#4A7CE7]" strokeWidth={1.5} />
+            <div className="card-outlined overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-white/[0.06]">
+                    <Trophy className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                     <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">{t.reports.products} (Top 10)</span>
                 </div>
                 <div className="p-5">
@@ -198,30 +224,32 @@ export default function ReportsPage() {
 
             {/* Export Section */}
             <FeatureGate feature="excel_export">
-                <div className="bg-[#0F0B2E] rounded-lg border border-white/[0.08] overflow-hidden">
-                    <div className="flex items-center gap-2 px-5 py-3.5 border-b border-white/[0.08]">
-                        <FileSpreadsheet className="w-4 h-4 text-white/20" strokeWidth={1.5} />
+                <div className="card-outlined overflow-hidden">
+                    <div className="flex items-center gap-2 px-5 py-4 border-b border-white/[0.06]">
+                        <FileSpreadsheet className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                         <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Excel {t.ui.export}</span>
                     </div>
                     <div className="p-5">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {[
-                                { type: 'orders' as const, label: t.reports.orders, desc: t.reports.orders, icon: ShoppingCart },
-                                { type: 'products' as const, label: t.reports.products, desc: t.reports.products, icon: Package },
-                                { type: 'sales' as const, label: t.reports.revenue, desc: t.reports.revenue, icon: TrendingUp },
+                                { type: 'orders' as const, label: t.reports.orders, icon: ShoppingCart },
+                                { type: 'products' as const, label: t.reports.products, icon: Package },
+                                { type: 'sales' as const, label: t.reports.revenue, icon: TrendingUp },
                             ].map((item) => (
                                 <button
                                     key={item.type}
                                     onClick={() => handleExport(item.type)}
                                     disabled={exporting !== null}
-                                    className="flex items-center gap-3 p-4 bg-[#0D0928] hover:bg-[#0F0B2E] rounded-md border border-white/[0.04] transition-colors disabled:opacity-50 text-left"
+                                    className="flex items-center gap-3 p-4 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-all disabled:opacity-50 text-left group"
                                 >
-                                    <item.icon className="w-5 h-5 text-white/20 shrink-0" strokeWidth={1.5} />
+                                    <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo-400)] shrink-0 transition-colors group-hover:bg-[color-mix(in_oklab,var(--brand-indigo)_28%,transparent)]">
+                                        <item.icon className="w-4.5 h-4.5" strokeWidth={1.8} />
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">{item.label}</p>
-                                        <p className="text-[11px] text-white/40">{item.desc}</p>
+                                        <p className="text-[11px] text-white/40">Excel файлаар татаж авах</p>
                                     </div>
-                                    <Download className={`w-3.5 h-3.5 text-white/20 shrink-0 ${exporting === item.type ? 'animate-bounce' : ''}`} />
+                                    <Download className={cn('w-4 h-4 text-white/30 shrink-0', exporting === item.type && 'animate-bounce')} />
                                 </button>
                             ))}
                         </div>

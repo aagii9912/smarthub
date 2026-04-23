@@ -28,6 +28,8 @@ export interface Shop {
     bank_name?: string | null;
     account_number?: string | null;
     account_name?: string | null;
+    register_number?: string | null;
+    merchant_type?: 'person' | 'company' | null;
     // AI Settings
     description?: string | null;
     ai_emotion?: string | null;
