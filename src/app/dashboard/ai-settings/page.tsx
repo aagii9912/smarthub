@@ -133,6 +133,10 @@ export default function AISettingsPage() {
         payment_methods: [] as string[],
         delivery_areas: [] as string[],
     });
+    // AI Instruction Generator
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiPreview, setAiPreview] = useState('');
+    const [shopName, setShopName] = useState('');
 
     const shopId =
         typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
@@ -160,6 +164,7 @@ export default function AISettingsPage() {
                 setEmotion(s.ai_emotion || 'friendly');
                 setDescription(s.description || '');
                 setAiInstructions(s.ai_instructions || '');
+                setShopName(s.name || '');
                 setAiModel(s.ai_model || 'flash-lite');
                 setAiLanguage(s.ai_language || 'mn');
                 setShopPlan(s.subscription_plan || 'lite');
@@ -257,6 +262,57 @@ export default function AISettingsPage() {
             toast.error('Алдаа гарлаа');
         } finally {
             setSaving(false);
+        }
+    }
+
+    async function handleGenerateInstructions() {
+        setAiGenerating(true);
+        setAiPreview('');
+        try {
+            const res = await fetch('/api/dashboard/ai-generate-instructions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    mode: 'generate',
+                    shopName,
+                    shopDescription: description,
+                    emotion,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'AI error');
+            setAiPreview(data.instructions);
+            toast.success('AI заавар бэлэн боллоо! Шалгаад хэрэглэх дарна уу');
+        } catch (err) {
+            toast.error(`AI алдаа: ${err instanceof Error ? err.message : 'Тодорхойгүй'}`);
+        } finally {
+            setAiGenerating(false);
+        }
+    }
+
+    async function handleImproveInstructions() {
+        setAiGenerating(true);
+        setAiPreview('');
+        try {
+            const res = await fetch('/api/dashboard/ai-generate-instructions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    mode: 'improve',
+                    currentInstructions: aiInstructions,
+                    shopName,
+                    shopDescription: description,
+                    emotion,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'AI error');
+            setAiPreview(data.instructions);
+            toast.success('Сайжруулсан хувилбар бэлэн! Шалгаад хэрэглэх дарна уу');
+        } catch (err) {
+            toast.error(`AI алдаа: ${err instanceof Error ? err.message : 'Тодорхойгүй'}`);
+        } finally {
+            setAiGenerating(false);
         }
     }
 
@@ -450,13 +506,89 @@ export default function AISettingsPage() {
                     </div>
 
                     <div>
-                        <label className={labelCls}>Нарийвчилсан заавар (System Prompt)</label>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className={labelCls} style={{ marginBottom: 0 }}>Нарийвчилсан заавар (System Prompt)</label>
+                            <div className="flex items-center gap-1.5">
+                                {aiInstructions.trim() ? (
+                                    <button
+                                        onClick={handleImproveInstructions}
+                                        disabled={aiGenerating}
+                                        className={cn(
+                                            'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border',
+                                            aiGenerating
+                                                ? 'border-white/[0.06] bg-white/[0.02] text-white/30 cursor-not-allowed'
+                                                : 'border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_12%,transparent)] text-[var(--brand-indigo-400)] hover:bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)]'
+                                        )}
+                                    >
+                                        {aiGenerating ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                            <Sparkles className="w-3 h-3" strokeWidth={2} />
+                                        )}
+                                        Сайжруулах
+                                    </button>
+                                ) : null}
+                                <button
+                                    onClick={handleGenerateInstructions}
+                                    disabled={aiGenerating}
+                                    className={cn(
+                                        'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border',
+                                        aiGenerating
+                                            ? 'border-white/[0.06] bg-white/[0.02] text-white/30 cursor-not-allowed'
+                                            : 'border-white/[0.08] bg-white/[0.03] text-white/60 hover:border-white/[0.15] hover:text-white'
+                                    )}
+                                >
+                                    {aiGenerating ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-3 h-3" strokeWidth={2} />
+                                    )}
+                                    AI-аар бичүүлэх
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* AI Generated Preview */}
+                        {aiPreview && (
+                            <div className="mb-3 p-4 rounded-xl border border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_6%,transparent)] animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[11px] font-semibold text-[var(--brand-indigo-400)] uppercase tracking-[0.08em] flex items-center gap-1.5">
+                                        <Sparkles className="w-3 h-3" strokeWidth={2} />
+                                        AI Үр дүн
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            onClick={() => {
+                                                setAiInstructions(aiPreview);
+                                                setAiPreview('');
+                                                toast.success('Заавар хэрэглэгдлээ');
+                                            }}
+                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[var(--brand-indigo)] text-white hover:opacity-90 transition-opacity"
+                                        >
+                                            <Check className="w-3 h-3" strokeWidth={2} />
+                                            Хэрэглэх
+                                        </button>
+                                        <button
+                                            onClick={() => setAiPreview('')}
+                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-white/[0.08] text-white/50 hover:text-white/80 transition-colors"
+                                        >
+                                            Болих
+                                        </button>
+                                    </div>
+                                </div>
+                                <pre className="text-[12px] text-white/70 whitespace-pre-wrap font-mono leading-relaxed max-h-[200px] overflow-y-auto">{aiPreview}</pre>
+                            </div>
+                        )}
+
                         <textarea
                             value={aiInstructions}
                             onChange={(e) => setAiInstructions(e.target.value)}
                             className={cn(inputCls, 'resize-none min-h-[120px] font-mono text-[12px]')}
                             placeholder="Зөвхөн тусгай шаардлага байгаа үед л бичнэ үү (Optional)"
                         />
+                        <p className="text-[11px] text-white/30 mt-1.5">
+                            AI-аар автоматаар бичүүлэх эсвэл одоогийн зааврыг сайжруулах боломжтой
+                        </p>
                     </div>
 
                     <div className="flex justify-end pt-5 border-t border-white/[0.06]">
