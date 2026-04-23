@@ -144,28 +144,16 @@ export function MobileNav() {
                                 <li key={tab.id} className="flex-1">
                                     <Link
                                         href={tab.href}
-                                        className={cn(
-                                            'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
-                                            active ? 'text-foreground' : 'text-white/40'
-                                        )}
+                                        aria-label={tab.label}
+                                        className="flex items-center justify-center w-full h-full transition-colors duration-200 active:scale-90"
                                     >
-                                        <div className="relative">
-                                            {active && (
-                                                <span className="absolute inset-[-8px] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] rounded-full" />
+                                        <Icon
+                                            className={cn(
+                                                'h-[22px] w-[22px] transition-colors duration-200',
+                                                active ? 'text-[var(--brand-indigo)]' : 'text-white/40'
                                             )}
-                                            <Icon
-                                                className={cn(
-                                                    'h-[22px] w-[22px] relative',
-                                                    active && 'text-[var(--brand-indigo)]'
-                                                )}
-                                                strokeWidth={active ? 2.1 : 1.7}
-                                            />
-                                        </div>
-                                        {active && (
-                                            <span className="text-[10px] font-semibold tracking-[-0.01em] text-[var(--brand-indigo)]">
-                                                {tab.label}
-                                            </span>
-                                        )}
+                                            strokeWidth={1.8}
+                                        />
                                     </Link>
                                 </li>
                             );
@@ -175,28 +163,15 @@ export function MobileNav() {
                                 onClick={() => setShowMore((v) => !v)}
                                 aria-label={t.mobileNav.additionalMenu}
                                 aria-expanded={showMore}
-                                className={cn(
-                                    'flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-200 active:scale-90',
-                                    showMore || isMoreActive ? 'text-foreground' : 'text-white/40'
-                                )}
+                                className="flex items-center justify-center w-full h-full transition-colors duration-200 active:scale-90"
                             >
-                                <div className="relative">
-                                    {(showMore || isMoreActive) && (
-                                        <span className="absolute inset-[-8px] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] rounded-full" />
+                                <MoreHorizontal
+                                    className={cn(
+                                        'h-[22px] w-[22px] transition-colors duration-200',
+                                        showMore || isMoreActive ? 'text-[var(--brand-indigo)]' : 'text-white/40'
                                     )}
-                                    <MoreHorizontal
-                                        className={cn(
-                                            'h-[22px] w-[22px] relative',
-                                            (showMore || isMoreActive) && 'text-[var(--brand-indigo)]'
-                                        )}
-                                        strokeWidth={showMore || isMoreActive ? 2.1 : 1.7}
-                                    />
-                                </div>
-                                {(showMore || isMoreActive) && (
-                                    <span className="text-[10px] font-semibold tracking-[-0.01em] text-[var(--brand-indigo)]">
-                                        {t.mobileNav.more}
-                                    </span>
-                                )}
+                                    strokeWidth={1.8}
+                                />
                             </button>
                         </li>
                     </ul>
