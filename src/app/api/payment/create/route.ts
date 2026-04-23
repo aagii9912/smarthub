@@ -177,11 +177,18 @@ export async function POST(request: NextRequest) {
                 logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
             }
 
-            // FIX: Update order payment_method to 'qpay'
-            await supabase
+            // Update order payment_method to 'qpay'
+            const { error: orderUpdateError } = await supabase
                 .from('orders')
                 .update({ payment_method: 'qpay' })
                 .eq('id', orderId);
+
+            if (orderUpdateError) {
+                logger.error('Failed to update order payment_method to qpay:', {
+                    error: orderUpdateError.message,
+                    orderId
+                });
+            }
 
             return NextResponse.json({
                 success: true,
