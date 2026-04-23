@@ -17,7 +17,7 @@ export async function GET() {
 
     const { data: products, error } = await supabase
       .from('products')
-      .select('id, shop_id, name, description, price, stock, reserved_stock, image_url, is_active, created_at, has_variants, type, colors, sizes, images, discount_percent, duration_minutes, available_days, start_time, end_time, max_bookings_per_day')
+      .select('id, shop_id, name, description, price, stock, reserved_stock, image_url, is_active, created_at, has_variants, type, colors, sizes, images, discount_percent, delivery_type, delivery_fee, duration_minutes, available_days, start_time, end_time, max_bookings_per_day')
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false });
 
@@ -72,7 +72,10 @@ export async function POST(request: Request) {
         available_days: validData.availableDays,
         start_time: validData.startTime,
         end_time: validData.endTime,
-        max_bookings_per_day: validData.maxBookingsPerDay
+        max_bookings_per_day: validData.maxBookingsPerDay,
+        // Delivery configuration
+        delivery_type: validData.deliveryType,
+        delivery_fee: validData.deliveryFee,
       }])
       .select()
       .single();
@@ -139,6 +142,9 @@ export async function PATCH(request: Request) {
     if (validData.startTime !== undefined) dbUpdates.start_time = validData.startTime;
     if (validData.endTime !== undefined) dbUpdates.end_time = validData.endTime;
     if (validData.maxBookingsPerDay !== undefined) dbUpdates.max_bookings_per_day = validData.maxBookingsPerDay;
+    // Delivery configuration
+    if (validData.deliveryType !== undefined) dbUpdates.delivery_type = validData.deliveryType;
+    if (validData.deliveryFee !== undefined) dbUpdates.delivery_fee = validData.deliveryFee;
 
     const { data, error } = await supabase
       .from('products')

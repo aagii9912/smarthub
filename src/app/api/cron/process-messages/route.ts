@@ -63,6 +63,8 @@ interface ShopData {
         stock: number | null;
         variants: string | null;
         discount_percent: number | null;
+        delivery_type: string | null;
+        delivery_fee: number | null;
     }>;
 }
 
@@ -159,7 +161,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         .select(`
             id, name, description, ai_instructions, ai_emotion, custom_knowledge,
             is_ai_active, subscription_plan, subscription_status, trial_ends_at, token_usage_total,
-            products (id, name, description, price, stock, variants, discount_percent)
+            products (id, name, description, price, stock, variants, discount_percent, delivery_type, delivery_fee)
         `)
         .eq('id', shopId)
         .single();
@@ -216,6 +218,8 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         stock: p.stock ?? 0,
         variants: undefined,
         discount_percent: p.discount_percent ?? undefined,
+        delivery_type: (p.delivery_type as AIProduct['delivery_type']) ?? undefined,
+        delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
     }));
 
     try {

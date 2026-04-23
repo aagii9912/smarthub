@@ -133,7 +133,17 @@ export function buildProductsInfo(products: ChatContext['products']): string {
         // Include description for AI context
         const desc = p.description ? `\n  Тайлбар: ${p.description}` : '';
 
-        return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${colorsInfo}${sizesInfo}${desc}`;
+        // Delivery info
+        let deliveryInfo = '';
+        if (p.delivery_type === 'paid' && p.delivery_fee) {
+            deliveryInfo = `\n  🚚 Хүргэлт: ${p.delivery_fee.toLocaleString()}₮`;
+        } else if (p.delivery_type === 'pickup_only') {
+            deliveryInfo = `\n  📍 Зөвхөн очиж авна`;
+        } else {
+            deliveryInfo = `\n  🚚 Хүргэлт: Үнэгүй`;
+        }
+
+        return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${colorsInfo}${sizesInfo}${desc}${deliveryInfo}`;
     }).join('\n');
 }
 
@@ -272,6 +282,12 @@ export function buildSystemPrompt(context: ChatContext): string {
 - Жагсаалтад "Дууссан" гэж бичсэн бол "Одоогоор дууссан байна" гэж шударгаар хэл.
 - Хэрэглэгч тоо ширхэг асуувал ЗААВАЛ жагсаалтаас шалгаж хариул.
 
+🚚 ХҮРГЭЛТИЙН ЗОХИЦУУЛАЛТ:
+- Бүтээгдэхүүн танилцуулахдаа хүргэлтийн мэдээллийг ЗААВАЛ дурд ("Хүргэлт үнэгүй", "Хүргэлт X,XXX₮", "Очиж авна")
+- Checkout хийх үед хүргэлттэй бараа байвал → утас + хаяг ЗААВАЛ асуу (collect_contact_info tool)
+- Pickup_only бараа → "Хаанаас очиж авах" мэдээлэл өг, утас асуу
+- Нэмэлт төлбөртэй хүргэлт → нийт дүнг тодорхой харуул: "Бараа: XX,XXX₮ + Хүргэлт: X,XXX₮ = Нийт: XX,XXX₮"
+
 ХЯЗГААРЛАЛТ:
 1. ЗӨВХӨН "${context.shopName}" болон бизнесийн талаар л ярь.
 2. Хамааралгүй сэдэв → эелдэгээр татгалз: "Өө тэр талаар би мэдэхгүй ээ, гэхдээ манай бараануудын талаар асуух зүйл байвал..."
@@ -295,6 +311,19 @@ export function buildSystemPrompt(context: ChatContext): string {
 - Жагсаалтад "Дууссан" гэж бичсэн бол "Одоогоор дууссан байна" гэж шударгаар хэл.
 - Хэрэглэгч тоо ширхэг асуувал ЗААВАЛ жагсаалтаас шалгаж хариул.
 - Хэрвээ жагсаалтад "0 ширхэг" эсвэл "Дууссан" гэсэн бол ХЭЗЭЭ Ч "байна" гэж бүү хэл!
+
+🚚 ХҮРГЭЛТИЙН ЗОХИЦУУЛАЛТ (МАША ЧУХАЛ):
+1. БҮТЭЭГДЭХҮҮН ТАНИЛЦУУЛАХДАА хүргэлтийн мэдээллийг ЗААВАЛ дурд:
+   - "Хүргэлт: Үнэгүй" → Хүргэлт үнэд багтсан
+   - "Хүргэлт: X,XXX₮" → Нэмэлт төлбөртэй
+   - "Очиж авна" → Зөвхөн pickup
+2. CHECKOUT ХИЙХ ҮЕДЭЭ:
+   - Хүргэлттэй бараа байвал → ЗААВАЛ утас + хаяг асуу (collect_contact_info tool)
+   - Pickup_only бараа → "Хаанаас очиж авах вэ?" гэж мэдээлэл өг, утас асуу
+   - Хүргэлт+Pickup холимог → Хэрэглэгчид сонголт өг
+3. ХҮРГЭЛТИЙН ТӨЛБӨР:
+   - Нэмэлт төлбөртэй хүргэлт → checkout дүнд хүргэлтийн fee автоматаар нэмэгдэнэ
+   - Хэрэглэгчид нийт дүнг тодорхой харуул: "Бараа: XX,XXX₮ + Хүргэлт: X,XXX₮ = Нийт: XX,XXX₮"
 
 ХЯМДРАЛ САНАЛ БОЛГОХ:
 - Хямдралтай бараа байвал байгалийн байдлаар дурд: "Өө дашрамд хэлэхэд энэ яг одоо хямдарсан байгаа шүү!"

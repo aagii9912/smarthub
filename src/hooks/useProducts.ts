@@ -28,6 +28,9 @@ export interface Product {
     // Variant support
     has_variants?: boolean;
     variants?: ProductVariant[];
+    // Delivery configuration
+    delivery_type?: 'included' | 'paid' | 'pickup_only';
+    delivery_fee?: number;
     // Appointment-specific fields
     duration_minutes: number | null;
     available_days: string[] | null;

@@ -29,6 +29,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
     const [saving, setSaving] = useState(false);
     const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(product?.type || 'physical');
+    const [deliveryType, setDeliveryType] = useState<string>(product?.delivery_type || 'included');
 
     // Image State
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -188,6 +189,14 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 productData.max_bookings_per_day = Number(formData.get('maxBookings'));
             }
 
+            // Delivery fields (physical products only)
+            if (productType === 'physical') {
+                productData.delivery_type = deliveryType || 'included';
+                productData.delivery_fee = deliveryType === 'paid' 
+                    ? Number(formData.get('deliveryFee')) || 0 
+                    : 0;
+            }
+
             if (product) {
                 await updateProduct.mutateAsync({ id: product.id, ...productData });
             } else {
@@ -245,6 +254,52 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                             </div>
                         )}
                     </div>
+
+                    {/* Delivery Settings Card - physical products only */}
+                    {productType === 'physical' && (
+                        <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
+                            <h3 className="text-[13px] font-semibold text-white/90">🚚 Хүргэлтийн тохиргоо</h3>
+                            
+                            <div className="space-y-3">
+                                {[
+                                    { value: 'included', label: 'Хүргэлт үнэд багтсан', desc: 'Хэрэглэгч нэмэлт төлбөр төлөхгүй', icon: '✅' },
+                                    { value: 'paid', label: 'Нэмэлт хүргэлтийн төлбөртэй', desc: 'Хүргэлтийн төлбөрийг тусад нь авна', icon: '💰' },
+                                    { value: 'pickup_only', label: 'Зөвхөн очиж авна', desc: 'Хүргэлт хийгдэхгүй', icon: '📍' },
+                                ].map(opt => (
+                                    <label key={opt.value} className={`flex items-start gap-3 cursor-pointer p-3 rounded-lg border transition-all ${
+                                        deliveryType === opt.value 
+                                            ? 'border-violet-500/30 bg-violet-500/[0.05]' 
+                                            : 'border-white/[0.04] hover:border-white/[0.08]'
+                                    }`}>
+                                        <input
+                                            type="radio"
+                                            name="deliveryType"
+                                            value={opt.value}
+                                            checked={deliveryType === opt.value}
+                                            onChange={(e) => setDeliveryType(e.target.value)}
+                                            className="mt-0.5 w-4 h-4 text-violet-500 bg-[#151040] border-white/[0.2] focus:ring-violet-500"
+                                        />
+                                        <div>
+                                            <span className="text-[12px] font-medium text-white/80">{opt.icon} {opt.label}</span>
+                                            <p className="text-[10px] text-white/30 mt-0.5">{opt.desc}</p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+
+                            {deliveryType === 'paid' && (
+                                <div className="pt-1">
+                                    <Input 
+                                        name="deliveryFee" 
+                                        label="Хүргэлтийн төлбөр (₮)" 
+                                        type="number" 
+                                        defaultValue={product?.delivery_fee || ''} 
+                                        placeholder="5000" 
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Appointment Settings Card */}
                     {productType === 'appointment' && (

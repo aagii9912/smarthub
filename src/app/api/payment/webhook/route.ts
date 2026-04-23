@@ -342,7 +342,7 @@ async function handleOrderPayment(
     try {
         const { data: orderData } = await supabase
             .from('orders')
-            .select('*, customers(name, email, facebook_id), shops(name, facebook_page_access_token)')
+            .select('*, customers(name, email, facebook_id), shops(name, facebook_page_access_token, address)')
             .eq('id', orderId)
             .single();
 
@@ -368,9 +368,23 @@ async function handleOrderPayment(
                 const { sendTextMessage } = await import('@/lib/facebook/messenger');
                 const amount = Number(payment.amount).toLocaleString();
                 
+                // Build delivery-aware confirmation message
+                let confirmMsg = '';
+                const deliveryFee = Number(orderData.delivery_fee || 0);
+                const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
+                
+                if (orderData.delivery_method === 'pickup') {
+                    const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
+                    confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+                } else {
+                    const deliveryAddress = orderData.delivery_address || '';
+                    const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
+                    confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+                }
+
                 await sendTextMessage({
                     recipientId: orderData.customers.facebook_id,
-                    message: `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`,
+                    message: confirmMsg,
                     pageAccessToken: orderData.shops.facebook_page_access_token,
                 });
 

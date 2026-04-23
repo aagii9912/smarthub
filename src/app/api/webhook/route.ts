@@ -309,17 +309,19 @@ export async function POST(request: NextRequest) {
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
                         // Map products to AI format
-                        const mappedProducts: AIProduct[] = shop.products.map(p => ({
-                            id: p.id,
-                            name: p.name,
-                            description: p.description || undefined,
-                            price: p.price || 0,
-                            stock: p.stock ?? 0,
-                            image_url: p.image_url || undefined,
-                            images: p.images || undefined,
-                            variants: undefined,
-                            discount_percent: p.discount_percent ?? undefined,
-                        }));
+                            const mappedProducts: AIProduct[] = shop.products.map(p => ({
+                                id: p.id,
+                                name: p.name,
+                                description: p.description || undefined,
+                                price: p.price || 0,
+                                stock: p.stock ?? 0,
+                                image_url: p.image_url || undefined,
+                                images: p.images || undefined,
+                                variants: undefined,
+                                discount_percent: p.discount_percent ?? undefined,
+                                delivery_type: p.delivery_type ?? undefined,
+                                delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
+                            }));
 
                         // Route to AI
                         const response = await routeToAI(
@@ -571,6 +573,8 @@ export async function POST(request: NextRequest) {
                                 images: p.images || undefined,
                                 variants: undefined,
                                 discount_percent: p.discount_percent ?? undefined,
+                                delivery_type: p.delivery_type ?? undefined,
+                                delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
                             }));
 
                             const response = await routeToAI(

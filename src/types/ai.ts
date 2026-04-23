@@ -18,6 +18,8 @@ export interface AIProduct {
     discount_percent?: number | null;
     type?: 'product' | 'service' | 'appointment';
     unit?: string;
+    delivery_type?: 'included' | 'paid' | 'pickup_only';
+    delivery_fee?: number;
     colors?: string[];
     sizes?: string[];
     variants?: AIProductVariant[];
@@ -190,6 +192,8 @@ export interface CreateOrderData {
     customerName?: string;
     customerPhone?: string;
     deliveryAddress?: string;
+    deliveryMethod?: 'delivery' | 'pickup';
+    deliveryFee?: number;
     items: OrderItemData[];
     notes?: string;
 }

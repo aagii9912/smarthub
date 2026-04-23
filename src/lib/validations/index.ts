@@ -35,6 +35,8 @@ export const createOrderSchema = z.object({
 
 export const productTypeSchema = z.enum(['physical', 'service', 'appointment']);
 
+export const deliveryTypeSchema = z.enum(['included', 'paid', 'pickup_only']);
+
 export const createProductSchema = z.object({
     name: z.string()
         .min(1, 'Нэр оруулна уу')
@@ -58,6 +60,9 @@ export const createProductSchema = z.object({
     sizes: z.array(z.string()).optional().default([]),
     images: z.array(z.string().url()).optional().default([]),
     isActive: z.boolean().optional().default(true),
+    // Delivery configuration
+    deliveryType: deliveryTypeSchema.optional().default('included'),
+    deliveryFee: z.number().min(0).optional().default(0),
     // Appointment-specific fields
     durationMinutes: z.number().int().min(15).max(480).optional().nullable(),
     availableDays: z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).optional().default([]),

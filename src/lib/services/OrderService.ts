@@ -79,6 +79,9 @@ export class OrderService {
                 total_amount: totalAmount,
                 notes: data.notes,
                 delivery_address: data.deliveryAddress,
+                delivery_method: data.deliveryMethod || 'delivery',
+                delivery_fee: data.deliveryFee || 0,
+                customer_phone: data.customerPhone,
             })
             .select()
             .single();

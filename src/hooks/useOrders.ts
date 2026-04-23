@@ -7,6 +7,9 @@ export interface OrderWithDetails {
     status: string;
     notes: string | null;
     delivery_address: string | null;
+    delivery_method: 'delivery' | 'pickup' | null;
+    delivery_fee: number;
+    customer_phone: string | null;
     created_at: string;
     updated_at: string;
     customers: {
