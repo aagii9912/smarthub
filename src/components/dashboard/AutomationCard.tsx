@@ -3,12 +3,13 @@
 import {
     ToggleLeft,
     ToggleRight,
-    Save,
+    Pencil,
     Trash2,
     Zap,
     TrendingUp,
     Clock,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface Automation {
     id: string;
@@ -34,11 +35,47 @@ interface AutomationCardProps {
     onDelete: (id: string) => void;
 }
 
+function platformBadge(platform: Automation['platform']) {
+    if (platform === 'facebook') {
+        return (
+            <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{
+                    background: 'color-mix(in oklab, var(--brand-indigo) 18%, transparent)',
+                    color: 'var(--brand-indigo-400)',
+                }}
+            >
+                FB
+            </span>
+        );
+    }
+    if (platform === 'instagram') {
+        return (
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-pink-500/15 text-pink-300">
+                IG
+            </span>
+        );
+    }
+    return (
+        <span
+            className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+            style={{
+                background: 'color-mix(in oklab, var(--brand-violet-500) 20%, transparent)',
+                color: 'color-mix(in oklab, var(--brand-violet-500) 65%, #fff)',
+            }}
+        >
+            FB+IG
+        </span>
+    );
+}
+
 export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: AutomationCardProps) {
     return (
         <div
-            className={`bg-[#0F0B2E] rounded-xl border p-5 transition-colors ${a.is_active ? 'border-white/[0.08]' : 'border-white/[0.04] opacity-60'
-                }`}
+            className={cn(
+                'card-outlined p-5 transition-colors',
+                !a.is_active && 'opacity-60'
+            )}
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -46,24 +83,26 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                     <div className="flex items-center gap-2 mb-2">
                         <button
                             onClick={() => onToggle(a.id, a.is_active)}
-                            className="shrink-0"
+                            className="shrink-0 rounded-md"
                             aria-label={a.is_active ? 'Зогсоох' : 'Идэвхжүүлэх'}
                         >
                             {a.is_active ? (
-                                <ToggleRight className="w-6 h-6 text-emerald-400" />
+                                <ToggleRight
+                                    className="w-6 h-6"
+                                    style={{ color: 'var(--success)' }}
+                                    strokeWidth={1.5}
+                                />
                             ) : (
-                                <ToggleLeft className="w-6 h-6 text-white/20" />
+                                <ToggleLeft
+                                    className="w-6 h-6 text-white/25"
+                                    strokeWidth={1.5}
+                                />
                             )}
                         </button>
-                        <h3 className="text-[14px] font-semibold text-foreground truncate">
+                        <h3 className="text-[14px] font-semibold text-foreground truncate tracking-[-0.01em]">
                             {a.name}
                         </h3>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${a.platform === 'facebook' ? 'bg-blue-500/10 text-blue-400' :
-                            a.platform === 'instagram' ? 'bg-pink-500/10 text-pink-400' :
-                                'bg-violet-500/10 text-violet-400'
-                            }`}>
-                            {a.platform === 'both' ? 'FB+IG' : a.platform === 'facebook' ? 'FB' : 'IG'}
-                        </span>
+                        {platformBadge(a.platform)}
                     </div>
 
                     {/* Keywords */}
@@ -71,33 +110,37 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                         {a.trigger_keywords.map((kw, i) => (
                             <span
                                 key={i}
-                                className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/50 border border-white/[0.06]"
+                                className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.04] text-white/55 border border-white/[0.06] tracking-[-0.01em]"
                             >
                                 {kw}
                             </span>
                         ))}
-                        <span className="text-[10px] text-white/20 self-center ml-1">
+                        <span className="text-[10px] text-white/30 self-center ml-1">
                             ({a.match_type === 'contains' ? 'агуулсан' : 'яг таарах'})
                         </span>
                     </div>
 
                     {/* DM Preview */}
-                    <p className="text-[12px] text-white/40 truncate max-w-lg">
+                    <p className="text-[12px] text-white/50 truncate max-w-lg tracking-[-0.01em]">
                         💬 {a.dm_message}
                     </p>
 
                     {/* Stats */}
-                    <div className="flex items-center gap-4 mt-3 text-[11px] text-white/30">
-                        <span className="flex items-center gap-1">
+                    <div className="flex items-center gap-4 mt-3 text-[11px] text-white/40">
+                        <span className="flex items-center gap-1 tabular-nums">
                             <TrendingUp className="w-3 h-3" />
                             {a.trigger_count} удаа
                         </span>
                         <span className="flex items-center gap-1">
                             <Zap className="w-3 h-3" />
-                            {a.action_type === 'send_dm' ? 'DM' : a.action_type === 'reply_comment' ? 'Reply' : 'DM+Reply'}
+                            {a.action_type === 'send_dm'
+                                ? 'DM'
+                                : a.action_type === 'reply_comment'
+                                  ? 'Reply'
+                                  : 'DM+Reply'}
                         </span>
                         {a.last_triggered_at && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 tabular-nums">
                                 <Clock className="w-3 h-3" />
                                 {new Date(a.last_triggered_at).toLocaleDateString('mn-MN')}
                             </span>
@@ -109,17 +152,26 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                 <div className="flex items-center gap-1 shrink-0">
                     <button
                         onClick={() => onEdit(a)}
-                        className="p-2 text-white/20 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                        className="p-2 rounded-lg text-white/40 hover:text-[var(--brand-indigo-400)] hover:bg-white/[0.04] transition-all"
                         aria-label="Засах"
                     >
-                        <Save className="w-4 h-4" />
+                        <Pencil className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                     <button
                         onClick={() => onDelete(a.id)}
-                        className="p-2 text-white/20 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="p-2 rounded-lg text-white/40 hover:bg-white/[0.04] transition-all"
+                        style={{
+                            transition: 'color 150ms, background-color 150ms',
+                        }}
+                        onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = 'var(--destructive)';
+                        }}
+                        onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.color = '';
+                        }}
                         aria-label="Устгах"
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>
                 </div>
             </div>
