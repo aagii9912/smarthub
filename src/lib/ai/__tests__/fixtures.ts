@@ -102,7 +102,7 @@ export function createMockOrder(overrides?: Record<string, any>) {
         total: 2500000,
         created_at: new Date().toISOString(),
         order_items: [
-            { id: 'oi-1', product_id: 'prod-1', product_name: 'Ноутбүүк Pro 15', quantity: 1, unit_price: 2500000 },
+            { id: 'oi-1', product_id: 'prod-1', products: [{ name: 'Ноутбүүк Pro 15' }], product_name: 'Ноутбүүк Pro 15', quantity: 1, unit_price: 2500000 },
         ],
         ...overrides,
     };

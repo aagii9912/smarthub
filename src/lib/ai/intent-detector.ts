@@ -50,7 +50,7 @@ const INTENT_PATTERNS: Record<IntentType, { pattern: RegExp; weight: number }[]>
         { pattern: /нөөц/i, weight: 0.90 },
         { pattern: /бий юу/i, weight: 0.80 },
         { pattern: /хэдэн ширхэг/i, weight: 0.92 },
-        { pattern: /байна уу.*размер/i, weight: 0.88 },
+        { pattern: /байна уу/i, weight: 0.88 },
     ],
     ORDER_CREATE: [
         { pattern: /захиалах/i, weight: 0.95 },

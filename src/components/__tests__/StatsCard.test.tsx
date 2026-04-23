@@ -173,7 +173,7 @@ describe('StatsCard', () => {
                 />
             );
             const card = container.firstChild as HTMLElement;
-            expect(card.className).toContain('bg-[#0F0B2E]');
+            expect(card.className).toContain('bg-card');
             expect(card.className).toContain('rounded-2xl');
             expect(card.className).toContain('border');
         });

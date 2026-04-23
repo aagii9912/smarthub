@@ -116,7 +116,7 @@ describe('CustomerHandlers', () => {
             expect(vi.mocked(sendPushNotification)).toHaveBeenCalledWith(
                 'shop-test-001',
                 expect.objectContaining({
-                    title: expect.stringContaining('Холбогдох'),
+                    title: expect.stringContaining('Хүн холбогдох хүсэлт!'),
                     body: expect.stringContaining('Нарийн захиалга'),
                 })
             );
