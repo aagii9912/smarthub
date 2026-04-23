@@ -45,6 +45,8 @@ export function ShopSwitcher({ onAddShop }: ShopSwitcherProps) {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-haspopup="true"
                 className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
             >
                 <Store className="w-4 h-4 text-primary" />
