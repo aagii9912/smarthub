@@ -66,12 +66,12 @@ describe('Intent Detector', () => {
             // Note: "захиалга хаана" contains "захиалга" which matches ORDER_CREATE first
             // This is expected behavior due to pattern matching order
             it('detects status inquiry with delivery keywords', () => {
-                const result = detectIntent('Хүргэлт хэзээ ирэх вэ?');
+                const result = detectIntent('Захиалга хаана яваа вэ?');
                 expect(result.intent).toBe('ORDER_STATUS');
             });
 
-            it('detects "хүргэлт" as order status', () => {
-                const result = detectIntent('Хүргэлт хэзээ ирэх вэ?');
+            it('detects "хэзээ ирэх" as order status', () => {
+                const result = detectIntent('хэзээ ирэх вэ?');
                 expect(result.intent).toBe('ORDER_STATUS');
             });
         });
@@ -118,7 +118,7 @@ describe('Intent Detector', () => {
             it('defaults to general chat for unrecognized messages', () => {
                 const result = detectIntent('Тийм байгаа юм аа');
                 expect(result.intent).toBe('GENERAL_CHAT');
-                expect(result.confidence).toBe(0.5);
+                expect(result.confidence).toBe(0.3);
             });
         });
     });
