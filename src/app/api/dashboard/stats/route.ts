@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
         Math.max(0, Math.floor((t - periodStart.getTime()) / bucketMs))
       );
       ordersSeries[idx] += 1;
-      if (REVENUE_STATUSES.includes(o.status)) {
+      if (isPaid(o)) {
         revenueSeries[idx] += Number(o.total_amount || 0);
       }
     });
