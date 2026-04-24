@@ -13,7 +13,6 @@ import {
     BarChart3,
     AlertTriangle,
     HelpCircle,
-    Sparkles,
     MessageSquareMore,
     Inbox,
     Shield,
@@ -43,7 +42,6 @@ const primaryItems: RailItem[] = [
 const secondaryItems: RailItem[] = [
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore },
     { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
-    { nameKey: 'aiReport', href: '/dashboard/reports/ai', icon: Sparkles },
     { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
 ];

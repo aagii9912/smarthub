@@ -73,8 +73,6 @@ export async function GET(request: NextRequest) {
     const prevStart = new Date(periodStart.getTime() - periodMs);
     const prevEnd = periodStart;
 
-    const REVENUE_STATUSES = ['confirmed', 'processing', 'shipped', 'delivered', 'paid'];
-
     // 🚀 Бүх query-г зэрэгцүүлэн ажиллуулах (Promise.all)
     const [
       periodOrdersListResult,
@@ -88,14 +86,14 @@ export async function GET(request: NextRequest) {
       // Захиалгууд (period — цаг/огноогоор bucket хийхэд хэрэгтэй)
       supabase
         .from('orders')
-        .select('created_at, total_amount, status')
+        .select('created_at, total_amount, status, payment_status')
         .eq('shop_id', shopId)
         .gte('created_at', periodStart.toISOString()),
 
       // Өмнөх period-ийн захиалга + орлого (trend бодоход)
       supabase
         .from('orders')
-        .select('total_amount, status')
+        .select('total_amount, status, payment_status')
         .eq('shop_id', shopId)
         .gte('created_at', prevStart.toISOString())
         .lt('created_at', prevEnd.toISOString()),
@@ -161,16 +159,18 @@ export async function GET(request: NextRequest) {
     const periodOrdersList = periodOrdersListResult.data || [];
     const periodOrders = periodOrdersList.length;
 
-    // Period revenue (only "realized" orders)
+    // Period revenue (зөвхөн QPay төлбөр төлөгдсөн захиалгууд)
+    const isPaid = (o: { payment_status?: string | null }) => o.payment_status === 'paid';
+
     const periodRevenue = periodOrdersList
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
+      .filter(isPaid)
       .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
     // Previous period stats (for trend %)
     const prevPeriodOrdersList = prevPeriodOrdersResult.data || [];
     const prevOrders = prevPeriodOrdersList.length;
     const prevRevenue = prevPeriodOrdersList
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
+      .filter(isPaid)
       .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
     // Bucket orders into series (24 slots for today, 7 for week, 30 for month)

@@ -327,9 +327,9 @@ export const mn = {
     noOrders: 'Захиалга байхгүй',
     noOrdersDesc: 'Захиалга ирсэн тохиолдолд энд харагдана',
     // Overview hero
-    liveEyebrow: 'Амьд явц',
+    liveEyebrow: 'ИДЭВХТЭЙ ЗАХИАЛГУУД',
     greeting: 'Сайн байна уу',
-    greetingSubtitle: 'Өнөөдрийн дэлгүүрийн явц. AI агент тань {count} ярианд тусалж байна.',
+    greetingSubtitle: 'Өнөөдрийн дэлгүүрийн явц. AI Sales agent {count} харилцагчтай идэвхтэй ажиллаж байна.',
     export: 'Экспорт',
     newOrder: 'Шинэ захиалга',
     // KPI labels
@@ -339,8 +339,8 @@ export const mn = {
     kpiAvgOrder: 'Дундаж захиалга',
     trendVsYesterday: 'өчигдрөөс',
     // Live orders
-    liveOrders: 'Амьд захиалгууд',
-    liveOrdersSubtitle: 'Сүүлийн захиалгууд · AI хариулсан',
+    liveOrders: 'Идэвхтэй захиалгууд',
+    liveOrdersSubtitle: 'Сүүлийн захиалгууд · AI Sales agent хариулсан',
     tabAll: 'Бүгд',
     tabPending: 'Хүлээгдэж',
     tabPaid: 'Төлөгдсөн',

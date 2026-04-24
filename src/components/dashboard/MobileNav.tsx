@@ -16,10 +16,10 @@ import {
     Bot,
     MessageSquareMore,
     BarChart3,
-    Sparkles,
     Shield,
     CreditCard,
     Settings,
+    HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -44,10 +44,10 @@ export function MobileNav() {
         { name: t.sidebar.aiSettings, href: '/dashboard/ai-settings', icon: Bot },
         { name: t.sidebar.commentMgmt, href: '/dashboard/comment-automation', icon: MessageSquareMore },
         { name: t.sidebar.reports, href: '/dashboard/reports', icon: BarChart3 },
-        { name: t.sidebar.aiReport, href: '/dashboard/reports/ai', icon: Sparkles },
         { name: t.sidebar.paymentAudit, href: '/dashboard/payment-audit', icon: Shield },
         { name: t.setup.subscription.title, href: '/dashboard/subscription', icon: CreditCard },
         { name: t.sidebar.settings, href: '/dashboard/settings', icon: Settings },
+        { name: 'Санал хүсэлт', href: '/help', icon: HelpCircle },
     ];
 
     useEffect(() => {

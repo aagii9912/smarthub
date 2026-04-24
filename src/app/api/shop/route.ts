@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, qpay_status').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -177,8 +177,9 @@ export async function PATCH(request: NextRequest) {
     const ALLOWED_FIELDS = [
       'name', 'owner_name', 'phone', 'description',
       'ai_instructions', 'ai_emotion', 'is_ai_active',
+      'custom_knowledge', 'policies',
       'bank_name', 'account_name', 'account_number', 'register_number', 'merchant_type',
-      'notify_on_order', 'notify_on_contact', 'notify_on_support', 'notify_on_cancel',
+      'notify_on_order', 'notify_on_contact', 'notify_on_support', 'notify_on_cancel', 'notify_on_complaints',
       'facebook_page_id', 'facebook_page_name', 'facebook_page_username',
       'facebook_page_access_token',
       'instagram_business_account_id', 'instagram_access_token', 'instagram_username',

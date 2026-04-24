@@ -10,7 +10,7 @@ export default function HelpPage() {
   const faqs = [
     {
       question: 'AI чатбот хэрхэн ажилладаг вэ?',
-      answer: 'Syncly AI чатбот нь таны Facebook Page-тэй холбогдож, Messenger-ээр ирсэн мессежүүдэд автоматаар хариулна. Google Gemini AI ашиглан хэрэглэгчийн асуултад зөв хариулт өгнө.'
+      answer: 'Syncly AI Sales agent нь таны Facebook Page-тэй холбогдож, Messenger-ээр ирсэн мессежүүдэд автоматаар хариулна. Мэргэшсэн AI загвар ашиглан хэрэглэгчийн асуултад зөв хариулт өгнө.'
     },
     {
       question: 'Facebook Page-ээ хэрхэн холбох вэ?',

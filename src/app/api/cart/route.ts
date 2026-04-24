@@ -251,6 +251,92 @@ export async function POST(request: NextRequest) {
     }
 }
 
+// PATCH - Update cart item quantity
+export async function PATCH(request: NextRequest) {
+    try {
+        const shop = await getAuthUserShop();
+        if (!shop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { item_id, customer_id, quantity } = body;
+
+        if (!item_id || !customer_id || typeof quantity !== 'number') {
+            return NextResponse.json(
+                { error: 'item_id, customer_id, and quantity are required' },
+                { status: 400 }
+            );
+        }
+
+        const supabase = supabaseAdmin();
+
+        // Verify item belongs to customer's cart in this shop
+        const { data: item, error: itemError } = await supabase
+            .from('cart_items')
+            .select(`
+                id,
+                product_id,
+                products (name, stock, reserved_stock),
+                carts!inner (shop_id, customer_id)
+            `)
+            .eq('id', item_id)
+            .single();
+
+        if (itemError || !item) {
+            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+        }
+
+        const cartData = item.carts as unknown;
+        const cart = (Array.isArray(cartData) ? cartData[0] : cartData) as { shop_id: string; customer_id: string } | null;
+        if (!cart || cart.shop_id !== shop.id || cart.customer_id !== customer_id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        // Quantity 0 → delete
+        if (quantity <= 0) {
+            await supabase.from('cart_items').delete().eq('id', item_id);
+            const product = getProductData(item.products);
+            return NextResponse.json({
+                success: true,
+                action: 'deleted',
+                message: `${product?.name || 'Бараа'} сагснаас хасагдлаа`,
+            });
+        }
+
+        // Check stock
+        const product = getProductData(item.products);
+        if (product) {
+            const available = (product.stock || 0) - (product.reserved_stock || 0);
+            if (available < quantity) {
+                return NextResponse.json(
+                    { error: `Үлдэгдэл хүрэлцэхгүй. Боломжит: ${available}`, available_stock: available },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Update quantity
+        await supabase
+            .from('cart_items')
+            .update({ quantity })
+            .eq('id', item_id);
+
+        return NextResponse.json({
+            success: true,
+            action: 'updated',
+            quantity,
+            message: `Тоо ширхэг шинэчлэгдлээ (${quantity}ш)`,
+        });
+    } catch (error: unknown) {
+        logger.error('Cart PATCH error:', { error: error });
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Unknown error' },
+            { status: 500 }
+        );
+    }
+}
+
 // DELETE - Remove item from cart
 export async function DELETE(request: NextRequest) {
     try {

@@ -217,6 +217,58 @@ export default function CartPage() {
         }
     };
 
+    const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+        if (!activeId) return;
+        const cart = carts.find((c) => c.id === activeId);
+        if (!cart?.customer?.id) return;
+
+        try {
+            const res = await fetch('/api/cart', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': shopId,
+                },
+                body: JSON.stringify({
+                    item_id: itemId,
+                    customer_id: cart.customer.id,
+                    quantity,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Шинэчлэхэд алдаа гарлаа');
+            }
+            await refetch();
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : String(err));
+        }
+    };
+
+    const handleRemoveItem = async (itemId: string) => {
+        if (!activeId) return;
+        const cart = carts.find((c) => c.id === activeId);
+        if (!cart?.customer?.id) return;
+
+        try {
+            const res = await fetch(
+                `/api/cart?item_id=${itemId}&customer_id=${cart.customer.id}`,
+                {
+                    method: 'DELETE',
+                    headers: { 'x-shop-id': shopId },
+                }
+            );
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Устгахад алдаа гарлаа');
+            }
+            toast.success(data.message || 'Бараа хасагдлаа');
+            await refetch();
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : String(err));
+        }
+    };
+
     useEffect(() => {
         if (carts.length > 0 && !activeId && window.innerWidth >= 768) {
             setActiveId(carts[0].id);
@@ -365,6 +417,8 @@ export default function CartPage() {
                                         items={activeCart.items}
                                         onConvertToOrder={handleConvertToOrder}
                                         onSendReminder={handleSendReminder}
+                                        onUpdateQuantity={handleUpdateQuantity}
+                                        onRemoveItem={handleRemoveItem}
                                         isLoading={isConverting || isReminding}
                                     />
 

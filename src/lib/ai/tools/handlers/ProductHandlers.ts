@@ -337,11 +337,27 @@ export async function executeLogComplaint(
             }
         }
 
-        await sendPushNotification(context.shopId, {
-            title: '⚠️ Үйлчлүүлэгчийн гомдол',
-            body: `${args.complaint_type}: ${args.description}`,
-            tag: 'complaint'
-        });
+        // Severity-based notification
+        const severityIcon: Record<string, string> = {
+            low: '🟡',
+            medium: '🟠',
+            high: '🔴',
+            critical: '🚨',
+        };
+        const icon = severityIcon[args.severity || 'medium'] || '⚠️';
+        const customerLabel = context.customerName ? ` (${context.customerName})` : '';
+
+        if (context.notifySettings?.complaints !== false) {
+            await sendPushNotification(context.shopId, {
+                title: `${icon} Үйлчлүүлэгчийн гомдол${customerLabel}`,
+                body: `${args.complaint_type}: ${args.description}`,
+                url: '/dashboard/complaints',
+                tag: `complaint-${context.customerId || 'anon'}`,
+                actions: [
+                    { action: 'view', title: 'Харах' },
+                ],
+            });
+        }
 
         logger.info('Complaint logged:', {
             shopId: context.shopId,

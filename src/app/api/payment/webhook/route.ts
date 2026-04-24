@@ -97,6 +97,34 @@ export async function POST(request: NextRequest) {
 
         if (!isPaymentCompleted(paymentCheck)) {
             logger.warn('Payment not completed yet:', { invoiceId });
+
+            // ── Audit: log the unsuccessful webhook ping so the shop owner sees retry attempts ──
+            try {
+                const rawStatus =
+                    (paymentCheck as { payment_status?: string; status?: string })?.payment_status ||
+                    (paymentCheck as { status?: string })?.status ||
+                    'pending';
+                await supabase.from('payment_audit_logs').insert({
+                    payment_id: payment.id,
+                    shop_id: payment.shop_id,
+                    order_id: payment.order_id,
+                    action: 'status_changed',
+                    old_status: payment.status,
+                    new_status: rawStatus,
+                    amount: Number(payment.amount),
+                    payment_method: payment.payment_method,
+                    actor: 'webhook',
+                    metadata: {
+                        qpay_invoice_id: invoiceId,
+                        qpay_status: rawStatus,
+                        note: 'webhook received but payment not yet confirmed by QPay',
+                    },
+                    notes: 'QPay webhook received before payment was marked completed',
+                });
+            } catch (auditErr) {
+                logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
+            }
+
             return NextResponse.json({ message: 'Payment not completed' }, { status: 200 });
         }
 

@@ -18,6 +18,7 @@ export interface ShopWithProducts {
     notify_on_contact?: boolean | null;
     notify_on_support?: boolean | null;
     notify_on_cancel?: boolean | null;
+    notify_on_complaints?: boolean | null;
     is_ai_active?: boolean | null;
     subscription_plan?: string | null;
     subscription_status?: string | null;
@@ -134,5 +135,6 @@ export function buildNotifySettings(shop: ShopWithProducts): NotifySettings {
         contact: shop.notify_on_contact ?? true,
         support: shop.notify_on_support ?? true,
         cancel: shop.notify_on_cancel ?? true,
+        complaints: shop.notify_on_complaints ?? true,
     };
 }

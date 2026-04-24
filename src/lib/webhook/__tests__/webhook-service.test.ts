@@ -74,6 +74,7 @@ describe('WebhookService', () => {
                 contact: true,
                 support: true,
                 cancel: true,
+                complaints: true,
             });
         });
 
@@ -87,6 +88,7 @@ describe('WebhookService', () => {
                 notify_on_contact: true,
                 notify_on_support: false,
                 notify_on_cancel: true,
+                notify_on_complaints: false,
             };
 
             const settings = buildNotifySettings(shop);
@@ -96,6 +98,7 @@ describe('WebhookService', () => {
                 contact: true,
                 support: false,
                 cancel: true,
+                complaints: false,
             });
         });
     });

@@ -61,6 +61,7 @@ export default function CustomersPage() {
     const [editMode, setEditMode] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', phone: '', email: '', address: '', notes: '' });
+    const [showTagMenu, setShowTagMenu] = useState(false);
 
     const fetchCustomers = useCallback(async () => {
         try {
@@ -110,10 +111,34 @@ export default function CustomersPage() {
     }
 
     async function addTag(cid: string, tag: string) {
-        try { await fetch(`/api/dashboard/customers/${cid}/tags`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag }) }); fetchCustomers(); if (selectedCustomer?.id === cid) fetchDetail(cid); } catch (e) { logger.error('Хэрэглэгчийн алдаа', { error: e }); }
+        try {
+            const res = await fetch(`/api/dashboard/customers/${cid}/tags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '',
+                },
+                body: JSON.stringify({ tag }),
+            });
+            if (!res.ok) throw new Error(`Tag add failed: ${res.status}`);
+            fetchCustomers();
+            if (selectedCustomer?.id === cid) fetchDetail(cid);
+        } catch (e) { logger.error('Tag нэмэх алдаа', { error: e }); }
     }
     async function removeTag(cid: string, tag: string) {
-        try { await fetch(`/api/dashboard/customers/${cid}/tags`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag }) }); fetchCustomers(); if (selectedCustomer?.id === cid) fetchDetail(cid); } catch (e) { logger.error('Хэрэглэгчийн алдаа', { error: e }); }
+        try {
+            const res = await fetch(`/api/dashboard/customers/${cid}/tags`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '',
+                },
+                body: JSON.stringify({ tag }),
+            });
+            if (!res.ok) throw new Error(`Tag remove failed: ${res.status}`);
+            fetchCustomers();
+            if (selectedCustomer?.id === cid) fetchDetail(cid);
+        } catch (e) { logger.error('Tag устгах алдаа', { error: e }); }
     }
 
     const filtered = customers.filter(c => (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.phone || '').includes(searchQuery));
@@ -445,22 +470,37 @@ export default function CustomersPage() {
                                             </button>
                                         </span>
                                     ))}
-                                    <div className="relative group">
-                                        <button className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border border-dashed border-white/[0.12] text-white/45 hover:border-[var(--brand-indigo)] hover:text-[var(--brand-indigo-400)] transition-colors">
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowTagMenu((v) => !v)}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border border-dashed border-white/[0.12] text-white/45 hover:border-[var(--brand-indigo)] hover:text-[var(--brand-indigo-400)] transition-colors"
+                                        >
                                             <Plus className="w-3 h-3" strokeWidth={1.8} />
                                             Tag нэмэх
                                         </button>
-                                        <div className="absolute left-0 mt-1 py-1 w-32 bg-[#0c0c0f] rounded-lg border border-white/[0.08] shadow-xl hidden group-hover:block z-10">
-                                            {TAGS.filter((t) => !(selectedCustomer.tags || []).includes(t)).map((t) => (
-                                                <button
-                                                    key={t}
-                                                    onClick={() => addTag(selectedCustomer.id, t)}
-                                                    className="w-full px-3 py-1.5 text-left text-[12px] text-foreground hover:bg-white/[0.05] transition-colors"
-                                                >
-                                                    {t}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {showTagMenu && (
+                                            <>
+                                                <div
+                                                    className="fixed inset-0 z-10"
+                                                    onClick={() => setShowTagMenu(false)}
+                                                />
+                                                <div className="absolute left-0 mt-1 py-1 w-36 bg-[#0c0c0f] rounded-lg border border-white/[0.08] shadow-xl z-20">
+                                                    {TAGS.filter((t) => !(selectedCustomer.tags || []).includes(t)).length === 0 ? (
+                                                        <p className="px-3 py-1.5 text-[11.5px] text-white/40">Боломжит Tag байхгүй</p>
+                                                    ) : (
+                                                        TAGS.filter((t) => !(selectedCustomer.tags || []).includes(t)).map((t) => (
+                                                            <button
+                                                                key={t}
+                                                                onClick={() => { addTag(selectedCustomer.id, t); setShowTagMenu(false); }}
+                                                                className="w-full px-3 py-1.5 text-left text-[12px] text-foreground hover:bg-white/[0.05] transition-colors"
+                                                            >
+                                                                {t}
+                                                            </button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -479,6 +519,72 @@ export default function CustomersPage() {
                                 ) : (
                                     <p className="text-[13px] text-white/60 bg-white/[0.02] p-3 rounded-lg min-h-[48px] border border-white/[0.06]">
                                         {selectedCustomer.notes || 'Тэмдэглэл байхгүй'}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Orders */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
+                                        Захиалгын түүх · {selectedCustomer.orders?.length || 0}
+                                    </label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        leftIcon={<Plus className="h-3.5 w-3.5" strokeWidth={1.8} />}
+                                        onClick={() => {
+                                            const q = new URLSearchParams({ new: '1' });
+                                            if (selectedCustomer.id) q.set('customerId', selectedCustomer.id);
+                                            window.location.href = `/dashboard/orders?${q.toString()}`;
+                                        }}
+                                    >
+                                        Шинэ захиалга
+                                    </Button>
+                                </div>
+                                {selectedCustomer.orders && selectedCustomer.orders.length > 0 ? (
+                                    <div className="bg-white/[0.02] rounded-lg border border-white/[0.06] divide-y divide-white/[0.04] max-h-56 overflow-y-auto">
+                                        {selectedCustomer.orders
+                                            .slice()
+                                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                            .map((o) => {
+                                                const statusColor =
+                                                    o.status === 'delivered' || o.status === 'confirmed' ? 'text-[var(--success)]' :
+                                                        o.status === 'cancelled' ? 'text-[var(--destructive)]' :
+                                                            o.status === 'pending' ? 'text-[var(--warning)]' : 'text-white/60';
+                                                const statusLabel: Record<string, string> = {
+                                                    pending: 'Хүлээгдэж',
+                                                    confirmed: 'Баталгаажсан',
+                                                    processing: 'Бэлтгэж байна',
+                                                    shipped: 'Илгээсэн',
+                                                    delivered: 'Хүргэгдсэн',
+                                                    cancelled: 'Цуцалсан',
+                                                };
+                                                return (
+                                                    <button
+                                                        key={o.id}
+                                                        onClick={() => { window.location.href = `/dashboard/orders?orderId=${o.id}`; }}
+                                                        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.03] transition-colors text-left"
+                                                    >
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-mono text-[11.5px] text-white/70">#{o.id.slice(0, 8)}</span>
+                                                                <span className={cn('text-[10.5px] font-semibold', statusColor)}>
+                                                                    {statusLabel[o.status] || o.status}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10.5px] text-white/40 mt-0.5">{fmtTime(o.created_at)}</p>
+                                                        </div>
+                                                        <p className="text-[13px] font-semibold text-foreground tabular-nums">
+                                                            ₮{Number(o.total_amount || 0).toLocaleString()}
+                                                        </p>
+                                                    </button>
+                                                );
+                                            })}
+                                    </div>
+                                ) : (
+                                    <p className="text-[12.5px] text-white/40 bg-white/[0.02] p-3 rounded-lg border border-white/[0.06]">
+                                        Захиалга байхгүй байна.
                                     </p>
                                 )}
                             </div>

@@ -60,7 +60,7 @@ export function FeedbackWidget() {
     ];
 
     return (
-        <div className="fixed bottom-[72px] md:bottom-6 right-3 md:right-6 z-40 md:z-50">
+        <div className="hidden md:block fixed bottom-6 right-6 z-50">
             {/* Expanded Form */}
             {isExpanded && (
                 <div className="absolute bottom-16 right-0 w-80 bg-[#0F0B2E] rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">

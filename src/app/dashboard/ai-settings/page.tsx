@@ -32,9 +32,9 @@ const TABS = [
 ] as const;
 
 const MODELS = [
-    { id: 'flash-lite', name: 'Gemini Flash Lite', icon: Zap, req: 'lite', desc: 'Хурдан, энгийн хариулт' },
-    { id: 'flash', name: 'Gemini Flash', icon: Cpu, req: 'standard', desc: 'Хэвийн харилцан яриа' },
-    { id: 'pro', name: 'Gemini Pro', icon: Sparkles, req: 'pro', desc: 'Ухаалаг, борлуулалт сайтай' },
+    { id: 'flash-lite', name: 'Хурдан туслах', icon: Zap, req: 'lite', desc: 'Хурдан, энгийн хариулт' },
+    { id: 'flash', name: 'Нийтлэг хэрэглээний AI', icon: Cpu, req: 'standard', desc: 'Хэвийн харилцан яриа' },
+    { id: 'pro', name: 'Борлуулалтын ур чадвар', icon: Sparkles, req: 'pro', desc: 'Ухаалаг, борлуулалт сайтай' },
 ];
 
 const LANGUAGES = [
@@ -111,16 +111,18 @@ export default function AISettingsPage() {
     const [notifyOnOrder, setNotifyOnOrder] = useState(true);
     const [notifyOnContact, setNotifyOnContact] = useState(true);
     const [notifyOnSupport, setNotifyOnSupport] = useState(true);
+    const [notifyOnCancel, setNotifyOnCancel] = useState(true);
+    const [notifyOnComplaints, setNotifyOnComplaints] = useState(true);
     // FAQ
-    const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([]);
+    const [faqs, setFaqs] = useState<{ id: string; q: string; a: string }[]>([]);
     const [newFaqQ, setNewFaqQ] = useState('');
     const [newFaqA, setNewFaqA] = useState('');
     // Quick Replies
-    const [replies, setReplies] = useState<{ trigger: string; response: string }[]>([]);
+    const [replies, setReplies] = useState<{ id: string; trigger: string; response: string }[]>([]);
     const [newTrigger, setNewTrigger] = useState('');
     const [newResponse, setNewResponse] = useState('');
     // Slogans
-    const [slogans, setSlogans] = useState<string[]>([]);
+    const [slogans, setSlogans] = useState<{ id: string; text: string }[]>([]);
     const [newSlogan, setNewSlogan] = useState('');
     // Knowledge
     const [knowledge, setKnowledge] = useState<{ key: string; value: string }[]>([]);
@@ -149,13 +151,9 @@ export default function AISettingsPage() {
     async function fetchAll() {
         try {
             setLoading(true);
-            const [shopRes, faqRes, repRes, sloRes] = await Promise.all([
+            const [shopRes, aiRes] = await Promise.all([
                 fetch('/api/shop', { headers: { 'x-shop-id': shopId } }),
-                fetch('/api/dashboard/faqs', { headers: { 'x-shop-id': shopId } }).catch(() => null),
-                fetch('/api/dashboard/quick-replies', { headers: { 'x-shop-id': shopId } }).catch(
-                    () => null
-                ),
-                fetch('/api/dashboard/slogans', { headers: { 'x-shop-id': shopId } }).catch(() => null),
+                fetch('/api/ai-settings', { headers: { 'x-shop-id': shopId } }).catch(() => null),
             ]);
             const shopData = await shopRes.json();
             if (shopData.shop) {
@@ -172,6 +170,8 @@ export default function AISettingsPage() {
                 setNotifyOnOrder(s.notify_on_order !== false);
                 setNotifyOnContact(s.notify_on_contact !== false);
                 setNotifyOnSupport(s.notify_on_support !== false);
+                setNotifyOnCancel(s.notify_on_cancel !== false);
+                setNotifyOnComplaints(s.notify_on_complaints !== false);
                 if (s.custom_knowledge)
                     setKnowledge(
                         Object.entries(s.custom_knowledge).map(([key, value]) => ({
@@ -181,22 +181,155 @@ export default function AISettingsPage() {
                     );
                 if (s.policies) setPolicies((p) => ({ ...p, ...s.policies }));
             }
-            if (faqRes?.ok) {
-                const d = await faqRes.json();
-                setFaqs(d.faqs || []);
-            }
-            if (repRes?.ok) {
-                const d = await repRes.json();
-                setReplies(d.replies || []);
-            }
-            if (sloRes?.ok) {
-                const d = await sloRes.json();
-                setSlogans(d.slogans || []);
+            if (aiRes?.ok) {
+                const d = await aiRes.json();
+                setFaqs(
+                    (d.faqs || []).map((f: { id: string; question: string; answer: string }) => ({
+                        id: f.id,
+                        q: f.question,
+                        a: f.answer,
+                    }))
+                );
+                setReplies(
+                    (d.quickReplies || []).map(
+                        (r: { id: string; trigger_words: string[]; response: string }) => ({
+                            id: r.id,
+                            trigger: Array.isArray(r.trigger_words)
+                                ? r.trigger_words.join(', ')
+                                : String(r.trigger_words || ''),
+                            response: r.response,
+                        })
+                    )
+                );
+                setSlogans(
+                    (d.slogans || []).map((s: { id: string; slogan: string }) => ({
+                        id: s.id,
+                        text: s.slogan,
+                    }))
+                );
             }
         } catch (e) {
             logger.error('Алдаа гарлаа', { error: e });
         } finally {
             setLoading(false);
+        }
+    }
+
+    // ───── FAQ CRUD ─────
+    async function addFaq() {
+        if (!newFaqQ.trim() || !newFaqA.trim()) return;
+        try {
+            const res = await fetch('/api/ai-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({ type: 'faqs', question: newFaqQ, answer: newFaqA }),
+            });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'Алдаа гарлаа');
+            setFaqs([
+                ...faqs,
+                { id: d.data.id, q: d.data.question, a: d.data.answer },
+            ]);
+            setNewFaqQ('');
+            setNewFaqA('');
+            toast.success('FAQ нэмэгдлээ');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    async function removeFaq(id: string) {
+        try {
+            const res = await fetch(`/api/ai-settings?type=faqs&id=${id}`, {
+                method: 'DELETE',
+                headers: { 'x-shop-id': shopId },
+            });
+            if (!res.ok) throw new Error('Устгахад алдаа гарлаа');
+            setFaqs(faqs.filter((f) => f.id !== id));
+            toast.success('FAQ устгагдлаа');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    // ───── Quick Reply CRUD ─────
+    async function addReply() {
+        if (!newTrigger.trim() || !newResponse.trim()) return;
+        try {
+            const res = await fetch('/api/ai-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    type: 'quick_replies',
+                    name: newTrigger.slice(0, 40),
+                    trigger_words: newTrigger,
+                    response: newResponse,
+                }),
+            });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'Алдаа гарлаа');
+            setReplies([
+                ...replies,
+                {
+                    id: d.data.id,
+                    trigger: Array.isArray(d.data.trigger_words)
+                        ? d.data.trigger_words.join(', ')
+                        : String(d.data.trigger_words || ''),
+                    response: d.data.response,
+                },
+            ]);
+            setNewTrigger('');
+            setNewResponse('');
+            toast.success('Хурдан хариулт нэмэгдлээ');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    async function removeReply(id: string) {
+        try {
+            const res = await fetch(`/api/ai-settings?type=quick_replies&id=${id}`, {
+                method: 'DELETE',
+                headers: { 'x-shop-id': shopId },
+            });
+            if (!res.ok) throw new Error('Устгахад алдаа гарлаа');
+            setReplies(replies.filter((r) => r.id !== id));
+            toast.success('Устгагдлаа');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    // ───── Slogan CRUD ─────
+    async function addSlogan() {
+        if (!newSlogan.trim()) return;
+        try {
+            const res = await fetch('/api/ai-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({ type: 'slogans', slogan: newSlogan }),
+            });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'Алдаа гарлаа');
+            setSlogans([...slogans, { id: d.data.id, text: d.data.slogan }]);
+            setNewSlogan('');
+            toast.success('Слоган нэмэгдлээ');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    async function removeSlogan(id: string) {
+        try {
+            const res = await fetch(`/api/ai-settings?type=slogans&id=${id}`, {
+                method: 'DELETE',
+                headers: { 'x-shop-id': shopId },
+            });
+            if (!res.ok) throw new Error('Устгахад алдаа гарлаа');
+            setSlogans(slogans.filter((s) => s.id !== id));
+            toast.success('Устгагдлаа');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
         }
     }
 
@@ -211,11 +344,11 @@ export default function AISettingsPage() {
                     ai_emotion: emotion,
                     description,
                     ai_instructions: aiInstructions,
-                    ai_model: aiModel,
-                    ai_language: aiLanguage,
                     notify_on_order: notifyOnOrder,
                     notify_on_contact: notifyOnContact,
                     notify_on_support: notifyOnSupport,
+                    notify_on_cancel: notifyOnCancel,
+                    notify_on_complaints: notifyOnComplaints,
                 }),
             });
             toast.success('Ерөнхий тохиргоо хадгалагдлаа');
@@ -337,13 +470,13 @@ export default function AISettingsPage() {
             <PageHero
                 eyebrow="AI АГЕНТ"
                 live
-                title="Gemini ажиллаж байна"
+                title="AI Sales agent ажиллаж байна"
                 subtitle="AI-ийн зан төлөв, мэдлэгийн сан, автоматжуулсан хариултыг тохируулаарай."
                 actions={
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
                         <Sparkles className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                         <span className="font-medium tracking-[-0.01em]">
-                            {MODELS.find((m) => m.id === aiModel)?.name || 'Gemini'}
+                            {MODELS.find((m) => m.id === aiModel)?.name || 'AI Sales agent'}
                         </span>
                     </div>
                 }
@@ -640,13 +773,7 @@ export default function AISettingsPage() {
                                 variant="primary"
                                 size="icon"
                                 disabled={!newFaqQ || !newFaqA}
-                                onClick={() => {
-                                    if (newFaqQ && newFaqA) {
-                                        setFaqs([...faqs, { q: newFaqQ, a: newFaqA }]);
-                                        setNewFaqQ('');
-                                        setNewFaqA('');
-                                    }
-                                }}
+                                onClick={addFaq}
                                 aria-label="Нэмэх"
                             >
                                 <Plus className="w-4 h-4" strokeWidth={2} />
@@ -660,7 +787,7 @@ export default function AISettingsPage() {
                             ) : (
                                 faqs.map((f, i) => (
                                     <div
-                                        key={i}
+                                        key={f.id}
                                         className="flex items-start gap-4 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] group hover:border-white/[0.12] hover:bg-white/[0.04] transition-all"
                                     >
                                         <div className="w-6 h-6 rounded-md bg-white/[0.06] flex items-center justify-center text-[11px] font-semibold text-white/60 flex-shrink-0 mt-0.5">
@@ -675,8 +802,8 @@ export default function AISettingsPage() {
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => setFaqs(faqs.filter((_, j) => j !== i))}
-                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-0 group-hover:opacity-100 transition-all"
+                                            onClick={() => removeFaq(f.id)}
+                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                                             aria-label="Устгах"
                                         >
                                             <Trash2 className="w-4 h-4" strokeWidth={1.5} />
@@ -766,7 +893,7 @@ export default function AISettingsPage() {
                                             onClick={() =>
                                                 setKnowledge(knowledge.filter((_, j) => j !== i))
                                             }
-                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-0 group-hover:opacity-100 transition-all"
+                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                                             aria-label="Устгах"
                                         >
                                             <Trash2 className="w-4 h-4" strokeWidth={1.5} />
@@ -936,16 +1063,7 @@ export default function AISettingsPage() {
                                 variant="primary"
                                 size="icon"
                                 disabled={!newTrigger || !newResponse}
-                                onClick={() => {
-                                    if (newTrigger && newResponse) {
-                                        setReplies([
-                                            ...replies,
-                                            { trigger: newTrigger, response: newResponse },
-                                        ]);
-                                        setNewTrigger('');
-                                        setNewResponse('');
-                                    }
-                                }}
+                                onClick={addReply}
                                 aria-label="Нэмэх"
                             >
                                 <Plus className="w-4 h-4" strokeWidth={2} />
@@ -957,9 +1075,9 @@ export default function AISettingsPage() {
                                     Хурдан хариулт байхгүй байна
                                 </div>
                             ) : (
-                                replies.map((r, i) => (
+                                replies.map((r) => (
                                     <div
-                                        key={i}
+                                        key={r.id}
                                         className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] group hover:border-white/[0.12] hover:bg-white/[0.04] transition-all"
                                     >
                                         <Zap
@@ -975,10 +1093,8 @@ export default function AISettingsPage() {
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() =>
-                                                setReplies(replies.filter((_, j) => j !== i))
-                                            }
-                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-0 group-hover:opacity-100 transition-all"
+                                            onClick={() => removeReply(r.id)}
+                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                                             aria-label="Устгах"
                                         >
                                             <Trash2 className="w-4 h-4" strokeWidth={1.5} />
@@ -1009,12 +1125,7 @@ export default function AISettingsPage() {
                                 variant="primary"
                                 size="icon"
                                 disabled={!newSlogan}
-                                onClick={() => {
-                                    if (newSlogan) {
-                                        setSlogans([...slogans, newSlogan]);
-                                        setNewSlogan('');
-                                    }
-                                }}
+                                onClick={addSlogan}
                                 aria-label="Нэмэх"
                             >
                                 <Plus className="w-4 h-4" strokeWidth={2} />
@@ -1026,9 +1137,9 @@ export default function AISettingsPage() {
                                     Слоган байхгүй байна
                                 </div>
                             ) : (
-                                slogans.map((s, i) => (
+                                slogans.map((s) => (
                                     <div
-                                        key={i}
+                                        key={s.id}
                                         className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] group hover:border-white/[0.12] hover:bg-white/[0.04] transition-all"
                                     >
                                         <Hash
@@ -1036,13 +1147,11 @@ export default function AISettingsPage() {
                                             strokeWidth={1.5}
                                         />
                                         <p className="flex-1 text-[13px] text-foreground font-medium truncate tracking-[-0.01em]">
-                                            {s}
+                                            {s.text}
                                         </p>
                                         <button
-                                            onClick={() =>
-                                                setSlogans(slogans.filter((_, j) => j !== i))
-                                            }
-                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-0 group-hover:opacity-100 transition-all"
+                                            onClick={() => removeSlogan(s.id)}
+                                            className="p-1.5 rounded-md text-white/30 hover:text-[var(--destructive)] hover:bg-[color-mix(in_oklab,var(--destructive)_14%,transparent)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                                             aria-label="Устгах"
                                         >
                                             <Trash2 className="w-4 h-4" strokeWidth={1.5} />
@@ -1080,6 +1189,18 @@ export default function AISettingsPage() {
                                 d: 'Хэрэглэгч амьд хүнтэй холбогдохыг шаардах үед',
                                 v: notifyOnSupport,
                                 s: setNotifyOnSupport,
+                            },
+                            {
+                                l: 'Захиалга цуцлах хүсэлт',
+                                d: 'Хэрэглэгч захиалгаа цуцлахыг хүссэн үед',
+                                v: notifyOnCancel,
+                                s: setNotifyOnCancel,
+                            },
+                            {
+                                l: 'Гомдол хүлээн авах',
+                                d: 'Үйлчлүүлэгчийн гомдол, санал хүлээн авсан үед',
+                                v: notifyOnComplaints,
+                                s: setNotifyOnComplaints,
                             },
                         ].map((n) => (
                             <ToggleRow

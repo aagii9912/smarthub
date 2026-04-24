@@ -56,6 +56,7 @@ export interface NotifySettings {
     contact: boolean;
     support: boolean;
     cancel: boolean;
+    complaints?: boolean;
 }
 
 // Shop policies

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +35,16 @@ export default function ProductsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+        if (typeof window === 'undefined') return 'grid';
+        return (localStorage.getItem('syncly_products_view') as 'grid' | 'list') || 'grid';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('syncly_products_view', viewMode);
+        }
+    }, [viewMode]);
 
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [, setImageFile] = useState<File | null>(null);
@@ -217,8 +227,35 @@ export default function ProductsPage() {
                     />
                 </div>
                 <Button variant="ghost" size="md" leftIcon={<Filter className="h-4 w-4" strokeWidth={1.5} />}>
-                    Шүүлтүүр
+                    <span className="hidden sm:inline">Шүүлтүүр</span>
                 </Button>
+                {/* Grid/List view toggle */}
+                <div className="flex items-center bg-white/[0.03] border border-white/[0.08] rounded-lg p-0.5">
+                    <button
+                        onClick={() => setViewMode('grid')}
+                        aria-label="Grid харах"
+                        className={cn(
+                            'h-9 w-9 flex items-center justify-center rounded-md transition-colors',
+                            viewMode === 'grid'
+                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-[var(--brand-indigo)]'
+                                : 'text-white/40 hover:text-white/70'
+                        )}
+                    >
+                        <LayoutGrid className="h-4 w-4" strokeWidth={1.8} />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        aria-label="Жагсаалтаар харах"
+                        className={cn(
+                            'h-9 w-9 flex items-center justify-center rounded-md transition-colors',
+                            viewMode === 'list'
+                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-[var(--brand-indigo)]'
+                                : 'text-white/40 hover:text-white/70'
+                        )}
+                    >
+                        <List className="h-4 w-4" strokeWidth={1.8} />
+                    </button>
+                </div>
             </div>
 
             {/* Empty state */}
@@ -227,6 +264,106 @@ export default function ProductsPage() {
                     <Package className="w-12 h-12 text-white/10 mx-auto mb-4" strokeWidth={1.5} />
                     <p className="text-[14px] text-white/60 font-medium tracking-[-0.01em]">{t.products.noProducts}</p>
                     <p className="text-[12px] text-white/40 mt-1">{t.products.noProductsHint}</p>
+                </div>
+            ) : viewMode === 'list' ? (
+                /* Product List — compact rows */
+                <div className="card-outlined overflow-hidden divide-y divide-white/[0.06]">
+                    {filteredProducts.map((product) => {
+                        const available = (product.stock || 0) - (product.reserved_stock || 0);
+                        const isService = product.type !== 'physical';
+                        const finalPrice = (product.discount_percent || 0) > 0
+                            ? Math.round(product.price * (1 - product.discount_percent! / 100))
+                            : product.price;
+
+                        return (
+                            <div
+                                key={product.id}
+                                className="flex items-center gap-3 p-3 hover:bg-white/[0.02] transition-colors"
+                            >
+                                {/* Thumbnail */}
+                                <div className="relative shrink-0 h-14 w-14 rounded-lg overflow-hidden bg-gradient-to-br from-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)] to-[color-mix(in_oklab,var(--brand-violet-500)_8%,transparent)]">
+                                    {product.images?.[0] ? (
+                                        <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Package className="w-5 h-5 text-white/20" strokeWidth={1.2} />
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-semibold text-[13.5px] text-foreground tracking-[-0.01em] line-clamp-1">
+                                            {product.name}
+                                        </p>
+                                        {!product.is_active && (
+                                            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-white/50">
+                                                {t.products.inactiveStatus}
+                                            </span>
+                                        )}
+                                        {(product.discount_percent || 0) > 0 && (
+                                            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[var(--destructive)] text-white font-semibold">
+                                                -{product.discount_percent}%
+                                            </span>
+                                        )}
+                                    </div>
+                                    {product.description && (
+                                        <p className="text-[11.5px] text-white/40 mt-0.5 line-clamp-1">
+                                            {product.description}
+                                        </p>
+                                    )}
+                                </div>
+                                {/* Price */}
+                                <div className="hidden sm:block text-right shrink-0 min-w-[90px]">
+                                    {(product.discount_percent || 0) > 0 ? (
+                                        <>
+                                            <p className="text-[10.5px] text-white/35 line-through tabular-nums leading-none">
+                                                ₮{product.price.toLocaleString()}
+                                            </p>
+                                            <p className="text-[14px] font-bold text-[var(--destructive)] tabular-nums">
+                                                ₮{finalPrice.toLocaleString()}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="text-[14px] font-bold text-foreground tabular-nums">
+                                            ₮{product.price.toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
+                                {/* Stock */}
+                                <div className="hidden md:block text-right shrink-0 min-w-[80px]">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                                        {isService ? (product.type === 'service' ? t.products.service : t.products.appointment) : 'Нөөц'}
+                                    </p>
+                                    <p className={cn(
+                                        'text-[13px] font-semibold tabular-nums',
+                                        isService ? 'text-white/45' :
+                                            available <= 0 ? 'text-[var(--destructive)]' :
+                                                available < 5 ? 'text-[var(--warning)]' : 'text-foreground'
+                                    )}>
+                                        {isService ? '—' : `${available} ${t.products.pcs}`}
+                                    </p>
+                                </div>
+                                {/* Actions */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={() => { setEditingProduct(product); setShowModal(true); }}
+                                        aria-label="Засах"
+                                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-white/[0.08] active:scale-95 transition-all touch-manipulation"
+                                    >
+                                        <Edit2 className="w-4 h-4 text-white/70" strokeWidth={1.8} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(product.id)}
+                                        aria-label="Устгах"
+                                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[var(--destructive)]/20 active:scale-95 transition-all touch-manipulation"
+                                    >
+                                        <Trash2 className="w-4 h-4 text-white/70" strokeWidth={1.8} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 /* Product Grid — responsive 1/2/3 columns */
@@ -286,19 +423,19 @@ export default function ProductsPage() {
                                             </span>
                                         </div>
                                     )}
-                                    {/* Actions (shown on hover) */}
-                                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* Actions — always visible on mobile, hover-only on desktop */}
+                                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => { setEditingProduct(product); setShowModal(true); }}
                                             aria-label="Засах"
-                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/50 backdrop-blur-md hover:bg-black/70 transition-colors"
+                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-md hover:bg-black/80 active:scale-95 transition-all touch-manipulation"
                                         >
                                             <Edit2 className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(product.id)}
                                             aria-label="Устгах"
-                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/50 backdrop-blur-md hover:bg-[var(--destructive)]/80 transition-colors"
+                                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-md hover:bg-[var(--destructive)]/80 active:scale-95 transition-all touch-manipulation"
                                         >
                                             <Trash2 className="w-3.5 h-3.5 text-white" strokeWidth={1.8} />
                                         </button>
