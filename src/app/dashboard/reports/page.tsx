@@ -2,7 +2,7 @@
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
@@ -144,6 +144,27 @@ function IntentBreakdown({ data }: { data: Record<string, number> }) {
 }
 
 export default function ReportsPage() {
+    // useSearchParams() requires a Suspense boundary for static prerendering.
+    return (
+        <Suspense
+            fallback={
+                <div className="space-y-6">
+                    <div className="h-24 card-outlined animate-pulse" />
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="h-28 card-outlined animate-pulse" />
+                        ))}
+                    </div>
+                    <div className="h-80 card-outlined animate-pulse" />
+                </div>
+            }
+        >
+            <ReportsPageContent />
+        </Suspense>
+    );
+}
+
+function ReportsPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
