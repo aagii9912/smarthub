@@ -170,17 +170,19 @@ function ReportsPageContent() {
     const pathname = usePathname();
     const { t } = useLanguage();
 
-    const initialTab: ReportTab = searchParams?.get('tab') === 'ai' ? 'ai' : 'sales';
+    // Default tab is now 'ai' — sales is still reachable via ?tab=sales or
+    // the tab switcher.
+    const initialTab: ReportTab = searchParams?.get('tab') === 'sales' ? 'sales' : 'ai';
     const [activeTab, setActiveTab] = useState<ReportTab>(initialTab);
     const [period, setPeriod] = useState<Period>('month');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [exporting, setExporting] = useState<string | null>(null);
     const [aiRefreshing, setAiRefreshing] = useState(false);
 
-    // Sync tab with URL for deep links
+    // Sync tab with URL for deep links — default is now 'ai'
     useEffect(() => {
         const tabParam = searchParams?.get('tab');
-        const normalized: ReportTab = tabParam === 'ai' ? 'ai' : 'sales';
+        const normalized: ReportTab = tabParam === 'sales' ? 'sales' : 'ai';
         if (normalized !== activeTab) {
             setActiveTab(normalized);
         }
@@ -189,8 +191,8 @@ function ReportsPageContent() {
     const changeTab = (next: ReportTab) => {
         setActiveTab(next);
         const params = new URLSearchParams(searchParams?.toString() || '');
-        if (next === 'ai') {
-            params.set('tab', 'ai');
+        if (next === 'sales') {
+            params.set('tab', 'sales');
         } else {
             params.delete('tab');
         }
@@ -254,8 +256,8 @@ function ReportsPageContent() {
               ];
 
     const tabs: { id: ReportTab; label: string; icon: typeof BarChart3 }[] = [
-        { id: 'sales', label: 'Борлуулалт', icon: BarChart3 },
         { id: 'ai', label: 'AI тайлан', icon: Sparkles },
+        { id: 'sales', label: 'Борлуулалт', icon: BarChart3 },
     ];
 
     const isLoadingCurrent = activeTab === 'sales' ? salesLoading : aiLoading;
