@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/dashboard/Header';
@@ -25,7 +26,9 @@ export default function DashboardLayout({
                 <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-violet-500/[0.03] via-transparent to-transparent" />
             </div>
 
-            <Sidebar />
+            <Suspense fallback={null}>
+                <Sidebar />
+            </Suspense>
             <div className="md:ml-[72px] transition-all duration-300 min-h-screen flex flex-col relative">
                 <Header />
                 <main className="flex-1 px-4 md:px-6 lg:px-8 pb-24 md:pb-8 pt-4 md:pt-6" role="main" aria-label="Dashboard content">
