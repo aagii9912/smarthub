@@ -111,9 +111,22 @@ export class OrderService {
             throw new DatabaseError('Failed to create order items');
         }
 
-        // Reserve stock for each item
-        for (const item of data.items) {
-            await this.reserveStock(item.productId, item.quantity);
+        // Reserve stock atomically for all items in a single RPC call
+        const { error: reserveError } = await this.supabase.rpc('reserve_stock_bulk', {
+            p_items: data.items.map((item) => ({
+                product_id: item.productId,
+                quantity: item.quantity,
+            })),
+        });
+
+        if (reserveError) {
+            logger.error('reserve_stock_bulk failed, rolling back order', {
+                orderId: order.id,
+                error: reserveError.message,
+            });
+            await this.supabase.from('order_items').delete().eq('order_id', order.id);
+            await this.supabase.from('orders').delete().eq('id', order.id);
+            throw new DatabaseError(reserveError.message);
         }
 
         logger.info('Order created', { orderId: order.id, totalAmount, itemCount: data.items.length });
@@ -245,45 +258,6 @@ export class OrderService {
         }
 
         return (data || []) as OrderWithItems[];
-    }
-
-    /**
-     * Reserve stock for a product
-     */
-    private async reserveStock(productId: string, quantity: number): Promise<void> {
-        // Try RPC first (atomic operation)
-        const { error } = await this.supabase.rpc('reserve_stock', {
-            p_product_id: productId,
-            p_quantity: quantity,
-        });
-
-        if (error) {
-            logger.warn('reserve_stock RPC failed, using fallback', { productId, error: error.message });
-
-            // Fallback: fetch current value then update
-            const { data: product, error: fetchError } = await this.supabase
-                .from('products')
-                .select('reserved_stock')
-                .eq('id', productId)
-                .single();
-
-            if (fetchError) {
-                logger.warn('Could not fetch product for stock reservation', { productId, error: fetchError });
-                return;
-            }
-
-            const currentReserved = product?.reserved_stock || 0;
-            const { error: updateError } = await this.supabase
-                .from('products')
-                .update({ reserved_stock: currentReserved + quantity })
-                .eq('id', productId);
-
-            if (updateError) {
-                logger.warn('Could not reserve stock (fallback)', { productId, quantity, error: updateError });
-            } else {
-                logger.info('Stock reserved via fallback', { productId, quantity, newReserved: currentReserved + quantity });
-            }
-        }
     }
 
     /**

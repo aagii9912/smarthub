@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 // Instagram OAuth - Start (uses Facebook OAuth with Instagram permissions)
 export async function GET(request: NextRequest) {
@@ -15,7 +16,12 @@ export async function GET(request: NextRequest) {
     // Check if request comes from settings (has shop_id param)
     const shopId = request.nextUrl.searchParams.get('shop_id') || '';
     const source = request.nextUrl.searchParams.get('source') || 'setup';
-    const state = Buffer.from(JSON.stringify({ source, shopId })).toString('base64');
+
+    // SEC: CSRF — generate a random nonce, carry it in both the state param
+    // (public, echoed by Facebook) and an HttpOnly cookie (private). Callback
+    // compares them with timingSafeEqual.
+    const nonce = crypto.randomUUID();
+    const state = Buffer.from(JSON.stringify({ source, shopId, nonce })).toString('base64');
 
     // Required permissions for Instagram messaging
     const permissions = [
@@ -37,5 +43,14 @@ export async function GET(request: NextRequest) {
     // Force full permission dialog (not just "Reconnect")
     fbAuthUrl.searchParams.set('auth_type', 'rerequest');
 
-    return NextResponse.redirect(fbAuthUrl.toString());
+    const response = NextResponse.redirect(fbAuthUrl.toString());
+    response.cookies.set('ig_oauth_state', nonce, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 600, // 10 minutes
+        path: '/',
+    });
+
+    return response;
 }

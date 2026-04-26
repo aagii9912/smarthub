@@ -10,68 +10,93 @@ import { sendPushNotification } from '@/lib/notifications';
 const LOW_STOCK_THRESHOLD = 3;
 
 /**
- * Deduct stock when order is confirmed
- * - Decrements `stock` by ordered quantity
- * - Decrements `reserved_stock` by ordered quantity (was reserved at checkout)
+ * Deduct stock when order is confirmed.
+ *
+ * Delegates to the `atomic_claim_stock_deduction` RPC which atomically:
+ *   - Claims the deduction via orders.stock_deducted_at (idempotent)
+ *   - Locks product rows in stable order to prevent deadlocks
+ *   - Decrements both `stock` and `reserved_stock` (and variant stock)
+ *
+ * Safe to call multiple times for the same order — second call returns
+ * false and is a no-op. This makes it robust against webhook + manual-check
+ * double-firing.
  */
 export async function deductStockForOrder(orderId: string): Promise<void> {
     const supabase = supabaseAdmin();
 
-    const { data: orderItems } = await supabase
-        .from('order_items')
-        .select('product_id, quantity')
-        .eq('order_id', orderId);
+    const { data: claimed, error } = await supabase
+        .rpc('atomic_claim_stock_deduction', { p_order_id: orderId });
 
-    if (!orderItems || orderItems.length === 0) {
-        logger.warn('No order items found for stock deduction:', { orderId });
+    if (error) {
+        logger.error('atomic_claim_stock_deduction failed:', {
+            orderId,
+            error: error.message,
+        });
+        throw error;
+    }
+
+    if (claimed === false) {
+        logger.info('Stock already deducted for order (idempotent skip):', { orderId });
         return;
     }
 
-    // Get shop_id from the order
+    logger.info('Stock deducted for order:', { orderId });
+
+    await notifyLowStockAfterDeduction(orderId).catch((err: unknown) => {
+        logger.warn('Low-stock notification failed (non-critical):', {
+            orderId,
+            error: err instanceof Error ? err.message : String(err),
+        });
+    });
+}
+
+/**
+ * Fires low-stock / out-of-stock push notifications after deduction.
+ * Runs outside the deduction transaction so notification failures never
+ * block stock updates.
+ */
+async function notifyLowStockAfterDeduction(orderId: string): Promise<void> {
+    const supabase = supabaseAdmin();
+
     const { data: order } = await supabase
         .from('orders')
         .select('shop_id')
         .eq('id', orderId)
         .single();
 
-    await Promise.all(orderItems.map(async (item) => {
-        const { data: product } = await supabase
-            .from('products')
-            .select('stock, reserved_stock, name')
-            .eq('id', item.product_id)
-            .single();
+    if (!order?.shop_id) return;
 
-        if (product) {
-            const newStock = Math.max(0, (product.stock || 0) - item.quantity);
-            const newReserved = Math.max(0, (product.reserved_stock || 0) - item.quantity);
+    const { data: items } = await supabase
+        .from('order_items')
+        .select('product_id, products!inner(id, name, stock)')
+        .eq('order_id', orderId);
 
-            await supabase
-                .from('products')
-                .update({ stock: newStock, reserved_stock: newReserved })
-                .eq('id', item.product_id);
+    if (!items || items.length === 0) return;
 
-            // Check for low stock after deduction
-            if (newStock <= LOW_STOCK_THRESHOLD && newStock > 0 && order?.shop_id) {
-                await sendPushNotification(order.shop_id, {
-                    title: '⚠️ Нөөц бага байна!',
-                    body: `"${product.name}" — зөвхөн ${newStock} ширхэг үлдсэн`,
-                    url: '/dashboard/products',
-                    tag: `low-stock-${item.product_id}`,
-                });
-                logger.warn('Low stock alert:', { product: product.name, remaining: newStock });
-            } else if (newStock === 0 && order?.shop_id) {
-                await sendPushNotification(order.shop_id, {
-                    title: '🔴 Бараа дууслаа!',
-                    body: `"${product.name}" бүрэн дууссан. Нөхөн оруулна уу.`,
-                    url: '/dashboard/products',
-                    tag: `out-of-stock-${item.product_id}`,
-                });
-                logger.warn('Out of stock alert:', { product: product.name });
-            }
+    for (const item of items) {
+        const product = item.products as unknown as { id: string; name: string; stock: number | null } | null;
+        if (!product) continue;
+
+        const remaining = product.stock ?? 0;
+
+        if (remaining === 0) {
+            await sendPushNotification(order.shop_id, {
+                title: '🔴 Бараа дууслаа!',
+                body: `"${product.name}" бүрэн дууссан. Нөхөн оруулна уу.`,
+                url: '/dashboard/products',
+                tag: `out-of-stock-${product.id}`,
+            });
+            logger.warn('Out of stock alert:', { product: product.name });
+        } else if (remaining <= LOW_STOCK_THRESHOLD) {
+            await sendPushNotification(order.shop_id, {
+                title: '⚠️ Нөөц бага байна!',
+                body: `"${product.name}" — зөвхөн ${remaining} ширхэг үлдсэн`,
+                url: '/dashboard/products',
+                tag: `low-stock-${product.id}`,
+            });
+            logger.warn('Low stock alert:', { product: product.name, remaining });
         }
-    }));
-
-    logger.info('Stock deducted for order:', { orderId, items: orderItems.length });
+    }
 }
 
 /**

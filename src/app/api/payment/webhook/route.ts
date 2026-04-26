@@ -5,23 +5,43 @@ import { logger } from '@/lib/utils/logger';
 import crypto from 'crypto';
 
 /**
- * Verify QPay webhook signature
- * Uses verify-at-source pattern: always calls QPay API to confirm payment
- * HMAC signature is a secondary check when configured
+ * Verify QPay webhook signature.
+ *
+ * Policy:
+ *   - Production (NODE_ENV==='production'): QPAY_WEBHOOK_SECRET MUST be set and
+ *     a valid X-QPay-Signature header MUST be present. Missing/invalid → reject.
+ *   - Non-production: fall back to verify-at-source if secret is unconfigured.
+ *     This keeps local dev ergonomic without weakening prod security.
+ *
+ * Verify-at-source (checkPaymentStatus) is still performed downstream as
+ * defense-in-depth regardless of signature outcome.
  */
 function verifyWebhookSignature(body: string, signature: string | null): boolean {
     const secret = process.env.QPAY_WEBHOOK_SECRET;
-    if (!secret || secret === 'your_qpay_webhook_secret_here') {
-        // In Quick Pay v2, QPay may not send HMAC signatures
-        // Use verify-at-source pattern instead (checkPaymentStatus)
-        logger.warn('QPAY_WEBHOOK_SECRET not configured — using verify-at-source');
+    const secretConfigured = !!secret && secret !== 'your_qpay_webhook_secret_here';
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (!secretConfigured) {
+        if (isProduction) {
+            logger.error('QPAY_WEBHOOK_SECRET is not configured in production');
+            return false;
+        }
+        logger.warn('QPAY_WEBHOOK_SECRET not configured — allowing via verify-at-source (non-production only)');
         return true;
     }
-    if (!signature) return true; // Quick Pay v2 may not include signature
+
+    if (!signature) {
+        if (isProduction) {
+            logger.warn('QPay webhook missing x-qpay-signature header in production');
+            return false;
+        }
+        logger.warn('QPay webhook missing signature header — allowing via verify-at-source (non-production only)');
+        return true;
+    }
 
     try {
         const expected = crypto
-            .createHmac('sha256', secret)
+            .createHmac('sha256', secret!)
             .update(body)
             .digest('hex');
 
@@ -130,32 +150,44 @@ export async function POST(request: NextRequest) {
 
         const transactionId = getTransactionId(paymentCheck);
 
-        // Update payment status to paid
-        const { error: updateError } = await supabase
-            .from('payments')
-            .update({
-                status: 'paid',
-                paid_at: new Date().toISOString(),
-                qpay_transaction_id: transactionId,
-                metadata: {
-                    ...(payment.metadata as Record<string, unknown> || {}),
-                    payment_details: paymentCheck.rows?.[0] ?? null,
-                },
-            })
-            .eq('id', payment.id);
-
-        if (updateError) {
-            logger.error('Failed to update payment', { error: updateError.message });
-            throw new Error('Failed to update payment');
-        }
-
         // ──── ROUTE BY PAYMENT TYPE ────
         const effectiveType = payment.payment_type || paymentType;
 
         if (effectiveType === 'subscription') {
+            // Subscription payment-г нь өөрийн маршрутаар — payment update-ийг
+            // subscription handler хариуцна уу? Үгүй, энд update хийнэ:
+            const { error: updateError } = await supabase
+                .from('payments')
+                .update({
+                    status: 'paid',
+                    paid_at: new Date().toISOString(),
+                    qpay_transaction_id: transactionId,
+                    metadata: {
+                        ...(payment.metadata as Record<string, unknown> || {}),
+                        payment_details: paymentCheck.rows?.[0] ?? null,
+                        confirmed_via: 'webhook',
+                    },
+                })
+                .eq('id', payment.id);
+
+            if (updateError) {
+                logger.error('Failed to update subscription payment', { error: updateError.message });
+                throw new Error('Failed to update payment');
+            }
+
             await handleSubscriptionPayment(supabase, payment);
         } else {
-            await handleOrderPayment(supabase, payment, transactionId);
+            // Order payment — нэгдсэн confirmation helper ашиглана
+            const { confirmOrderPayment } = await import('@/lib/services/PaymentConfirmationService');
+            await confirmOrderPayment({
+                paymentId: payment.id,
+                orderId: (payment.order_id as string | null) ?? null,
+                transactionId,
+                amount: Number(payment.amount),
+                paymentMethod: (payment.payment_method as string) || 'qpay',
+                confirmedVia: 'webhook',
+                paymentDetails: paymentCheck.rows?.[0] ?? null,
+            });
         }
 
         return NextResponse.json({ success: true, message: 'Payment confirmed' });
@@ -293,154 +325,6 @@ async function handleSubscriptionPayment(
         plan_name: plan.name,
         valid_until: endDate.toISOString(),
     });
-}
-
-// ──────────────────────────────────────────────
-// Order Payment Handler (FIXED: adds order status update)
-// ──────────────────────────────────────────────
-
-async function handleOrderPayment(
-    supabase: ReturnType<typeof supabaseAdmin>,
-    payment: Record<string, unknown>,
-    transactionId: string | null
-) {
-    const orderId = payment.order_id as string;
-
-    if (!orderId) {
-        logger.warn('Order payment missing order_id');
-        return;
-    }
-
-    // Update order status directly (DB trigger may not be deployed)
-    // Use 'confirmed' which exists in original order_status enum
-    const { error: orderUpdateError } = await supabase
-        .from('orders')
-        .update({
-            status: 'confirmed',
-            payment_status: 'paid',
-            payment_method: 'qpay',
-            paid_at: new Date().toISOString(),
-        })
-        .eq('id', orderId);
-
-    if (orderUpdateError) {
-        logger.error('Failed to update order status:', { error: orderUpdateError.message, orderId });
-    } else {
-        logger.success('Order status updated to confirmed:', { orderId });
-    }
-
-    // Deduct stock
-    try {
-        const { deductStockForOrder } = await import('@/lib/services/StockService');
-        await deductStockForOrder(orderId);
-    } catch (stockErr: unknown) {
-        logger.error('Stock deduction failed (non-critical):', { error: stockErr instanceof Error ? stockErr.message : String(stockErr) });
-    }
-
-    // ── Audit log entry (webhook confirmation) ──
-    try {
-        await supabase
-            .from('payment_audit_logs')
-            .insert({
-                payment_id: payment.id as string,
-                shop_id: payment.shop_id as string,
-                order_id: orderId,
-                action: 'paid',
-                old_status: 'pending',
-                new_status: 'paid',
-                amount: Number(payment.amount),
-                payment_method: payment.payment_method as string,
-                actor: 'webhook',
-                metadata: {
-                    qpay_transaction_id: transactionId,
-                    confirmed_via: 'qpay_webhook',
-                },
-            });
-    } catch (auditErr) {
-        logger.warn('Audit log insert failed (non-critical):', { error: String(auditErr) });
-    }
-
-    logger.success('Order payment confirmed:', {
-        payment_id: payment.id,
-        order_id: orderId,
-        transaction_id: transactionId,
-    });
-
-    // Send confirmation email
-    try {
-        const { data: orderData } = await supabase
-            .from('orders')
-            .select('*, customers(name, email, facebook_id), shops(name, facebook_page_access_token, address)')
-            .eq('id', orderId)
-            .single();
-
-        if (orderData?.customers?.email) {
-            const { sendPaymentConfirmationEmail } = await import('@/lib/email/email');
-
-            await sendPaymentConfirmationEmail({
-                customerEmail: orderData.customers.email,
-                customerName: orderData.customers.name,
-                orderId: orderData.id,
-                amount: Number(payment.amount),
-                paymentMethod: payment.payment_method as string,
-                shopName: orderData.shops.name,
-                invoiceUrl: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001'}/api/invoice/${orderData.id}`,
-            });
-
-            logger.success('Payment confirmation email sent');
-        }
-
-        // ── Send Messenger confirmation to customer ──
-        // Check if pay page poll already sent this (prevent duplicates)
-        const paymentMeta = (payment.metadata as Record<string, unknown>) || {};
-        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token && !paymentMeta.messenger_notified) {
-            try {
-                const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
-                const amount = Number(payment.amount).toLocaleString();
-                
-                // Build delivery-aware confirmation message
-                let confirmMsg = '';
-                const deliveryFee = Number(orderData.delivery_fee || 0);
-                const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
-                
-                if (orderData.delivery_method === 'pickup') {
-                    const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
-                    confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                } else {
-                    const deliveryAddress = orderData.delivery_address || '';
-                    const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
-                    confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                }
-
-                // Use POST_PURCHASE_UPDATE tag — works even outside 24hr messaging window
-                await sendTaggedMessage({
-                    recipientId: orderData.customers.facebook_id,
-                    message: confirmMsg,
-                    pageAccessToken: orderData.shops.facebook_page_access_token,
-                    tag: 'POST_PURCHASE_UPDATE',
-                });
-
-                // Mark as notified to prevent duplicate from pay page poll
-                await supabase
-                    .from('payments')
-                    .update({
-                        metadata: {
-                            ...paymentMeta,
-                            messenger_notified: true,
-                        },
-                    })
-                    .eq('id', payment.id as string);
-
-                logger.success('Payment confirmation sent to customer via Messenger');
-            } catch (msgErr) {
-                logger.warn('Messenger confirmation failed (non-critical):', { error: String(msgErr) });
-            }
-        }
-    } catch (emailError: unknown) {
-        logger.error('Failed to send notifications (non-critical)', {
-            error: emailError instanceof Error ? emailError.message : String(emailError),
-        });
-    }
 }
 
 /**

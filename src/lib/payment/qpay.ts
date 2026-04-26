@@ -440,7 +440,7 @@ export async function checkPaymentStatus(invoiceId: string): Promise<QPayPayment
 // ──────────────────────────────────────────────
 
 /**
- * Validate QPay webhook signature (HMAC-SHA256)
+ * Validate QPay webhook signature (HMAC-SHA256) using constant-time comparison.
  */
 export function validateWebhookSignature(
     payload: string,
@@ -452,7 +452,11 @@ export function validateWebhookSignature(
             .createHmac('sha256', secret)
             .update(payload)
             .digest('hex');
-        return signature === expected;
+
+        const sigBuf = Buffer.from(signature);
+        const expBuf = Buffer.from(expected);
+        if (sigBuf.length !== expBuf.length) return false;
+        return crypto.timingSafeEqual(sigBuf, expBuf);
     } catch {
         return false;
     }

@@ -86,36 +86,44 @@ export async function POST(request: NextRequest) {
       throw orderError;
     }
 
-    // 2. Create Order Items and Reserve Stock
-    for (const item of items) {
-      const { error: itemError } = await supabase
-        .from('order_items')
-        .insert({
-          order_id: order.id,
-          product_id: item.productId,
-          quantity: item.quantity,
-          unit_price: item.unitPrice
-        });
+    // 2a. Create all order_items in a single bulk insert (O(1) roundtrip)
+    const { error: itemError } = await supabase
+      .from('order_items')
+      .insert(items.map((item) => ({
+        order_id: order.id,
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      })));
 
-      if (itemError) throw itemError;
+    if (itemError) {
+      // Rollback: remove the orphan order
+      await supabase.from('orders').delete().eq('id', order.id);
+      throw itemError;
+    }
 
-      // Reserve stock (using RPC or direct update)
-      // Ideally we should use a transaction or RPC, but for now simple update
-      const { data: product } = await supabase
-        .from('products')
-        .select('reserved_stock')
-        .eq('id', item.productId)
-        .single();
+    // 2b. Atomically reserve stock for all items in a single RPC call.
+    // reserve_stock_bulk locks product rows in a stable order and raises
+    // on missing product / insufficient stock.
+    const { error: reserveError } = await supabase.rpc('reserve_stock_bulk', {
+      p_items: items.map((item) => ({
+        product_id: item.productId,
+        quantity: item.quantity,
+      })),
+    });
 
-      if (product) {
-        await supabase
-          .from('products')
-          .update({
-            reserved_stock: (product.reserved_stock || 0) + item.quantity,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.productId);
-      }
+    if (reserveError) {
+      // Rollback: remove order_items and the order
+      await supabase.from('order_items').delete().eq('order_id', order.id);
+      await supabase.from('orders').delete().eq('id', order.id);
+      logger.error('Stock reservation failed:', {
+        orderId: order.id,
+        error: reserveError.message,
+      });
+      return NextResponse.json(
+        { error: reserveError.message },
+        { status: 409 },
+      );
     }
 
     return NextResponse.json({

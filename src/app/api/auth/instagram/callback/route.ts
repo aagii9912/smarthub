@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
@@ -15,6 +16,13 @@ interface PageWithInstagram {
     };
 }
 
+function timingSafeStringEqual(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
@@ -22,18 +30,34 @@ export async function GET(request: NextRequest) {
     const stateParam = searchParams.get('state');
     const origin = request.nextUrl.origin;
 
-    // Parse state to determine source and shop_id
+    // Parse state to determine source, shop_id and CSRF nonce
     let source = 'setup';
     let shopId = '';
+    let nonce = '';
     if (stateParam) {
         try {
             const stateData = JSON.parse(Buffer.from(stateParam, 'base64').toString());
             source = stateData.source || 'setup';
             shopId = stateData.shopId || '';
+            nonce = stateData.nonce || '';
         } catch { /* ignore parse errors */ }
     }
 
     const redirectBase = source === 'settings' ? '/dashboard/settings' : '/setup';
+
+    // SEC: CSRF validation — compare state nonce against the HttpOnly cookie.
+    // Consume the cookie regardless of outcome to prevent replay.
+    const cookieStore = await cookies();
+    const savedNonce = cookieStore.get('ig_oauth_state')?.value;
+    cookieStore.delete('ig_oauth_state');
+
+    if (!nonce || !savedNonce || !timingSafeStringEqual(nonce, savedNonce)) {
+        logger.warn('Instagram OAuth CSRF validation failed', {
+            hasStateNonce: !!nonce,
+            hasCookieNonce: !!savedNonce,
+        });
+        return NextResponse.redirect(`${origin}${redirectBase}?ig_error=csrf_validation_failed`);
+    }
 
     // Handle error from Facebook
     if (error) {
@@ -136,7 +160,6 @@ export async function GET(request: NextRequest) {
         const accountsJson = JSON.stringify(instagramAccounts);
         const encodedAccounts = Buffer.from(accountsJson).toString('base64');
 
-        const cookieStore = await cookies();
         cookieStore.set('ig_accounts', encodedAccounts, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

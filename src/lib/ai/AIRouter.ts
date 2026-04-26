@@ -320,44 +320,54 @@ export async function routeToAI(
                 history: geminiHistory,
             });
 
-            // Send message
-            let result = await chat.sendMessage(message);
-            let response = result.response;
+            // Multi-turn tool-call loop.
+            //
+            // Gemini-д олон шатлалт tool call хийж болно (жишээ нь:
+            // search_products → add_to_cart → create_order). Тиймээс нэг сонгон
+            // авалтанд хязгаарлахгүй — max iteration-оор аюулгүй болго.
+            const MAX_TOOL_ITERATIONS = 5;
 
-            // Safely extract text (text() can throw when response has only function calls)
-            let finalResponseText = '';
-            let secondResult: typeof result | undefined;
-            let retryResult: typeof result | undefined;
-            try {
-                finalResponseText = response.text?.() || '';
-            } catch (textError) {
-                logger.debug('First response text() unavailable (likely function call response)');
-            }
+            const toolContext: ToolExecutionContext = {
+                shopId: context.shopId,
+                customerId: context.customerId,
+                customerName: context.customerName,
+                products: context.products,
+                notifySettings: context.notifySettings,
+            };
 
-            // Handle Function Calls
-            const functionCalls = response.functionCalls?.();
-            if (functionCalls && functionCalls.length > 0 && planConfig.features.toolCalling) {
-                logger.info('Gemini triggered function calls:', {
+            const extractText = (res: Awaited<ReturnType<typeof chat.sendMessage>>): string => {
+                try {
+                    return res.response.text?.() || '';
+                } catch {
+                    return '';
+                }
+            };
+
+            // Initial turn
+            let currentResult = await chat.sendMessage(message);
+            let finalResponseText = extractText(currentResult);
+
+            let totalTokensConsumed = currentResult.response.usageMetadata?.totalTokenCount || 0;
+            let lastFunctionResponseParts: Part[] = [];
+            let iteration = 0;
+
+            // Tool-call loop — continues as long as Gemini keeps requesting tools
+            while (iteration < MAX_TOOL_ITERATIONS) {
+                const functionCalls = currentResult.response.functionCalls?.();
+                if (!functionCalls || functionCalls.length === 0) break;
+                if (!planConfig.features.toolCalling) break;
+
+                iteration++;
+                logger.info(`Gemini tool-call iteration ${iteration}:`, {
                     count: functionCalls.length,
                     names: functionCalls.map(fc => fc.name),
                 });
 
-                // Create tool execution context
-                const toolContext: ToolExecutionContext = {
-                    shopId: context.shopId,
-                    customerId: context.customerId,
-                    customerName: context.customerName,
-                    products: context.products,
-                    notifySettings: context.notifySettings,
-                };
-
-                // Build function response parts
                 const functionResponseParts: Part[] = [];
 
                 for (const fc of functionCalls) {
                     const functionName = fc.name as ToolName;
 
-                    // Check if tool is enabled for this plan
                     if (!isToolEnabledForPlan(functionName, planType)) {
                         logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
                         functionResponseParts.push({
@@ -402,51 +412,60 @@ export async function routeToAI(
                     });
                 }
 
-                // Send function results back to Gemini
-                secondResult = await chat.sendMessage(functionResponseParts);
+                lastFunctionResponseParts = functionResponseParts;
 
-                try {
-                    finalResponseText = secondResult.response.text?.() || '';
-                } catch (textError) {
-                    logger.warn('Second response text() threw error:', { error: String(textError) });
-                }
+                // Send tool results back to Gemini — the response may be:
+                //  a) plain text (loop exits)
+                //  b) more function calls (loop continues)
+                currentResult = await chat.sendMessage(functionResponseParts);
+                finalResponseText = extractText(currentResult);
+                totalTokensConsumed += currentResult.response.usageMetadata?.totalTokenCount || 0;
+            }
 
-                // Diagnostic: log what Gemini returned if empty
-                if (!finalResponseText.trim()) {
-                    const candidates = secondResult.response.candidates;
-                    logger.warn('Gemini returned empty after tool call', {
-                        candidateCount: candidates?.length,
-                        finishReason: candidates?.[0]?.finishReason,
-                        safetyRatings: candidates?.[0]?.safetyRatings?.map(r => ({ category: r.category, probability: r.probability })),
-                        partTypes: candidates?.[0]?.content?.parts?.map(p => Object.keys(p)),
+            if (iteration === MAX_TOOL_ITERATIONS) {
+                const stillCalling = (currentResult.response.functionCalls?.() ?? []).length > 0;
+                if (stillCalling) {
+                    logger.warn('AIRouter hit MAX_TOOL_ITERATIONS — using last partial result', {
+                        shopId: context.shopId,
+                        customerId: context.customerId,
                     });
-
-                    // Fallback: use the tool's own message
-                    const lastToolMessage = functionResponseParts
-                        .map(p => (p.functionResponse?.response as Record<string, unknown>)?.message)
-                        .filter(Boolean)
-                        .pop() as string | undefined;
-
-                    if (lastToolMessage) {
-                        logger.info('Using tool message as fallback');
-                        finalResponseText = lastToolMessage;
-                    }
                 }
-            } else if (!finalResponseText.trim()) {
-                // No function calls and no text — retry once
+            }
+
+            // Empty-text fallback after tool loop
+            if (iteration > 0 && !finalResponseText.trim()) {
+                const candidates = currentResult.response.candidates;
+                logger.warn('Gemini returned empty after tool call loop', {
+                    iterations: iteration,
+                    candidateCount: candidates?.length,
+                    finishReason: candidates?.[0]?.finishReason,
+                    safetyRatings: candidates?.[0]?.safetyRatings?.map(r => ({ category: r.category, probability: r.probability })),
+                    partTypes: candidates?.[0]?.content?.parts?.map(p => Object.keys(p)),
+                });
+
+                const lastToolMessage = lastFunctionResponseParts
+                    .map(p => (p.functionResponse?.response as Record<string, unknown>)?.message)
+                    .filter(Boolean)
+                    .pop() as string | undefined;
+
+                if (lastToolMessage) {
+                    logger.info('Using tool message as fallback');
+                    finalResponseText = lastToolMessage;
+                }
+            }
+
+            // No-tool-calls empty-response retry (original behavior)
+            if (iteration === 0 && !finalResponseText.trim()) {
                 logger.warn('Gemini returned empty, retrying once...');
 
-                // Retry with a nudge message
-                retryResult = await chat.sendMessage(
+                const retryResult = await chat.sendMessage(
                     message + '\n\n(Хэрэглэгчид заавал хариу бичнэ үү)'
                 );
-                try {
-                    finalResponseText = retryResult.response.text?.() || '';
-                } catch { /* ignore */ }
+                finalResponseText = extractText(retryResult);
+                totalTokensConsumed += retryResult.response.usageMetadata?.totalTokenCount || 0;
 
                 if (!finalResponseText.trim()) {
                     logger.warn('Gemini still empty after retry', {
-                        promptTokens: response.usageMetadata?.promptTokenCount,
                         historyLength: geminiHistory.length,
                     });
                 } else {
@@ -454,38 +473,9 @@ export async function routeToAI(
                 }
             }
 
-            // Log usage info and calculate total tokens consumed
-            // BILLING-1 FIX: Accumulate tokens from ALL Gemini API calls
-            const firstUsage = response.usageMetadata;
-            let totalTokensConsumed = firstUsage?.totalTokenCount || 0;
-
-            // Add tokens from function call second response (if any)
-            if (secondResult) {
-                const secondUsage = secondResult.response?.usageMetadata;
-                if (secondUsage?.totalTokenCount) {
-                    totalTokensConsumed += secondUsage.totalTokenCount;
-                    logger.debug('Second call token usage:', {
-                        secondTokens: secondUsage.totalTokenCount,
-                        runningTotal: totalTokensConsumed,
-                    });
-                }
-            }
-
-            // Add tokens from retry response (if any)
-            if (retryResult) {
-                const retryUsage = retryResult.response?.usageMetadata;
-                if (retryUsage?.totalTokenCount) {
-                    totalTokensConsumed += retryUsage.totalTokenCount;
-                    logger.debug('Retry call token usage:', {
-                        retryTokens: retryUsage.totalTokenCount,
-                        runningTotal: totalTokensConsumed,
-                    });
-                }
-            }
-
-            if (firstUsage) {
+            if (totalTokensConsumed > 0) {
                 logger.info('Token usage (total across all calls):', {
-                    firstCallTokens: firstUsage.totalTokenCount,
+                    toolIterations: iteration,
                     totalTokens: totalTokensConsumed,
                 });
             }
