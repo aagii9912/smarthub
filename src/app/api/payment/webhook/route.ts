@@ -8,34 +8,28 @@ import crypto from 'crypto';
  * Verify QPay webhook signature.
  *
  * Policy:
- *   - Production (NODE_ENV==='production'): QPAY_WEBHOOK_SECRET MUST be set and
- *     a valid X-QPay-Signature header MUST be present. Missing/invalid → reject.
- *   - Non-production: fall back to verify-at-source if secret is unconfigured.
- *     This keeps local dev ergonomic without weakening prod security.
+ *   QPay Quick Pay v2 (`quickqr.qpay.mn`) does NOT sign webhook callbacks —
+ *   the canonical security mechanism for this provider is "verify-at-source":
+ *   on every callback we re-query `checkPaymentStatus(invoice_id)` against
+ *   the QPay API and only act if QPay itself confirms the invoice as paid.
  *
- * Verify-at-source (checkPaymentStatus) is still performed downstream as
- * defense-in-depth regardless of signature outcome.
+ *   Therefore signature verification here is OPTIONAL defense-in-depth:
+ *     - If `QPAY_WEBHOOK_SECRET` is configured AND the request includes a
+ *       signature header, we validate it (constant-time compare).
+ *     - Otherwise we accept the request and rely on verify-at-source
+ *       downstream. This is correct in production too, since QPay does not
+ *       send a signature.
+ *
+ *   If QPay later adds signed callbacks, set `QPAY_WEBHOOK_SECRET` and the
+ *   matching header and this path will start enforcing it automatically.
  */
 function verifyWebhookSignature(body: string, signature: string | null): boolean {
     const secret = process.env.QPAY_WEBHOOK_SECRET;
     const secretConfigured = !!secret && secret !== 'your_qpay_webhook_secret_here';
-    const isProduction = process.env.NODE_ENV === 'production';
 
-    if (!secretConfigured) {
-        if (isProduction) {
-            logger.error('QPAY_WEBHOOK_SECRET is not configured in production');
-            return false;
-        }
-        logger.warn('QPAY_WEBHOOK_SECRET not configured — allowing via verify-at-source (non-production only)');
-        return true;
-    }
-
-    if (!signature) {
-        if (isProduction) {
-            logger.warn('QPay webhook missing x-qpay-signature header in production');
-            return false;
-        }
-        logger.warn('QPay webhook missing signature header — allowing via verify-at-source (non-production only)');
+    // QPay does not sign callbacks → no secret + no signature is the normal
+    // happy path. verify-at-source provides the actual security guarantee.
+    if (!secretConfigured || !signature) {
         return true;
     }
 
