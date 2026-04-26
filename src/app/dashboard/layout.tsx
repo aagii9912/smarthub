@@ -1,9 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Sidebar } from '@/components/dashboard/Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/dashboard/Header';
-import { MobileNav } from '@/components/dashboard/MobileNav';
+import { MobileNav } from '@/components/layout/MobileNav';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 // Lazy load non-critical components
