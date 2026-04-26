@@ -35,6 +35,8 @@ import {
     Settings,
     Search,
     ChevronDown,
+    Crown,
+    Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -81,11 +83,17 @@ const INSIGHTS: NavLink[] = [
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
 ];
 
-/** Bottom — system utilities */
+/** Bottom — system utilities. `subscription` carries an inline label since
+ *  the existing t.sidebar dict has no key for it. */
 const SYSTEM: NavLink[] = [
+    { nameKey: 'subscription', href: '/dashboard/subscription', icon: Crown },
     { nameKey: 'help', href: '/help', icon: HelpCircle },
     { nameKey: 'settings', href: '/dashboard/settings', icon: Settings },
 ];
+
+const SYSTEM_LABELS: Record<string, string> = {
+    subscription: 'Багц',
+};
 
 /** Translation keys for sub-items that aren't in the existing sidebar dict */
 const ORDER_CHILD_LABELS: Record<string, string> = {
@@ -111,7 +119,10 @@ function SidebarInner() {
     const { hasFeature, isPaidPlan, plan } = useFeatures();
 
     const getLabel = (key: string) =>
-        ORDER_CHILD_LABELS[key] || (t.sidebar as Record<string, string>)[key] || key;
+        ORDER_CHILD_LABELS[key] ||
+        SYSTEM_LABELS[key] ||
+        (t.sidebar as Record<string, string>)[key] ||
+        key;
 
     const isActive = (href: string) => {
         const [base] = href.split('?');
@@ -239,7 +250,32 @@ function SidebarInner() {
             </nav>
 
             {/* ── Footer ──────────────────────────────── */}
-            <div className="border-t border-white/[0.05] p-3 shrink-0">
+            <div className="border-t border-white/[0.05] p-3 shrink-0 flex flex-col gap-2">
+                {/* Upgrade CTA — only for free plan, only visible expanded */}
+                {!isPaidPlan && (
+                    <Link
+                        href="/dashboard/subscription"
+                        className={cn(
+                            'group/cta hidden group-hover/rail:flex items-center gap-2.5 px-3 py-2.5 rounded-lg',
+                            'bg-gradient-to-br from-[#4A7CE7]/15 via-[#8B5CF6]/15 to-[#4A7CE7]/15',
+                            'border border-[#8B5CF6]/25 hover:border-[#8B5CF6]/40 transition-all',
+                        )}
+                    >
+                        <div className="flex items-center justify-center h-7 w-7 rounded-md bg-gradient-to-br from-[#4A7CE7] to-[#8B5CF6] shrink-0">
+                            <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2.2} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold text-white tracking-[-0.01em]">
+                                {t.sidebar.upgradeToPro}
+                            </div>
+                            <div className="text-[10.5px] text-white/55 truncate">
+                                {plan?.name || 'Free'} → Pro
+                            </div>
+                        </div>
+                    </Link>
+                )}
+
+                {/* User row */}
                 <div className="flex items-center h-11 rounded-lg px-2 hover:bg-white/[0.04] transition-colors">
                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 text-[11px] font-bold text-white shrink-0">
                         {initials}
@@ -249,7 +285,7 @@ function SidebarInner() {
                             {fullName}
                         </div>
                         <div className="text-[10.5px] text-white/40 truncate">
-                            {shop?.name || 'Shop'}
+                            {shop?.name || 'Shop'} · {plan?.name || 'Free'}
                         </div>
                     </div>
                     <Link
