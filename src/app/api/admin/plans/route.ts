@@ -21,7 +21,7 @@ export async function GET() {
 
         const { data: plans, error } = await supabase
             .from('plans')
-            .select('id, name, slug, description, price_monthly, price_yearly, features, limits, is_active, is_featured, sort_order, created_at')
+            .select('id, name, slug, description, price_monthly, price_yearly, features, limits, enabled_tools, is_active, is_featured, sort_order, created_at')
             .order('sort_order', { ascending: true });
 
         if (error) throw error;
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, slug, description, price_monthly, price_yearly, features, limits, is_active, is_featured, sort_order } = body;
+        const { name, slug, description, price_monthly, price_yearly, features, limits, enabled_tools, is_active, is_featured, sort_order } = body;
 
         if (!name || !slug) {
             return NextResponse.json(
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
                 price_yearly,
                 features: features || {},
                 limits: limits || {},
+                enabled_tools: Array.isArray(enabled_tools) && enabled_tools.length > 0 ? enabled_tools : null,
                 is_active: is_active !== false,
                 is_featured: is_featured || false,
                 sort_order: sort_order || 0

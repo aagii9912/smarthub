@@ -305,17 +305,36 @@ export function getPlanTypeFromSubscription(subscription?: {
 }
 
 /**
- * Check if a tool is enabled for a plan
+ * Check if a tool is enabled for a plan.
+ *
+ * If the caller has loaded a per-plan override (from the `plans.enabled_tools`
+ * DB column, edited in /admin/plans), pass it as `override`. When non-null
+ * the override fully replaces the hardcoded list. When null/undefined we fall
+ * back to PLAN_CONFIGS.
  */
-export function isToolEnabledForPlan(toolName: ToolName, plan: PlanType): boolean {
-    const config = getPlanConfig(plan);
-    return config.enabledTools.includes(toolName);
+export function isToolEnabledForPlan(
+    toolName: ToolName,
+    plan: PlanType,
+    override?: ToolName[] | null
+): boolean {
+    return resolveEnabledTools(plan, override).includes(toolName);
 }
 
 /**
- * Get enabled tools for a plan
+ * Get the effective enabled-tools list for a plan, applying an optional DB
+ * override (see `plans.enabled_tools`).
  */
-export function getEnabledToolsForPlan(plan: PlanType): ToolName[] {
+export function getEnabledToolsForPlan(
+    plan: PlanType,
+    override?: ToolName[] | null
+): ToolName[] {
+    return resolveEnabledTools(plan, override);
+}
+
+function resolveEnabledTools(plan: PlanType, override?: ToolName[] | null): ToolName[] {
+    if (override && override.length > 0) {
+        return override;
+    }
     return getPlanConfig(plan).enabledTools;
 }
 

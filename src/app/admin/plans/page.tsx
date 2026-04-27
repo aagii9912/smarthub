@@ -8,6 +8,7 @@ import {
     Plus, Edit2, Trash2, Check, X,
     Loader2, Package, Power
 } from 'lucide-react';
+import { TOOL_DEFINITIONS } from '@/lib/ai/tools/definitions';
 
 interface Plan {
     id: string;
@@ -18,6 +19,7 @@ interface Plan {
     price_yearly: number | null;
     features: Record<string, any>;
     limits: Record<string, any>;
+    enabled_tools: string[] | null;
     is_active: boolean;
     is_featured: boolean;
     sort_order: number;
@@ -43,6 +45,7 @@ export default function PlansPage() {
         is_featured: boolean;
         features: Record<string, any>;
         limits: Record<string, any>;
+        enabled_tools: string[];
     }>({
         name: '',
         slug: '',
@@ -74,7 +77,8 @@ export default function PlansPage() {
             max_shops: 1,
             max_products: 50,
             max_customers: 100
-        }
+        },
+        enabled_tools: []
     });
 
     useEffect(() => {
@@ -128,7 +132,8 @@ export default function PlansPage() {
                 max_shops: 1,
                 max_products: 50,
                 max_customers: 100
-            }
+            },
+            enabled_tools: []
         });
         setShowModal(true);
     }
@@ -144,7 +149,8 @@ export default function PlansPage() {
             is_active: plan.is_active,
             is_featured: plan.is_featured,
             features: plan.features || {},
-            limits: plan.limits || {}
+            limits: plan.limits || {},
+            enabled_tools: Array.isArray(plan.enabled_tools) ? plan.enabled_tools : []
         });
         setShowModal(true);
     }
@@ -154,9 +160,12 @@ export default function PlansPage() {
         try {
             const url = '/api/admin/plans';
             const method = editingPlan ? 'PATCH' : 'POST';
+            // Empty array means "use hardcoded defaults from PLAN_CONFIGS" — store NULL in DB.
+            const normalizedTools = formData.enabled_tools.length > 0 ? formData.enabled_tools : null;
+            const payload = { ...formData, enabled_tools: normalizedTools };
             const body = editingPlan
-                ? { id: editingPlan.id, ...formData }
-                : formData;
+                ? { id: editingPlan.id, ...payload }
+                : payload;
 
             const res = await fetch(url, {
                 method,
@@ -665,6 +674,68 @@ export default function PlansPage() {
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* AI Tools (per-plan override) */}
+                            <div className="pt-4 border-t border-gray-100">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900">AI Tools</h3>
+                                        <p className="text-xs text-gray-500 mt-0.5">
+                                            Plan-д тохирох AI tool-уудыг сонгоно уу. Юу ч сонгохгүй бол кодны default жагсаалт ашиглагдана.
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setFormData({ ...formData, enabled_tools: TOOL_DEFINITIONS.map(t => t.name) })}
+                                        >
+                                            Бүгдийг сонгох
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setFormData({ ...formData, enabled_tools: [] })}
+                                        >
+                                            Цэвэрлэх
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-gray-100">
+                                    {TOOL_DEFINITIONS.map((tool) => {
+                                        const checked = formData.enabled_tools.includes(tool.name);
+                                        return (
+                                            <label
+                                                key={tool.name}
+                                                className="flex items-start gap-3 p-2.5 rounded-lg border border-gray-100 hover:bg-white transition-colors cursor-pointer bg-white"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={(e) => {
+                                                        const next = e.target.checked
+                                                            ? [...formData.enabled_tools, tool.name]
+                                                            : formData.enabled_tools.filter(n => n !== tool.name);
+                                                        setFormData({ ...formData, enabled_tools: next });
+                                                    }}
+                                                    className="mt-0.5 w-4 h-4 rounded text-violet-600 focus:ring-violet-500"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-mono text-gray-900">{tool.name}</p>
+                                                    <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{tool.description}</p>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[11px] text-gray-400 mt-2">
+                                    {formData.enabled_tools.length === 0
+                                        ? 'Default ашиглах (PLAN_CONFIGS).'
+                                        : `${formData.enabled_tools.length} / ${TOOL_DEFINITIONS.length} tool сонгосон`}
+                                </p>
                             </div>
 
                             {/* Status */}

@@ -187,14 +187,39 @@ function toGeminiHistory(messages: ChatMessage[]): Content[] {
 }
 
 /**
- * Filter tool definitions based on plan
+ * Filter tool definitions based on plan, optionally overridden by the
+ * admin-editable plans.enabled_tools column.
  */
-function getToolsForPlan(plan: PlanType) {
-    const enabledTools = getEnabledToolsForPlan(plan);
+function getToolsForPlan(plan: PlanType, override?: ToolName[] | null) {
+    const enabledTools = getEnabledToolsForPlan(plan, override);
     const filtered = TOOL_DEFINITIONS.filter(tool =>
         enabledTools.includes(tool.name as ToolName)
     );
     return getGeminiFunctionDeclarations(filtered);
+}
+
+/**
+ * Load the per-plan AI tool override from the plans table (admin-editable).
+ * Returns null when the plan has no override or the lookup fails — callers
+ * should treat null as "use the hardcoded default from PLAN_CONFIGS".
+ */
+async function loadPlanEnabledToolsOverride(slug: string | undefined | null): Promise<ToolName[] | null> {
+    if (!slug) return null;
+    try {
+        const supabase = supabaseAdmin();
+        const { data, error } = await supabase
+            .from('plans')
+            .select('enabled_tools')
+            .eq('slug', slug)
+            .maybeSingle();
+        if (error || !data?.enabled_tools || !Array.isArray(data.enabled_tools) || data.enabled_tools.length === 0) {
+            return null;
+        }
+        return data.enabled_tools as ToolName[];
+    } catch (err) {
+        logger.warn('loadPlanEnabledToolsOverride failed, falling back to hardcoded:', { error: err, slug });
+        return null;
+    }
 }
 
 /**
@@ -321,9 +346,13 @@ export async function routeToAI(
             },
         });
 
+        // Resolve admin-editable per-plan tool override (plans.enabled_tools).
+        // Returns null when the plan row has no override → falls back to PLAN_CONFIGS.
+        const enabledToolsOverride = await loadPlanEnabledToolsOverride(context.subscription?.plan);
+
         // Get function declarations enabled for this plan
         const functionDeclarations = planConfig.features.toolCalling
-            ? getToolsForPlan(planType)
+            ? getToolsForPlan(planType, enabledToolsOverride)
             : undefined;
 
         // Convert history to Gemini format
@@ -400,7 +429,7 @@ export async function routeToAI(
                 for (const fc of functionCalls) {
                     const functionName = fc.name as ToolName;
 
-                    if (!isToolEnabledForPlan(functionName, planType)) {
+                    if (!isToolEnabledForPlan(functionName, planType, enabledToolsOverride)) {
                         logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
                         functionResponseParts.push({
                             functionResponse: {
