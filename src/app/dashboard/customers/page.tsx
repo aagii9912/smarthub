@@ -391,37 +391,37 @@ export default function CustomersPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="p-5 space-y-5">
+                        <div className="p-4 sm:p-5 space-y-5">
                             {/* Stats */}
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="card-outlined p-4 text-center">
-                                    <p className="text-[22px] font-bold text-foreground tabular-nums">
+                            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                <div className="card-outlined p-3 sm:p-4 text-center">
+                                    <p className="text-[18px] sm:text-[22px] font-bold text-foreground tabular-nums">
                                         {selectedCustomer.total_orders || 0}
                                     </p>
-                                    <p className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
+                                    <p className="text-[10px] sm:text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
                                         Захиалга
                                     </p>
                                 </div>
-                                <div className="card-featured p-4 text-center">
-                                    <p className="text-[22px] font-bold text-foreground tabular-nums">
+                                <div className="card-featured p-3 sm:p-4 text-center">
+                                    <p className="text-[16px] sm:text-[22px] font-bold text-foreground tabular-nums truncate">
                                         ₮{Number(selectedCustomer.total_spent || 0).toLocaleString()}
                                     </p>
-                                    <p className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
+                                    <p className="text-[10px] sm:text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
                                         Орлого
                                     </p>
                                 </div>
-                                <div className="card-outlined p-4 text-center">
-                                    <p className="text-[14px] font-bold text-foreground">
+                                <div className="card-outlined p-3 sm:p-4 text-center">
+                                    <p className="text-[12px] sm:text-[14px] font-bold text-foreground">
                                         {fmtTime(selectedCustomer.created_at)}
                                     </p>
-                                    <p className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
+                                    <p className="text-[10px] sm:text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mt-1">
                                         Бүртгэсэн
                                     </p>
                                 </div>
                             </div>
 
                             {/* Contact */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 {([
                                     { l: 'Нэр', k: 'name' as const, icon: null },
                                     { l: 'Утас', k: 'phone' as const, icon: Phone },
