@@ -72,6 +72,40 @@ export async function GET(request: NextRequest) {
 
     // Store pages data in a cookie
     const pages = (pagesData.data || []).slice(0, 10);
+
+    // If FB returned zero pages, do NOT pretend success — surface an actionable
+    // error to the user and capture diagnostics so we can investigate why this
+    // particular admin's `/me/accounts` came back empty (granular permissions,
+    // wrong Business, Meta App permission gap, etc.).
+    if (pages.length === 0) {
+      // One extra Graph call so the log entry identifies which FB user this is.
+      // Failures here are non-blocking — diagnostics are best-effort.
+      let fbUserId: string | undefined;
+      let fbUserName: string | undefined;
+      try {
+        const meResponse = await fetch(
+          `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${userAccessToken}`
+        );
+        const meData = await meResponse.json();
+        if (!meData.error) {
+          fbUserId = meData.id;
+          fbUserName = meData.name;
+        }
+      } catch (meErr) {
+        logger.warn('Facebook /me lookup failed (non-blocking):', { error: meErr });
+      }
+
+      logger.warn('Facebook callback: 0 pages returned', {
+        fbUserId,
+        fbUserName,
+        rawDataLength: Array.isArray(pagesData.data) ? pagesData.data.length : null,
+        paging: pagesData.paging,
+        userTokenLength: userAccessToken?.length ?? 0,
+      });
+
+      return NextResponse.redirect(`${origin}${returnTo}?fb_error=no_pages_granted`);
+    }
+
     const pagesJson = JSON.stringify(pages);
     const encodedPages = Buffer.from(pagesJson).toString('base64');
 

@@ -88,7 +88,17 @@ function SetupContent() {
     const pageCount = searchParams.get('page_count');
 
     if (fbError) {
-      setError(`Facebook холболт амжилтгүй: ${fbError}`);
+      const errorMessages: Record<string, string> = {
+        csrf_validation_failed: 'Аюулгүй байдлын шалгалт амжилтгүй. Дахин оролдоно уу.',
+        no_code: 'Facebook-аас зөвшөөрлийн код ирсэнгүй.',
+        config_missing: 'App тохиргоо дутуу байна.',
+        token_error: 'Access token авахад алдаа гарлаа.',
+        pages_error: 'Facebook Pages уншихад алдаа гарлаа.',
+        no_pages_granted:
+          'Facebook-аас Syncly-д хандах эрхтэй Page олдсонгүй. Та сонгосон Page-ийн админ эсэх, бүх шаардлагатай эрх ("Pages show list", "Pages messaging") өгсөн эсэхээ шалгаад дахин холбоно уу.',
+        exception: 'Алдаа гарлаа, дахин оролдоно уу.',
+      };
+      setError(errorMessages[fbError] || `Facebook холболт амжилтгүй: ${fbError}`);
     } else if (fbSuccess && pageCount) {
       fetchAvailablePages();
       setStep(2);

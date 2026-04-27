@@ -147,6 +147,11 @@ function SettingsContent() {
                 setFbPages(data.pages);
             } else if (data.code === 'SESSION_EXPIRED') {
                 toast.error('Facebook session дууссан. Дахин холбоно уу.');
+            } else {
+                // Defense-in-depth: cookie present but pages array is empty.
+                // After the callback fix this branch should be unreachable, but
+                // we never want to leave the user without an actionable message.
+                toast.error('Facebook Page олдсонгүй. Та админ эрхтэй Page-аа Syncly-д өгсөн эсэхээ шалгана уу.');
             }
         } catch {
             toast.error('Facebook page-ийг татахад алдаа');
@@ -170,6 +175,8 @@ function SettingsContent() {
                 config_missing: 'App тохиргоо дутуу байна.',
                 token_error: 'Access token авахад алдаа гарлаа.',
                 pages_error: 'Facebook Pages уншихад алдаа гарлаа.',
+                no_pages_granted:
+                    'Facebook-аас Syncly-д хандах эрхтэй Page олдсонгүй. Та сонгосон Page-ийн админ эсэх, бүх шаардлагатай эрх ("Pages show list", "Pages messaging") өгсөн эсэхээ шалгаад дахин холбоно уу.',
                 exception: 'Алдаа гарлаа, дахин оролдоно уу.',
             };
             toast.error(errorMessages[fbError] || `Facebook холболтын алдаа: ${fbError}`);
