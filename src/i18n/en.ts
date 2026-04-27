@@ -276,7 +276,7 @@ export const en: Translations = {
     vipStatus: 'VIP Status',
     vipCustomer: 'VIP Customer',
     regular: 'Regular',
-    messagePlaceholder: 'Type a message... (Enter to send)',
+    messagePlaceholder: 'Type a message... (⌘+Enter to send)',
     sendError: 'Error sending message',
     messageSent: 'Message sent',
     aiPaused: 'AI agent paused for 30 minutes',
@@ -287,6 +287,36 @@ export const en: Translations = {
     orderError: 'Error creating order',
     reminderSent: 'Reminder sent',
     reminderError: 'Error sending reminder',
+    send: 'Send',
+    cmdEnterToSend: '⌘ + Enter to send',
+    deleteConfirm: 'Delete customer "{name}"? All chat history will be removed.',
+    deleted: 'Customer deleted',
+    deleteError: 'Error while deleting',
+    notFound: 'Customer not found',
+    noConversations: 'No conversations yet',
+    noSearchResults: 'No customers match this search',
+    memo: {
+      title: 'AI memo',
+      regenerate: 'Refresh',
+      regenerateError: 'Failed to refresh memo',
+      stale: 'Outdated',
+      empty: 'No memo yet',
+      collapse: 'Collapse',
+      expand: 'Expand',
+      justNow: 'just now',
+      minutesAgoSuffix: 'm',
+      hoursAgoSuffix: 'h',
+      daysAgoSuffix: 'd',
+    },
+    thread: {
+      back: 'Back',
+      empty: 'Select a customer from the left',
+    },
+    aiMode: {
+      label: 'AI MODE',
+      pause30: 'Pause 30 min',
+      off: 'Turn off AI',
+    },
   },
 
   // ─── Mobile Nav ───
@@ -518,6 +548,87 @@ export const en: Translations = {
     reply: 'Reply',
     active: 'Active',
     inactive: 'Inactive',
+
+    // Hero / page chrome
+    eyebrow: 'Comment → DM',
+    pageTitle: 'Comment Automation',
+    subtitle: 'When someone comments a keyword, send an automatic DM or reply.',
+    countSuffix: 'automations',
+    newAutomation: 'New automation',
+    getStarted: 'Get started',
+
+    // Empty state — how it works
+    howItWorks: 'How does it work?',
+    howItWorksHint: 'Three steps — keyword, comment, automatic DM.',
+    step1: 'Set your trigger keywords (e.g. "DM", "price")',
+    step2: 'A customer comments one of those keywords on a post',
+    step3: 'They receive a DM automatically',
+
+    // Form chrome
+    editTitle: 'Edit automation',
+    createTitle: 'New automation',
+    formHint: 'Set up your keywords, message, and post.',
+    closeAria: 'Close',
+    cancel: 'Cancel',
+    create: 'Create',
+    update: 'Update',
+
+    // Form fields
+    nameLabel: 'Name',
+    namePlaceholder: 'Sale DM, New product...',
+    platformLabel: 'Platform',
+    keywordsLabel: 'Trigger keywords (comma-separated)',
+    keywordsPlaceholder: 'DM, price, info',
+    matchTypeLabel: 'Match type',
+    matchContains: 'Contains',
+    matchExact: 'Exact match',
+    actionLabel: 'Action',
+    dmMessageLabel: 'DM message',
+    dmMessagePlaceholder: 'Hi! 😊 Up to 50% off this week. Here are the details...',
+    replyMessageLabel: 'Comment reply',
+    replyMessagePlaceholder: 'Thanks! We just sent you a DM 📩',
+    postSelectorLabel: 'Post (optional — empty means every post)',
+    postSelectorAllPosts: 'Every post (none selected)',
+    postSelectorAllPostsOption: 'Every post (no filter)',
+    postSearchPlaceholder: 'Search posts...',
+    postNotFound: 'No posts found',
+    dmPreviewLabel: 'DM preview',
+
+    // Action options
+    actionDmLabel: 'Send DM',
+    actionDmDesc: 'Direct message to the commenter',
+    actionReplyLabel: 'Reply to comment',
+    actionReplyDesc: 'Post a public reply',
+    actionBothLabel: 'DM + reply',
+    actionBothDesc: 'Do both at once',
+
+    // Platform options
+    platformBoth: 'Facebook + Instagram',
+    platformFacebook: 'Facebook',
+    platformInstagram: 'Instagram',
+
+    // Toasts / errors
+    errorRequired: 'Name, keywords, and message are required',
+    errorGeneric: 'Something went wrong',
+    errorShort: 'Error',
+    successCreated: 'Automation created!',
+    successUpdated: 'Updated',
+    successActivated: 'Activated',
+    successDeactivated: 'Paused',
+    successDeleted: 'Deleted',
+    confirmDelete: 'Delete this automation?',
+
+    // Card
+    cardTriggerCountSuffix: 'triggers',
+    cardActionDm: 'DM',
+    cardActionReply: 'Reply',
+    cardActionBoth: 'DM+Reply',
+    cardMatchContains: 'contains',
+    cardMatchExact: 'exact',
+    cardAriaToggleOn: 'Pause',
+    cardAriaToggleOff: 'Activate',
+    cardAriaEdit: 'Edit',
+    cardAriaDelete: 'Delete',
   },
 
   // ─── Shared UI ───

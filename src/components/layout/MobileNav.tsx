@@ -83,6 +83,11 @@ export function MobileNav() {
         return () => document.removeEventListener('keydown', onEsc);
     }, [showMore]);
 
+    // Hide on inbox thread routes so the chat input has full bottom space (Messenger-style).
+    const isInboxThread =
+        !!pathname?.startsWith('/dashboard/inbox/') && pathname !== '/dashboard/inbox';
+    if (isInboxThread) return null;
+
     const isActive = (href: string) => {
         if (href === '/dashboard') return pathname === '/dashboard' || pathname === '/dashboard/';
         return pathname === href || (pathname?.startsWith(href + '/') ?? false);

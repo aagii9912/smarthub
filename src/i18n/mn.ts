@@ -274,7 +274,7 @@ export const mn = {
     vipStatus: 'VIP статус',
     vipCustomer: 'VIP Хэрэглэгч',
     regular: 'Энгийн',
-    messagePlaceholder: 'Мессеж бичих... (Enter = илгээх)',
+    messagePlaceholder: 'Мессеж бичих... (⌘+Enter = илгээх)',
     sendError: 'Мессеж илгээхэд алдаа гарлаа',
     messageSent: 'Мессеж илгээгдлээ',
     aiPaused: 'AI agent 30 минут зогссон',
@@ -285,6 +285,36 @@ export const mn = {
     orderError: 'Захиалга үүсгэхэд алдаа гарлаа',
     reminderSent: 'Сануулга илгээгдлээ',
     reminderError: 'Сануулга илгээхэд алдаа гарлаа',
+    send: 'Илгээх',
+    cmdEnterToSend: '⌘ + Enter илгээх',
+    deleteConfirm: '{name} харилцагчийг устгах уу? Чат түүх бүгд устана.',
+    deleted: 'Харилцагч устгагдлаа',
+    deleteError: 'Устгахад алдаа гарлаа',
+    notFound: 'Харилцагч олдсонгүй',
+    noConversations: 'Одоогоор харилцан яриа алга',
+    noSearchResults: 'Хайлтад тохирох харилцагч алга',
+    memo: {
+      title: 'AI тэмдэглэл',
+      regenerate: 'Шинэчлэх',
+      regenerateError: 'Тэмдэглэл шинэчлэхэд алдаа гарлаа',
+      stale: 'Хуучирсан',
+      empty: 'Тэмдэглэл үүсгээгүй байна',
+      collapse: 'Хумих',
+      expand: 'Дэлгэх',
+      justNow: 'одоо',
+      minutesAgoSuffix: 'м',
+      hoursAgoSuffix: 'ц',
+      daysAgoSuffix: 'ө',
+    },
+    thread: {
+      back: 'Буцах',
+      empty: 'Зүүн талаас харилцагч сонгоно уу',
+    },
+    aiMode: {
+      label: 'AI MODE',
+      pause30: '30 мин түр зогсоох',
+      off: 'AI унтраах',
+    },
   },
 
   // ─── Mobile Nav ───
@@ -522,6 +552,87 @@ export const mn = {
     reply: 'Хариу',
     active: 'Идэвхтэй',
     inactive: 'Идэвхгүй',
+
+    // Hero / page chrome
+    eyebrow: 'Comment → DM',
+    pageTitle: 'Comment Удирдлага',
+    subtitle: 'Comment дээр түлхүүр үг бичвэл автомат DM эсвэл хариу илгээнэ.',
+    countSuffix: 'automation',
+    newAutomation: 'Шинэ Automation',
+    getStarted: 'Эхлэх',
+
+    // Empty state — how it works
+    howItWorks: 'Яаж ажилладаг вэ?',
+    howItWorksHint: '3 алхамтай — түлхүүр үг, comment хүлээлт, автомат DM.',
+    step1: 'Та түлхүүр үг тохируулна (жишээ: "DM", "үнэ")',
+    step2: 'Хэрэглэгч пост дээр тэр үгийг comment бичнэ',
+    step3: 'Тэр хэрэглэгч рүү автомат DM очно',
+
+    // Form chrome
+    editTitle: 'Automation засах',
+    createTitle: 'Шинэ Automation',
+    formHint: 'Түлхүүр үг, мессеж, постоо тохируулна уу.',
+    closeAria: 'Хаах',
+    cancel: 'Цуцлах',
+    create: 'Үүсгэх',
+    update: 'Шинэчлэх',
+
+    // Form fields
+    nameLabel: 'Нэр',
+    namePlaceholder: 'Хямдралын DM, Шинэ бүтээгдэхүүн...',
+    platformLabel: 'Платформ',
+    keywordsLabel: 'Түлхүүр үгс (таслалаар тусгаарлах)',
+    keywordsPlaceholder: 'DM, үнэ, info, мэдээлэл',
+    matchTypeLabel: 'Тааруулах арга',
+    matchContains: 'Агуулсан (contains)',
+    matchExact: 'Яг таарах (exact)',
+    actionLabel: 'Үйлдэл',
+    dmMessageLabel: 'DM Мессеж',
+    dmMessagePlaceholder: 'Сайн байна уу! 😊 Манай хямдрал 50% хүртэл. Дэлгэрэнгүй мэдээлэл...',
+    replyMessageLabel: 'Comment хариу',
+    replyMessagePlaceholder: 'Баярлалаа! DM-ээр мэдээлэл илгээлээ 📩',
+    postSelectorLabel: 'Пост сонгох (сонголттой — хоосон бол бүх пост)',
+    postSelectorAllPosts: 'Бүх пост (сонгоогүй)',
+    postSelectorAllPostsOption: 'Бүх пост (шүүлтгүй)',
+    postSearchPlaceholder: 'Пост хайх...',
+    postNotFound: 'Пост олдсонгүй',
+    dmPreviewLabel: 'DM Preview',
+
+    // Action options
+    actionDmLabel: 'DM илгээх',
+    actionDmDesc: 'Хэрэглэгч рүү шууд мессеж',
+    actionReplyLabel: 'Comment хариулах',
+    actionReplyDesc: 'Comment-д хариу бичих',
+    actionBothLabel: 'DM + Comment',
+    actionBothDesc: 'Хоёуланг нь хийх',
+
+    // Platform options
+    platformBoth: 'Facebook + Instagram',
+    platformFacebook: 'Facebook',
+    platformInstagram: 'Instagram',
+
+    // Toasts / errors
+    errorRequired: 'Нэр, түлхүүр үг, мессеж шаардлагатай',
+    errorGeneric: 'Алдаа гарлаа',
+    errorShort: 'Алдаа',
+    successCreated: 'Automation үүслээ!',
+    successUpdated: 'Шинэчлэгдлээ',
+    successActivated: 'Идэвхжүүлсэн',
+    successDeactivated: 'Зогсоосон',
+    successDeleted: 'Устгагдлаа',
+    confirmDelete: 'Энэ automation-ыг устгах уу?',
+
+    // Card
+    cardTriggerCountSuffix: 'удаа',
+    cardActionDm: 'DM',
+    cardActionReply: 'Reply',
+    cardActionBoth: 'DM+Reply',
+    cardMatchContains: 'агуулсан',
+    cardMatchExact: 'яг таарах',
+    cardAriaToggleOn: 'Зогсоох',
+    cardAriaToggleOff: 'Идэвхжүүлэх',
+    cardAriaEdit: 'Засах',
+    cardAriaDelete: 'Устгах',
   },
 
   // ─── Shared UI ───
