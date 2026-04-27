@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AutomationCard } from '@/components/dashboard/AutomationCard';
 import type { Automation } from '@/components/dashboard/AutomationCard';
 import {
@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ShopPost {
     id: string;
@@ -34,23 +35,40 @@ interface ShopPost {
     type: string;
 }
 
-const PLATFORM_OPTIONS = [
-    { value: 'both', label: 'Facebook + Instagram', icon: '🌐' },
-    { value: 'facebook', label: 'Facebook', icon: '📘' },
-    { value: 'instagram', label: 'Instagram', icon: '📸' },
-];
-
-const ACTION_OPTIONS = [
-    { value: 'send_dm', label: 'DM илгээх', desc: 'Хэрэглэгч рүү шууд мессеж' },
-    { value: 'reply_comment', label: 'Comment хариулах', desc: 'Comment-д хариу бичих' },
-    { value: 'both', label: 'DM + Comment', desc: 'Хоёуланг нь хийх' },
-];
-
 const labelCls = 'block text-[11px] font-medium text-white/45 uppercase tracking-[0.08em] mb-1.5';
 const inputCls =
     'w-full px-3 py-2.5 border border-white/[0.08] rounded-lg text-[13px] text-foreground bg-white/[0.02] focus:outline-none focus:border-[var(--border-accent)] focus:bg-white/[0.04] transition-colors placeholder:text-white/30';
 
 export default function CommentAutomationPage() {
+    const { t, locale } = useLanguage();
+    const c = t.commentAutomation;
+    const dateLocale = locale === 'mn' ? 'mn-MN' : 'en-US';
+
+    const platformOptions = useMemo(
+        () => [
+            { value: 'both' as const, label: c.platformBoth, icon: '🌐' },
+            { value: 'facebook' as const, label: c.platformFacebook, icon: '📘' },
+            { value: 'instagram' as const, label: c.platformInstagram, icon: '📸' },
+        ],
+        [c.platformBoth, c.platformFacebook, c.platformInstagram]
+    );
+
+    const actionOptions = useMemo(
+        () => [
+            { value: 'send_dm' as const, label: c.actionDmLabel, desc: c.actionDmDesc },
+            { value: 'reply_comment' as const, label: c.actionReplyLabel, desc: c.actionReplyDesc },
+            { value: 'both' as const, label: c.actionBothLabel, desc: c.actionBothDesc },
+        ],
+        [
+            c.actionDmLabel,
+            c.actionDmDesc,
+            c.actionReplyLabel,
+            c.actionReplyDesc,
+            c.actionBothLabel,
+            c.actionBothDesc,
+        ]
+    );
+
     const [automations, setAutomations] = useState<Automation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -105,7 +123,7 @@ export default function CommentAutomationPage() {
             const data = await res.json();
             setAutomations(data.automations || []);
         } catch {
-            toast.error('Алдаа гарлаа');
+            toast.error(c.errorGeneric);
         } finally {
             setLoading(false);
         }
@@ -141,7 +159,7 @@ export default function CommentAutomationPage() {
 
     async function handleSave() {
         if (!name || !triggerKeywords || !dmMessage) {
-            toast.error('Нэр, түлхүүр үг, мессеж шаардлагатай');
+            toast.error(c.errorRequired);
             return;
         }
 
@@ -168,15 +186,15 @@ export default function CommentAutomationPage() {
             });
 
             if (res.ok) {
-                toast.success(editingId ? 'Шинэчлэгдлээ' : 'Automation үүслээ!');
+                toast.success(editingId ? c.successUpdated : c.successCreated);
                 resetForm();
                 fetchAutomations();
             } else {
                 const err = await res.json();
-                toast.error(err.error || 'Алдаа');
+                toast.error(err.error || c.errorShort);
             }
         } catch {
-            toast.error('Алдаа гарлаа');
+            toast.error(c.errorGeneric);
         } finally {
             setSaving(false);
         }
@@ -192,37 +210,37 @@ export default function CommentAutomationPage() {
             setAutomations(prev =>
                 prev.map(a => a.id === id ? { ...a, is_active: !currentState } : a)
             );
-            toast.success(!currentState ? 'Идэвхжүүлсэн' : 'Зогсоосон');
+            toast.success(!currentState ? c.successActivated : c.successDeactivated);
         } catch {
-            toast.error('Алдаа');
+            toast.error(c.errorShort);
         }
     }
 
     async function handleDelete(id: string) {
-        if (!confirm('Энэ automation-ыг устгах уу?')) return;
+        if (!confirm(c.confirmDelete)) return;
         try {
             await fetch(`/api/dashboard/comment-automations?id=${id}`, {
                 method: 'DELETE',
                 headers: { 'x-shop-id': shopId },
             });
             setAutomations(prev => prev.filter(a => a.id !== id));
-            toast.success('Устгагдлаа');
+            toast.success(c.successDeleted);
         } catch {
-            toast.error('Алдаа');
+            toast.error(c.errorShort);
         }
     }
 
     const header = (
         <PageHero
-            eyebrow="Comment → DM"
-            title="Comment Удирдлага"
-            subtitle="Comment дээр түлхүүр үг бичвэл автомат DM эсвэл хариу илгээнэ."
+            eyebrow={c.eyebrow}
+            title={c.pageTitle}
+            subtitle={c.subtitle}
             actions={
                 <>
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
                         <Zap className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
                         <span className="font-medium tabular-nums tracking-[-0.01em]">
-                            {automations.length} automation
+                            {automations.length} {c.countSuffix}
                         </span>
                     </div>
                     <Button
@@ -234,7 +252,7 @@ export default function CommentAutomationPage() {
                         }}
                         leftIcon={<Plus className="w-3.5 h-3.5" />}
                     >
-                        Шинэ Automation
+                        {c.newAutomation}
                     </Button>
                 </>
             }
@@ -250,6 +268,8 @@ export default function CommentAutomationPage() {
         );
     }
 
+    const steps = [c.step1, c.step2, c.step3];
+
     return (
         <div className="space-y-6">
             {header}
@@ -264,17 +284,13 @@ export default function CommentAutomationPage() {
                         />
                     </div>
                     <h3 className="text-[16px] font-semibold text-foreground mb-1 tracking-[-0.02em]">
-                        Яаж ажилладаг вэ?
+                        {c.howItWorks}
                     </h3>
                     <p className="text-[13px] text-white/45 max-w-sm mb-6 tracking-[-0.01em]">
-                        3 алхамтай — түлхүүр үг, comment хүлээлт, автомат DM.
+                        {c.howItWorksHint}
                     </p>
                     <div className="w-full max-w-md space-y-3 text-[13px] text-white/55 mb-6">
-                        {[
-                            'Та түлхүүр үг тохируулна (жишээ: "DM", "үнэ")',
-                            'Хэрэглэгч пост дээр тэр үгийг comment бичнэ',
-                            'Тэр хэрэглэгч рүү автомат DM очно',
-                        ].map((step, i) => (
+                        {steps.map((step, i) => (
                             <div
                                 key={i}
                                 className="flex items-center gap-3 text-left p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]"
@@ -298,7 +314,7 @@ export default function CommentAutomationPage() {
                         onClick={() => setShowForm(true)}
                         leftIcon={<Sparkles className="w-3.5 h-3.5" />}
                     >
-                        Эхлэх
+                        {c.getStarted}
                     </Button>
                 </div>
             )}
@@ -309,16 +325,16 @@ export default function CommentAutomationPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
-                                {editingId ? 'Automation засах' : 'Шинэ Automation'}
+                                {editingId ? c.editTitle : c.createTitle}
                             </h3>
                             <p className="text-[12px] text-white/45 mt-1 tracking-[-0.01em]">
-                                Түлхүүр үг, мессеж, постоо тохируулна уу.
+                                {c.formHint}
                             </p>
                         </div>
                         <button
                             onClick={resetForm}
                             className="p-2 -mr-2 rounded-lg text-white/40 hover:text-foreground hover:bg-white/[0.04] transition-colors"
-                            aria-label="Хаах"
+                            aria-label={c.closeAria}
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -327,23 +343,23 @@ export default function CommentAutomationPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Name */}
                         <div>
-                            <label className={labelCls}>Нэр</label>
+                            <label className={labelCls}>{c.nameLabel}</label>
                             <input
                                 value={name}
                                 onChange={e => setName(e.target.value)}
                                 className={inputCls}
-                                placeholder="Хямдралын DM, Шинэ бүтээгдэхүүн..."
+                                placeholder={c.namePlaceholder}
                             />
                         </div>
 
                         {/* Platform */}
                         <div>
-                            <label className={labelCls}>Платформ</label>
+                            <label className={labelCls}>{c.platformLabel}</label>
                             <div className="flex gap-2">
-                                {PLATFORM_OPTIONS.map(p => (
+                                {platformOptions.map(p => (
                                     <button
                                         key={p.value}
-                                        onClick={() => setPlatform(p.value as typeof platform)}
+                                        onClick={() => setPlatform(p.value)}
                                         className={cn(
                                             'flex-1 px-3 py-2.5 rounded-lg border text-[12px] font-medium transition-all tracking-[-0.01em]',
                                             platform === p.value
@@ -361,13 +377,13 @@ export default function CommentAutomationPage() {
                         <div>
                             <label className={labelCls}>
                                 <Hash className="w-3 h-3 inline mr-1" />
-                                Түлхүүр үгс (таслалаар тусгаарлах)
+                                {c.keywordsLabel}
                             </label>
                             <input
                                 value={triggerKeywords}
                                 onChange={e => setTriggerKeywords(e.target.value)}
                                 className={inputCls}
-                                placeholder="DM, үнэ, info, мэдээлэл"
+                                placeholder={c.keywordsPlaceholder}
                             />
                         </div>
 
@@ -375,7 +391,7 @@ export default function CommentAutomationPage() {
                         <div>
                             <label className={labelCls}>
                                 <Target className="w-3 h-3 inline mr-1" />
-                                Тааруулах арга
+                                {c.matchTypeLabel}
                             </label>
                             <div className="flex gap-2">
                                 <button
@@ -387,7 +403,7 @@ export default function CommentAutomationPage() {
                                             : 'border-white/[0.08] bg-white/[0.02] text-white/55 hover:border-white/[0.15] hover:text-white'
                                     )}
                                 >
-                                    Агуулсан (contains)
+                                    {c.matchContains}
                                 </button>
                                 <button
                                     onClick={() => setMatchType('exact')}
@@ -398,7 +414,7 @@ export default function CommentAutomationPage() {
                                             : 'border-white/[0.08] bg-white/[0.02] text-white/55 hover:border-white/[0.15] hover:text-white'
                                     )}
                                 >
-                                    Яг таарах (exact)
+                                    {c.matchExact}
                                 </button>
                             </div>
                         </div>
@@ -408,13 +424,13 @@ export default function CommentAutomationPage() {
                     <div>
                         <label className={labelCls}>
                             <Zap className="w-3 h-3 inline mr-1" />
-                            Үйлдэл
+                            {c.actionLabel}
                         </label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            {ACTION_OPTIONS.map(a => (
+                            {actionOptions.map(a => (
                                 <button
                                     key={a.value}
-                                    onClick={() => setActionType(a.value as typeof actionType)}
+                                    onClick={() => setActionType(a.value)}
                                     className={cn(
                                         'px-4 py-3 rounded-xl border text-left transition-all',
                                         actionType === a.value
@@ -443,14 +459,14 @@ export default function CommentAutomationPage() {
                         <div>
                             <label className={labelCls}>
                                 <Send className="w-3 h-3 inline mr-1" />
-                                DM Мессеж
+                                {c.dmMessageLabel}
                             </label>
                             <textarea
                                 value={dmMessage}
                                 onChange={e => setDmMessage(e.target.value)}
                                 className={`${inputCls} resize-none`}
                                 rows={3}
-                                placeholder="Сайн байна уу! 😊 Манай хямдрал 50% хүртэл. Дэлгэрэнгүй мэдээлэл..."
+                                placeholder={c.dmMessagePlaceholder}
                             />
                         </div>
                     )}
@@ -460,14 +476,14 @@ export default function CommentAutomationPage() {
                         <div>
                             <label className={labelCls}>
                                 <MessageCircle className="w-3 h-3 inline mr-1" />
-                                Comment хариу
+                                {c.replyMessageLabel}
                             </label>
                             <textarea
                                 value={replyMessage}
                                 onChange={e => setReplyMessage(e.target.value)}
                                 className={`${inputCls} resize-none`}
                                 rows={2}
-                                placeholder="Баярлалаа! DM-ээр мэдээлэл илгээлээ 📩"
+                                placeholder={c.replyMessagePlaceholder}
                             />
                         </div>
                     )}
@@ -476,7 +492,7 @@ export default function CommentAutomationPage() {
                     <div className="relative">
                         <label className={labelCls}>
                             <Globe className="w-3 h-3 inline mr-1" />
-                            Пост сонгох (сонголттой — хоосон бол бүх пост)
+                            {c.postSelectorLabel}
                         </label>
                         <button
                             type="button"
@@ -505,7 +521,7 @@ export default function CommentAutomationPage() {
                                     })()}
                                 </span>
                             ) : (
-                                <span className="text-white/30">Бүх пост (сонгоогүй)</span>
+                                <span className="text-white/30">{c.postSelectorAllPosts}</span>
                             )}
                             {loadingPosts ? (
                                 <Loader2 className="w-3.5 h-3.5 text-white/30 animate-spin shrink-0" />
@@ -529,7 +545,7 @@ export default function CommentAutomationPage() {
                                             value={postSearch}
                                             onChange={e => setPostSearch(e.target.value)}
                                             className="w-full pl-8 pr-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-md text-[12px] text-foreground focus:outline-none focus:border-[var(--border-accent)] placeholder:text-white/25"
-                                            placeholder="Пост хайх..."
+                                            placeholder={c.postSearchPlaceholder}
                                             autoFocus
                                         />
                                     </div>
@@ -550,7 +566,7 @@ export default function CommentAutomationPage() {
                                         )}
                                     >
                                         <Globe className="w-4 h-4 shrink-0" />
-                                        Бүх пост (шүүлтгүй)
+                                        {c.postSelectorAllPostsOption}
                                     </button>
 
                                     {/* Posts list */}
@@ -606,7 +622,7 @@ export default function CommentAutomationPage() {
                                                             {p.platform === 'facebook' ? 'FB' : 'IG'}
                                                         </span>
                                                         <span className="text-[10px] text-white/30 tabular-nums">
-                                                            {new Date(p.created_time).toLocaleDateString('mn-MN')}
+                                                            {new Date(p.created_time).toLocaleDateString(dateLocale)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -615,7 +631,7 @@ export default function CommentAutomationPage() {
 
                                     {posts.length === 0 && !loadingPosts && (
                                         <div className="px-3 py-6 text-center text-[12px] text-white/30">
-                                            Пост олдсонгүй
+                                            {c.postNotFound}
                                         </div>
                                     )}
                                     {loadingPosts && (
@@ -632,7 +648,7 @@ export default function CommentAutomationPage() {
                     {dmMessage && (
                         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                             <p className="text-[10px] text-white/40 uppercase tracking-[0.08em] mb-2 font-medium">
-                                DM Preview
+                                {c.dmPreviewLabel}
                             </p>
                             <div
                                 className="inline-block rounded-2xl rounded-bl-sm px-4 py-3 text-[13px] text-white/85 max-w-sm tracking-[-0.01em]"
@@ -649,7 +665,7 @@ export default function CommentAutomationPage() {
                     {/* Save */}
                     <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
                         <Button variant="ghost" size="sm" onClick={resetForm}>
-                            Цуцлах
+                            {c.cancel}
                         </Button>
                         <Button
                             variant="primary"
@@ -664,7 +680,7 @@ export default function CommentAutomationPage() {
                                 )
                             }
                         >
-                            {editingId ? 'Шинэчлэх' : 'Үүсгэх'}
+                            {editingId ? c.update : c.create}
                         </Button>
                     </div>
                 </div>

@@ -33,7 +33,15 @@ async function getShopId(request: NextRequest): Promise<string | null> {
 
 /**
  * GET /api/dashboard/comment-automations
- * List all automations for the shop
+ *
+ * List every automation (active + inactive) for the authenticated shop.
+ *
+ * Auth: requires `x-shop-id` header or a session-bound shop fallback.
+ *
+ * Responses:
+ *   200 — `{ automations: CommentAutomation[] }`
+ *   401 — `{ error: 'Unauthorized' }` when shop cannot be resolved
+ *   500 — `{ error: 'Internal server error' }` on unexpected failure
  */
 export async function GET(request: NextRequest) {
     try {
@@ -52,7 +60,25 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/dashboard/comment-automations
- * Create a new automation
+ *
+ * Create a new automation for the authenticated shop.
+ *
+ * Body (JSON):
+ *   - name: string (required)
+ *   - trigger_keywords: string[] (required, must be non-empty)
+ *   - dm_message: string (required)
+ *   - match_type?: 'contains' | 'exact'        (default 'contains')
+ *   - action_type?: 'send_dm' | 'reply_comment' | 'both' (default 'send_dm')
+ *   - reply_message?: string                   (only used when action_type includes reply)
+ *   - platform?: 'facebook' | 'instagram' | 'both' (default 'both')
+ *   - post_id?: string                          (omit to apply to every post)
+ *   - post_url?: string                         (display-only)
+ *
+ * Responses:
+ *   201 — `{ automation: CommentAutomation }`
+ *   400 — required fields missing
+ *   401 — unauthenticated
+ *   500 — insert failure
  */
 export async function POST(request: NextRequest) {
     try {
@@ -96,7 +122,18 @@ export async function POST(request: NextRequest) {
 
 /**
  * PATCH /api/dashboard/comment-automations
- * Update an existing automation
+ *
+ * Update an existing automation. Used both for full edits and the active/inactive
+ * toggle (`{ id, is_active: boolean }`). Scoped to the authenticated shop, so
+ * one shop cannot mutate another's rule.
+ *
+ * Body (JSON): `{ id: string, ...partial CommentAutomation fields }`
+ *
+ * Responses:
+ *   200 — `{ automation: CommentAutomation }`
+ *   400 — `id` missing
+ *   401 — unauthenticated
+ *   404 — automation not found for this shop
  */
 export async function PATCH(request: NextRequest) {
     try {
@@ -125,8 +162,15 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * DELETE /api/dashboard/comment-automations
- * Delete an automation
+ * DELETE /api/dashboard/comment-automations?id={id}
+ *
+ * Delete an automation by id, scoped to the authenticated shop.
+ *
+ * Responses:
+ *   200 — `{ success: true }`
+ *   400 — `id` query param missing
+ *   401 — unauthenticated
+ *   500 — delete failure
  */
 export async function DELETE(request: NextRequest) {
     try {

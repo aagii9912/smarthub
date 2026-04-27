@@ -10,23 +10,10 @@ import {
     Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { CommentAutomation } from '@/types/database';
 
-export interface Automation {
-    id: string;
-    name: string;
-    is_active: boolean;
-    post_id: string | null;
-    post_url: string | null;
-    trigger_keywords: string[];
-    match_type: 'contains' | 'exact';
-    action_type: 'send_dm' | 'reply_comment' | 'both';
-    dm_message: string;
-    reply_message: string | null;
-    platform: 'facebook' | 'instagram' | 'both';
-    trigger_count: number;
-    last_triggered_at: string | null;
-    created_at: string;
-}
+export type Automation = CommentAutomation;
 
 interface AutomationCardProps {
     automation: Automation;
@@ -70,6 +57,17 @@ function platformBadge(platform: Automation['platform']) {
 }
 
 export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: AutomationCardProps) {
+    const { t, locale } = useLanguage();
+    const c = t.commentAutomation;
+    const dateLocale = locale === 'mn' ? 'mn-MN' : 'en-US';
+
+    const actionLabel =
+        a.action_type === 'send_dm'
+            ? c.cardActionDm
+            : a.action_type === 'reply_comment'
+              ? c.cardActionReply
+              : c.cardActionBoth;
+
     return (
         <div
             className={cn(
@@ -84,7 +82,7 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                         <button
                             onClick={() => onToggle(a.id, a.is_active)}
                             className="shrink-0 rounded-md"
-                            aria-label={a.is_active ? 'Зогсоох' : 'Идэвхжүүлэх'}
+                            aria-label={a.is_active ? c.cardAriaToggleOn : c.cardAriaToggleOff}
                         >
                             {a.is_active ? (
                                 <ToggleRight
@@ -116,7 +114,7 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                             </span>
                         ))}
                         <span className="text-[10px] text-white/30 self-center ml-1">
-                            ({a.match_type === 'contains' ? 'агуулсан' : 'яг таарах'})
+                            ({a.match_type === 'contains' ? c.cardMatchContains : c.cardMatchExact})
                         </span>
                     </div>
 
@@ -129,20 +127,16 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                     <div className="flex items-center gap-4 mt-3 text-[11px] text-white/40">
                         <span className="flex items-center gap-1 tabular-nums">
                             <TrendingUp className="w-3 h-3" />
-                            {a.trigger_count} удаа
+                            {a.trigger_count} {c.cardTriggerCountSuffix}
                         </span>
                         <span className="flex items-center gap-1">
                             <Zap className="w-3 h-3" />
-                            {a.action_type === 'send_dm'
-                                ? 'DM'
-                                : a.action_type === 'reply_comment'
-                                  ? 'Reply'
-                                  : 'DM+Reply'}
+                            {actionLabel}
                         </span>
                         {a.last_triggered_at && (
                             <span className="flex items-center gap-1 tabular-nums">
                                 <Clock className="w-3 h-3" />
-                                {new Date(a.last_triggered_at).toLocaleDateString('mn-MN')}
+                                {new Date(a.last_triggered_at).toLocaleDateString(dateLocale)}
                             </span>
                         )}
                     </div>
@@ -153,7 +147,7 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                     <button
                         onClick={() => onEdit(a)}
                         className="p-2 rounded-lg text-white/40 hover:text-[var(--brand-indigo-400)] hover:bg-white/[0.04] transition-all"
-                        aria-label="Засах"
+                        aria-label={c.cardAriaEdit}
                     >
                         <Pencil className="w-4 h-4" strokeWidth={1.5} />
                     </button>
@@ -169,7 +163,7 @@ export function AutomationCard({ automation: a, onToggle, onEdit, onDelete }: Au
                         onMouseLeave={(e) => {
                             (e.currentTarget as HTMLButtonElement).style.color = '';
                         }}
-                        aria-label="Устгах"
+                        aria-label={c.cardAriaDelete}
                     >
                         <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                     </button>

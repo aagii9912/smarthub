@@ -7,28 +7,14 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTextMessage } from '@/lib/facebook/messenger';
 import { logger } from '@/lib/utils/logger';
+import type { CommentAutomation } from '@/types/database';
 
-export interface CommentAutomation {
-    id: string;
-    shop_id: string;
-    name: string;
-    is_active: boolean;
-    post_id: string | null;
-    post_url: string | null;
-    trigger_keywords: string[];
-    match_type: 'contains' | 'exact';
-    action_type: 'send_dm' | 'reply_comment' | 'both';
-    dm_message: string;
-    reply_message: string | null;
-    platform: 'facebook' | 'instagram' | 'both';
-    trigger_count: number;
-    last_triggered_at: string | null;
-    created_at: string;
-    updated_at: string;
-}
+export type { CommentAutomation } from '@/types/database';
 
 /**
- * Get all active automations for a shop
+ * Get all active automations for a shop.
+ * Returns an empty array if the query fails — errors are logged but never thrown
+ * so the webhook hot path stays resilient.
  */
 export async function getActiveAutomations(shopId: string): Promise<CommentAutomation[]> {
     const supabase = supabaseAdmin();
@@ -48,8 +34,9 @@ export async function getActiveAutomations(shopId: string): Promise<CommentAutom
 }
 
 /**
- * Find a matching automation for an incoming comment
- * Checks keywords, post_id, and platform filters
+ * Find the first active automation that matches an incoming comment.
+ * Filters in order: platform → post_id (null = applies to every post) → keywords.
+ * Returns `null` if no rule matches.
  */
 export async function getMatchingAutomation(
     shopId: string,
@@ -90,9 +77,12 @@ export async function getMatchingAutomation(
 }
 
 /**
- * Match comment text against trigger keywords
+ * Match a (lowercased, trimmed) comment string against a keyword list.
+ * `contains` returns true if any keyword appears as a substring; `exact` returns
+ * true only when the whole comment equals a keyword. Both are case-insensitive.
+ * Exported so service tests can verify matching behavior in isolation.
  */
-function matchKeywords(
+export function matchKeywords(
     comment: string,
     keywords: string[],
     matchType: 'contains' | 'exact'
@@ -113,7 +103,9 @@ function matchKeywords(
 }
 
 /**
- * Execute an automation: send DM and/or reply to comment
+ * Run an automation: send DM and/or post a comment reply, then increment the
+ * trigger counter and write a chat_history entry. DM/reply failures are logged
+ * but do not throw — the returned flags indicate which side(s) succeeded.
  */
 export async function executeAutomation(
     automation: CommentAutomation,
@@ -199,7 +191,8 @@ export async function executeAutomation(
 }
 
 /**
- * Get all automations for a shop (including inactive, for dashboard)
+ * Get every automation for a shop (active + inactive), newest first.
+ * Used by the dashboard list view. Returns `[]` on query error.
  */
 export async function getAllAutomations(shopId: string): Promise<CommentAutomation[]> {
     const supabase = supabaseAdmin();
@@ -219,7 +212,8 @@ export async function getAllAutomations(shopId: string): Promise<CommentAutomati
 }
 
 /**
- * Create a new automation
+ * Insert a new automation. Defaults: `match_type='contains'`,
+ * `action_type='send_dm'`, `platform='both'`. Returns `null` on error.
  */
 export async function createAutomation(
     shopId: string,
@@ -263,7 +257,9 @@ export async function createAutomation(
 }
 
 /**
- * Update an automation
+ * Update an automation. Scoped by `shop_id` so a shop can never modify another
+ * shop's rule. `updated_at` is set automatically. Returns the updated row, or
+ * `null` if the row was not found or the update failed.
  */
 export async function updateAutomation(
     automationId: string,
@@ -289,7 +285,8 @@ export async function updateAutomation(
 }
 
 /**
- * Delete an automation
+ * Delete an automation, scoped by `shop_id`. Returns `true` on success and
+ * `false` on database error.
  */
 export async function deleteAutomation(
     automationId: string,

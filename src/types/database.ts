@@ -182,6 +182,32 @@ export interface ChatHistory {
 }
 
 // ============================================
+// COMMENT AUTOMATIONS
+// ============================================
+export type CommentAutomationMatchType = 'contains' | 'exact';
+export type CommentAutomationActionType = 'send_dm' | 'reply_comment' | 'both';
+export type CommentAutomationPlatform = 'facebook' | 'instagram' | 'both';
+
+export interface CommentAutomation {
+    id: string;
+    shop_id: string;
+    name: string;
+    is_active: boolean;
+    post_id: string | null;
+    post_url: string | null;
+    trigger_keywords: string[];
+    match_type: CommentAutomationMatchType;
+    action_type: CommentAutomationActionType;
+    dm_message: string;
+    reply_message: string | null;
+    platform: CommentAutomationPlatform;
+    trigger_count: number;
+    last_triggered_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+// ============================================
 // DASHBOARD STATS
 // ============================================
 export interface DashboardStats {
