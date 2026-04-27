@@ -67,7 +67,13 @@ export async function POST(request: NextRequest) {
                 .eq('id', payment.id);
 
             // Activate subscription via same logic
-            await activateSubscriptionForShop(supabase, payment.shop_id, payment.subscription_plan_slug);
+            const activation = await activateSubscriptionForShop(supabase, payment.shop_id, payment.subscription_plan_slug);
+            if (!activation.ok) {
+                return NextResponse.json(
+                    { error: 'Subscription activation failed', reason: activation.reason },
+                    { status: 500 }
+                );
+            }
 
             return NextResponse.json({ message: 'Subscription activated', shop_id: payment.shop_id });
         }
@@ -92,7 +98,13 @@ export async function POST(request: NextRequest) {
             .eq('status', 'pending');
 
         // Activate subscription
-        await activateSubscriptionForShop(supabase, invoice.shop_id, null);
+        const activation = await activateSubscriptionForShop(supabase, invoice.shop_id, null);
+        if (!activation.ok) {
+            return NextResponse.json(
+                { error: 'Subscription activation failed', reason: activation.reason },
+                { status: 500 }
+            );
+        }
 
         logger.success('Subscription activated (deprecated webhook)', {
             shop_id: invoice.shop_id,
@@ -112,6 +124,8 @@ export async function POST(request: NextRequest) {
     }
 }
 
+type ActivationResult = { ok: true } | { ok: false; reason: string };
+
 /**
  * Shared subscription activation logic
  */
@@ -119,38 +133,76 @@ async function activateSubscriptionForShop(
     supabase: ReturnType<typeof supabaseAdmin>,
     shopId: string,
     planSlugOverride: string | null,
-) {
+): Promise<ActivationResult> {
     // Get existing subscription to find plan
     const { data: subscription } = await supabase
         .from('subscriptions')
         .select('billing_cycle, plan_id, plans(slug)')
         .eq('shop_id', shopId)
-        .single();
+        .maybeSingle();
+
+    if (!subscription) {
+        logger.error('No subscription record found for shop during deprecated webhook activation', {
+            shop_id: shopId,
+        });
+        return { ok: false, reason: 'subscription_not_found' };
+    }
 
     const periodEnd = new Date();
+    periodEnd.setMonth(periodEnd.getMonth() +
+        (subscription.billing_cycle === 'yearly' ? 12 : 1));
 
-    if (subscription) {
-        periodEnd.setMonth(periodEnd.getMonth() +
-            (subscription.billing_cycle === 'yearly' ? 12 : 1));
+    await supabase
+        .from('subscriptions')
+        .update({
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+        })
+        .eq('shop_id', shopId);
 
-        await supabase
-            .from('subscriptions')
-            .update({
-                status: 'active',
-                current_period_start: new Date().toISOString(),
-                current_period_end: periodEnd.toISOString(),
-            })
-            .eq('shop_id', shopId);
+    // Update shop's plan — retry once on failure (mirrors /api/payment/webhook)
+    const planSlug = planSlugOverride || (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
+    const shopUpdatePayload = {
+        plan_id: subscription.plan_id,
+        subscription_plan: planSlug,
+        subscription_status: 'active',
+    };
 
-        // Update shop's plan
-        const planSlug = planSlugOverride || (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
-        await supabase
+    let shopUpdateOk = false;
+    let lastShopUpdateError: string | undefined;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        const { data: rows, error: shopUpdateError } = await supabase
             .from('shops')
-            .update({
-                plan_id: subscription.plan_id,
-                subscription_plan: planSlug,
-                subscription_status: 'active',
-            })
-            .eq('id', shopId);
+            .update(shopUpdatePayload)
+            .eq('id', shopId)
+            .select('id');
+
+        if (!shopUpdateError && rows && rows.length > 0) {
+            shopUpdateOk = true;
+            break;
+        }
+
+        lastShopUpdateError = shopUpdateError?.message ?? `rows_affected=${rows?.length ?? 0}`;
+        logger.warn('Shop update attempt failed (deprecated webhook), will retry', {
+            attempt,
+            shop_id: shopId,
+            error: lastShopUpdateError,
+        });
+
+        if (attempt === 1) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        }
     }
+
+    if (!shopUpdateOk) {
+        logger.error('Failed to update shop plan after retry (deprecated webhook):', {
+            shop_id: shopId,
+            error: lastShopUpdateError,
+        });
+        return { ok: false, reason: 'shop_update_failed' };
+    }
+
+    return { ok: true };
 }

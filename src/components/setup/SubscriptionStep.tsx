@@ -8,6 +8,7 @@ import {
     CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Types
 interface Plan {
@@ -67,6 +68,57 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [pollingError, setPollingError] = useState('');
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
+    const { refreshShop } = useAuth();
+
+    // Verify the shop is actually 'active' on the server before letting the
+    // wizard navigate to /dashboard. If the activation didn't propagate to the
+    // shops row (e.g. webhook silent failure), call check-payment with
+    // force=true to re-run the activation chain. Returns true once the shop is
+    // active. Returns false if even the forced retry fails — in that case the
+    // wizard surfaces an error and keeps polling instead of navigating away.
+    const verifyShopActivated = useCallback(async (invoiceIdForForce?: string): Promise<boolean> => {
+        try {
+            const res = await fetch('/api/subscription/current');
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.shop_status?.subscription_status === 'active') {
+                    return true;
+                }
+            }
+        } catch (err) {
+            logger.warn('Initial subscription/current check failed:', { error: err });
+        }
+
+        // Shop not active yet — try the fail-safe force activation once.
+        try {
+            const forceRes = await fetch('/api/subscription/check-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invoice_id: invoiceIdForForce, force: true }),
+            });
+            const forceData = await forceRes.json();
+
+            if (!forceRes.ok || forceData.status !== 'paid') {
+                logger.warn('Force activation did not succeed:', { data: forceData });
+                return false;
+            }
+        } catch (err) {
+            logger.warn('Force activation request failed:', { error: err });
+            return false;
+        }
+
+        // Re-check after force activation.
+        try {
+            const res = await fetch('/api/subscription/current');
+            if (res.ok) {
+                const data = await res.json();
+                return data?.shop_status?.subscription_status === 'active';
+            }
+        } catch (err) {
+            logger.warn('Post-force subscription/current check failed:', { error: err });
+        }
+        return false;
+    }, []);
 
     // Fetch plans
     useEffect(() => {
@@ -152,25 +204,43 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 const data = await res.json();
 
                 if (data.status === 'paid') {
-                    // Payment confirmed!
+                    // Verify the shop row was actually flipped to 'active' on
+                    // the server before navigating. Don't trust the 'paid'
+                    // status alone — there are silent-failure paths upstream.
+                    const activated = await verifyShopActivated(invoiceId);
+
+                    if (!activated) {
+                        setPollingError('Төлбөр хийгдсэн ч идэвхжилт хойшилж байна. Хэдхэн секундын дараа дахин шалгана уу.');
+                        // Keep polling so a transient backend issue can recover.
+                        return;
+                    }
+
+                    // Activation confirmed.
                     if (pollingRef.current) {
                         clearInterval(pollingRef.current);
                         pollingRef.current = null;
                     }
+                    await refreshShop();
+                    setPollingError('');
                     setPaymentStatus('paid');
 
                     // Wait a moment for the success animation, then complete
                     setTimeout(() => {
                         onComplete();
                     }, 2500);
+                } else if (data.status === 'activation_failed') {
+                    // Server confirmed payment but couldn't activate the shop.
+                    // Surface the message but keep polling — verifyShopActivated
+                    // will run on the next 'paid' response and may recover.
+                    setPollingError(data.message || 'Идэвхжилт хойшилж байна. Дахин оролдоно уу.');
                 }
-                // If still pending, continue polling
+                // If still pending or other status, continue polling
             } catch (err) {
                 logger.error('Polling error:', { error: err });
                 // Don't stop polling on network errors
             }
         }, 3000);
-    }, [onComplete]);
+    }, [onComplete, refreshShop, verifyShopActivated]);
 
     const handleSelectPlan = (planSlug: string) => {
         setSelectedPlan(planSlug);
@@ -240,16 +310,27 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             const data = await res.json();
 
             if (data.status === 'paid') {
+                const activated = await verifyShopActivated(paymentInfo.invoice_id);
+
+                if (!activated) {
+                    setPollingError('Төлбөр хийгдсэн ч идэвхжилт хойшилж байна. Хэдхэн секундын дараа дахин шалгана уу.');
+                    return;
+                }
+
                 if (pollingRef.current) {
                     clearInterval(pollingRef.current);
                     pollingRef.current = null;
                 }
+                await refreshShop();
+                setPollingError('');
                 setPaymentStatus('paid');
                 setTimeout(() => {
                     onComplete();
                 }, 2500);
             } else if (data.status === 'pending') {
                 setPollingError('Төлбөр хүлээгдэж байна. QR код уншуулсны дараа дахин шалгана уу.');
+            } else if (data.status === 'activation_failed') {
+                setPollingError(data.message || 'Идэвхжилт хойшилж байна. Дахин оролдоно уу.');
             } else {
                 setPollingError(data.message || 'Алдаа гарлаа');
             }

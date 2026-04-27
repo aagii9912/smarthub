@@ -169,7 +169,20 @@ export async function POST(request: NextRequest) {
                 throw new Error('Failed to update payment');
             }
 
-            await handleSubscriptionPayment(supabase, payment);
+            const activation = await handleSubscriptionPayment(supabase, payment);
+
+            // If activation failed (after retry), surface as 5xx so QPay's
+            // retry policy fires and we eventually reach a consistent state.
+            if (!activation.ok) {
+                logger.error('Subscription activation failed in webhook', {
+                    payment_id: payment.id,
+                    reason: activation.reason,
+                });
+                return NextResponse.json(
+                    { error: 'Subscription activation failed', reason: activation.reason },
+                    { status: 500 }
+                );
+            }
         } else {
             // Order payment — нэгдсэн confirmation helper ашиглана
             const { confirmOrderPayment } = await import('@/lib/services/PaymentConfirmationService');
@@ -196,17 +209,19 @@ export async function POST(request: NextRequest) {
 // Subscription Payment Handler (REWRITTEN)
 // ──────────────────────────────────────────────
 
+type ActivationResult = { ok: true } | { ok: false; reason: string };
+
 async function handleSubscriptionPayment(
     supabase: ReturnType<typeof supabaseAdmin>,
     payment: Record<string, unknown>
-) {
+): Promise<ActivationResult> {
     const userId = payment.subscription_user_id as string;
     const planSlug = payment.subscription_plan_slug as string;
     const shopId = payment.shop_id as string;
 
     if (!planSlug) {
         logger.error('Subscription payment missing plan_slug', { payment_id: payment.id });
-        return;
+        return { ok: false, reason: 'missing_plan_slug' };
     }
 
     // ── Step 1: Look up the plan from database ──
@@ -218,7 +233,7 @@ async function handleSubscriptionPayment(
 
     if (planError || !plan) {
         logger.error('Plan not found for slug:', { planSlug, error: planError?.message });
-        return;
+        return { ok: false, reason: 'plan_not_found' };
     }
 
     // ── Step 2: Resolve shop_id ──
@@ -244,7 +259,7 @@ async function handleSubscriptionPayment(
             userId,
             shopId,
         });
-        return;
+        return { ok: false, reason: 'shop_not_resolved' };
     }
 
     // ── Step 3: Get billing cycle from existing subscription or metadata ──
@@ -308,7 +323,7 @@ async function handleSubscriptionPayment(
 
     if (subError) {
         logger.error('Failed to activate subscription:', { error: subError.message });
-        return;
+        return { ok: false, reason: 'subscription_upsert_failed' };
     }
 
     // ── Step 5.5: Log promo redemption (idempotent via UNIQUE constraint) ──
@@ -341,19 +356,50 @@ async function handleSubscriptionPayment(
     }
 
     // ── Step 6: Update SHOPS table (plan_id + subscription_plan + subscription_status) ──
-    const { error: shopUpdateError } = await supabase
-        .from('shops')
-        .update({
-            plan_id: plan.id,
-            subscription_plan: plan.slug,
-            subscription_status: 'active',
-            setup_completed: true,
-        })
-        .eq('id', resolvedShopId);
+    // This is the critical write that flips the user out of trial. If it
+    // silently fails, the user pays but their dashboard keeps showing 'trial'.
+    // Retry once before giving up; on permanent failure return ok:false so the
+    // outer webhook handler returns 5xx and QPay retries the callback.
+    const shopUpdatePayload = {
+        plan_id: plan.id,
+        subscription_plan: plan.slug,
+        subscription_status: 'active',
+        setup_completed: true,
+    };
 
-    if (shopUpdateError) {
-        logger.error('Failed to update shop plan:', { error: shopUpdateError.message });
-        // Non-fatal — subscription was activated, shop update can be retried
+    let shopUpdateOk = false;
+    let lastShopUpdateError: string | undefined;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        const { data: rows, error: shopUpdateError } = await supabase
+            .from('shops')
+            .update(shopUpdatePayload)
+            .eq('id', resolvedShopId)
+            .select('id');
+
+        if (!shopUpdateError && rows && rows.length > 0) {
+            shopUpdateOk = true;
+            break;
+        }
+
+        lastShopUpdateError = shopUpdateError?.message ?? `rows_affected=${rows?.length ?? 0}`;
+        logger.warn('Shop update attempt failed, will retry', {
+            attempt,
+            shop_id: resolvedShopId,
+            error: lastShopUpdateError,
+        });
+
+        if (attempt === 1) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+    }
+
+    if (!shopUpdateOk) {
+        logger.error('Failed to update shop plan after retry:', {
+            shop_id: resolvedShopId,
+            error: lastShopUpdateError,
+        });
+        return { ok: false, reason: 'shop_update_failed' };
     }
 
     // ── Step 7: Also mark any related invoice as paid ──
@@ -374,6 +420,8 @@ async function handleSubscriptionPayment(
         plan_name: plan.name,
         valid_until: endDate.toISOString(),
     });
+
+    return { ok: true };
 }
 
 /**
