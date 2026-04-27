@@ -4,6 +4,7 @@ import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 import { registerShopAsMerchant } from '@/lib/payment/qpay-merchant';
+import { getBillingSettings } from '@/lib/admin/settings';
 
 // GET - Get user's shop
 export async function GET(request: NextRequest) {
@@ -122,6 +123,12 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
+    // Pull admin-configured trial length so the new shop's trial respects the setting.
+    // Falls back to DEFAULT_SETTINGS.billing.trial_days (3) on read failure.
+    const billing = await getBillingSettings();
+    const trialDays = Math.max(0, Math.floor(billing.trial_days));
+    const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+
     // Create new shop
     const { data: shop, error } = await supabase
       .from('shops')
@@ -131,7 +138,9 @@ export async function POST(request: NextRequest) {
         phone,
         user_id: userId,
         is_active: true,
-        setup_completed: false
+        setup_completed: false,
+        subscription_status: trialDays > 0 ? 'trial' : 'expired_trial',
+        trial_ends_at: trialEndsAt.toISOString(),
       })
       .select()
       .single();

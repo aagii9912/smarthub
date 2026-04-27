@@ -25,6 +25,11 @@ interface DashboardData {
             pending_count: number;
         };
         plans_count: number;
+        trial?: {
+            active: number;
+            expiring_soon: number;
+            expired: number;
+        };
     };
     plans: Array<{ id: string; name: string; price_monthly: number }>;
     recent_shops: Array<{ id: string; name: string; created_at: string }>;
@@ -188,6 +193,57 @@ export default function AdminDashboard() {
                 </Card>
                 </Link>
             </div>
+
+            {/* Trial Status Strip */}
+            {data.stats.trial && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <Link href="/admin/shops?status=trial">
+                        <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
+                            <CardContent className="p-5">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 bg-violet-50 text-violet-600 rounded-lg ring-1 ring-violet-100">
+                                        <Clock className="w-4 h-4" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-600">Идэвхтэй trial</p>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                                    {data.stats.trial.active}
+                                </h3>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/admin/shops?status=trial">
+                        <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
+                            <CardContent className="p-5">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg ring-1 ring-amber-100">
+                                        <Clock className="w-4 h-4" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-600">3 хоногт дуусах</p>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                                    {data.stats.trial.expiring_soon}
+                                </h3>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                    <Link href="/admin/shops?status=expired_trial">
+                        <Card className="border-gray-100 shadow-sm rounded-2xl bg-white overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
+                            <CardContent className="p-5">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="p-2 bg-red-50 text-red-600 rounded-lg ring-1 ring-red-100">
+                                        <Clock className="w-4 h-4" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-600">Дууссан trial</p>
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                                    {data.stats.trial.expired}
+                                </h3>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                </div>
+            )}
 
             {/* Two Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -18,6 +18,9 @@ export async function GET() {
 
         const supabase = supabaseAdmin();
 
+        const nowIso = new Date().toISOString();
+        const in3DaysIso = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
         // Get all stats in parallel
         const [
             shopsResult,
@@ -25,7 +28,10 @@ export async function GET() {
             plansResult,
             invoicesResult,
             recentShopsResult,
-            recentInvoicesResult
+            recentInvoicesResult,
+            trialActiveResult,
+            trialExpiringSoonResult,
+            trialExpiredResult,
         ] = await Promise.all([
             // Total shops
             supabase.from('shops').select('id', { count: 'exact', head: true }),
@@ -50,7 +56,25 @@ export async function GET() {
             supabase.from('invoices')
                 .select('id, amount, status, created_at, shops(name)')
                 .order('created_at', { ascending: false })
-                .limit(5)
+                .limit(5),
+
+            // Trial: active (status='trial' AND trial_ends_at > now)
+            supabase.from('shops')
+                .select('id', { count: 'exact', head: true })
+                .eq('subscription_status', 'trial')
+                .gt('trial_ends_at', nowIso),
+
+            // Trial: expiring soon (active trials, ends within 3 days)
+            supabase.from('shops')
+                .select('id', { count: 'exact', head: true })
+                .eq('subscription_status', 'trial')
+                .gt('trial_ends_at', nowIso)
+                .lte('trial_ends_at', in3DaysIso),
+
+            // Trial: expired (status='expired_trial' OR trial passed)
+            supabase.from('shops')
+                .select('id', { count: 'exact', head: true })
+                .eq('subscription_status', 'expired_trial'),
         ]);
 
         // Calculate MRR (Monthly Recurring Revenue)
@@ -75,12 +99,19 @@ export async function GET() {
             pending_count: pendingInvoices.length
         };
 
+        const trialStats = {
+            active: trialActiveResult.count || 0,
+            expiring_soon: trialExpiringSoonResult.count || 0,
+            expired: trialExpiredResult.count || 0,
+        };
+
         return NextResponse.json({
             stats: {
                 total_shops: shopsResult.count || 0,
                 subscriptions: subscriptionStats,
                 revenue: revenueStats,
-                plans_count: plansResult.data?.length || 0
+                plans_count: plansResult.data?.length || 0,
+                trial: trialStats,
             },
             plans: plansResult.data || [],
             recent_shops: recentShopsResult.data || [],
