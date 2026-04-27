@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { defaultLandingContent } from '@/lib/landing/defaults';
 import type { LandingContent } from '@/lib/landing/types';
-import { getAuthUser } from '@/lib/auth/auth';
+import { getAdminUser } from '@/lib/admin/auth';
 import { logger } from '@/lib/utils/logger';
 
 // GET — Public, no auth required
@@ -50,12 +50,15 @@ export async function GET() {
     }
 }
 
-// PUT — Requires auth (shop owner or admin)
+// PUT — Admin only (super_admin or admin role required)
 export async function PUT(request: NextRequest) {
     try {
-        const userId = await getAuthUser();
-        if (!userId) {
+        const admin = await getAdminUser();
+        if (!admin) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        if (admin.role !== 'super_admin' && admin.role !== 'admin') {
+            return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
         }
 
         const body = await request.json();
@@ -88,7 +91,7 @@ export async function PUT(request: NextRequest) {
         const updatePayload: Record<string, any> = {
             [section]: data,
             updated_at: new Date().toISOString(),
-            updated_by: userId,
+            updated_by: admin.id,
         };
 
         if (existing) {
