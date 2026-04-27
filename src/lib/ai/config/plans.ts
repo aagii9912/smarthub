@@ -261,6 +261,9 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             'log_complaint',
             'suggest_related_products',
             'update_order',
+            'book_appointment',
+            'list_appointments',
+            'cancel_appointment',
         ],
     },
 };

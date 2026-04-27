@@ -27,6 +27,8 @@ import type {
     LogComplaintArgs,
     SuggestRelatedProductsArgs,
     UpdateOrderArgs,
+    BookAppointmentArgs,
+    CancelAppointmentArgs,
     ToolName,
 } from '../tools/definitions';
 
@@ -35,17 +37,20 @@ export { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeChec
 export { executeAddToCart, executeViewCart, executeRemoveFromCart } from '../tools/handlers/CartHandlers';
 export { executeCollectContact, executeRequestSupport, executeRememberPreference } from '../tools/handlers/CustomerHandlers';
 export { executeShowProductImage, executeSuggestRelatedProducts, executeCheckPaymentStatus, executeLogComplaint } from '../tools/handlers/ProductHandlers';
+export { executeBookAppointment, executeListAppointments, executeCancelAppointment } from '../tools/handlers/AppointmentHandlers';
 
 // Also import for local use in executeTool router
 import { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout, executeCheckDeliveryStatus } from '../tools/handlers/OrderHandlers';
 import { executeAddToCart, executeViewCart, executeRemoveFromCart } from '../tools/handlers/CartHandlers';
 import { executeCollectContact, executeRequestSupport, executeRememberPreference } from '../tools/handlers/CustomerHandlers';
 import { executeShowProductImage, executeSuggestRelatedProducts, executeCheckPaymentStatus, executeLogComplaint } from '../tools/handlers/ProductHandlers';
+import { executeBookAppointment, executeListAppointments, executeCancelAppointment } from '../tools/handlers/AppointmentHandlers';
 import {
     CreateOrderSchema, CancelOrderSchema, CheckOrderStatusSchema, UpdateOrderSchema, CheckDeliveryStatusSchema,
     AddToCartSchema, ViewCartSchema, RemoveFromCartSchema, CheckoutSchema,
     CollectContactSchema, RequestHumanSupportSchema, RememberPreferenceSchema,
-    ShowProductImageSchema, SuggestRelatedProductsSchema, CheckPaymentStatusSchema, LogComplaintSchema
+    ShowProductImageSchema, SuggestRelatedProductsSchema, CheckPaymentStatusSchema, LogComplaintSchema,
+    BookAppointmentSchema, ListAppointmentsSchema, CancelAppointmentSchema
 } from '../tools/definitions';
 
 const TOOL_SCHEMAS: Record<string, z.ZodTypeAny> = {
@@ -64,7 +69,10 @@ const TOOL_SCHEMAS: Record<string, z.ZodTypeAny> = {
     show_product_image: ShowProductImageSchema,
     suggest_related_products: SuggestRelatedProductsSchema,
     check_payment_status: CheckPaymentStatusSchema,
-    log_complaint: LogComplaintSchema
+    log_complaint: LogComplaintSchema,
+    book_appointment: BookAppointmentSchema,
+    list_appointments: ListAppointmentsSchema,
+    cancel_appointment: CancelAppointmentSchema
 };
 
 /**
@@ -153,6 +161,14 @@ export async function executeTool(
                 return await executeCheckPaymentStatus(validatedArgs as CheckPaymentArgs, context);
             case 'log_complaint':
                 return await executeLogComplaint(validatedArgs as LogComplaintArgs, context);
+
+            // Appointment handlers
+            case 'book_appointment':
+                return await executeBookAppointment(validatedArgs as BookAppointmentArgs, context);
+            case 'list_appointments':
+                return await executeListAppointments(context);
+            case 'cancel_appointment':
+                return await executeCancelAppointment(validatedArgs as CancelAppointmentArgs, context);
 
             default:
                 return { success: false, error: `Unknown tool: ${toolName}` };

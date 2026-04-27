@@ -3,17 +3,20 @@ export * from './definitions/order';
 export * from './definitions/cart';
 export * from './definitions/customer';
 export * from './definitions/product';
+export * from './definitions/appointment';
 
 import { ORDER_TOOLS } from './definitions/order';
 import { CART_TOOLS } from './definitions/cart';
 import { CUSTOMER_TOOLS } from './definitions/customer';
 import { PRODUCT_TOOLS } from './definitions/product';
+import { APPOINTMENT_TOOLS } from './definitions/appointment';
 
 export const TOOL_DEFINITIONS = [
     ...ORDER_TOOLS,
     ...CART_TOOLS,
     ...CUSTOMER_TOOLS,
-    ...PRODUCT_TOOLS
+    ...PRODUCT_TOOLS,
+    ...APPOINTMENT_TOOLS
 ];
 
 export const AI_TOOLS = TOOL_DEFINITIONS;
@@ -34,5 +37,8 @@ export type ToolName =
     | 'show_product_image'
     | 'suggest_related_products'
     | 'check_payment_status'
-    | 'log_complaint';
+    | 'log_complaint'
+    | 'book_appointment'
+    | 'list_appointments'
+    | 'cancel_appointment';
 
