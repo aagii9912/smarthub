@@ -504,8 +504,8 @@ export default function ProductsPage() {
 
             {/* Add/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
-                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-4xl p-5 m-4 relative shadow-2xl">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] p-4 sm:p-5 relative shadow-2xl overflow-y-auto custom-scrollbar">
                         <div className="flex items-center justify-between mb-5">
                             <h2 className="text-[16px] font-semibold text-foreground tracking-[-0.02em]">
                                 {editingProduct ? t.products.edit : t.products.newEntry}
@@ -531,8 +531,8 @@ export default function ProductsPage() {
 
             {/* Import Modal */}
             {showImportModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto py-10">
-                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-3xl p-5 m-4 relative shadow-2xl">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-3xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] p-4 sm:p-5 relative shadow-2xl overflow-y-auto custom-scrollbar">
                         <div className="flex items-center justify-between mb-5">
                             <h2 className="text-[16px] font-semibold text-foreground tracking-[-0.02em]">
                                 {t.products.importFromFile}
