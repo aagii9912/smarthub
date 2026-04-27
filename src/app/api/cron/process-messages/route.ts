@@ -304,6 +304,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     subscription: {
                         plan: shopData.subscription_plan || 'starter',
                         status: shopData.subscription_status || 'active',
+                        trialEndsAt: shopData.trial_ends_at || undefined,
                     },
                     messageCount: customer.message_count || 0,
                     tokenUsageTotal: shopData.token_usage_total || 0,

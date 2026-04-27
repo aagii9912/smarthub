@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import {
     LayoutDashboard, Users, CreditCard, Package,
-    FileText, Settings, LogOut, ChevronRight, Menu, X, Globe
+    FileText, Settings, LogOut, ChevronRight, Menu, X, Globe, Gift
 } from 'lucide-react';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -21,6 +21,7 @@ const navItems = [
     { href: '/admin/shops', label: 'Shops', icon: Users },
     { href: '/admin/plans', label: 'Plans', icon: Package },
     { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { href: '/admin/promotions', label: 'Promotions', icon: Gift },
     { href: '/admin/invoices', label: 'Invoices', icon: FileText },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
     { href: '/admin/landing', label: 'Landing Page', icon: Globe },

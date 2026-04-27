@@ -5,9 +5,9 @@
  *   1 credit = 1000 tokens (see TOKENS_PER_CREDIT)
  *
  * Strategy: Tiered Gemini models per plan
- * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 1,000 credits (Chatbot only)
- * - Starter: Gemini 3.1 Flash Lite - ₮179,000/сар - 2,400 credits
- * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 12,000 credits (better tool calling)
+ * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 5,000 credits (Chatbot only)
+ * - Starter: Gemini 3.1 Flash Lite - ₮149,000/сар - 8,500 credits
+ * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 21,000 credits (better tool calling)
  * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100,000 credits
  *
  * Per-customer `customers.message_count` is analytics-only and NOT part of billing.
@@ -81,7 +81,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 300,
-        tokensPerMonth: 1_000_000,    // ~1M tokens/month ≈ 1,000 credits
+        tokensPerMonth: 5_000_000,    // ~5M tokens/month ≈ 5,000 credits
         maxShops: 1,
         maxProducts: 20,
         price: {
@@ -120,12 +120,12 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 500,
-        tokensPerMonth: 2_400_000,    // ~2.4M tokens/month ≈ 2,400 credits
+        tokensPerMonth: 8_500_000,    // ~8.5M tokens/month ≈ 8,500 credits
         maxShops: 1,
         maxProducts: 50,
         price: {
-            monthly: { mnt: 179000, usd: 53 },
-            yearly: { mnt: 1790000, usd: 527 },
+            monthly: { mnt: 149000, usd: 44 },
+            yearly: { mnt: 1788000, usd: 526 },
         },
         features: {
             // AI Core
@@ -165,7 +165,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite-preview',
         maxTokens: 800,
-        tokensPerMonth: 12_000_000,   // ~12M tokens/month ≈ 12,000 credits
+        tokensPerMonth: 21_000_000,   // ~21M tokens/month ≈ 21,000 credits
         maxShops: 3,
         maxProducts: 300,
         price: {

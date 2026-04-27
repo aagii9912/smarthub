@@ -344,6 +344,7 @@ export async function POST(request: NextRequest) {
                                 subscription: {
                                     plan: shop.subscription_plan || 'starter',
                                     status: shop.subscription_status || 'active',
+                                    trialEndsAt: shop.trial_ends_at || undefined,
                                 },
                                 messageCount: customer.message_count || 0,
                                 tokenUsageTotal: shop.token_usage_total || 0,
@@ -594,6 +595,7 @@ export async function POST(request: NextRequest) {
                                     subscription: {
                                         plan: shop.subscription_plan || 'starter',
                                         status: shop.subscription_status || 'active',
+                                        trialEndsAt: shop.trial_ends_at || undefined,
                                     },
                                     messageCount: customer.message_count || 0,
                                     tokenUsageTotal: shop.token_usage_total || 0,

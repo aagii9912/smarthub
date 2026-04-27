@@ -51,6 +51,7 @@ export interface RouterChatContext extends ChatContext {
     subscription?: {
         plan?: string;
         status?: string;
+        trialEndsAt?: string;
     };
     /** Per-customer message count — analytics only, not billing. */
     messageCount?: number;
@@ -207,6 +208,37 @@ export async function routeToAI(
     // Determine plan type
     const planType = getPlanTypeFromSubscription(context.subscription);
     const planConfig = getPlanConfig(planType);
+
+    // Trial expiry gate — block AI when trial period is over and user hasn't paid
+    const subStatus = context.subscription?.status;
+    const trialEndsAt = context.subscription?.trialEndsAt;
+    const trialExpired =
+        subStatus === 'expired_trial' ||
+        (subStatus === 'trial' && !!trialEndsAt && new Date(trialEndsAt) < new Date());
+
+    if (trialExpired) {
+        logger.warn('Trial expired — blocking AI', {
+            shopId: context.shopId,
+            plan: planType,
+            status: subStatus,
+            trialEndsAt,
+        });
+        return {
+            text: 'Туршилтын хугацаа дууссан байна. Үргэлжлүүлэхийн тулд багц сонгоно уу. 🛒',
+            limitReached: true,
+            usage: {
+                plan: planType,
+                model: planConfig.model,
+                messagesUsed: context.messageCount || 0,
+                tokensUsed: context.tokenUsageTotal || 0,
+                tokensRemaining: 0,
+                tokenUsagePercent: 0,
+                creditsUsed: 0,
+                creditsRemaining: 0,
+                creditsLimit: getCreditsPerMonth(planType),
+            },
+        };
+    }
 
     // Check token limit (primary billing)
     const currentTokenUsage = context.tokenUsageTotal || 0;

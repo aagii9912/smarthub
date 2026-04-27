@@ -261,13 +261,37 @@ async function handleSubscriptionPayment(
         billingCycle = existingSub.billing_cycle;
     }
 
-    // ── Step 4: Calculate subscription period ──
+    // ── Step 4: Calculate subscription period (with promo bonus if eligible) ──
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + (billingCycle === 'yearly' ? 12 : 1));
+    const endDate = new Date(startDate);
+    let bonusMonths = 0;
+    let activePromoId: string | null = null;
+
+    if (billingCycle === 'yearly') {
+        const { data: promo } = await supabase
+            .from('promotions')
+            .select('id, bonus_months, eligible_plan_slugs, eligible_billing_cycles, starts_at, ends_at')
+            .eq('is_active', true)
+            .eq('type', 'bonus_year')
+            .maybeSingle();
+
+        const inWindow = !!promo &&
+            (!promo.starts_at || new Date(promo.starts_at) <= startDate) &&
+            (!promo.ends_at || new Date(promo.ends_at) > startDate) &&
+            Array.isArray(promo.eligible_plan_slugs) && promo.eligible_plan_slugs.includes(plan.slug) &&
+            Array.isArray(promo.eligible_billing_cycles) && promo.eligible_billing_cycles.includes(billingCycle);
+
+        if (inWindow && promo) {
+            bonusMonths = promo.bonus_months;
+            activePromoId = promo.id;
+        }
+    }
+
+    const baseMonths = billingCycle === 'yearly' ? 12 : 1;
+    endDate.setMonth(endDate.getMonth() + baseMonths + bonusMonths);
 
     // ── Step 5: Upsert subscription with SHOP_ID ──
-    const { error: subError } = await supabase
+    const { data: upsertedSub, error: subError } = await supabase
         .from('subscriptions')
         .upsert({
             shop_id: resolvedShopId,
@@ -278,11 +302,42 @@ async function handleSubscriptionPayment(
             current_period_end: endDate.toISOString(),
         }, {
             onConflict: 'shop_id',
-        });
+        })
+        .select('id')
+        .single();
 
     if (subError) {
         logger.error('Failed to activate subscription:', { error: subError.message });
         return;
+    }
+
+    // ── Step 5.5: Log promo redemption (idempotent via UNIQUE constraint) ──
+    if (activePromoId) {
+        const { error: redemptionError } = await supabase
+            .from('promotion_redemptions')
+            .insert({
+                promotion_id: activePromoId,
+                shop_id: resolvedShopId,
+                subscription_id: upsertedSub?.id ?? null,
+                payment_id: payment.id as string,
+                plan_slug: plan.slug,
+                billing_cycle: billingCycle,
+                bonus_months_granted: bonusMonths,
+            });
+
+        if (redemptionError && !redemptionError.message?.includes('duplicate')) {
+            logger.warn('Failed to log promo redemption (non-fatal)', {
+                error: redemptionError.message,
+                promotion_id: activePromoId,
+                shop_id: resolvedShopId,
+            });
+        } else if (!redemptionError) {
+            logger.success('Promo redeemed: yearly bonus applied', {
+                shop_id: resolvedShopId,
+                plan: plan.slug,
+                bonus_months: bonusMonths,
+            });
+        }
     }
 
     // ── Step 6: Update SHOPS table (plan_id + subscription_plan + subscription_status) ──

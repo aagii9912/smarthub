@@ -65,9 +65,9 @@ describe('AIRouter', () => {
         });
 
         it('should derive creditsPerMonth from plan tokens', () => {
-            expect(getCreditsPerMonth('lite')).toBe(1_000);
-            expect(getCreditsPerMonth('starter')).toBe(2_400);
-            expect(getCreditsPerMonth('pro')).toBe(12_000);
+            expect(getCreditsPerMonth('lite')).toBe(5_000);
+            expect(getCreditsPerMonth('starter')).toBe(8_500);
+            expect(getCreditsPerMonth('pro')).toBe(21_000);
             expect(getCreditsPerMonth('enterprise')).toBe(100_000);
         });
 
@@ -75,9 +75,9 @@ describe('AIRouter', () => {
             const half = PLAN_CONFIGS.starter.tokensPerMonth / 2;
             const cr = checkCreditLimit('starter', half);
             expect(cr.allowed).toBe(true);
-            expect(cr.limit).toBe(2_400);
-            expect(cr.used).toBe(1_200);
-            expect(cr.remaining).toBe(1_200);
+            expect(cr.limit).toBe(8_500);
+            expect(cr.used).toBe(4_250);
+            expect(cr.remaining).toBe(4_250);
             expect(cr.usagePercent).toBe(50);
         });
 
@@ -113,9 +113,9 @@ describe('AIRouter', () => {
         });
 
         it('should have correct token limits per plan', () => {
-            expect(PLAN_CONFIGS.lite.tokensPerMonth).toBe(1_000_000);
-            expect(PLAN_CONFIGS.starter.tokensPerMonth).toBe(2_400_000);
-            expect(PLAN_CONFIGS.pro.tokensPerMonth).toBe(12_000_000);
+            expect(PLAN_CONFIGS.lite.tokensPerMonth).toBe(5_000_000);
+            expect(PLAN_CONFIGS.starter.tokensPerMonth).toBe(8_500_000);
+            expect(PLAN_CONFIGS.pro.tokensPerMonth).toBe(21_000_000);
             expect(PLAN_CONFIGS.enterprise.tokensPerMonth).toBe(100_000_000);
         });
 

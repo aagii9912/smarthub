@@ -101,12 +101,24 @@ export async function GET() {
             .order('created_at', { ascending: false })
             .limit(5);
 
+        // Pull trial-related fields from shops (not on the cached `shop` from getAuthUserShop)
+        const { data: shopStatus } = await supabase
+            .from('shops')
+            .select('subscription_status, trial_ends_at, trial_expired_at')
+            .eq('id', shop.id)
+            .single();
+
         return NextResponse.json({
             subscription: subscription || null,
             plan: subscription?.plans || null,
             usage: usageSummary,
             invoices: invoices || [],
-            has_subscription: !!subscription
+            has_subscription: !!subscription,
+            shop_status: {
+                subscription_status: shopStatus?.subscription_status ?? null,
+                trial_ends_at: shopStatus?.trial_ends_at ?? null,
+                trial_expired_at: shopStatus?.trial_expired_at ?? null,
+            },
         });
     } catch (error: unknown) {
         logger.error('Get subscription error:', { error: error });

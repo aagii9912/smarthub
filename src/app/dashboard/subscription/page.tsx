@@ -12,6 +12,9 @@ import {
     Loader2,
     X,
     Sparkles,
+    Clock,
+    AlertTriangle,
+    Gift,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
@@ -27,6 +30,22 @@ interface Plan {
     features: string[];
     limits: { products: number; orders: number; messages: number; tokens: number };
     highlighted?: boolean;
+}
+
+interface ActivePromotion {
+    id: string;
+    code: string;
+    name: string;
+    description: string | null;
+    bonus_months: number;
+    eligible_billing_cycles: string[];
+    eligible_plan_slugs: string[];
+}
+
+interface ShopStatus {
+    subscription_status: string | null;
+    trial_ends_at: string | null;
+    trial_expired_at: string | null;
 }
 
 export default function SubscriptionPage() {
@@ -57,6 +76,8 @@ export default function SubscriptionPage() {
         qr_code?: string;
         urls?: QpayUrl[];
     } | null>(null);
+    const [activePromotion, setActivePromotion] = useState<ActivePromotion | null>(null);
+    const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -74,7 +95,9 @@ export default function SubscriptionPage() {
             ]);
             let fetchedPlans: Plan[] = [];
             if (plansRes.ok) {
-                const { plans: p } = await plansRes.json();
+                const plansBody = await plansRes.json();
+                const p = plansBody.plans;
+                setActivePromotion(plansBody.promotion ?? null);
                 interface RawPlanLimits {
                     max_products?: number;
                     max_customers?: number;
@@ -154,6 +177,7 @@ export default function SubscriptionPage() {
                 }
                 setUsage(d.usage || { products: 0, orders: 0, messages: 0, tokens: 0 });
                 setBillingHistory(d.invoices || []);
+                setShopStatus(d.shop_status ?? null);
             }
         } catch (e) {
             logger.error('Алдаа гарлаа', { error: e });
@@ -230,6 +254,26 @@ export default function SubscriptionPage() {
 
     const currentPrice = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
 
+    const subStatus = shopStatus?.subscription_status;
+    const trialEndsAt = shopStatus?.trial_ends_at ? new Date(shopStatus.trial_ends_at) : null;
+    const trialActive = subStatus === 'trial' && trialEndsAt && trialEndsAt > new Date();
+    const trialExpired =
+        subStatus === 'expired_trial' ||
+        (subStatus === 'trial' && trialEndsAt && trialEndsAt <= new Date());
+
+    let trialRemainingText = '';
+    if (trialActive && trialEndsAt) {
+        const diffMs = trialEndsAt.getTime() - Date.now();
+        const totalHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+        const days = Math.floor(totalHours / 24);
+        const hours = totalHours % 24;
+        if (days > 0) {
+            trialRemainingText = `${days} хоног ${hours} цаг`;
+        } else {
+            trialRemainingText = `${totalHours} цаг`;
+        }
+    }
+
     return (
         <div className="space-y-6">
             <PageHero
@@ -243,6 +287,42 @@ export default function SubscriptionPage() {
                     </div>
                 }
             />
+
+            {trialActive && (
+                <div className="card-outlined p-4 border-l-4" style={{ borderLeftColor: 'var(--brand-violet-500)' }}>
+                    <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in oklab, var(--brand-violet-500) 18%, transparent)' }}>
+                            <Clock className="w-4 h-4" style={{ color: 'var(--brand-violet-500)' }} strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
+                                Туршилтын хугацаа дуусахад {trialRemainingText} үлдлээ
+                            </p>
+                            <p className="text-[12px] text-white/55 mt-0.5">
+                                Дуусахаас өмнө багц сонгож, AI-аа үргэлжлүүлэн ашиглаарай.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {trialExpired && (
+                <div className="card-outlined p-4 border-l-4" style={{ borderLeftColor: 'var(--destructive)' }}>
+                    <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in oklab, var(--destructive) 18%, transparent)' }}>
+                            <AlertTriangle className="w-4 h-4" style={{ color: 'var(--destructive)' }} strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
+                                Туршилтын хугацаа дууссан байна
+                            </p>
+                            <p className="text-[12px] text-white/55 mt-0.5">
+                                AI түр зогссон. Үргэлжлүүлэхийн тулд багц сонгож төлбөр төлнө үү.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Current Plan */}
             <div className="card-featured p-6">
@@ -349,15 +429,34 @@ export default function SubscriptionPage() {
                 {PLANS.map((p) => {
                     const isCurrent = p.id === currentPlan;
                     const price = billingCycle === 'monthly' ? p.price_monthly : p.price_yearly;
+                    const promoApplies =
+                        !!activePromotion &&
+                        billingCycle === 'yearly' &&
+                        activePromotion.eligible_billing_cycles.includes('yearly') &&
+                        activePromotion.eligible_plan_slugs.includes(p.id);
                     return (
                         <div
                             key={p.id}
                             className={cn(
                                 'relative p-6',
                                 p.highlighted ? 'card-featured' : 'card-outlined',
-                                isCurrent && 'shadow-[inset_0_0_0_1px_var(--border-accent)]'
+                                isCurrent && 'shadow-[inset_0_0_0_1px_var(--border-accent)]',
+                                promoApplies && 'ring-2 ring-violet-500/50'
                             )}
                         >
+                            {promoApplies && (
+                                <div
+                                    className="absolute -top-2.5 right-4 px-2.5 py-0.5 text-[10px] font-semibold rounded-full tracking-[0.06em] flex items-center gap-1"
+                                    style={{
+                                        background: 'linear-gradient(90deg, var(--brand-violet-500), var(--brand-indigo))',
+                                        color: 'white',
+                                        boxShadow: 'var(--shadow-cta-indigo)',
+                                    }}
+                                >
+                                    <Gift className="w-3 h-3" strokeWidth={2} />
+                                    1 жил төлж 2 жил
+                                </div>
+                            )}
                             {p.highlighted && (
                                 <div
                                     className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 text-[10px] font-semibold rounded-full tracking-[0.12em] uppercase flex items-center gap-1"
@@ -381,6 +480,11 @@ export default function SubscriptionPage() {
                                     /{billingCycle === 'monthly' ? 'сар' : 'жил'}
                                 </span>
                             </p>
+                            {promoApplies && (
+                                <p className="text-[11.5px] mt-1 font-medium" style={{ color: 'var(--brand-violet-500)' }}>
+                                    🎁 {12 + activePromotion!.bonus_months} сар хүчинтэй болно
+                                </p>
+                            )}
                             <ul className="mt-5 space-y-2.5">
                                 {p.features.map((f) => (
                                     <li
