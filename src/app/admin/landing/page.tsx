@@ -488,7 +488,7 @@ export default function LandingCMSPage() {
             {/* ═══ PRICING ═══ */}
             <SectionPanel
                 title="Үнийн санал"
-                description="Starter, Pro, Enterprise төлөвлөгөө"
+                description="Lite, Starter, Pro, Enterprise төлөвлөгөө"
                 onSave={() => saveSection('pricing')}
                 saving={savingSection === 'pricing'}
                 dirty={isDirty('pricing')}
@@ -504,8 +504,7 @@ export default function LandingCMSPage() {
                     onChange={(v) => updateContent('pricing', { ...content.pricing, sectionTitle: v })}
                 />
 
-                {/* Starter */}
-                {(['starter', 'pro', 'enterprise'] as const).map((plan) => (
+                {(['lite', 'starter', 'pro', 'enterprise'] as const).map((plan) => (
                     <div key={plan} className="p-5 rounded-xl border border-gray-100 bg-gray-50 space-y-2 mt-3">
                         <p className="text-sm font-bold text-gray-900 capitalize mb-2 block">{content.pricing[plan].label}</p>
                         <Field
@@ -562,6 +561,7 @@ export default function LandingCMSPage() {
                         <thead>
                             <tr className="text-gray-500 text-xs uppercase tracking-wider bg-gray-50 border-b border-gray-100">
                                 <th className="text-left py-2 px-2 font-medium">Нэр</th>
+                                <th className="text-center py-2 px-2 font-medium">Lite</th>
                                 <th className="text-center py-2 px-2 font-medium">Starter</th>
                                 <th className="text-center py-2 px-2 font-medium">Pro</th>
                                 <th className="text-center py-2 px-2 font-medium">Enterprise</th>
@@ -582,7 +582,7 @@ export default function LandingCMSPage() {
                                             }}
                                         />
                                     </td>
-                                    {(['starter', 'pro', 'enterprise'] as const).map((plan) => (
+                                    {(['lite', 'starter', 'pro', 'enterprise'] as const).map((plan) => (
                                         <td key={plan} className="py-1.5 px-1 text-center">
                                             {typeof row[plan] === 'boolean' ? (
                                                 <button
