@@ -2,6 +2,7 @@
 import { logger } from '@/lib/utils/logger';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import {
     Crown, Rocket, Building2, Sparkles,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/constants/legal';
 
 // Types
 interface Plan {
@@ -66,9 +68,16 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'pending' | 'paid' | 'error'>('idle');
     const [pollingError, setPollingError] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [ageConfirmed, setAgeConfirmed] = useState(false);
+    const [marketingConsent, setMarketingConsent] = useState(false);
+    const [consentError, setConsentError] = useState('');
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
     const { refreshShop } = useAuth();
+
+    const allRequiredConsents = termsAccepted && privacyAccepted && ageConfirmed;
 
     // Verify the shop is actually 'active' on the server before letting the
     // wizard navigate to /dashboard. If the activation didn't propagate to the
@@ -243,6 +252,15 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     }, [onComplete, refreshShop, verifyShopActivated]);
 
     const handleSelectPlan = (planSlug: string) => {
+        if (!allRequiredConsents) {
+            setConsentError(t.setup.subscription.consent.errorRequired);
+            // Scroll user back up to the consent box if it scrolled out of view
+            if (typeof window !== 'undefined') {
+                document.getElementById('consent-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+        setConsentError('');
         setSelectedPlan(planSlug);
         setPaymentInfo(null);
         setPaymentStatus('idle');
@@ -262,7 +280,15 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     plan_id: selectedPlan,
-                    billing_cycle: billingPeriod
+                    billing_cycle: billingPeriod,
+                    consent: {
+                        terms_accepted: termsAccepted,
+                        privacy_accepted: privacyAccepted,
+                        age_confirmed: ageConfirmed,
+                        marketing_consent: marketingConsent,
+                        terms_version: TERMS_VERSION,
+                        privacy_version: PRIVACY_VERSION,
+                    }
                 })
             });
 
@@ -465,7 +491,76 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 })}
             </div>
 
-            {/* Payment required — no skip option */}
+            {/* Consent Block — required before plan selection */}
+            <div id="consent-block" className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-900">
+                    {t.setup.subscription.consent.title}
+                </h3>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={e => { setTermsAccepted(e.target.checked); setConsentError(''); }}
+                        className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                        <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-violet-600 underline hover:text-violet-700">
+                            {t.setup.subscription.consent.termsLinkLabel}
+                        </Link>
+                        {t.setup.subscription.consent.acceptTermsSuffix}
+                        <span className="text-red-500 ml-1">*</span>
+                    </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                        type="checkbox"
+                        checked={privacyAccepted}
+                        onChange={e => { setPrivacyAccepted(e.target.checked); setConsentError(''); }}
+                        className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                        <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-violet-600 underline hover:text-violet-700">
+                            {t.setup.subscription.consent.privacyLinkLabel}
+                        </Link>
+                        {t.setup.subscription.consent.acceptPrivacySuffix}
+                        <span className="text-red-500 ml-1">*</span>
+                    </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                        type="checkbox"
+                        checked={ageConfirmed}
+                        onChange={e => { setAgeConfirmed(e.target.checked); setConsentError(''); }}
+                        className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                        {t.setup.subscription.consent.ageConfirm}
+                        <span className="text-red-500 ml-1">*</span>
+                    </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group pt-2 border-t border-gray-100">
+                    <input
+                        type="checkbox"
+                        checked={marketingConsent}
+                        onChange={e => setMarketingConsent(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-600 leading-relaxed">
+                        {t.setup.subscription.consent.marketingOptIn}
+                        <span className="text-gray-400 ml-1">{t.setup.subscription.consent.optional}</span>
+                    </span>
+                </label>
+
+                {consentError && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs">
+                        {consentError}
+                    </div>
+                )}
+            </div>
 
             {/* Payment Modal */}
             {showPaymentModal && selected && (

@@ -57,6 +57,14 @@ export interface Shop {
     // Token Usage (billing)
     token_usage_total?: number;
     token_usage_reset_at?: string | null;
+    // Legal consent (collected at subscription step)
+    terms_accepted_at?: string | null;
+    terms_version?: string | null;
+    privacy_accepted_at?: string | null;
+    privacy_version?: string | null;
+    age_confirmed?: boolean;
+    marketing_consent?: boolean;
+    marketing_consent_at?: string | null;
 }
 
 // ============================================

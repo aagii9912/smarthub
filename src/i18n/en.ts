@@ -185,6 +185,17 @@ export const en: Translations = {
       totalAmount: 'Total:',
       scanWithBank: 'Scan with your bank app',
       paid: 'Paid',
+      consent: {
+        title: 'Agreement',
+        termsLinkLabel: 'Terms of Service',
+        acceptTermsSuffix: ' — I have read and agree',
+        privacyLinkLabel: 'Privacy Policy',
+        acceptPrivacySuffix: ' — I have read and agree',
+        ageConfirm: 'I confirm that I am 18 years old or older',
+        marketingOptIn: 'I agree to receive emails about new features and promotions',
+        optional: '(optional)',
+        errorRequired: 'Please accept the Terms of Service, Privacy Policy and age confirmation',
+      },
     },
   },
 

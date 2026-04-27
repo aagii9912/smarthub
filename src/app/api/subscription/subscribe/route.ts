@@ -14,6 +14,16 @@ import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoice } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
+import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/constants/legal';
+
+interface SubscribeConsent {
+    terms_accepted?: boolean;
+    privacy_accepted?: boolean;
+    age_confirmed?: boolean;
+    marketing_consent?: boolean;
+    terms_version?: string;
+    privacy_version?: string;
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,13 +36,58 @@ export async function POST(request: NextRequest) {
         const userId = await getAuthUser();
 
         const body = await request.json();
-        const { plan_id, billing_cycle = 'monthly' } = body;
+        const { plan_id, billing_cycle = 'monthly', consent } = body as {
+            plan_id?: string;
+            billing_cycle?: 'monthly' | 'yearly';
+            consent?: SubscribeConsent;
+        };
 
         if (!plan_id) {
             return NextResponse.json({ error: 'Plan ID is required' }, { status: 400 });
         }
 
         const supabase = supabaseAdmin();
+
+        // Look up the shop's existing consent state. getAuthUserShop projects
+        // a small set of columns and doesn't include consent fields.
+        const { data: consentRow } = await supabase
+            .from('shops')
+            .select('terms_accepted_at')
+            .eq('id', shop.id)
+            .single();
+        const alreadyConsented = !!consentRow?.terms_accepted_at;
+
+        // Require consent on first subscription. Once recorded on the shop,
+        // subsequent subscribe calls (re-subscribe / plan change) skip this gate.
+        if (!alreadyConsented) {
+            if (!consent?.terms_accepted || !consent?.privacy_accepted || !consent?.age_confirmed) {
+                return NextResponse.json(
+                    { error: 'Үйлчилгээний нөхцөл, Нууцлалын бодлого болон насны баталгааг хүлээн зөвшөөрнө үү' },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Persist consent on the shop on first acceptance. Marketing consent
+        // is allowed to change later, so it's updated even after legal consent
+        // is already recorded.
+        const now = new Date().toISOString();
+        if (!alreadyConsented && consent) {
+            await supabase.from('shops').update({
+                terms_accepted_at: now,
+                terms_version: consent.terms_version || TERMS_VERSION,
+                privacy_accepted_at: now,
+                privacy_version: consent.privacy_version || PRIVACY_VERSION,
+                age_confirmed: true,
+                marketing_consent: !!consent.marketing_consent,
+                marketing_consent_at: consent.marketing_consent ? now : null,
+            }).eq('id', shop.id);
+        } else if (consent && typeof consent.marketing_consent === 'boolean') {
+            await supabase.from('shops').update({
+                marketing_consent: consent.marketing_consent,
+                marketing_consent_at: consent.marketing_consent ? now : null,
+            }).eq('id', shop.id);
+        }
 
         // Get the plan - support both UUID and slug
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(plan_id);
