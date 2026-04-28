@@ -1,6 +1,59 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import type { AIProduct, AIFAQ, AIQuickReply, AISlogan, NotifySettings } from '@/types/ai';
 
+interface ShopProductRow {
+    id: string;
+    name: string;
+    description?: string | null;
+    price?: number | null;
+    stock?: number | null;
+    reserved_stock?: number | null;
+    type?: string | null;
+    unit?: string | null;
+    image_url?: string | null;
+    images?: string[] | null;
+    discount_percent?: number | null;
+    colors?: string[] | null;
+    sizes?: string[] | null;
+    delivery_type?: string | null;
+    delivery_fee?: number | string | null;
+    is_active?: boolean | null;
+}
+
+export function mapShopProductsToAI(products: ShopProductRow[] | null | undefined): AIProduct[] {
+    if (!products) return [];
+    return products.map(p => {
+        const aiType: AIProduct['type'] =
+            p.type === 'service' ? 'service'
+                : p.type === 'appointment' ? 'appointment'
+                    : 'product';
+
+        const deliveryType: AIProduct['delivery_type'] =
+            p.delivery_type === 'included' || p.delivery_type === 'paid' || p.delivery_type === 'pickup_only'
+                ? p.delivery_type
+                : undefined;
+
+        return {
+            id: p.id,
+            name: p.name,
+            description: p.description || undefined,
+            price: p.price || 0,
+            stock: p.stock ?? 0,
+            reserved_stock: p.reserved_stock ?? 0,
+            type: aiType,
+            unit: p.unit || undefined,
+            image_url: p.image_url || undefined,
+            images: p.images || undefined,
+            discount_percent: p.discount_percent ?? undefined,
+            colors: p.colors && p.colors.length > 0 ? p.colors : undefined,
+            sizes: p.sizes && p.sizes.length > 0 ? p.sizes : undefined,
+            delivery_type: deliveryType,
+            delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
+            variants: undefined,
+        };
+    });
+}
+
 export interface ShopWithProducts {
     id: string;
     name: string;
@@ -43,6 +96,7 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         .select('*, products(*)')
         .eq('facebook_page_id', pageId)
         .eq('is_active', true)
+        .eq('products.is_active', true)
         .single();
 
     if (!data) return null;
@@ -56,7 +110,7 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
         facebook_page_id: data.facebook_page_id,
         facebook_page_username: data.facebook_page_username,
         facebook_page_access_token: data.facebook_page_access_token,
-        products: data.products || [],
+        products: mapShopProductsToAI(data.products),
         notify_on_order: data.notify_on_order,
         notify_on_contact: data.notify_on_contact,
         notify_on_support: data.notify_on_support,
@@ -82,6 +136,7 @@ export async function getShopByInstagramId(instagramId: string): Promise<ShopWit
         .select('*, products(*)')
         .eq('instagram_business_account_id', instagramId)
         .eq('is_active', true)
+        .eq('products.is_active', true)
         .single();
 
     if (!data) return null;
@@ -98,7 +153,7 @@ export async function getShopByInstagramId(instagramId: string): Promise<ShopWit
         instagram_business_account_id: data.instagram_business_account_id,
         instagram_access_token: data.instagram_access_token,
         instagram_username: data.instagram_username,
-        products: data.products || [],
+        products: mapShopProductsToAI(data.products),
         notify_on_order: data.notify_on_order,
         notify_on_contact: data.notify_on_contact,
         notify_on_support: data.notify_on_support,

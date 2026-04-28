@@ -5,7 +5,7 @@ import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import * as Sentry from '@sentry/nextjs';
-import type { ChatMessage, AIEmotion, AIProduct } from '@/types/ai';
+import type { ChatMessage, AIEmotion } from '@/types/ai';
 import {
     getShopByPageId,
     getShopByInstagramId,
@@ -308,21 +308,6 @@ export async function POST(request: NextRequest) {
                     try {
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
-                        // Map products to AI format
-                            const mappedProducts: AIProduct[] = shop.products.map(p => ({
-                                id: p.id,
-                                name: p.name,
-                                description: p.description || undefined,
-                                price: p.price || 0,
-                                stock: p.stock ?? 0,
-                                image_url: p.image_url || undefined,
-                                images: p.images || undefined,
-                                variants: undefined,
-                                discount_percent: p.discount_percent ?? undefined,
-                                delivery_type: p.delivery_type ?? undefined,
-                                delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
-                            }));
-
                         // Route to AI
                         const response = await routeToAI(
                             userMessage,
@@ -334,7 +319,7 @@ export async function POST(request: NextRequest) {
                                 aiInstructions: shop.ai_instructions || undefined,
                                 aiEmotion: (shop.ai_emotion || 'friendly') as AIEmotion,
                                 customKnowledge: shop.custom_knowledge || undefined,
-                                products: mappedProducts,
+                                products: shop.products,
                                 customerName: customer.name || undefined,
                                 orderHistory: customer.total_orders || 0,
                                 faqs: aiFeatures.faqs,
@@ -565,20 +550,6 @@ export async function POST(request: NextRequest) {
                         try {
                             const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
-                            const mappedProducts: AIProduct[] = shop.products.map(p => ({
-                                id: p.id,
-                                name: p.name,
-                                description: p.description || undefined,
-                                price: p.price || 0,
-                                stock: p.stock ?? 0,
-                                image_url: p.image_url || undefined,
-                                images: p.images || undefined,
-                                variants: undefined,
-                                discount_percent: p.discount_percent ?? undefined,
-                                delivery_type: p.delivery_type ?? undefined,
-                                delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
-                            }));
-
                             const response = await routeToAI(
                                 userMessage,
                                 {
@@ -589,7 +560,7 @@ export async function POST(request: NextRequest) {
                                     aiInstructions: shop.ai_instructions || undefined,
                                     aiEmotion: (shop.ai_emotion || 'friendly') as AIEmotion,
                                     customKnowledge: shop.custom_knowledge || undefined,
-                                    products: mappedProducts,
+                                    products: shop.products,
                                     customerName: customer.name || undefined,
                                     orderHistory: customer.total_orders || 0,
                                     notifySettings: buildNotifySettings(shop),
