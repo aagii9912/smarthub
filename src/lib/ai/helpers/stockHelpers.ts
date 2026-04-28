@@ -17,21 +17,39 @@ interface CartItemDbRow {
 }
 
 /**
- * Check product stock from DB (not context) - prevents stale data
+ * Check product stock from DB (not context) - prevents stale data.
+ *
+ * Services / appointments without an explicit booking cap (stock null or 0)
+ * are treated as "always available" — they don't have inventory in the
+ * traditional sense, the AI is just logging an order.
  */
 export async function checkProductStock(
     productId: string,
     requiredQty: number
-): Promise<{ available: boolean; currentStock: number; reserved: number }> {
+): Promise<{ available: boolean; currentStock: number; reserved: number; unlimited?: boolean }> {
     const supabase = supabaseAdmin();
     const { data } = await supabase
         .from('products')
-        .select('stock, reserved_stock')
+        .select('stock, reserved_stock, type')
         .eq('id', productId)
         .single();
 
-    const stock = data?.stock || 0;
+    const rawStock = (data as unknown as { stock?: number | null })?.stock ?? null;
     const reserved = data?.reserved_stock || 0;
+    const productType = (data as unknown as { type?: string })?.type;
+    const isService = productType === 'service' || productType === 'appointment';
+    const hasExplicitCap = typeof rawStock === 'number' && rawStock > 0;
+
+    if (isService && !hasExplicitCap) {
+        return {
+            available: true,
+            currentStock: Number.MAX_SAFE_INTEGER,
+            reserved,
+            unlimited: true,
+        };
+    }
+
+    const stock = rawStock ?? 0;
     const availableStock = stock - reserved;
 
     return {

@@ -49,7 +49,9 @@ export async function executeAddToCart(
     const { data: total } = await supabase.rpc('calculate_cart_total', { p_cart_id: cartId });
 
     let urgencyHint = '';
-    if (stockCheck.currentStock <= 3) {
+    // Skip the "low stock" nudge for services without a booking cap —
+    // they aren't actually running out of anything.
+    if (!stockCheck.unlimited && stockCheck.currentStock <= 3) {
         urgencyHint = ` ⚠️ Зөвхөн ${stockCheck.currentStock} ширхэг үлдлээ!`;
     }
 
@@ -68,7 +70,7 @@ export async function executeAddToCart(
                 buttons: [
                     {
                         id: 'checkout',
-                        label: '💳 Checkout',
+                        label: '💳 Төлбөр төлөх',
                         icon: 'checkout',
                         variant: 'primary',
                         payload: 'CHECKOUT',
@@ -123,7 +125,7 @@ export async function executeViewCart(
                 buttons: [
                     {
                         id: 'checkout',
-                        label: '💳 Checkout',
+                        label: '💳 Төлбөр төлөх',
                         icon: 'checkout',
                         variant: 'primary',
                         payload: 'CHECKOUT',

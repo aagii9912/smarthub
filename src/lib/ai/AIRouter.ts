@@ -398,7 +398,7 @@ export async function routeToAI(
                             functionResponse: {
                                 name: fc.name,
                                 response: {
-                                    error: `Энэ боломж (${functionName}) одоогийн ${planType} багцад идэвхгүй байна. Pro багц руу шилжвэл захиалга, checkout, дэлгэрэнгүй тайлан зэрэг бүх боломж нээгдэнэ! 🚀`
+                                    error: `Энэ боломж (${functionName}) одоогийн ${planType} багцад идэвхгүй байна. Pro багц руу шилжвэл захиалга, төлбөр төлөх, дэлгэрэнгүй тайлан зэрэг бүх боломж нээгдэнэ! 🚀`
                                 }
                             }
                         });

@@ -283,7 +283,7 @@ export default function CartPage() {
         <PageHero
             eyebrow="Идэвхтэй сагс"
             live
-            title="Сагс & Checkout"
+            title="Сагс ба Төлбөр"
             subtitle="AI-тай яриа үргэлжилж буй харилцагчдын сагс, тэдэнтэй шууд мессеж солих."
             actions={
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">

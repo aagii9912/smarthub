@@ -102,10 +102,17 @@ export function buildProductsInfo(products: ChatContext['products']): string {
 
     return visible.map(p => {
         const isService = p.type === 'service';
+        const isAppointment = p.type === 'appointment';
         const unit = p.unit || (isService ? 'захиалга' : 'ширхэг');
 
-        // Calculate available stock (total - reserved)
-        const availableStock = p.stock - (p.reserved_stock || 0);
+        // Calculate available stock (total - reserved). Services typically
+        // have null/0 stock because they don't have inventory — that means
+        // "no booking cap", NOT "sold out". Only treat 0/negative as "full"
+        // when the owner explicitly sets a positive cap that's been used up.
+        const rawStock = p.stock;
+        const hasExplicitCap = typeof rawStock === 'number' && rawStock > 0;
+        const availableStock = (rawStock ?? 0) - (p.reserved_stock || 0);
+        const serviceUnlimited = (isService || isAppointment) && !hasExplicitCap;
 
         // Different display for products vs services. Status overrides
         // stock language for #9/#10 (Удахгүй ирнэ vs Дууссан).
@@ -120,6 +127,9 @@ export function buildProductsInfo(products: ChatContext['products']): string {
             stockDisplay = eta
                 ? `Урьдчилсан захиалга боломжтой (${eta} ирэх төлөвтэй)`
                 : 'Урьдчилсан захиалга боломжтой';
+        } else if (serviceUnlimited) {
+            // Service / appointment without an explicit booking cap — open.
+            stockDisplay = isService ? 'Захиалга авах боломжтой' : 'Цаг авах боломжтой';
         } else if (availableStock > 0) {
             stockDisplay = isService
                 ? `${availableStock} ${unit} авах боломжтой`

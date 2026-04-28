@@ -21,7 +21,7 @@ export async function executeCreateOrder(
 
     const { data: dbProduct } = await supabase
         .from('products')
-        .select('stock, reserved_stock, price, id, status, pre_order_eta')
+        .select('stock, reserved_stock, price, id, status, pre_order_eta, type')
         .eq('id', product.id)
         .single();
 
@@ -31,6 +31,7 @@ export async function executeCreateOrder(
 
     const dbStatus = (dbProduct as unknown as { status?: string }).status;
     const dbPreOrderEta = (dbProduct as unknown as { pre_order_eta?: string }).pre_order_eta;
+    const dbType = (dbProduct as unknown as { type?: string }).type;
 
     // #9/#10: surface helpful messages for non-active statuses.
     if (dbStatus === 'discontinued') {
@@ -43,11 +44,18 @@ export async function executeCreateOrder(
         };
     }
 
-    const availableStock = (dbProduct.stock || 0) - (dbProduct.reserved_stock || 0);
+    const rawStock = dbProduct.stock;
+    const isService = dbType === 'service' || dbType === 'appointment';
+    const hasExplicitCap = typeof rawStock === 'number' && rawStock > 0;
+    const availableStock = (rawStock ?? 0) - (dbProduct.reserved_stock || 0);
     const isPreOrder = dbStatus === 'pre_order';
+    // Services/appointments without an explicit booking cap have no stock to
+    // check — every request is honoured (the AI is just logging an order).
+    const serviceUnlimited = isService && !hasExplicitCap;
 
     // #8: pre_order products don't need stock — we record the order anyway.
-    if (!isPreOrder && availableStock < quantity) {
+    // Services without a cap also bypass the stock check.
+    if (!isPreOrder && !serviceUnlimited && availableStock < quantity) {
         return { success: false, error: `Үлдэгдэл хүрэлцэхгүй. Боломжит: ${availableStock}` };
     }
 
@@ -87,9 +95,10 @@ export async function executeCreateOrder(
     }
 
     // Atomic stock reservation (prevents race conditions via SELECT ... FOR UPDATE).
-    // Skip for pre_order — there's no stock to reserve, the order is logged
-    // and stock gets allocated when the upstream restock arrives.
-    if (!isPreOrder) {
+    // Skip for pre_order (#8) — there's no stock to reserve. Skip for
+    // services/appointments without an explicit booking cap — they don't
+    // track inventory.
+    if (!isPreOrder && !serviceUnlimited) {
         const { data: reserved, error: reserveError } = await supabase.rpc('reserve_stock', {
             p_product_id: product.id,
             p_quantity: quantity,
@@ -118,10 +127,13 @@ export async function executeCreateOrder(
         .select()
         .single();
 
+    // Stock was only reserved for tangible orders — skip release for
+    // pre_order and uncapped service orders.
+    const stockWasReserved = !isPreOrder && !serviceUnlimited;
+
     if (orderError) {
         logger.error('Order creation error, releasing stock:', { error: orderError });
-        // Release the reserved stock since order failed (no-op for pre_order).
-        if (!isPreOrder) {
+        if (stockWasReserved) {
             await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
         }
         return { success: false, error: orderError.message };
@@ -139,7 +151,7 @@ export async function executeCreateOrder(
     if (itemError) {
         logger.error('Order item insert failed, rolling back order:', { error: itemError });
         await supabase.from('orders').delete().eq('id', order.id);
-        if (!isPreOrder) {
+        if (stockWasReserved) {
             await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
         }
         return { success: false, error: 'Захиалгын бараа нэмэхэд алдаа гарлаа. Дахин оролдоно уу.' };
