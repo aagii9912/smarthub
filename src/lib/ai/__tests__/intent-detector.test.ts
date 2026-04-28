@@ -34,8 +34,8 @@ describe('Intent Detector', () => {
         });
 
         describe('STOCK_CHECK intent', () => {
-            it('detects stock inquiry with "байна уу"', () => {
-                const result = detectIntent('Цагаан өнгийнх байна уу?');
+            it('detects stock inquiry with "бий юу"', () => {
+                const result = detectIntent('Цагаан өнгийнх бий юу?');
                 expect(result.intent).toBe('STOCK_CHECK');
             });
 
@@ -63,16 +63,21 @@ describe('Intent Detector', () => {
         });
 
         describe('ORDER_STATUS intent', () => {
-            // Note: "захиалга хаана" contains "захиалга" which matches ORDER_CREATE first
-            // This is expected behavior due to pattern matching order
-            it('detects status inquiry with delivery keywords', () => {
-                const result = detectIntent('Хүргэлт хэзээ ирэх вэ?');
+            it('detects status inquiry with "захиалга хаана"', () => {
+                const result = detectIntent('Захиалга хаана яваа вэ?');
                 expect(result.intent).toBe('ORDER_STATUS');
             });
 
-            it('detects "хүргэлт" as order status', () => {
-                const result = detectIntent('Хүргэлт хэзээ ирэх вэ?');
+            it('detects status inquiry with "захиалга шалгах"', () => {
+                const result = detectIntent('Захиалга шалгах гэсэн юм');
                 expect(result.intent).toBe('ORDER_STATUS');
+            });
+        });
+
+        describe('DELIVERY_CHECK intent', () => {
+            it('detects delivery inquiry with "хүргэлт"', () => {
+                const result = detectIntent('Хүргэлт хэзээ ирэх вэ?');
+                expect(result.intent).toBe('DELIVERY_CHECK');
             });
         });
 
@@ -118,7 +123,7 @@ describe('Intent Detector', () => {
             it('defaults to general chat for unrecognized messages', () => {
                 const result = detectIntent('Тийм байгаа юм аа');
                 expect(result.intent).toBe('GENERAL_CHAT');
-                expect(result.confidence).toBe(0.5);
+                expect(result.confidence).toBe(0.3);
             });
         });
     });

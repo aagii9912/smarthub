@@ -241,10 +241,12 @@ export async function routeToAI(
             const alreadyWarned = await redis.get(warnKey);
             
             if (!alreadyWarned) {
-                // Send warning (fire and forget)
-                logger.info(`🚨 Sending ${threshold}% token usage warning to shop ${context.shopId}`);
-                // TODO: Integrate with NotificationService / RESEND for emails
-                
+                // Persist the warning event so the dashboard / cron job can
+                // surface it. Email delivery via Resend is wired up separately
+                // by the weekly token report cron (`/api/cron/weekly-token-report`)
+                // — sending here too would double-notify.
+                logger.info(`🚨 ${threshold}% token usage warning for shop ${context.shopId}`);
+
                 // Track that we warned them to avoid spamming
                 await redis.set(warnKey, '1', { ex: 60 * 60 * 24 * 31 }); // 31 days expiry
             }

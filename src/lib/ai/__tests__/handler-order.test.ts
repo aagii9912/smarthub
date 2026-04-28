@@ -116,7 +116,7 @@ describe('OrderHandlers', () => {
             );
 
             expect(result.success).toBe(false);
-            expect(result.error).toContain('stock');
+            expect(result.error).toContain('Үлдэгдэл');
         });
 
         it('should fail without shopId or customerId', async () => {
@@ -255,8 +255,22 @@ describe('OrderHandlers', () => {
         it('should remove item from order', async () => {
             const order = createMockOrder({
                 order_items: [
-                    { id: 'oi-1', product_id: 'prod-1', product_name: 'Ноутбүүк Pro 15', quantity: 1, unit_price: 2500000 },
-                    { id: 'oi-2', product_id: 'prod-2', product_name: 'Утасны гэр', quantity: 2, unit_price: 28000 },
+                    {
+                        id: 'oi-1',
+                        product_id: 'prod-1',
+                        product_name: 'Ноутбүүк Pro 15',
+                        products: { name: 'Ноутбүүк Pro 15' },
+                        quantity: 1,
+                        unit_price: 2500000,
+                    },
+                    {
+                        id: 'oi-2',
+                        product_id: 'prod-2',
+                        product_name: 'Утасны гэр',
+                        products: { name: 'Утасны гэр' },
+                        quantity: 2,
+                        unit_price: 28000,
+                    },
                 ],
             });
             mockChain.single.mockResolvedValueOnce({ data: order, error: null });

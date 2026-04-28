@@ -1,16 +1,18 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals"),
+export default [
+  ...nextCoreWebVitals,
+  {
+    ignores: [
+      ".next/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "test-results/**",
+      "e2e-screenshots/**",
+      "*.html",
+      "tsconfig.tsbuildinfo",
+    ],
+  },
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
@@ -19,7 +21,10 @@ const eslintConfig = [
       "no-unused-vars": "off",
       "prefer-const": "off",
     },
+    linterOptions: {
+      // The codebase has stale eslint-disable comments from older rule sets.
+      // Don't double-report on those — focus on real issues.
+      reportUnusedDisableDirectives: "off",
+    },
   },
 ];
-
-export default eslintConfig;

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         const { data: shop } = await supabase
             .from('shops')
             .select('id, name')
-            .eq('owner_id', userId)
+            .eq('user_id', userId)
             .single();
 
         if (!shop) {
@@ -80,18 +80,25 @@ export async function GET(request: NextRequest) {
             }
 
             case 'conversations': {
+                // chat_history stores customer-message + AI-response pairs in one row.
+                // Flatten each row into two CSV rows (customer + ai) for analytics export.
                 const { data: chats } = await supabase
-                    .from('chat_messages')
-                    .select('id, customer_id, sender, message, created_at, token_count')
+                    .from('chat_history')
+                    .select('id, customer_id, message, response, intent, created_at')
                     .eq('shop_id', shop.id)
                     .gte('created_at', since.toISOString())
                     .order('created_at', { ascending: false })
                     .limit(10000);
 
-                csvContent = 'Message ID,Customer ID,Sender,Message,Tokens,Date\n';
-                (chats || []).forEach(msg => {
-                    const cleanMsg = (msg.message || '').replace(/"/g, '""').replace(/\n/g, ' ');
-                    csvContent += `${msg.id},${msg.customer_id},${msg.sender},"${cleanMsg}",${msg.token_count || 0},${msg.created_at}\n`;
+                csvContent = 'Message ID,Customer ID,Sender,Message,Intent,Date\n';
+                const escape = (s: string | null) => (s || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                (chats || []).forEach(row => {
+                    if (row.message) {
+                        csvContent += `${row.id},${row.customer_id},customer,"${escape(row.message)}",${row.intent || ''},${row.created_at}\n`;
+                    }
+                    if (row.response) {
+                        csvContent += `${row.id},${row.customer_id},ai,"${escape(row.response)}",${row.intent || ''},${row.created_at}\n`;
+                    }
                 });
                 filename = `syncly-conversations-${days}d.csv`;
                 break;

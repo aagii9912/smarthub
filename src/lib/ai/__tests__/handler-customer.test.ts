@@ -51,7 +51,7 @@ describe('CustomerHandlers', () => {
             );
 
             expect(result.success).toBe(true);
-            expect(result.message).toContain('phone');
+            expect(result.message).toContain('99001122');
         });
 
         it('should save all contact info', async () => {
@@ -61,9 +61,9 @@ describe('CustomerHandlers', () => {
             );
 
             expect(result.success).toBe(true);
-            expect(result.message).toContain('phone');
-            expect(result.message).toContain('address');
-            expect(result.message).toContain('name');
+            expect(result.message).toContain('99001122');
+            expect(result.message).toContain('УБ, ХУД');
+            expect(result.message).toContain('Болд');
         });
 
         it('should send push notification', async () => {
@@ -116,7 +116,7 @@ describe('CustomerHandlers', () => {
             expect(vi.mocked(sendPushNotification)).toHaveBeenCalledWith(
                 'shop-test-001',
                 expect.objectContaining({
-                    title: expect.stringContaining('Холбогдох'),
+                    title: expect.stringContaining('холбогдох'),
                     body: expect.stringContaining('Нарийн захиалга'),
                 })
             );

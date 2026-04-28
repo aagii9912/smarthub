@@ -13,24 +13,26 @@ test.describe('Super TDD Audit', () => {
             // Screenshot initial state
             await page.screenshot({ path: 'e2e-screenshots/login_initial.png' });
 
-            // Check for Page Title (SmartHub) - use partial match since it might redirect
-            await expect(page.getByText('SmartHub')).toBeVisible({ timeout: 10000 });
+            // Page should brand as "Syncly" (was SmartHub before)
+            await expect(page.getByText(/syncly/i).first()).toBeVisible({ timeout: 10000 });
 
-            // Check for Clerk Elements
-            // Clerk usually uses name="identifier"
-            const emailInput = page.locator('input[name="identifier"]');
+            // Login form is now Supabase email/password (was Clerk identifier)
+            const emailInput = page.locator('input[type="email"]').first();
             await expect(emailInput).toBeVisible({ timeout: 15000 });
+            const passwordInput = page.locator('input[type="password"]').first();
+            await expect(passwordInput).toBeVisible();
 
-            // Attempt login (will likely fail auth but proves UI works)
+            // Attempt login with bad credentials — UI should NOT crash
             await emailInput.fill('test@example.com');
+            await passwordInput.fill('wrong-password-12345');
 
-            // Click Continue/Sign In
-            const submitBtn = page.locator('button', { hasText: /continue|sign in|нэвтрэх/i }).first();
+            const submitBtn = page.locator('button[type="submit"]').first();
             await expect(submitBtn).toBeVisible();
             await submitBtn.click();
 
-            // Wait for potential interaction result
-            await page.waitForTimeout(3000);
+            // Wait for the failed login error to render or for any redirect
+            await page.waitForTimeout(2500);
+            await expect(page.locator('text=/500|Internal Server Error/i')).not.toBeVisible();
             await page.screenshot({ path: 'e2e-screenshots/login_attempt.png' });
         });
     });

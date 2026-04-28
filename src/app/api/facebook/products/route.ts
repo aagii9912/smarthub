@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { getAuthUserShop } from '@/lib/auth/auth';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Facebook Shop/Catalog Products API
 // Fetches products from Facebook Commerce catalog
@@ -17,12 +19,28 @@ interface FBProduct {
 
 export async function GET(request: NextRequest) {
     try {
-        const pageId = request.headers.get('x-fb-page-id');
-        const accessToken = request.headers.get('x-fb-access-token');
+        // 1. Prefer explicit headers (legacy callers).
+        let pageId = request.headers.get('x-fb-page-id');
+        let accessToken = request.headers.get('x-fb-access-token');
+
+        // 2. Fall back to the authenticated user's shop record so the setup
+        // wizard does not need to pass credentials around in client state.
+        if (!pageId || !accessToken) {
+            const shop = await getAuthUserShop();
+            if (shop?.id) {
+                const { data } = await supabaseAdmin()
+                    .from('shops')
+                    .select('facebook_page_id, facebook_page_access_token')
+                    .eq('id', shop.id)
+                    .single();
+                pageId = pageId || data?.facebook_page_id || null;
+                accessToken = accessToken || data?.facebook_page_access_token || null;
+            }
+        }
 
         if (!pageId || !accessToken) {
             return NextResponse.json(
-                { error: 'Missing pageId or accessToken' },
+                { error: 'Missing pageId or accessToken — connect a Facebook Page first' },
                 { status: 400 }
             );
         }

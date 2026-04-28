@@ -3,9 +3,10 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { sendTextMessage } from '@/lib/facebook/messenger';
+
+const REMINDER_MESSAGE_MN =
+    'Таны сагсанд бараа үлдсэн байна. Та худалдан авалтаа дуусгах уу? 🛒';
 
 /**
  * POST /api/dashboard/inbox/remind
@@ -27,12 +28,19 @@ export async function POST(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        // 1. Get Customer Details
-        const { data: customer, error: customerError } = await supabase
-            .from('customers')
-            .select('id, name, facebook_id, phone')
-            .eq('id', customerId)
-            .single();
+        // 1. Get customer + the shop's stored FB/IG page tokens.
+        const [{ data: customer, error: customerError }, { data: shopRow }] = await Promise.all([
+            supabase
+                .from('customers')
+                .select('id, name, facebook_id, phone, platform')
+                .eq('id', customerId)
+                .single(),
+            supabase
+                .from('shops')
+                .select('facebook_page_access_token, instagram_access_token')
+                .eq('id', shop.id)
+                .single(),
+        ]);
 
         if (customerError || !customer) {
             return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
@@ -40,29 +48,26 @@ export async function POST(request: NextRequest) {
 
         let sentMethod = 'none';
 
-        // 2. Try Facebook Message
+        // 2. Try sending the actual Messenger DM if the shop has the page token.
         if (customer.facebook_id) {
-            try {
-                // Determine page access token (TODO: Fetch from DB shop_settings)
-                // For now, we'll log it as a simulation if no token is available in env or DB logic
-                // In a real app, you'd fetch the page_access_token associated with this shop
+            // For Instagram-only customers, fall back to the IG token alias (Page token).
+            const pageAccessToken =
+                shopRow?.facebook_page_access_token || shopRow?.instagram_access_token;
 
-                // const pageAccessToken = process.env.FB_PAGE_ACCESS_TOKEN; 
-                // if (pageAccessToken) {
-                //      await sendTextMessage(customer.facebook_id, "Таны сагсанд бараа үлдсэн байна. Та худалдан авалтаа дуусгах уу?", pageAccessToken);
-                //      sentMethod = 'facebook';
-                // } else {
-                //      logger.warn('No FB Page Token available for reminder');
-                // }
-
-                // NOTE: Since we might not have the token wired up perfectly for every shop yet,
-                // we will mark it as "attempted" and log it.
-                logger.info(`[SIMULATION] Sending FB reminder to ${customer.facebook_id}`);
-                sentMethod = 'facebook_simulated';
-
-            } catch (fbError) {
-                logger.error('Failed to send FB reminder', { error: fbError });
-                // Continue to try other methods or fail gracefully
+            if (pageAccessToken) {
+                try {
+                    await sendTextMessage({
+                        recipientId: customer.facebook_id,
+                        message: REMINDER_MESSAGE_MN,
+                        pageAccessToken,
+                    });
+                    sentMethod = customer.platform === 'instagram' ? 'instagram' : 'facebook';
+                } catch (fbError) {
+                    logger.error('Failed to send DM reminder', { error: fbError, shopId: shop.id });
+                }
+            } else {
+                logger.warn('Shop has no page access token — DM reminder skipped', { shopId: shop.id });
+                sentMethod = 'no_token';
             }
         }
 
@@ -74,10 +79,19 @@ export async function POST(request: NextRequest) {
             tag: `remind-${customerId}`
         });
 
+        const userMessage =
+            sentMethod === 'facebook'
+                ? 'Сануулга амжилттай илгээгдлээ (Facebook)'
+                : sentMethod === 'instagram'
+                    ? 'Сануулга амжилттай илгээгдлээ (Instagram)'
+                    : sentMethod === 'no_token'
+                        ? 'Шуудан илгээх Page токен тохируулагдаагүй'
+                        : 'Сануулга илгээх боломжгүй';
+
         return NextResponse.json({
-            success: true,
+            success: sentMethod === 'facebook' || sentMethod === 'instagram',
             method: sentMethod,
-            message: `Сануулга амжилттай илгээгдлээ (${sentMethod === 'facebook_simulated' ? 'Facebook' : 'System'})`
+            message: userMessage,
         });
 
     } catch (error: unknown) {

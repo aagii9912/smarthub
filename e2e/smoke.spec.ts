@@ -20,8 +20,8 @@ test.describe('Landing Page', () => {
     test('has visible CTA button', async ({ page }) => {
         await page.goto('/');
 
-        // Should have a call-to-action
-        const cta = page.getByRole('link', { name: /эхлэх|бүртгүүлэх|нэвтрэх|start/i });
+        // Should have a call-to-action — landing has both Эхлэх and Нэвтрэх; pick the first
+        const cta = page.getByRole('link', { name: /эхлэх|бүртгүүлэх|нэвтрэх|start/i }).first();
         await expect(cta).toBeVisible();
     });
 

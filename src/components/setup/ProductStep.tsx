@@ -351,15 +351,11 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
         </button>
         <button
           onClick={async () => {
-            // TODO: Get FB credentials from context/props
+            // FB credentials are resolved server-side from the authenticated user's
+            // shop record (see src/app/api/facebook/products/route.ts).
             setFbImporting(true);
             try {
-              const res = await fetch('/api/facebook/products', {
-                headers: {
-                  'x-fb-page-id': '', // Will be passed from parent
-                  'x-fb-access-token': ''
-                }
-              });
+              const res = await fetch('/api/facebook/products');
               const data = await res.json();
               if (data.products?.length > 0) {
                 const newProducts: Product[] = data.products.map((p: any) => ({
