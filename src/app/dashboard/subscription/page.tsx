@@ -412,15 +412,17 @@ export default function SubscriptionPage() {
                     )}
                 >
                     Жилийн
-                    <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{
-                            background: 'color-mix(in oklab, var(--success) 18%, transparent)',
-                            color: 'var(--success)',
-                        }}
-                    >
-                        −17%
-                    </span>
+                    {!activePromotion?.eligible_billing_cycles?.includes('yearly') && (
+                        <span
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                            style={{
+                                background: 'color-mix(in oklab, var(--success) 18%, transparent)',
+                                color: 'var(--success)',
+                            }}
+                        >
+                            −17%
+                        </span>
+                    )}
                 </span>
             </div>
 
