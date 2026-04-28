@@ -56,10 +56,34 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        // Roll the per-user token pool over for any user whose 30-day window
+        // has elapsed. The RPC is idempotent: it only acts on rows where
+        // period_anchor_at is NULL or > 30 days old.
+        const { data: dueSubs, error: dueErr } = await supabase
+            .from('subscriptions')
+            .select('user_id')
+            .in('status', ['active', 'trialing', 'pending', 'past_due'])
+            .or(`period_anchor_at.is.null,period_anchor_at.lt.${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+
+        let resetCount = 0;
+        if (dueErr) {
+            logger.warn('check-trial-expiry: failed to enumerate subs for token reset', { error: dueErr.message });
+        } else if (dueSubs && dueSubs.length > 0) {
+            const uniqueUserIds = Array.from(new Set(dueSubs.map(s => s.user_id).filter(Boolean) as string[]));
+            for (const uid of uniqueUserIds) {
+                const { error: rpcErr } = await supabase.rpc('reset_user_token_pool_if_due', { p_user_id: uid });
+                if (!rpcErr) resetCount++;
+            }
+            if (resetCount > 0) {
+                logger.success(`Reset token pool for ${resetCount} user(s)`);
+            }
+        }
+
         return NextResponse.json({
             success: true,
             expired_count: count,
             expired_shops: expired?.map(s => ({ id: s.id, name: s.name })) ?? [],
+            token_pool_resets: resetCount,
             checked_at: nowIso,
         });
     } catch (err: unknown) {

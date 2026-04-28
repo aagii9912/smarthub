@@ -129,19 +129,42 @@ export async function POST(request: NextRequest) {
     const trialDays = Math.max(0, Math.floor(billing.trial_days));
     const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
 
-    // Create new shop
+    // Per-user plan model: a new shop adopts the user's existing plan + status.
+    // Only fall back to a fresh trial when the user has no active plan yet
+    // (truly first-time user).
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('plan_id, subscription_plan, subscription_status, trial_ends_at')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const userHasPlan =
+      !!profile?.subscription_status &&
+      !['unpaid', 'expired_trial'].includes(profile.subscription_status);
+
+    const newShopRow: Record<string, unknown> = {
+      name,
+      owner_name,
+      phone,
+      user_id: userId,
+      is_active: true,
+      setup_completed: false,
+    };
+
+    if (userHasPlan) {
+      newShopRow.plan_id = profile?.plan_id ?? null;
+      newShopRow.subscription_plan = profile?.subscription_plan ?? 'starter';
+      newShopRow.subscription_status = profile?.subscription_status ?? 'active';
+      newShopRow.trial_ends_at = profile?.trial_ends_at ?? null;
+    } else {
+      newShopRow.subscription_plan = 'starter';
+      newShopRow.subscription_status = trialDays > 0 ? 'trial' : 'expired_trial';
+      newShopRow.trial_ends_at = trialEndsAt.toISOString();
+    }
+
     const { data: shop, error } = await supabase
       .from('shops')
-      .insert({
-        name,
-        owner_name,
-        phone,
-        user_id: userId,
-        is_active: true,
-        setup_completed: false,
-        subscription_status: trialDays > 0 ? 'trial' : 'expired_trial',
-        trial_ends_at: trialEndsAt.toISOString(),
-      })
+      .insert(newShopRow)
       .select()
       .single();
 
@@ -205,12 +228,15 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    // Clear unique fields from other shops to prevent constraint violations
+    // Clear unique fields from OTHER SHOPS OF THE SAME USER. The .eq('user_id')
+    // guard prevents a malicious or buggy request from silently NULLing another
+    // user's connection just because they share an FB Page or IG account ID.
     if (sanitizedUpdate.facebook_page_id) {
       await supabase
         .from('shops')
         .update({ facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null })
         .eq('facebook_page_id', sanitizedUpdate.facebook_page_id as string)
+        .eq('user_id', userId)
         .neq('id', shop.id);
     }
     if (sanitizedUpdate.instagram_business_account_id) {
@@ -218,6 +244,7 @@ export async function PATCH(request: NextRequest) {
         .from('shops')
         .update({ instagram_business_account_id: null, instagram_access_token: null, instagram_username: null })
         .eq('instagram_business_account_id', sanitizedUpdate.instagram_business_account_id as string)
+        .eq('user_id', userId)
         .neq('id', shop.id);
     }
 

@@ -4,23 +4,26 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getAuthUserShop } from '@/lib/auth/auth';
+import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { getUserBilling } from '@/lib/billing/getUserBilling';
 
 export async function GET() {
     try {
         const shop = await getAuthUserShop();
+        const userId = await getAuthUser();
 
-        if (!shop) {
-            logger.error('Subscription API: Unauthorized - No shop found for user');
+        if (!shop || !userId) {
+            logger.error('Subscription API: Unauthorized - No shop/user resolved');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const supabase = supabaseAdmin();
 
-        // Get subscription with plan details
-        const { data: subscription, error } = await supabase
+        // One subscription per user (per-user plan model). Fall back to shop_id
+        // for legacy databases that haven't run the user_id backfill yet.
+        const { data: subscription } = await supabase
             .from('subscriptions')
             .select(`
                 *,
@@ -35,8 +38,26 @@ export async function GET() {
                     limits
                 )
             `)
-            .eq('shop_id', shop.id)
-            .single();
+            .eq('user_id', userId)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then(async (res) => {
+                if (res.data) return res;
+                // Legacy fallback
+                return supabase
+                    .from('subscriptions')
+                    .select(`
+                        *,
+                        plans (
+                            id, name, slug, description,
+                            price_monthly, price_yearly,
+                            features, limits
+                        )
+                    `)
+                    .eq('shop_id', shop.id)
+                    .maybeSingle();
+            });
 
         // Get REAL usage stats from actual tables
         const periodStart = new Date();
@@ -108,10 +129,13 @@ export async function GET() {
             .eq('id', shop.id)
             .single();
 
+        const billing = await getUserBilling(userId);
+
         return NextResponse.json({
             subscription: subscription || null,
             plan: subscription?.plans || null,
             usage: usageSummary,
+            billing,
             invoices: invoices || [],
             has_subscription: !!subscription,
             shop_status: {

@@ -293,31 +293,25 @@ function SettingsContent() {
 
     async function disconnectPlatform(platform: string) {
         try {
-            await fetch('/api/shop', {
-                method: 'PATCH',
+            const res = await fetch('/api/shop/disconnect', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '',
                 },
-                body: JSON.stringify(
-                    platform === 'facebook'
-                        ? {
-                              facebook_page_id: null,
-                              facebook_page_name: null,
-                              facebook_page_access_token: null,
-                          }
-                        : {
-                              instagram_business_account_id: null,
-                              instagram_username: null,
-                              instagram_access_token: null,
-                          }
-                ),
+                body: JSON.stringify({ platform }),
             });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || 'Failed to disconnect');
+            }
+
             if (platform === 'facebook') setFbConnected(false);
             else setIgConnected(false);
             toast.success(`${platform === 'facebook' ? 'Facebook' : 'Instagram'} салгагдлаа`);
-        } catch {
-            toast.error('Алдаа гарлаа');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
         }
     }
 

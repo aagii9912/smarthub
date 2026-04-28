@@ -237,29 +237,25 @@ async function handleSubscriptionPayment(
     }
 
     // ── Step 2: Resolve shop_id ──
-    // Priority: use shop_id from payment record, else look up by user_id
-    let resolvedShopId = shopId;
-
-    if (!resolvedShopId && userId) {
-        const { data: shop } = await supabase
-            .from('shops')
-            .select('id')
-            .eq('user_id', userId)
-            .limit(1)
-            .single();
-
-        if (shop) {
-            resolvedShopId = shop.id;
-        }
-    }
+    // Priority: use shop_id from payment record. If absent, refuse rather than
+    // guess — picking an arbitrary "first shop of user" silently activates the
+    // wrong shop and corrupts billing.
+    const resolvedShopId = shopId;
 
     if (!resolvedShopId) {
-        logger.error('Cannot resolve shop for subscription payment', {
+        logger.error('Subscription payment missing shop_id; refusing to guess', {
             payment_id: payment.id,
             userId,
-            shopId,
         });
-        return { ok: false, reason: 'shop_not_resolved' };
+        return { ok: false, reason: 'shop_id_required' };
+    }
+
+    if (!userId) {
+        logger.error('Subscription payment missing user_id', {
+            payment_id: payment.id,
+            shop_id: resolvedShopId,
+        });
+        return { ok: false, reason: 'user_id_required' };
     }
 
     // ── Step 3: Get billing cycle from existing subscription or metadata ──
@@ -269,8 +265,10 @@ async function handleSubscriptionPayment(
     const { data: existingSub } = await supabase
         .from('subscriptions')
         .select('billing_cycle')
-        .eq('shop_id', resolvedShopId)
-        .single();
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
     if (existingSub?.billing_cycle) {
         billingCycle = existingSub.billing_cycle;
@@ -305,24 +303,51 @@ async function handleSubscriptionPayment(
     const baseMonths = billingCycle === 'yearly' ? 12 : 1;
     endDate.setMonth(endDate.getMonth() + baseMonths + bonusMonths);
 
-    // ── Step 5: Upsert subscription with SHOP_ID ──
-    const { data: upsertedSub, error: subError } = await supabase
-        .from('subscriptions')
-        .upsert({
-            shop_id: resolvedShopId,
-            plan_id: plan.id,
-            status: 'active',
-            billing_cycle: billingCycle,
-            current_period_start: startDate.toISOString(),
-            current_period_end: endDate.toISOString(),
-        }, {
-            onConflict: 'shop_id',
-        })
-        .select('id')
-        .single();
+    // ── Step 5: Upsert subscription keyed by USER_ID (per-user plan model) ──
+    // shop_id is retained for analytics linkage. period_anchor_at + tokens_used_in_period
+    // start a fresh 30-day rolling window every activation.
+    const subPayload = {
+        user_id: userId,
+        shop_id: resolvedShopId,
+        plan_id: plan.id,
+        status: 'active',
+        billing_cycle: billingCycle,
+        current_period_start: startDate.toISOString(),
+        current_period_end: endDate.toISOString(),
+        period_anchor_at: startDate.toISOString(),
+        tokens_used_in_period: 0,
+    };
+
+    let upsertedSub: { id?: string } | null = null;
+    let subError: { message?: string } | null = null;
+
+    {
+        const res = await supabase
+            .from('subscriptions')
+            .upsert(subPayload, { onConflict: 'user_id' })
+            .select('id')
+            .maybeSingle();
+        upsertedSub = res.data ?? null;
+        subError = res.error;
+    }
 
     if (subError) {
-        logger.error('Failed to activate subscription:', { error: subError.message });
+        logger.warn('subscriptions upsert by user_id failed, falling back to shop_id', {
+            err: subError.message,
+        });
+        const fallbackPayload = { ...subPayload };
+        delete (fallbackPayload as Record<string, unknown>).user_id;
+        const res = await supabase
+            .from('subscriptions')
+            .upsert(fallbackPayload, { onConflict: 'shop_id' })
+            .select('id')
+            .maybeSingle();
+        upsertedSub = res.data ?? null;
+        subError = res.error;
+    }
+
+    if (subError || !upsertedSub) {
+        logger.error('Failed to activate subscription:', { error: subError?.message });
         return { ok: false, reason: 'subscription_upsert_failed' };
     }
 
@@ -400,6 +425,45 @@ async function handleSubscriptionPayment(
             error: lastShopUpdateError,
         });
         return { ok: false, reason: 'shop_update_failed' };
+    }
+
+    // ── Step 6.5: Mirror plan to user_profiles + every shop the user owns ──
+    // Plan is per-user; the user_profiles snapshot is what /api/features reads.
+    // The per-shop columns are also written so legacy code paths keep agreeing
+    // with the live plan until they're deprecated.
+    const userPlanPayload = {
+        plan_id: plan.id,
+        subscription_plan: plan.slug,
+        subscription_status: 'active',
+        updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileUpdateError } = await supabase
+        .from('user_profiles')
+        .update(userPlanPayload)
+        .eq('id', userId);
+
+    if (profileUpdateError) {
+        logger.warn('user_profiles plan mirror failed (non-fatal)', {
+            user_id: userId,
+            error: profileUpdateError.message,
+        });
+    }
+
+    const { error: allShopsUpdateError } = await supabase
+        .from('shops')
+        .update({
+            plan_id: plan.id,
+            subscription_plan: plan.slug,
+            subscription_status: 'active',
+        })
+        .eq('user_id', userId);
+
+    if (allShopsUpdateError) {
+        logger.warn('Mirroring plan to all user shops failed (non-fatal)', {
+            user_id: userId,
+            error: allShopsUpdateError.message,
+        });
     }
 
     // ── Step 7: Also mark any related invoice as paid ──

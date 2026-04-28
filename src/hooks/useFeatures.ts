@@ -42,12 +42,27 @@ interface Usage {
     products_count: number;
 }
 
+interface BillingSnapshot {
+    plan: string;
+    status: string;
+    trialEndsAt: string | null;
+    tokensUsed: number;
+    tokensLimit: number | null;
+    periodAnchorAt: string | null;
+    daysUntilReset: number | null;
+}
+
 interface FeaturesResponse {
     features: Features;
     limits: Limits;
     usage?: Usage;
     plan: Plan;
-    shopId?: string;
+    /**
+     * User-level token pool snapshot. Same for every shop the user owns —
+     * surfacing it here lets dashboards show a single quota bar across shops.
+     */
+    billing?: BillingSnapshot;
+    shopId?: string | null;
 }
 
 const fetchFeatures = async (): Promise<FeaturesResponse> => {
@@ -135,6 +150,7 @@ export function useFeatures() {
         limits: data?.limits,
         plan,
         shopId: data?.shopId,
+        billing: data?.billing,
         isLoading,
         error,
         hasFeature,
@@ -148,4 +164,4 @@ export function useFeatures() {
     };
 }
 
-export type { Features, Limits, Plan, FeaturesResponse, Usage };
+export type { Features, Limits, Plan, FeaturesResponse, Usage, BillingSnapshot };

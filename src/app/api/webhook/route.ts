@@ -4,6 +4,7 @@ import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import { getUserBilling } from '@/lib/billing/getUserBilling';
 import * as Sentry from '@sentry/nextjs';
 import type { ChatMessage, AIEmotion } from '@/types/ai';
 import {
@@ -191,14 +192,20 @@ export async function POST(request: NextRequest) {
             // Get AI features for this shop
             const aiFeatures = await getAIFeatures(shop.id);
 
-            // Get access token based on platform
+            // Get access token from the shop record.
             // IMPORTANT: Instagram Messaging API requires the PAGE Access Token, NOT the IG content token.
-            // instagram_access_token is for reading IG content (posts, media) only.
-            // facebook_page_access_token works for both FB Messenger AND IG messaging.
-            const accessToken = shop.facebook_page_access_token || process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+            // instagram_access_token is the Page token alias used for IG messaging.
+            // The global FACEBOOK_PAGE_ACCESS_TOKEN env-var fallback was removed:
+            // it silently masked misconfigured shops (a NULL token meant the shop
+            // had never connected, but the env fallback let the webhook proceed
+            // anyway, often delivering messages with the wrong identity).
+            const accessToken = shop.facebook_page_access_token || shop.instagram_access_token;
 
             if (!accessToken) {
-                logger.warn(`No access token for shop ${shop.name} on ${platform}`);
+                logger.warn(`No access token for shop ${shop.name} on ${platform} — skipping`, {
+                    shopId: shop.id,
+                    platform,
+                });
                 continue;
             }
 
@@ -308,11 +315,17 @@ export async function POST(request: NextRequest) {
                     try {
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
-                        // Route to AI
+                        // Source plan/quota from the USER pool (one plan per
+                        // user, shared across shops). Falls back to the shop
+                        // row when the user-level snapshot isn't populated yet
+                        // (legacy data path).
+                        const billing = shop.user_id ? await getUserBilling(shop.user_id) : null;
+
                         const response = await routeToAI(
                             userMessage,
                             {
                                 shopId: shop.id,
+                                userId: shop.user_id || undefined,
                                 customerId: customer.id,
                                 shopName: shop.name,
                                 shopDescription: shop.description || undefined,
@@ -327,12 +340,12 @@ export async function POST(request: NextRequest) {
                                 slogans: aiFeatures.slogans,
                                 notifySettings: buildNotifySettings(shop),
                                 subscription: {
-                                    plan: shop.subscription_plan || 'starter',
-                                    status: shop.subscription_status || 'active',
-                                    trialEndsAt: shop.trial_ends_at || undefined,
+                                    plan: billing?.plan || shop.subscription_plan || 'starter',
+                                    status: billing?.status || shop.subscription_status || 'active',
+                                    trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
                                 },
                                 messageCount: customer.message_count || 0,
-                                tokenUsageTotal: shop.token_usage_total || 0,
+                                tokenUsageTotal: billing?.tokensUsed ?? (shop.token_usage_total || 0),
                             },
                             previousHistory
                         );
@@ -550,10 +563,13 @@ export async function POST(request: NextRequest) {
                         try {
                             const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
+                            const billing = shop.user_id ? await getUserBilling(shop.user_id) : null;
+
                             const response = await routeToAI(
                                 userMessage,
                                 {
                                     shopId: shop.id,
+                                    userId: shop.user_id || undefined,
                                     customerId: customer.id,
                                     shopName: shop.name,
                                     shopDescription: shop.description || undefined,
@@ -565,12 +581,12 @@ export async function POST(request: NextRequest) {
                                     orderHistory: customer.total_orders || 0,
                                     notifySettings: buildNotifySettings(shop),
                                     subscription: {
-                                        plan: shop.subscription_plan || 'starter',
-                                        status: shop.subscription_status || 'active',
-                                        trialEndsAt: shop.trial_ends_at || undefined,
+                                        plan: billing?.plan || shop.subscription_plan || 'starter',
+                                        status: billing?.status || shop.subscription_status || 'active',
+                                        trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
                                     },
                                     messageCount: customer.message_count || 0,
-                                    tokenUsageTotal: shop.token_usage_total || 0,
+                                    tokenUsageTotal: billing?.tokensUsed ?? (shop.token_usage_total || 0),
                                 },
                                 previousHistory
                             );

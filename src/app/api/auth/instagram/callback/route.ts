@@ -122,20 +122,78 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(`${origin}${redirectBase}?ig_error=no_instagram_account&pages=${allPages.length}`);
         }
 
-        // If from settings — save directly to DB
+        // If from settings — validate ownership, then either save directly
+        // (single IG account) or route to a picker page (multiple accounts).
         if (source === 'settings' && shopId) {
-            const igAccount = pagesWithInstagram[0]; // Use first matched IG account
             const supabase = supabaseAdmin();
 
+            // Cross-user defence: confirm the target shop belongs to the
+            // currently authenticated user before mutating anything.
+            const { getAuthUser } = await import('@/lib/auth/auth');
+            const authUserId = await getAuthUser();
+
+            if (!authUserId) {
+                return NextResponse.redirect(`${origin}${redirectBase}?ig_error=not_authenticated`);
+            }
+
+            const { data: shopRow } = await supabase
+                .from('shops')
+                .select('id, user_id')
+                .eq('id', shopId)
+                .maybeSingle();
+
+            if (!shopRow || shopRow.user_id !== authUserId) {
+                logger.warn('Instagram callback: shop ownership check failed', {
+                    shopId,
+                    authUserId,
+                    rowUserId: shopRow?.user_id,
+                });
+                return NextResponse.redirect(`${origin}${redirectBase}?ig_error=shop_ownership`);
+            }
+
+            // Multiple IG candidates → store list in cookie and route to picker.
+            if (pagesWithInstagram.length > 1) {
+                const accounts = pagesWithInstagram.map((page) => ({
+                    pageId: page.id,
+                    pageName: page.name,
+                    pageAccessToken: page.access_token,
+                    instagramId: page.instagram_business_account!.id,
+                    instagramUsername: page.instagram_business_account!.username || '',
+                    instagramName: page.instagram_business_account!.name || page.name,
+                    profilePicture: page.instagram_business_account!.profile_picture_url || '',
+                }));
+
+                const encoded = Buffer.from(JSON.stringify(accounts)).toString('base64');
+                cookieStore.set('ig_accounts', encoded, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 86400,
+                    path: '/',
+                });
+                cookieStore.set('ig_picker_shop_id', shopId, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 86400,
+                    path: '/',
+                });
+
+                return NextResponse.redirect(
+                    `${origin}/dashboard/settings/instagram-picker?count=${accounts.length}`
+                );
+            }
+
+            const igAccount = pagesWithInstagram[0];
             const { error: dbError } = await supabase
                 .from('shops')
                 .update({
                     instagram_business_account_id: igAccount.instagram_business_account!.id,
-                    instagram_account_id: igAccount.instagram_business_account!.id,
                     instagram_username: igAccount.instagram_business_account!.username || '',
                     instagram_access_token: igAccount.access_token,
                 })
-                .eq('id', shopId);
+                .eq('id', shopId)
+                .eq('user_id', authUserId);
 
             if (dbError) {
                 logger.error('Failed to save Instagram data:', { error: dbError.message });

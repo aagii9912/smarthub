@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import { getUserBilling } from '@/lib/billing/getUserBilling';
 import { sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { logger } from '@/lib/utils/logger';
@@ -159,7 +160,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
     const { data: shop } = await supabase
         .from('shops')
         .select(`
-            id, name, description, ai_instructions, ai_emotion, custom_knowledge,
+            id, user_id, name, description, ai_instructions, ai_emotion, custom_knowledge,
             is_ai_active, subscription_plan, subscription_status, trial_ends_at, token_usage_total,
             products (id, name, description, price, stock, variants, discount_percent, delivery_type, delivery_fee)
         `)
@@ -270,10 +271,16 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
             const intent = detectIntent(combinedText);
             const previousHistory: ChatMessage[] = await getChatHistory(shopId, customerId);
 
+            // Per-user pool: source plan + token quota from the user, fall
+            // back to per-shop columns when the snapshot isn't populated.
+            const userIdForShop = (shopData as { user_id?: string }).user_id;
+            const billing = userIdForShop ? await getUserBilling(userIdForShop) : null;
+
             const response = await routeToAI(
                 combinedText,
                 {
                     shopId: shopData.id,
+                    userId: userIdForShop,
                     customerId: customerId,
                     shopName: shopData.name,
                     shopDescription: shopData.description || undefined,
@@ -303,12 +310,12 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                         token_usage_total: shopData.token_usage_total,
                     }),
                     subscription: {
-                        plan: shopData.subscription_plan || 'starter',
-                        status: shopData.subscription_status || 'active',
-                        trialEndsAt: shopData.trial_ends_at || undefined,
+                        plan: billing?.plan || shopData.subscription_plan || 'starter',
+                        status: billing?.status || shopData.subscription_status || 'active',
+                        trialEndsAt: billing?.trialEndsAt || shopData.trial_ends_at || undefined,
                     },
                     messageCount: customer.message_count || 0,
-                    tokenUsageTotal: shopData.token_usage_total || 0,
+                    tokenUsageTotal: billing?.tokensUsed ?? (shopData.token_usage_total || 0),
                 },
                 previousHistory
             );

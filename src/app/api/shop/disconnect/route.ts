@@ -26,13 +26,23 @@ export async function POST(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        // Get user's active shop
-        const { data: shop, error: shopError } = await supabase
+        // Resolve target shop. Prefer x-shop-id from header — picking
+        // "first active shop" silently disconnects the wrong shop in
+        // multi-shop accounts. Fall back to single-shop mode for clients
+        // that haven't been updated yet.
+        const headerShopId = request.headers.get('x-shop-id');
+        let shopQuery = supabase
             .from('shops')
             .select('id')
-            .eq('user_id', userId)
-            .eq('is_active', true)
-            .single();
+            .eq('user_id', userId);
+
+        if (headerShopId) {
+            shopQuery = shopQuery.eq('id', headerShopId);
+        } else {
+            shopQuery = shopQuery.eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+        }
+
+        const { data: shop, error: shopError } = await shopQuery.maybeSingle();
 
         if (shopError || !shop) {
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 });

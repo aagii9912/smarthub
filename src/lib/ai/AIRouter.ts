@@ -56,7 +56,17 @@ export interface RouterChatContext extends ChatContext {
     };
     /** Per-customer message count — analytics only, not billing. */
     messageCount?: number;
-    tokenUsageTotal?: number;  // Current month's total token usage for the shop
+    /**
+     * Tokens consumed in the current rolling 30-day window. With the per-user
+     * pool, this is the SUM across all of the user's shops (not per-shop).
+     */
+    tokenUsageTotal?: number;
+    /**
+     * Owner of the shop. Required so token persistence accounts the call
+     * against the correct user pool. Optional only for legacy callers — when
+     * absent, persistTokenUsage falls back to a shop→user lookup.
+     */
+    userId?: string;
 }
 
 /**
@@ -492,10 +502,16 @@ export async function routeToAI(
                 });
             }
 
-            // Persist token usage to shop record (non-blocking)
-            persistTokenUsage(context.shopId, totalTokensConsumed, 'chat_reply', {
-                model: planConfig.model,
-            }).catch(() => {});
+            // Persist token usage to user pool + shop analytics (non-blocking).
+            if (context.userId) {
+                persistTokenUsage(context.userId, context.shopId, totalTokensConsumed, 'chat_reply', {
+                    model: planConfig.model,
+                }).catch(() => {});
+            } else {
+                persistTokenUsage(context.shopId, totalTokensConsumed, 'chat_reply', {
+                    model: planConfig.model,
+                }).catch(() => {});
+            }
 
             logger.success(`AIRouter response received (${planType}/${planConfig.model}, ${totalTokensConsumed} tokens)`);
 

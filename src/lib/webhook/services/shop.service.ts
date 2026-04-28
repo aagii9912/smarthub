@@ -56,6 +56,7 @@ export function mapShopProductsToAI(products: ShopProductRow[] | null | undefine
 
 export interface ShopWithProducts {
     id: string;
+    user_id?: string | null;
     name: string;
     description?: string | null;
     ai_instructions?: string | null;
@@ -88,6 +89,37 @@ export interface AIFeatures {
     slogans: AISlogan[];
 }
 
+function mapShopRowToShopWithProducts(data: Record<string, unknown>): ShopWithProducts {
+    const get = <T>(key: string): T => data[key] as T;
+    return {
+        id: get<string>('id'),
+        user_id: get<string | null>('user_id'),
+        name: get<string>('name'),
+        description: get<string | null>('description'),
+        ai_instructions: get<string | null>('ai_instructions'),
+        ai_emotion: get<ShopWithProducts['ai_emotion']>('ai_emotion'),
+        facebook_page_id: get<string>('facebook_page_id'),
+        facebook_page_username: get<string | null>('facebook_page_username'),
+        facebook_page_access_token: get<string | null>('facebook_page_access_token'),
+        instagram_business_account_id: get<string | null>('instagram_business_account_id'),
+        instagram_access_token: get<string | null>('instagram_access_token'),
+        instagram_username: get<string | null>('instagram_username'),
+        products: mapShopProductsToAI(get<Parameters<typeof mapShopProductsToAI>[0]>('products')),
+        notify_on_order: get<boolean | null>('notify_on_order'),
+        notify_on_contact: get<boolean | null>('notify_on_contact'),
+        notify_on_support: get<boolean | null>('notify_on_support'),
+        notify_on_cancel: get<boolean | null>('notify_on_cancel'),
+        notify_on_complaints: get<boolean | null>('notify_on_complaints'),
+        is_ai_active: get<boolean | null>('is_ai_active'),
+        subscription_plan: get<string | null>('subscription_plan'),
+        subscription_status: get<string | null>('subscription_status'),
+        trial_ends_at: get<string | null>('trial_ends_at'),
+        custom_knowledge: get<Record<string, unknown> | null>('custom_knowledge'),
+        token_usage_total: get<number | undefined>('token_usage_total') || 0,
+        token_usage_reset_at: get<string | null>('token_usage_reset_at'),
+    };
+}
+
 export async function getShopByPageId(pageId: string): Promise<ShopWithProducts | null> {
     const supabase = supabaseAdmin();
 
@@ -101,71 +133,45 @@ export async function getShopByPageId(pageId: string): Promise<ShopWithProducts 
 
     if (!data) return null;
 
-    return {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        ai_instructions: data.ai_instructions,
-        ai_emotion: data.ai_emotion,
-        facebook_page_id: data.facebook_page_id,
-        facebook_page_username: data.facebook_page_username,
-        facebook_page_access_token: data.facebook_page_access_token,
-        products: mapShopProductsToAI(data.products),
-        notify_on_order: data.notify_on_order,
-        notify_on_contact: data.notify_on_contact,
-        notify_on_support: data.notify_on_support,
-        notify_on_cancel: data.notify_on_cancel,
-        is_ai_active: data.is_ai_active,
-        subscription_plan: data.subscription_plan,
-        subscription_status: data.subscription_status,
-        trial_ends_at: data.trial_ends_at,
-        custom_knowledge: data.custom_knowledge,
-        instagram_business_account_id: data.instagram_business_account_id,
-        instagram_access_token: data.instagram_access_token,
-        instagram_username: data.instagram_username,
-        token_usage_total: data.token_usage_total || 0,
-        token_usage_reset_at: data.token_usage_reset_at,
-    };
+    return mapShopRowToShopWithProducts(data as Record<string, unknown>);
 }
 
 export async function getShopByInstagramId(instagramId: string): Promise<ShopWithProducts | null> {
     const supabase = supabaseAdmin();
 
-    const { data } = await supabase
+    // .maybeSingle() so legacy duplicate IG rows don't crash the webhook before
+    // the UNIQUE constraint migration runs. The constraint will prevent new
+    // duplicates; this guard keeps existing data routable.
+    const { data, error } = await supabase
         .from('shops')
         .select('*, products(*)')
         .eq('instagram_business_account_id', instagramId)
         .eq('is_active', true)
         .eq('products.is_active', true)
-        .single();
+        .maybeSingle();
 
+    if (error) {
+        // PGRST116 = "More than one row was returned" (only thrown by .single()/maybeSingle()
+        // when multiple match). Log explicitly so misrouted webhooks are debuggable.
+        // We choose deterministic ordering as a fallback so traffic doesn't drop.
+        if ((error as { code?: string }).code === 'PGRST116') {
+            const { data: rows } = await supabase
+                .from('shops')
+                .select('*, products(*)')
+                .eq('instagram_business_account_id', instagramId)
+                .eq('is_active', true)
+                .eq('products.is_active', true)
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            if (rows && rows.length > 0) {
+                return mapShopRowToShopWithProducts(rows[0] as Record<string, unknown>);
+            }
+        }
+        return null;
+    }
     if (!data) return null;
 
-    return {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        ai_instructions: data.ai_instructions,
-        ai_emotion: data.ai_emotion,
-        facebook_page_id: data.facebook_page_id,
-        facebook_page_username: data.facebook_page_username,
-        facebook_page_access_token: data.facebook_page_access_token,
-        instagram_business_account_id: data.instagram_business_account_id,
-        instagram_access_token: data.instagram_access_token,
-        instagram_username: data.instagram_username,
-        products: mapShopProductsToAI(data.products),
-        notify_on_order: data.notify_on_order,
-        notify_on_contact: data.notify_on_contact,
-        notify_on_support: data.notify_on_support,
-        notify_on_cancel: data.notify_on_cancel,
-        is_ai_active: data.is_ai_active,
-        subscription_plan: data.subscription_plan,
-        subscription_status: data.subscription_status,
-        trial_ends_at: data.trial_ends_at,
-        custom_knowledge: data.custom_knowledge,
-        token_usage_total: data.token_usage_total || 0,
-        token_usage_reset_at: data.token_usage_reset_at,
-    };
+    return mapShopRowToShopWithProducts(data as Record<string, unknown>);
 }
 
 export async function getAIFeatures(shopId: string): Promise<AIFeatures> {

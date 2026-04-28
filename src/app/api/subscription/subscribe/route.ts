@@ -186,17 +186,32 @@ export async function POST(request: NextRequest) {
                     expires_at: qpayResult.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
                 });
 
-            // Store pending subscription info
-            await supabase
+            // Store pending subscription info — keyed by user (per-user plan model).
+            // shop_id is retained for analytics linkage but is no longer the conflict target.
+            const subscriptionUpsert: Record<string, unknown> = {
+                user_id: userId,
+                shop_id: shop.id,
+                plan_id: plan.id,
+                status: 'pending',
+                billing_cycle,
+            };
+
+            const { error: subUpsertError } = await supabase
                 .from('subscriptions')
-                .upsert({
-                    shop_id: shop.id,
-                    plan_id: plan.id,
-                    status: 'pending',
-                    billing_cycle
-                }, {
-                    onConflict: 'shop_id'
+                .upsert(subscriptionUpsert, { onConflict: 'user_id' });
+
+            if (subUpsertError) {
+                logger.warn('subscriptions upsert by user_id failed, falling back to shop_id', {
+                    err: subUpsertError.message,
                 });
+                // Legacy environments without the new partial UNIQUE — fall back to old behavior.
+                await supabase
+                    .from('subscriptions')
+                    .upsert(
+                        { shop_id: shop.id, plan_id: plan.id, status: 'pending', billing_cycle },
+                        { onConflict: 'shop_id' }
+                    );
+            }
 
             return NextResponse.json({
                 invoice_id: invoice.id,
