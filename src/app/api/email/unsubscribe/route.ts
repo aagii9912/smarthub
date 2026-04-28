@@ -10,8 +10,6 @@ import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
-const CRON_SECRET = process.env.CRON_SECRET;
-
 function htmlPage(title: string, body: string): NextResponse {
     return new NextResponse(
         `<!DOCTYPE html>
@@ -33,9 +31,11 @@ export async function GET(request: NextRequest) {
         return htmlPage('Алдаа', '<p>Shop ID шаардлагатай.</p>');
     }
 
-    if (CRON_SECRET) {
+    // Read at runtime so tests / env changes are honored
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret) {
         const expected = crypto
-            .createHmac('sha256', CRON_SECRET)
+            .createHmac('sha256', cronSecret)
             .update(`unsubscribe:${shopId}`)
             .digest('hex');
         if (!sig || sig !== expected) {

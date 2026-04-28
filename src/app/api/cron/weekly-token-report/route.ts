@@ -16,8 +16,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendTokenUsageReport, type TokenReportFeatureRow } from '@/lib/email/email';
 
-const CRON_SECRET = process.env.CRON_SECRET;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn';
+// Note: env vars read at runtime (inside GET) so tests / hot-reloaded env changes are honored.
 
 interface BreakdownRow {
     shop_id: string;
@@ -43,23 +42,26 @@ function pickEmail(profiles: ShopRow['user_profiles']): string | null {
     return profiles.email ?? null;
 }
 
-function buildUnsubscribeUrl(shopId: string): string {
-    if (!CRON_SECRET) {
+function buildUnsubscribeUrl(shopId: string, cronSecret: string | undefined, appUrl: string): string {
+    if (!cronSecret) {
         // Dev fallback — still works locally without a secret
-        return `${APP_URL}/api/email/unsubscribe?shop=${shopId}`;
+        return `${appUrl}/api/email/unsubscribe?shop=${shopId}`;
     }
     const sig = crypto
-        .createHmac('sha256', CRON_SECRET)
+        .createHmac('sha256', cronSecret)
         .update(`unsubscribe:${shopId}`)
         .digest('hex');
-    return `${APP_URL}/api/email/unsubscribe?shop=${shopId}&sig=${sig}`;
+    return `${appUrl}/api/email/unsubscribe?shop=${shopId}&sig=${sig}`;
 }
 
 export async function GET(request: NextRequest) {
     try {
-        if (process.env.NODE_ENV === 'production' && CRON_SECRET) {
+        const cronSecret = process.env.CRON_SECRET;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn';
+
+        if (process.env.NODE_ENV === 'production' && cronSecret) {
             const authHeader = request.headers.get('authorization');
-            if (authHeader !== `Bearer ${CRON_SECRET}`) {
+            if (authHeader !== `Bearer ${cronSecret}`) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
         }
@@ -168,8 +170,8 @@ export async function GET(request: NextRequest) {
                 totalTokens,
                 totalCalls,
                 rows: aggregated.map(({ sort: _sort, ...r }) => r),
-                unsubscribeUrl: buildUnsubscribeUrl(shopId),
-                dashboardUrl: `${APP_URL}/dashboard/reports?tab=ai`,
+                unsubscribeUrl: buildUnsubscribeUrl(shopId, cronSecret, appUrl),
+                dashboardUrl: `${appUrl}/dashboard/reports?tab=ai`,
             });
 
             if (ok) sent++;
