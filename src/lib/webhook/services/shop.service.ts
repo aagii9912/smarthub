@@ -18,6 +18,12 @@ interface ShopProductRow {
     delivery_type?: string | null;
     delivery_fee?: number | string | null;
     is_active?: boolean | null;
+    // Lifecycle (#8/#9/#10) — added in migration 20260428220000
+    status?: 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued' | null;
+    available_from?: string | null;
+    pre_order_eta?: string | null;
+    // Per-product AI training (#2)
+    ai_instructions?: string | null;
 }
 
 export function mapShopProductsToAI(products: ShopProductRow[] | null | undefined): AIProduct[] {
@@ -50,6 +56,12 @@ export function mapShopProductsToAI(products: ShopProductRow[] | null | undefine
             delivery_type: deliveryType,
             delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
             variants: undefined,
+            // Lifecycle (#8/#9/#10).
+            status: p.status ?? undefined,
+            available_from: p.available_from ?? null,
+            pre_order_eta: p.pre_order_eta ?? null,
+            // Per-product AI training (#2)
+            ai_instructions: p.ai_instructions ?? null,
         };
     });
 }

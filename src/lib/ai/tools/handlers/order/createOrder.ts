@@ -21,7 +21,7 @@ export async function executeCreateOrder(
 
     const { data: dbProduct } = await supabase
         .from('products')
-        .select('stock, reserved_stock, price, id')
+        .select('stock, reserved_stock, price, id, status, pre_order_eta')
         .eq('id', product.id)
         .single();
 
@@ -29,8 +29,25 @@ export async function executeCreateOrder(
         return { success: false, error: 'Бүтээгдэхүүний мэдээлэл олдсонгүй.' };
     }
 
+    const dbStatus = (dbProduct as unknown as { status?: string }).status;
+    const dbPreOrderEta = (dbProduct as unknown as { pre_order_eta?: string }).pre_order_eta;
+
+    // #9/#10: surface helpful messages for non-active statuses.
+    if (dbStatus === 'discontinued') {
+        return { success: false, error: `"${product.name}" нь зогссон бараа байна.` };
+    }
+    if (dbStatus === 'coming_soon') {
+        return {
+            success: false,
+            error: `"${product.name}" удахгүй ирнэ. Одоогоор захиалга авах боломжгүй.`,
+        };
+    }
+
     const availableStock = (dbProduct.stock || 0) - (dbProduct.reserved_stock || 0);
-    if (availableStock < quantity) {
+    const isPreOrder = dbStatus === 'pre_order';
+
+    // #8: pre_order products don't need stock — we record the order anyway.
+    if (!isPreOrder && availableStock < quantity) {
         return { success: false, error: `Үлдэгдэл хүрэлцэхгүй. Боломжит: ${availableStock}` };
     }
 
@@ -69,25 +86,33 @@ export async function executeCreateOrder(
         }
     }
 
-    // Atomic stock reservation (prevents race conditions via SELECT ... FOR UPDATE)
-    const { data: reserved, error: reserveError } = await supabase.rpc('reserve_stock', {
-        p_product_id: product.id,
-        p_quantity: quantity,
-    });
+    // Atomic stock reservation (prevents race conditions via SELECT ... FOR UPDATE).
+    // Skip for pre_order — there's no stock to reserve, the order is logged
+    // and stock gets allocated when the upstream restock arrives.
+    if (!isPreOrder) {
+        const { data: reserved, error: reserveError } = await supabase.rpc('reserve_stock', {
+            p_product_id: product.id,
+            p_quantity: quantity,
+        });
 
-    if (reserveError || !reserved) {
-        logger.warn('Stock reservation failed:', { error: reserveError, reserved });
-        return { success: false, error: `Үлдэгдэл хүрэлцэхгүй байна. Дахин оролдоно уу.` };
+        if (reserveError || !reserved) {
+            logger.warn('Stock reservation failed:', { error: reserveError, reserved });
+            return { success: false, error: `Үлдэгдэл хүрэлцэхгүй байна. Дахин оролдоно уу.` };
+        }
     }
+
+    const orderNotes = isPreOrder
+        ? `AI Pre-order: ${product_name} (${color || ''} ${size || ''})${dbPreOrderEta ? ` — ETA ${new Date(dbPreOrderEta).toISOString().slice(0, 10)}` : ''}`
+        : `AI Order: ${product_name} (${color || ''} ${size || ''})`;
 
     const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
             shop_id: context.shopId,
             customer_id: context.customerId,
-            status: 'pending',
+            status: isPreOrder ? 'pending' : 'pending',
             total_amount: dbProduct.price * quantity,
-            notes: `AI Order: ${product_name} (${color || ''} ${size || ''})`,
+            notes: orderNotes,
             created_at: new Date().toISOString()
         })
         .select()
@@ -95,8 +120,10 @@ export async function executeCreateOrder(
 
     if (orderError) {
         logger.error('Order creation error, releasing stock:', { error: orderError });
-        // Release the reserved stock since order failed
-        await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
+        // Release the reserved stock since order failed (no-op for pre_order).
+        if (!isPreOrder) {
+            await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
+        }
         return { success: false, error: orderError.message };
     }
 
@@ -112,7 +139,9 @@ export async function executeCreateOrder(
     if (itemError) {
         logger.error('Order item insert failed, rolling back order:', { error: itemError });
         await supabase.from('orders').delete().eq('id', order.id);
-        await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
+        if (!isPreOrder) {
+            await supabase.rpc('reserve_stock', { p_product_id: product.id, p_quantity: -quantity });
+        }
         return { success: false, error: 'Захиалгын бараа нэмэхэд алдаа гарлаа. Дахин оролдоно уу.' };
     }
 
@@ -128,10 +157,14 @@ export async function executeCreateOrder(
         }
     }
 
+    const successMessage = isPreOrder
+        ? `Урьдчилсан захиалга #${order.id.substring(0, 8)} бүртгэгдлээ! Бараа${dbPreOrderEta ? ` ${new Date(dbPreOrderEta).toISOString().slice(0, 10)}` : ''} ирэх төлөвтэй. Нийт: ${(dbProduct.price * quantity).toLocaleString()}₮.`
+        : `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`;
+
     return {
         success: true,
-        message: `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`,
-        data: { orderId: order.id, total: dbProduct.price * quantity },
+        message: successMessage,
+        data: { orderId: order.id, total: dbProduct.price * quantity, preOrder: isPreOrder },
         actions: [
             {
                 type: 'confirmation',

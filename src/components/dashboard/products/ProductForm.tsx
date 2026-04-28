@@ -31,6 +31,23 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(product?.type || 'physical');
     const [deliveryType, setDeliveryType] = useState<string>(product?.delivery_type || 'included');
 
+    // Lifecycle status (#8/#9/#10): controls how the AI talks about availability.
+    type ProductLifecycle = 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued';
+    const initialStatus: ProductLifecycle =
+        ((product as unknown as { status?: ProductLifecycle })?.status) ?? 'active';
+    const [productStatus, setProductStatus] = useState<ProductLifecycle>(initialStatus);
+    const [availableFrom, setAvailableFrom] = useState<string>(
+        (product as unknown as { available_from?: string })?.available_from?.slice(0, 10) ?? ''
+    );
+    const [preOrderEta, setPreOrderEta] = useState<string>(
+        (product as unknown as { pre_order_eta?: string })?.pre_order_eta?.slice(0, 10) ?? ''
+    );
+
+    // Per-product AI training note (#2)
+    const [aiInstructions, setAiInstructions] = useState<string>(
+        (product as unknown as { ai_instructions?: string })?.ai_instructions ?? ''
+    );
+
     // Image State
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(product?.images?.[0] || null);
@@ -168,6 +185,16 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 images: imageUrl ? [imageUrl] : [],
                 has_variants: hasVariants,
                 variants: hasVariants ? variants : [],
+                // Lifecycle (#8/#9/#10). API accepts both camelCase + snake_case.
+                status: productStatus,
+                availableFrom: productStatus === 'coming_soon' && availableFrom
+                    ? new Date(availableFrom).toISOString()
+                    : null,
+                preOrderEta: productStatus === 'pre_order' && preOrderEta
+                    ? new Date(preOrderEta).toISOString()
+                    : null,
+                // Per-product AI training (#2)
+                aiInstructions: aiInstructions.trim() || null,
             };
 
             if (productType === 'physical' && !hasVariants) {
@@ -253,6 +280,97 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                 <Input name="stock" label="Үлдэгдэл тоо (Stock)" type="number" defaultValue={product?.stock || ''} placeholder="0" />
                             </div>
                         )}
+                    </div>
+
+                    {/* Lifecycle status (#8/#9/#10) */}
+                    <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-4">
+                        <h3 className="text-[13px] font-semibold text-white/90">Төлөв</h3>
+                        <div>
+                            <label className="block text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-2">
+                                Энэ бараа AI хэрэгчийг яаж танилцуулах вэ?
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {[
+                                    { v: 'active', l: '✅ Идэвхтэй', d: 'Бэлэн зарагдаж байгаа' },
+                                    { v: 'pre_order', l: '⏳ Урьдчилсан захиалга', d: 'Нөөц байхгүй ч захиалга авах' },
+                                    { v: 'coming_soon', l: '🔜 Удахгүй ирнэ', d: 'AI "удахгүй ирнэ" гэж хэлнэ' },
+                                    { v: 'draft', l: '📝 Ноорог', d: 'Хадгалсан ч AI харахгүй' },
+                                    { v: 'discontinued', l: '🚫 Зогссон', d: 'AI "энэ бараа байхгүй боллоо" гэнэ' },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.v}
+                                        type="button"
+                                        onClick={() => setProductStatus(opt.v as ProductLifecycle)}
+                                        className={`text-left p-3 rounded-lg border text-[12px] transition-all ${productStatus === opt.v
+                                            ? 'border-violet-500/60 bg-violet-500/[0.08] text-white'
+                                            : 'border-white/[0.06] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/[0.12]'}`}
+                                    >
+                                        <div className="font-semibold">{opt.l}</div>
+                                        <div className="text-[11px] text-white/40 mt-0.5">{opt.d}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Coming soon: when does it become active? */}
+                        {productStatus === 'coming_soon' && (
+                            <div>
+                                <label className="block text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-1.5">
+                                    Хэзээ бэлэн болох вэ? (Бид мэдэхгүй бол хоосон үлдээж болно)
+                                </label>
+                                <input
+                                    type="date"
+                                    value={availableFrom}
+                                    onChange={(e) => setAvailableFrom(e.target.value)}
+                                    className="w-full px-3 py-2 bg-[#0A0220] border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none"
+                                />
+                                <p className="text-[10.5px] text-white/40 mt-1">
+                                    AI: &ldquo;{availableFrom ? `${availableFrom}-нд бэлэн болно` : 'удахгүй ирнэ'}&rdquo;
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Pre-order: expected restock date */}
+                        {productStatus === 'pre_order' && (
+                            <div>
+                                <label className="block text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-1.5">
+                                    Хүлээгдэж буй ирэх огноо
+                                </label>
+                                <input
+                                    type="date"
+                                    value={preOrderEta}
+                                    onChange={(e) => setPreOrderEta(e.target.value)}
+                                    className="w-full px-3 py-2 bg-[#0A0220] border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none"
+                                />
+                                <p className="text-[10.5px] text-white/40 mt-1">
+                                    AI урьдчилсан захиалга авна, нөөц ирэхэд хэрэглэгчид мэдэгдэнэ.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Per-product AI training (#2) */}
+                    <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-3">
+                        <h3 className="text-[13px] font-semibold text-white/90">
+                            🎓 AI Сургах (зөвхөн энэ бараанд хамаарна)
+                        </h3>
+                        <p className="text-[11.5px] text-white/45 leading-relaxed">
+                            AI энэ бараагаар ярих үед үйлчилгээ ямар байх ёстойг товч бичээрэй. Хоосон үлдээвэл зөвхөн дэлгүүрийн ерөнхий заавар хэрэгжинэ.
+                        </p>
+                        <textarea
+                            value={aiInstructions}
+                            onChange={(e) => setAiInstructions(e.target.value)}
+                            rows={3}
+                            maxLength={500}
+                            placeholder={`Жишээ:
+• Хямдрал санал болгохгүй
+• Хүргэлт орон даяар үнэгүй гэж онцлох
+• Хэрэглэгчийн размерийг асуу`}
+                            className="w-full px-3 py-2.5 bg-[#0A0220] border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none placeholder:text-white/25 leading-relaxed"
+                        />
+                        <p className="text-[10.5px] text-white/40 text-right">
+                            {aiInstructions.length} / 500
+                        </p>
                     </div>
 
                     {/* Delivery Settings Card - physical products only */}

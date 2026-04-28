@@ -207,9 +207,12 @@ export async function PATCH(request: NextRequest) {
 
     // Whitelist allowed fields to prevent mass assignment (SEC-5)
     const ALLOWED_FIELDS = [
-      'name', 'owner_name', 'phone', 'description',
+      'name', 'owner_name', 'phone', 'description', 'address', 'business_hours',
       'ai_instructions', 'ai_emotion', 'is_ai_active',
       'custom_knowledge', 'policies',
+      // AI info-sharing toggles (#5b/#5c)
+      'ai_share_phone', 'ai_share_address', 'ai_share_hours',
+      'ai_share_policies', 'ai_share_description',
       'bank_name', 'account_name', 'account_number', 'register_number', 'merchant_type',
       'notify_on_order', 'notify_on_contact', 'notify_on_support', 'notify_on_cancel', 'notify_on_complaints',
       'facebook_page_id', 'facebook_page_name', 'facebook_page_username',

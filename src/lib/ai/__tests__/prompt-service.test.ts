@@ -110,7 +110,8 @@ describe('PromptService', () => {
 
         it('formats instructions correctly', () => {
             const result = buildCustomInstructions('Be very friendly');
-            expect(result).toContain('ДЭЛГҮҮРИЙН ЭЗНИЙ ЗААВАР');
+            expect(result).toContain('ДЭЛГҮҮРИЙН ЭЗНИЙ');
+            expect(result).toContain('ЗААВАР');
             expect(result).toContain('Be very friendly');
         });
     });

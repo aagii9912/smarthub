@@ -5,7 +5,7 @@
  * Enhanced for natural, human-like conversation
  */
 
-import type { ChatContext } from '@/types/ai';
+import type { ChatContext, AIProduct } from '@/types/ai';
 import { formatMemoryForPrompt } from '../tools/memory';
 
 /**
@@ -83,30 +83,55 @@ export function buildProductsInfo(products: ChatContext['products']): string {
         return '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
     }
 
-    return products.map(p => {
+    // Hide drafts and discontinued items from the AI altogether.
+    const visible = products.filter(p => p.status !== 'draft' && p.status !== 'discontinued');
+
+    if (visible.length === 0) {
+        return '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+    }
+
+    const formatEta = (iso?: string | null): string => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
+    return visible.map(p => {
         const isService = p.type === 'service';
         const unit = p.unit || (isService ? 'захиалга' : 'ширхэг');
 
         // Calculate available stock (total - reserved)
         const availableStock = p.stock - (p.reserved_stock || 0);
 
-        // Different display for products vs services
+        // Different display for products vs services. Status overrides
+        // stock language for #9/#10 (Удахгүй ирнэ vs Дууссан).
         let stockDisplay: string;
-        if (availableStock > 0) {
-            if (isService) {
-                stockDisplay = `${availableStock} ${unit} авах боломжтой`;
-            } else {
-                stockDisplay = `${availableStock} ${unit} байна`;
-            }
+        if (p.status === 'coming_soon') {
+            const eta = formatEta(p.available_from);
+            stockDisplay = eta
+                ? `Удахгүй ирнэ — ${eta}-нд бэлэн болно (одоогоор зарлахгүй)`
+                : 'Удахгүй ирнэ (огноо тодорхойгүй)';
+        } else if (p.status === 'pre_order') {
+            const eta = formatEta(p.pre_order_eta);
+            stockDisplay = eta
+                ? `Урьдчилсан захиалга боломжтой (${eta} ирэх төлөвтэй)`
+                : 'Урьдчилсан захиалга боломжтой';
+        } else if (availableStock > 0) {
+            stockDisplay = isService
+                ? `${availableStock} ${unit} авах боломжтой`
+                : `${availableStock} ${unit} байна`;
         } else {
-            if (isService) {
-                stockDisplay = 'Захиалга дүүрсэн';
-            } else {
-                stockDisplay = 'Дууссан';
-            }
+            stockDisplay = isService ? 'Захиалга дүүрсэн' : 'Дууссан';
         }
 
-        const typeLabel = isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
+        const typeLabel =
+            p.status === 'coming_soon' ? '[УДАХГҮЙ ИРНЭ]'
+                : p.status === 'pre_order' ? '[УРЬДЧИЛСАН ЗАХИАЛГА]'
+                    : isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
 
         // Calculate discount
         const hasDiscount = p.discount_percent && p.discount_percent > 0;
@@ -148,11 +173,31 @@ export function buildProductsInfo(products: ChatContext['products']): string {
 }
 
 /**
- * Build custom instructions section
+ * Build custom instructions section. Concatenates shop-level guidance with
+ * any product-level overrides (#2). Per-product hints are scoped to a
+ * specific product so the AI knows when to apply each rule.
  */
-export function buildCustomInstructions(aiInstructions?: string): string {
-    if (!aiInstructions) return '';
-    return `\nДЭЛГҮҮРИЙН ЭЗНИЙ ЗААВАР (Зан төлөв):\n${aiInstructions}\n`;
+export function buildCustomInstructions(
+    aiInstructions?: string,
+    products?: AIProduct[]
+): string {
+    const productHints = (products ?? [])
+        .filter(p => p.ai_instructions && p.ai_instructions.trim().length > 0)
+        .map(p => `  • [${p.name}]: ${p.ai_instructions!.trim()}`)
+        .join('\n');
+
+    if (!aiInstructions && !productHints) return '';
+
+    const sections: string[] = [];
+    if (aiInstructions) {
+        sections.push(`ДЭЛГҮҮРИЙН ЭЗНИЙ ЕРӨНХИЙ ЗААВАР (Зан төлөв):\n${aiInstructions}`);
+    }
+    if (productHints) {
+        sections.push(
+            `БҮТЭЭГДЭХҮҮН ТУС БҮРД ХАМААРАХ ЗААВАР:\n${productHints}\nДоорх зааврууд тухайн бараагаар ярих үед л хэрэглэнэ.`
+        );
+    }
+    return `\n${sections.join('\n\n')}\n`;
 }
 
 /**
@@ -234,15 +279,49 @@ export function buildSloganSection(slogans?: ChatContext['slogans']): string {
 /**
  * Build the complete system prompt
  */
+/**
+ * Build the contact-info section the AI is allowed to disclose.
+ *
+ * Issues #5b / #5c: each field has its own toggle on the shop record so
+ * the owner can opt in to phone/address/hours sharing without leaking
+ * everything at once. Defaults preserve historical behaviour: description
+ * + policies share, phone/address/hours don't.
+ */
+function buildSharedInfoSection(context: ChatContext): string {
+    const flags = context.aiShareFlags ?? {};
+    const parts: string[] = [];
+
+    if ((flags.phone ?? false) && context.shopPhone) {
+        parts.push(`УТАС: ${context.shopPhone}`);
+    }
+    if ((flags.address ?? false) && context.shopAddress) {
+        parts.push(`ХАЯГ: ${context.shopAddress}`);
+    }
+    if ((flags.hours ?? false) && context.shopBusinessHours) {
+        parts.push(`ЦАГИЙН ХУВААРЬ: ${context.shopBusinessHours}`);
+    }
+
+    if (parts.length === 0) return '';
+
+    return `\n=== ХЭРЭГЛЭГЧИД ХУВААЛЦАЖ БОЛОХ МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг хэрэглэгч шууд асуухад хариулж болно. БУСАД ДОТООД мэдээлэл (бусад утас, эзний хувийн мэдээлэл, банкны нууцлал гэх мэт)-ийг ХЭЗЭЭ Ч БҮҮ задал.
+${parts.join('\n')}\n`;
+}
+
 export function buildSystemPrompt(context: ChatContext): string {
     const emotionStyle = EMOTION_PROMPTS[context.aiEmotion || 'friendly'];
     const productsInfo = buildProductsInfo(context.products);
-    const shopInfo = context.shopDescription
+    // Description sharing now respects the owner's per-field toggle.
+    const allowDescription = context.aiShareFlags?.description ?? true;
+    const shopInfo = allowDescription && context.shopDescription
         ? `\nДЭЛГҮҮРИЙН ТУХАЙ: ${context.shopDescription}`
         : '';
-    const customInstructions = buildCustomInstructions(context.aiInstructions);
+    const sharedInfo = buildSharedInfoSection(context);
+    const customInstructions = buildCustomInstructions(context.aiInstructions, context.products);
     const dynamicKnowledge = buildDynamicKnowledge(context.customKnowledge);
-    const policiesInfo = buildPoliciesInfo(context.shopPolicies);
+    // Policies sharing also gated on the toggle (defaults to true for parity).
+    const allowPolicies = context.aiShareFlags?.policies ?? true;
+    const policiesInfo = allowPolicies ? buildPoliciesInfo(context.shopPolicies) : '';
     const cartContext = buildCartContext(
         context.activeCart,
         context.shopPolicies?.shipping_threshold
@@ -415,7 +494,7 @@ ${hasSalesIntelligence ? 'Зорилго: Хэрэглэгчид тохирох 
 ${emotionStyle}
 
 ${HUMAN_LIKE_PATTERNS}
-${shopInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
+${shopInfo}${sharedInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
 
 ${rulesSection}
 

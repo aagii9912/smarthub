@@ -73,6 +73,25 @@ export async function executeCollectContact(
     };
 }
 
+/**
+ * Normalise a Mongolian-style phone number into E.164. Returns null when the
+ * input doesn't look like a real phone — Meta will reject malformed
+ * `phone_number` button payloads.
+ */
+function normalisePhoneE164(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const digits = raw.replace(/[^\d+]/g, '');
+    if (!digits) return null;
+    if (digits.startsWith('+')) {
+        return /^\+\d{6,15}$/.test(digits) ? digits : null;
+    }
+    // Bare 8-digit Mongolian number → assume +976.
+    if (/^\d{8}$/.test(digits)) return `+976${digits}`;
+    // Already 11+ digits without `+` (e.g. country code typed without `+`).
+    if (/^\d{10,15}$/.test(digits)) return `+${digits}`;
+    return null;
+}
+
 export async function executeRequestSupport(
     args: RequestHumanSupportArgs,
     context: ToolExecutionContext
@@ -141,23 +160,39 @@ export async function executeRequestSupport(
         reason,
     });
 
+    // 4. Optionally include a working "Залгах" button that uses Meta's
+    //    native phone_number action. We need the shop's phone in E.164.
+    let shopPhoneE164: string | null = null;
+    try {
+        const { data: shopRow } = await supabase
+            .from('shops')
+            .select('phone')
+            .eq('id', context.shopId)
+            .single();
+        shopPhoneE164 = normalisePhoneE164(shopRow?.phone ?? null);
+    } catch (phoneErr) {
+        logger.warn('Failed to read shop phone for call button:', { error: phoneErr });
+    }
+
+    const buttons: Array<{ id: string; label: string; icon?: string; variant: 'secondary'; payload: string }> = [];
+    if (shopPhoneE164) {
+        buttons.push({
+            id: 'call_phone',
+            label: '📞 Залгах',
+            icon: 'phone',
+            variant: 'secondary',
+            // CALL: prefix is decoded by sendActionsAsButtons into a Meta
+            // phone_number button so the customer can tap-to-call.
+            payload: `CALL:${shopPhoneE164}`,
+        });
+    }
+
     return {
         success: true,
         message: 'Дэлгүүрийн эзэнд мэдэгдэл илгээлээ. Тун удахгүй холбогдоно.',
-        actions: [
-            {
-                type: 'support_actions',
-                buttons: [
-                    {
-                        id: 'call_phone',
-                        label: '📞 Утсаар холбогдох',
-                        icon: 'phone',
-                        variant: 'secondary',
-                        payload: 'CALL_PHONE',
-                    },
-                ],
-            },
-        ],
+        actions: buttons.length
+            ? [{ type: 'support_actions', buttons }]
+            : undefined,
     };
 }
 

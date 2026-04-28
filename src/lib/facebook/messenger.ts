@@ -315,7 +315,7 @@ export async function sendButtonTemplate({
 }: {
     recipientId: string;
     text: string;
-    buttons: Array<{ type: 'postback' | 'web_url'; title: string; payload?: string; url?: string }>;
+    buttons: Array<{ type: 'postback' | 'web_url' | 'phone_number'; title: string; payload?: string; url?: string }>;
     pageAccessToken: string;
 }) {
     // Guard: FB allows max 3 buttons
@@ -377,7 +377,7 @@ export async function sendActionsAsButtons({
     fallbackText?: string;
 }) {
     // Collect all buttons from all action groups
-    const allButtons: Array<{ type: 'postback' | 'web_url'; title: string; payload?: string; url?: string }> = [];
+    const allButtons: Array<{ type: 'postback' | 'web_url' | 'phone_number'; title: string; payload?: string; url?: string }> = [];
 
     for (const action of actions) {
         for (const btn of action.buttons) {
@@ -389,6 +389,19 @@ export async function sendActionsAsButtons({
                     title: btn.label.substring(0, 20), // FB limit: 20 chars
                     url,
                 });
+            } else if (btn.payload.startsWith('CALL:')) {
+                // Native click-to-call. Payload format: `CALL:+97699XXXXXX`.
+                // Meta requires E.164 with leading `+`.
+                const phone = btn.payload.slice(5).trim();
+                if (/^\+\d{6,15}$/.test(phone)) {
+                    allButtons.push({
+                        type: 'phone_number',
+                        title: btn.label.substring(0, 20),
+                        payload: phone,
+                    });
+                } else {
+                    logger.warn('Skipping malformed CALL: button payload', { payload: btn.payload });
+                }
             } else {
                 allButtons.push({
                     type: 'postback',

@@ -13,10 +13,16 @@ export async function GET() {
 
         const supabase = supabaseAdmin();
 
+        // Sort: most-ready shop first so AuthContext picks a shop the user can
+        // actually use. Without this, a returning user with one finished shop
+        // and one half-finished shop landed on the half-finished one and got
+        // kicked back through the setup wizard (bug #7).
         const { data: shops, error } = await supabase
             .from('shops')
             .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, instagram_business_account_id, instagram_username, bank_name, account_number, account_name, register_number, merchant_type, description, ai_emotion, ai_instructions, is_ai_active, subscription_plan')
             .eq('user_id', userId)
+            .order('setup_completed', { ascending: false, nullsFirst: false })
+            .order('is_active', { ascending: false, nullsFirst: false })
             .order('created_at', { ascending: true });
 
         if (error) throw error;

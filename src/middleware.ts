@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { createSupabaseMiddlewareClient } from '@/lib/supabase-middleware';
 import { checkMiddlewareRateLimit } from '@/lib/utils/rate-limiter';
 
 // Define protected routes
 const protectedPaths = ['/dashboard', '/setup', '/admin'];
+
+// Pages an expired-trial / unpaid user CAN still reach so they have somewhere
+// to upgrade. Everything else under /dashboard bounces to /dashboard/subscription.
+const PAYWALL_BYPASS = [
+    '/dashboard/subscription',
+    '/dashboard/settings',
+];
 
 // Define public routes that don't need auth
 const publicPaths = [
@@ -83,6 +91,58 @@ export default async function middleware(req: NextRequest) {
             const signInUrl = new URL('/auth/login', req.url);
             signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname);
             return NextResponse.redirect(signInUrl);
+        }
+
+        // Trial / paywall guard: any /dashboard page (except subscription &
+        // settings) requires an active or trialing plan with a valid window.
+        // Reads the denormalized snapshot on user_profiles via service role
+        // so RLS doesn't accidentally hide the row in the cookie-bound client.
+        if (
+            pathname.startsWith('/dashboard') &&
+            !matchesPath(pathname, PAYWALL_BYPASS)
+        ) {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+            // Fail-open if the service-role env is missing (e.g. preview build
+            // without secrets) — the route handler will still enforce limits.
+            if (supabaseUrl && serviceKey) {
+                const admin = createClient(supabaseUrl, serviceKey, {
+                    auth: { persistSession: false, autoRefreshToken: false },
+                });
+
+                const { data: profile } = await admin
+                    .from('user_profiles')
+                    .select('subscription_status, trial_ends_at')
+                    .eq('id', user.id)
+                    .maybeSingle();
+
+                // Profile not yet created → trigger should populate it shortly.
+                // Allow the request through this once.
+                if (profile) {
+                    const status = profile.subscription_status;
+                    const trialEndsAt = profile.trial_ends_at
+                        ? new Date(profile.trial_ends_at).getTime()
+                        : null;
+                    const trialExpired =
+                        status === 'trialing' &&
+                        trialEndsAt !== null &&
+                        trialEndsAt < Date.now();
+
+                    const blocked =
+                        status === 'unpaid' ||
+                        status === 'expired' ||
+                        status === 'expired_trial' ||
+                        status === 'canceled' ||
+                        trialExpired;
+
+                    if (blocked) {
+                        const url = new URL('/dashboard/subscription', req.url);
+                        url.searchParams.set('expired', '1');
+                        return NextResponse.redirect(url);
+                    }
+                }
+            }
         }
     }
 

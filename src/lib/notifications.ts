@@ -81,6 +81,7 @@ export async function sendPushNotification(
 
     let success = 0;
     let failed = 0;
+    const nowIso = new Date().toISOString();
 
     for (const sub of subscriptions) {
         try {
@@ -97,23 +98,62 @@ export async function sendPushNotification(
                 JSON.stringify(payload)
             );
             success++;
+            // Refresh health on success.
+            await supabase
+                .from('push_subscriptions')
+                .update({ last_used_at: nowIso, failure_count: 0 })
+                .eq('id', sub.id);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
             logger.error('Push notification failed', { error: errorMessage });
             failed++;
 
-            // Remove invalid subscriptions (expired or unsubscribed)
             const statusCode = (err as { statusCode?: number })?.statusCode;
             if (statusCode === 404 || statusCode === 410) {
+                // Permanently invalid — gone from the browser.
                 await supabase
                     .from('push_subscriptions')
                     .delete()
                     .eq('id', sub.id);
+            } else {
+                // Transient or unknown — bump failure_count so the cleanup
+                // cron can prune chronically-failing rows.
+                const { error: rpcErr } = await supabase.rpc(
+                    'increment_push_failure_count',
+                    { p_subscription_id: sub.id }
+                );
+                if (rpcErr) {
+                    // Fall back to a manual update if the RPC isn't deployed yet.
+                    const subTyped = sub as unknown as { failure_count?: number };
+                    const next = (subTyped.failure_count ?? 0) + 1;
+                    await supabase
+                        .from('push_subscriptions')
+                        .update({ failure_count: next })
+                        .eq('id', sub.id);
+                }
             }
         }
     }
 
+    if (success === 0 && subscriptions.length > 0) {
+        logger.warn('All push subscriptions for shop failed', { shopId, total: subscriptions.length });
+    }
+
     return { success, failed };
+}
+
+/**
+ * Quick check: does this shop have any active push subscription right now?
+ * Used by the dashboard to surface a "you have no notifications enabled" banner
+ * (issue #4 — owner missed customer-support pings because no SW was installed).
+ */
+export async function hasActivePushSubscription(shopId: string): Promise<boolean> {
+    const supabase = supabaseAdmin();
+    const { count } = await supabase
+        .from('push_subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('shop_id', shopId);
+    return (count ?? 0) > 0;
 }
 
 /**

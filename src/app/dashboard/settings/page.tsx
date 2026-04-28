@@ -17,12 +17,15 @@ import {
     Unlink,
     CheckCircle,
     XCircle,
+    Info,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
 import { cn } from '@/lib/utils';
+import { useFeatures } from '@/hooks/useFeatures';
 
 interface FacebookPage {
     id: string;
@@ -71,6 +74,13 @@ function SettingsContent() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Plan-aware payment gating (#1). Lite shops should see bank info as
+    // read-only with a clear "Plan дээшлүүлэх" CTA, since the AI cannot
+    // create QPay invoices on Lite — bank details exist purely so the AI
+    // can quote them to the customer when asked.
+    const { features, plan } = useFeatures();
+    const paymentIntegrationOff = features?.payment_integration === false;
     interface ShopRecord {
         name?: string;
         description?: string;
@@ -468,10 +478,34 @@ function SettingsContent() {
                         )}
                     </span>
                 </h3>
-                <p className="text-[12px] text-white/45 mb-5 tracking-[-0.01em]">
+                <p className="text-[12px] text-white/45 mb-3 tracking-[-0.01em]">
                     Банкны мэдээллээ оруулснаар QPay автоматаар идэвхжиж, хэрэглэгчид QR код, банк
                     аппаар төлөх боломжтой болно.
                 </p>
+
+                {/* Lite plan: payment collection is disabled — bank info shown
+                    purely so the AI can quote it to the customer (#1). */}
+                {paymentIntegrationOff && (
+                    <div className="mb-4 flex items-start gap-3 p-4 rounded-xl border border-amber-500/[0.25] bg-amber-500/[0.06]">
+                        <Info className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" strokeWidth={1.5} />
+                        <div className="text-[12px] text-amber-100/85 leading-relaxed">
+                            <p className="font-semibold text-amber-100 mb-1">
+                                {plan?.name || 'Lite'} plan-д QPay автомат идэвхжихгүй
+                            </p>
+                            <p className="mb-2">
+                                Доорх банкны мэдээлэл нь зөвхөн харилцагчид{' '}
+                                <strong>мэдээлэл өгөх</strong> зорилготой. AI төлбөрийн линк
+                                үүсгэхгүй, харин хэрэглэгчид дансны мэдээллийг харуулна.
+                            </p>
+                            <Link
+                                href="/dashboard/subscription"
+                                className="inline-flex items-center gap-1 text-amber-100 underline-offset-2 hover:underline font-semibold"
+                            >
+                                Plan дээшлүүлэх →
+                            </Link>
+                        </div>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label className={labelCls}>Төрөл</label>

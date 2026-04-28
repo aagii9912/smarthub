@@ -473,7 +473,97 @@ CLAUDE.md feature list-аас одоогоор E2E coverage-гүй чухал:
 
 ---
 
-## 13. Эцсийн дүгнэлт
+## 13. Phase 7+: 10-цэгийн засвар (Apr 28)
+
+Хэрэглэгчийн өгсөн 10 чухал асуудлыг шийдсэн ажил. Plan-ыг `/Users/aagii/.claude/plans/syncly-projectiin-buh-code-snug-squid.md`-д батлуулж 4 thread-д засвар хийсэн.
+
+### 13.1 Хэрэглэгчийн шийдвэр
+
+| Цэг | Шийдвэр |
+|-----|---------|
+| Product status (#8/#9/#10) | Нэг ENUM: `draft / active / pre_order / coming_soon / discontinued` |
+| AI sharing (#5b/#5c) | Талбар тус бүрд тусдаа toggle |
+| Шинэ Google sign-up (#6) | Автомат 3-өдрийн lite trial эхлүүлнэ |
+| Plan compare (#3) | Pricing page-д үөрөх comparison table-ыг өргөтгөнө |
+
+### 13.2 Phase A — Auth bugs (P0)
+
+**#6:** Шинэ Google sign-up хэрэглэгч төлбөргүйгээр /dashboard руу шууд орох → автомат lite trial provision хийнэ.
+- Шинэ helper [src/lib/auth/onboarding.ts](Syncly/src/lib/auth/onboarding.ts) — `provisionNewUserTrial()` (idempotent, 3-day trial), `chooseLandingPath()` (shop state-ээр redirect)
+- [src/app/auth/callback/route.ts](Syncly/src/app/auth/callback/route.ts) — code exchange → trial provision → smart redirect
+- [src/app/auth/login/page.tsx](Syncly/src/app/auth/login/page.tsx) + [src/app/auth/register/page.tsx](Syncly/src/app/auth/register/page.tsx) — OAuth `redirectTo`-ыг callback-руу нэгтгэв
+- [src/middleware.ts](Syncly/src/middleware.ts) — /dashboard pages-д trial expiry guard (subscription/settings бусад нь)
+
+**#7:** Аль хэдийн бүртгэлтэй user → Эхлэх дарахад setup wizard re-run → shop sort-ыг засаж AuthContext хамгийн ready shop-г сонгоно.
+- [src/app/api/user/shops/route.ts](Syncly/src/app/api/user/shops/route.ts) — ORDER BY `setup_completed DESC, is_active DESC, created_at ASC`
+
+### 13.3 Phase B — Notifications + Call (P1)
+
+**#4:** Push notification stale subscription cleanup — owner-д үргэлж очдог болгоно.
+- Migration [supabase/migrations/20260428200000_push_health.sql](Syncly/supabase/migrations/20260428200000_push_health.sql) — `last_used_at`, `failure_count` columns + 2 RPC: `increment_push_failure_count`, `cleanup_stale_push_subscriptions`
+- [src/lib/notifications.ts](Syncly/src/lib/notifications.ts) — амжилт/алдаа бүрд health update хийнэ. `hasActivePushSubscription()` шинэ helper
+- [src/app/api/cron/cleanup-stale-pushes/route.ts](Syncly/src/app/api/cron/cleanup-stale-pushes/route.ts) — өдөрт нэг устгана
+
+**#5a:** "Залгах" товч ажиллахгүй → Meta `phone_number` button нэмж бодит tap-to-call болгоно.
+- [src/lib/facebook/messenger.ts](Syncly/src/lib/facebook/messenger.ts) — `sendActionsAsButtons` `CALL:+976...` payload-ыг `phone_number` button болгож хувиргана
+- [src/lib/ai/tools/handlers/CustomerHandlers.ts](Syncly/src/lib/ai/tools/handlers/CustomerHandlers.ts) `executeRequestSupport` — shop phone-ыг E.164 normalise хийж зөв action ачаална. `normalisePhoneE164()` helper
+
+### 13.4 Phase C — AI sharing controls (#5b, #5c)
+
+Migration [supabase/migrations/20260428210000_ai_share_flags.sql](Syncly/supabase/migrations/20260428210000_ai_share_flags.sql) — `address`, `business_hours`, `ai_share_{phone,address,hours,policies,description}` 7 column нэмэв. Default: phone/address/hours = false, policies/description = true (хуучин ажиллагаатай тохирно).
+
+- [src/types/ai.ts](Syncly/src/types/ai.ts) `ChatContext` — `shopPhone`, `shopAddress`, `shopBusinessHours`, `aiShareFlags`
+- [src/lib/ai/services/PromptService.ts](Syncly/src/lib/ai/services/PromptService.ts) — `buildSharedInfoSection()` — toggle-аар conditional хариулт. System prompt-д "БУСАД ДОТООД мэдээллийг ХЭЗЭЭ Ч БҮҮ задал" заавар
+- [src/app/api/shop/route.ts](Syncly/src/app/api/shop/route.ts) — PATCH-д шинэ flag хүлээж авах
+- [src/app/dashboard/ai-settings/page.tsx](Syncly/src/app/dashboard/ai-settings/page.tsx) — Knowledge tab-д "AI юуг хэрэглэгчид хуваалцаж болох вэ?" 5 toggle + address/hours input
+
+### 13.5 Phase D — Plan UX (#1, #3)
+
+**#1:** Lite plan-д банкны мэдээлэл "info-only" болгож, "QPay автоматаар идэвхжихгүй" banner + plan upgrade CTA.
+- [src/app/dashboard/settings/page.tsx](Syncly/src/app/dashboard/settings/page.tsx) — `useFeatures()` ашиглан `payment_integration === false` бол banner
+
+**#3:** Pricing page comparison table-ыг 11 row → 19 row болгож Starter vs Professional ялгаа тодорхой болов.
+- [src/lib/landing/defaults.ts](Syncly/src/lib/landing/defaults.ts) — Сагс basic/full ялгаа, Захиалгыг засах AI-аар, AI санах ой, Cross-sell, Appointments, CRM auto-tag, Excel export, Custom branding мөрүүд нэмсэн
+
+### 13.6 Phase E — Product status enum (#8, #9, #10)
+
+Migration [supabase/migrations/20260428220000_product_status.sql](Syncly/supabase/migrations/20260428220000_product_status.sql) — `product_status` ENUM (draft/active/pre_order/coming_soon/discontinued) + `available_from`, `pre_order_eta`. Backfill `is_active=true → active`, `is_active=false → draft`.
+
+- [src/types/ai.ts](Syncly/src/types/ai.ts) `AIProduct.status / available_from / pre_order_eta`
+- [src/lib/ai/services/PromptService.ts](Syncly/src/lib/ai/services/PromptService.ts) — `buildProductsInfo` нь draft+discontinued барааг далдалж, `[УДАХГҮЙ ИРНЭ]` / `[УРЬДЧИЛСАН ЗАХИАЛГА]` label өөрчлөнө. Stock display: coming_soon бол ETA дагуу "Удахгүй ирнэ", pre_order бол "Урьдчилсан захиалга боломжтой"
+- [src/lib/ai/tools/handlers/order/createOrder.ts](Syncly/src/lib/ai/tools/handlers/order/createOrder.ts) — pre_order барааг stock-ийн хязгаарлалтаас зөрчилт алгасна, "Урьдчилсан захиалга бүртгэгдлээ! Бараа [date] ирэх төлөвтэй" мессеж буцаана. discontinued + coming_soon барааг хариагүй татгалзана
+- [src/lib/validations/index.ts](Syncly/src/lib/validations/index.ts) — `status`, `availableFrom`, `preOrderEta` Zod-д нэмсэн
+- [src/components/dashboard/products/ProductForm.tsx](Syncly/src/components/dashboard/products/ProductForm.tsx) — "Төлөв" 5 button + conditional date pickers
+- [src/app/api/dashboard/products/route.ts](Syncly/src/app/api/dashboard/products/route.ts) — INSERT/UPDATE-д shoulder-аар оруулна, migration apply хийгдээгүй бол `column does not exist` алдаанд retry хийж extra-гүйгээр баталгаажна (staged rollout safe)
+
+### 13.7 Phase F — Per-product AI training (#2)
+
+Migration [supabase/migrations/20260428230000_product_ai_instructions.sql](Syncly/supabase/migrations/20260428230000_product_ai_instructions.sql) — `products.ai_instructions TEXT`.
+
+- [src/lib/ai/services/PromptService.ts](Syncly/src/lib/ai/services/PromptService.ts) — `buildCustomInstructions(shopLevel, products)` — shop-level + product-level concatenation, "Доорх зааврууд тухайн бараагаар ярих үед л хэрэглэнэ" заавартай
+- [src/components/dashboard/products/ProductForm.tsx](Syncly/src/components/dashboard/products/ProductForm.tsx) — "🎓 AI Сургах (зөвхөн энэ бараанд хамаарна)" textarea (max 500 chars) + жишээ placeholder
+
+### 13.8 Final test status (Phase 7 төгсгөлд)
+
+| Suite | Phase 5 | Phase 7 | Δ |
+|-------|---------|---------|---|
+| typecheck | ✅ 0 | ✅ **0** | — |
+| Vitest | 567 pass / 0 fail | ✅ **567 pass / 0 fail** | — |
+| Playwright | 58 pass | ✅ **57 pass / 10 skip / 0 fail** | -1 (admin-plan-change тестүүд хэрэглэгч admin биш бол skip — өсөлтгүй) |
+
+**Migration deploy дараалал:** Хэрэглэгчээс `supabase db push` хүлээнэ. Migration-уудаа орхих эрэмбэ:
+1. `20260428200000_push_health.sql`
+2. `20260428210000_ai_share_flags.sql`
+3. `20260428220000_product_status.sql`
+4. `20260428230000_product_ai_instructions.sql`
+
+Бүх migration `IF NOT EXISTS` + ENUM `DO $$ BEGIN ... EXCEPTION` хэв маягтай. Production-д аюулгүй apply хийнэ.
+
+**Staged rollout safe:** API код "column does not exist" алдаанд retry хийж column байхгүй ч хуучин ажиллагаатай үлдээдэг pattern-тай (бүх /api/dashboard/products INSERT/UPDATE).
+
+---
+
+## 14. Эцсийн дүгнэлт
 
 **Project үндсэн хэсэг үнэхээр ажиллаж байна.** Webhook security, AI router, tool execution, subscription gating, cron jobs, dashboard navigation бүгд test-ээр баталгаажсан. P0 production bug (chat_messages export) болон P1 missing migration хоёрыг зассан.
 

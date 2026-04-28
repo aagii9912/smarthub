@@ -346,6 +346,17 @@ export async function POST(request: NextRequest) {
                                 },
                                 messageCount: customer.message_count || 0,
                                 tokenUsageTotal: billing?.tokensUsed ?? (shop.token_usage_total || 0),
+                                // AI info-sharing controls (#5b/#5c).
+                                shopPhone: (shop as unknown as { phone?: string }).phone || undefined,
+                                shopAddress: (shop as unknown as { address?: string }).address || undefined,
+                                shopBusinessHours: (shop as unknown as { business_hours?: string }).business_hours || undefined,
+                                aiShareFlags: {
+                                    phone: (shop as unknown as { ai_share_phone?: boolean }).ai_share_phone,
+                                    address: (shop as unknown as { ai_share_address?: boolean }).ai_share_address,
+                                    hours: (shop as unknown as { ai_share_hours?: boolean }).ai_share_hours,
+                                    policies: (shop as unknown as { ai_share_policies?: boolean }).ai_share_policies,
+                                    description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
+                                },
                             },
                             previousHistory
                         );
@@ -580,6 +591,17 @@ export async function POST(request: NextRequest) {
                                     customerName: customer.name || undefined,
                                     orderHistory: customer.total_orders || 0,
                                     notifySettings: buildNotifySettings(shop),
+                                    // AI info-sharing controls (#5b/#5c).
+                                    shopPhone: (shop as unknown as { phone?: string }).phone || undefined,
+                                    shopAddress: (shop as unknown as { address?: string }).address || undefined,
+                                    shopBusinessHours: (shop as unknown as { business_hours?: string }).business_hours || undefined,
+                                    aiShareFlags: {
+                                        phone: (shop as unknown as { ai_share_phone?: boolean }).ai_share_phone,
+                                        address: (shop as unknown as { ai_share_address?: boolean }).ai_share_address,
+                                        hours: (shop as unknown as { ai_share_hours?: boolean }).ai_share_hours,
+                                        policies: (shop as unknown as { ai_share_policies?: boolean }).ai_share_policies,
+                                        description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
+                                    },
                                     subscription: {
                                         plan: billing?.plan || shop.subscription_plan || 'starter',
                                         status: billing?.status || shop.subscription_status || 'active',

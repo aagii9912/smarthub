@@ -6,6 +6,8 @@
 export type AIEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
 
 // Product types used in AI context
+export type ProductStatus = 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued';
+
 export interface AIProduct {
     id: string;
     name: string;
@@ -23,6 +25,14 @@ export interface AIProduct {
     colors?: string[];
     sizes?: string[];
     variants?: AIProductVariant[];
+    // Lifecycle status used by the AI to explain availability (#8/#9/#10).
+    status?: ProductStatus;
+    /** When a `coming_soon` product becomes available. */
+    available_from?: string | null;
+    /** Expected restock date for a `pre_order` product. */
+    pre_order_eta?: string | null;
+    /** Per-product AI training note (#2). Concatenated with shop-level. */
+    ai_instructions?: string | null;
 }
 
 export interface AIProductVariant {
@@ -118,6 +128,19 @@ export interface ChatContext {
         sales_intelligence?: boolean;
         ai_memory?: boolean;
         max_tokens?: number;  // Dynamic token limit based on plan
+    };
+    // Per-field "AI may share with customer" toggles (issue #5b/#5c).
+    // Values below are the actual strings to share — only included in the
+    // prompt when their corresponding flag is `true`.
+    shopPhone?: string;
+    shopAddress?: string;
+    shopBusinessHours?: string;
+    aiShareFlags?: {
+        phone?: boolean;
+        address?: boolean;
+        hours?: boolean;
+        policies?: boolean;
+        description?: boolean;
     };
 }
 

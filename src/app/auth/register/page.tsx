@@ -38,7 +38,9 @@ export default function RegisterPage() {
                 data: {
                     full_name: fullName,
                 },
-                emailRedirectTo: `${window.location.origin}/auth/callback?redirect_url=/setup`,
+                // Let the callback's smart routing pick the next step
+                // (new user → /setup, returning user → /dashboard).
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
             },
         });
 
@@ -57,7 +59,8 @@ export default function RegisterPage() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/auth/callback?redirect_url=/setup`,
+                // The callback decides /setup vs /dashboard based on shop state.
+                redirectTo: `${window.location.origin}/auth/callback`,
                 ...(provider === 'facebook' && { scopes: 'public_profile' }),
             },
         });

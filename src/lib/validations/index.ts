@@ -60,6 +60,12 @@ export const createProductSchema = z.object({
     sizes: z.array(z.string()).optional().default([]),
     images: z.array(z.string().url()).optional().default([]),
     isActive: z.boolean().optional().default(true),
+    // Lifecycle status (#8/#9/#10): draft / active / pre_order / coming_soon / discontinued.
+    status: z.enum(['draft', 'active', 'pre_order', 'coming_soon', 'discontinued']).optional(),
+    availableFrom: z.string().datetime().optional().nullable(),
+    preOrderEta: z.string().datetime().optional().nullable(),
+    // Per-product AI training note (#2)
+    aiInstructions: z.string().max(500).optional().nullable(),
     // Delivery configuration
     deliveryType: deliveryTypeSchema.optional().default('included'),
     deliveryFee: z.number().min(0).optional().default(0),

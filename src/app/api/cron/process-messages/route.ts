@@ -156,14 +156,13 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         .update({ processed: true })
         .in('id', messageIds);
 
-    // Get shop data with products
+    // Get shop data with products. `select *` so the new optional columns
+    // from migrations 20260428210000 (ai_share_*) and 20260428220000 (product
+    // status) come through when the migrations are applied, and silently
+    // disappear when they're not — staged rollout-safe.
     const { data: shop } = await supabase
         .from('shops')
-        .select(`
-            id, user_id, name, description, ai_instructions, ai_emotion, custom_knowledge,
-            is_ai_active, subscription_plan, subscription_status, trial_ends_at, token_usage_total,
-            products (id, name, description, price, stock, variants, discount_percent, delivery_type, delivery_fee)
-        `)
+        .select(`*, products (*)`)
         .eq('id', shopId)
         .single();
 
@@ -211,17 +210,31 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
     // Get AI features
     const aiFeatures = await getAIFeatures(shopId);
 
-    const mappedProducts: AIProduct[] = shopData.products.map(p => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || undefined,
-        price: p.price || 0,
-        stock: p.stock ?? 0,
-        variants: undefined,
-        discount_percent: p.discount_percent ?? undefined,
-        delivery_type: (p.delivery_type as AIProduct['delivery_type']) ?? undefined,
-        delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
-    }));
+    const mappedProducts: AIProduct[] = shopData.products.map(p => {
+        const pp = p as unknown as {
+            status?: AIProduct['status'];
+            available_from?: string;
+            pre_order_eta?: string;
+            ai_instructions?: string;
+        };
+        return {
+            id: p.id,
+            name: p.name,
+            description: p.description || undefined,
+            price: p.price || 0,
+            stock: p.stock ?? 0,
+            variants: undefined,
+            discount_percent: p.discount_percent ?? undefined,
+            delivery_type: (p.delivery_type as AIProduct['delivery_type']) ?? undefined,
+            delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
+            // Lifecycle (#8/#9/#10) — fields may be undefined on legacy DBs
+            status: pp.status,
+            available_from: pp.available_from ?? null,
+            pre_order_eta: pp.pre_order_eta ?? null,
+            // Per-product AI training (#2)
+            ai_instructions: pp.ai_instructions ?? null,
+        };
+    });
 
     try {
         let aiResponse: string = '';
@@ -287,6 +300,19 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     aiInstructions: shopData.ai_instructions || undefined,
                     aiEmotion: (shopData.ai_emotion || 'friendly') as AIEmotion,
                     customKnowledge: undefined,
+                    // AI info-sharing controls (#5b/#5c). Columns may not exist
+                    // in older DBs; cast through unknown so TypeScript stays
+                    // happy and runtime safely returns undefined.
+                    shopPhone: (shopData as unknown as { phone?: string }).phone || undefined,
+                    shopAddress: (shopData as unknown as { address?: string }).address || undefined,
+                    shopBusinessHours: (shopData as unknown as { business_hours?: string }).business_hours || undefined,
+                    aiShareFlags: {
+                        phone: (shopData as unknown as { ai_share_phone?: boolean }).ai_share_phone,
+                        address: (shopData as unknown as { ai_share_address?: boolean }).ai_share_address,
+                        hours: (shopData as unknown as { ai_share_hours?: boolean }).ai_share_hours,
+                        policies: (shopData as unknown as { ai_share_policies?: boolean }).ai_share_policies,
+                        description: (shopData as unknown as { ai_share_description?: boolean }).ai_share_description,
+                    },
                     products: mappedProducts,
                     customerName: customer.name || undefined,
                     orderHistory: customer.total_orders || 0,

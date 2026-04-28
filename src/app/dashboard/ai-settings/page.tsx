@@ -135,6 +135,18 @@ export default function AISettingsPage() {
         payment_methods: [] as string[],
         delivery_areas: [] as string[],
     });
+    // Contact info + AI sharing toggles (#5b/#5c)
+    const [shopAddress, setShopAddress] = useState('');
+    const [shopBusinessHours, setShopBusinessHours] = useState('');
+    const [aiSharePhone, setAiSharePhone] = useState(false);
+    const [aiShareAddress, setAiShareAddress] = useState(false);
+    const [aiShareHours, setAiShareHours] = useState(false);
+    const [aiSharePolicies, setAiSharePolicies] = useState(true);
+    const [aiShareDescription, setAiShareDescription] = useState(true);
+    const [savingShare, setSavingShare] = useState(false);
+    // Read-only: the shop's phone number (edited on settings page) so the
+    // toggle can show whether we have anything to share.
+    const [shopPhone, setShopPhone] = useState('');
     // AI Instruction Generator
     const [aiGenerating, setAiGenerating] = useState(false);
     const [aiPreview, setAiPreview] = useState('');
@@ -180,6 +192,16 @@ export default function AISettingsPage() {
                         }))
                     );
                 if (s.policies) setPolicies((p) => ({ ...p, ...s.policies }));
+                // Contact info + AI sharing (#5b/#5c)
+                setShopPhone(s.phone || '');
+                setShopAddress(s.address || '');
+                setShopBusinessHours(s.business_hours || '');
+                setAiSharePhone(!!s.ai_share_phone);
+                setAiShareAddress(!!s.ai_share_address);
+                setAiShareHours(!!s.ai_share_hours);
+                // description + policies sharing default ON for backwards compat.
+                setAiSharePolicies(s.ai_share_policies !== false);
+                setAiShareDescription(s.ai_share_description !== false);
             }
             if (aiRes?.ok) {
                 const d = await aiRes.json();
@@ -395,6 +417,38 @@ export default function AISettingsPage() {
             toast.error('Алдаа гарлаа');
         } finally {
             setSaving(false);
+        }
+    }
+
+    /**
+     * Persist contact info (address/business hours) + the per-field "AI may
+     * share with customer" toggles. Single PATCH so flag and value land
+     * atomically. (#5b/#5c)
+     */
+    async function saveSharingSettings() {
+        setSavingShare(true);
+        try {
+            const res = await fetch('/api/shop', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    address: shopAddress,
+                    business_hours: shopBusinessHours,
+                    ai_share_phone: aiSharePhone,
+                    ai_share_address: aiShareAddress,
+                    ai_share_hours: aiShareHours,
+                    ai_share_policies: aiSharePolicies,
+                    ai_share_description: aiShareDescription,
+                }),
+            });
+            if (!res.ok) {
+                throw new Error(`PATCH /api/shop returned ${res.status}`);
+            }
+            toast.success('AI хуваалцах тохиргоо хадгалагдлаа');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
+        } finally {
+            setSavingShare(false);
         }
     }
 
@@ -1028,6 +1082,105 @@ export default function AISettingsPage() {
                                 }
                             >
                                 Бодлого хадгалах
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* AI хуваалцах хяналт (#5b/#5c) */}
+                    <div className="card-outlined p-6">
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-2 flex items-center gap-2">
+                            <Shield
+                                className="w-4 h-4 text-[var(--brand-indigo-400)]"
+                                strokeWidth={1.5}
+                            />
+                            AI юуг хэрэглэгчид хуваалцаж болох вэ?
+                        </h3>
+                        <p className="text-[12px] text-white/50 mb-5 tracking-[-0.01em]">
+                            Хэрэглэгч асуухад AI зөвхөн доорх ON болсон мэдээллийг өгнө. Бусад дотоод мэдээллийг бүү задал гэж заавал тохирно.
+                        </p>
+
+                        <div className="space-y-4 bg-white/[0.02] p-5 rounded-xl border border-white/[0.06]">
+                            {/* Phone */}
+                            <ToggleRow
+                                value={aiSharePhone && !!shopPhone}
+                                onChange={(v) => setAiSharePhone(v && !!shopPhone)}
+                                title="📞 Утасны дугаар"
+                                description={
+                                    shopPhone
+                                        ? `Хуваалцана: ${shopPhone}`
+                                        : 'Утас тохируулагдаагүй — Settings хуудаснаас оруулна уу'
+                                }
+                            />
+
+                            {/* Address */}
+                            <div>
+                                <label className={labelCls}>Хаяг</label>
+                                <input
+                                    value={shopAddress}
+                                    onChange={(e) => setShopAddress(e.target.value)}
+                                    className={inputCls}
+                                    placeholder="Жнь: УБ, СБД, 1-р хороо, Сүхбаатарын талбай 5"
+                                />
+                                <div className="mt-2">
+                                    <ToggleRow
+                                        value={aiShareAddress && !!shopAddress}
+                                        onChange={(v) => setAiShareAddress(v && !!shopAddress)}
+                                        title="📍 Хаягийг AI хуваалцах"
+                                        description="Орох газар асуувал хариу болгоно"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Business hours */}
+                            <div>
+                                <label className={labelCls}>Цагийн хуваарь</label>
+                                <input
+                                    value={shopBusinessHours}
+                                    onChange={(e) => setShopBusinessHours(e.target.value)}
+                                    className={inputCls}
+                                    placeholder="Жнь: Дав-Баа 09:00-18:00, Ням амарна"
+                                />
+                                <div className="mt-2">
+                                    <ToggleRow
+                                        value={aiShareHours && !!shopBusinessHours}
+                                        onChange={(v) => setAiShareHours(v && !!shopBusinessHours)}
+                                        title="🕐 Цагийг AI хуваалцах"
+                                        description="Хэдээс хэдэн цагт нээлттэй гэж асуувал"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <ToggleRow
+                                value={aiShareDescription}
+                                onChange={setAiShareDescription}
+                                title="📝 Бизнесийн тайлбар"
+                                description="Бид юу хийдэг гэж асуувал description-ыг өгнө"
+                            />
+
+                            {/* Policies */}
+                            <ToggleRow
+                                value={aiSharePolicies}
+                                onChange={setAiSharePolicies}
+                                title="📋 Бодлого"
+                                description="Хүргэлт, буцаах, төлбөрийн арга гэх мэт"
+                            />
+                        </div>
+
+                        <div className="flex justify-end mt-5">
+                            <Button
+                                variant="primary"
+                                onClick={saveSharingSettings}
+                                disabled={savingShare}
+                                leftIcon={
+                                    savingShare ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Save className="w-3.5 h-3.5" strokeWidth={2} />
+                                    )
+                                }
+                            >
+                                Хадгалах
                             </Button>
                         </div>
                     </div>
