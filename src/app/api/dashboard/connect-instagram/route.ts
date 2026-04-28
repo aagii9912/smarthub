@@ -6,14 +6,13 @@ import { logger } from '@/lib/utils/logger';
 /**
  * POST /api/dashboard/connect-instagram
  *
- * Two modes:
- *   1. Auto-detect (no body) — use the shop's existing Page Access Token to
- *      query Graph API for the linked IG Business Account.
- *   2. Picker mode (body: { picked_ig_account_id, picked_page_access_token,
- *      picked_ig_username }) — apply a user-chosen account from the
- *      multi-account picker page.
+ * Picker mode only. The OAuth callback handles the single-IG case directly;
+ * this endpoint applies a user-chosen account from the multi-account picker
+ * page.
  *
- * In both modes the endpoint requires:
+ * Body: { picked_ig_account_id, picked_page_access_token, picked_ig_username }
+ *
+ * Requires:
  *   • authenticated user
  *   • shopId from x-shop-id header that the user actually owns
  */
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
         // service role and bypasses RLS, so we must enforce user_id manually.
         const { data: shop, error: shopError } = await supabase
             .from('shops')
-            .select('id, name, facebook_page_id, facebook_page_access_token, instagram_business_account_id')
+            .select('id, name, instagram_business_account_id')
             .eq('id', shopId)
             .eq('user_id', userId)
             .maybeSingle();
@@ -44,7 +43,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
         }
 
-        // Try to read picker payload (body is optional).
         let pickedId: string | undefined;
         let pickedToken: string | undefined;
         let pickedUsername: string | undefined;
@@ -54,45 +52,22 @@ export async function POST(request: NextRequest) {
             pickedToken = body?.picked_page_access_token;
             pickedUsername = body?.picked_ig_username;
         } catch {
-            // No body = auto-detect mode.
+            // Body required.
         }
 
-        let igAccountId = pickedId;
-        let igUsername = pickedUsername || '';
-        let pageAccessToken = pickedToken || shop.facebook_page_access_token;
-
-        if (!igAccountId) {
-            // Auto-detect from the shop's existing FB page.
-            if (!shop.facebook_page_id || !shop.facebook_page_access_token) {
-                return NextResponse.json(
-                    { error: 'Facebook Page not connected. Connect Facebook first.' },
-                    { status: 400 }
-                );
-            }
-
-            const igUrl = `https://graph.facebook.com/v21.0/${shop.facebook_page_id}?fields=instagram_business_account{id,username,name,profile_picture_url}&access_token=${shop.facebook_page_access_token}`;
-            const igResponse = await fetch(igUrl);
-            const igData = await igResponse.json();
-
-            if (igData.error) {
-                logger.error('Failed to fetch IG account from Page', { error: igData.error });
-                return NextResponse.json({ error: `Facebook API: ${igData.error.message}` }, { status: 400 });
-            }
-
-            if (!igData.instagram_business_account?.id) {
-                return NextResponse.json(
-                    {
-                        error:
-                            'Instagram Business Account олдсонгүй. Facebook Page → Settings → Linked Accounts дээр Instagram холбосон эсэхийг шалгана уу.',
-                        debug: { pageId: shop.facebook_page_id },
-                    },
-                    { status: 404 }
-                );
-            }
-
-            igAccountId = igData.instagram_business_account.id;
-            igUsername = igData.instagram_business_account.username || '';
+        if (!pickedId || !pickedToken) {
+            return NextResponse.json(
+                {
+                    error:
+                        'picked_ig_account_id болон picked_page_access_token шаардлагатай. Instagram холбохын тулд /api/auth/instagram OAuth flow ашиглана уу.',
+                },
+                { status: 400 }
+            );
         }
+
+        const igAccountId = pickedId;
+        const igUsername = pickedUsername || '';
+        const pageAccessToken = pickedToken;
 
         // Sanity: refuse to connect an IG account already in use by another
         // shop owned by THIS user. Cross-user collisions are blocked by the
@@ -101,7 +76,7 @@ export async function POST(request: NextRequest) {
             .from('shops')
             .select('id')
             .eq('user_id', userId)
-            .eq('instagram_business_account_id', igAccountId!)
+            .eq('instagram_business_account_id', igAccountId)
             .neq('id', shopId)
             .maybeSingle();
 

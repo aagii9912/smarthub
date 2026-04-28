@@ -744,34 +744,10 @@ function SettingsContent() {
                                     variant="primary"
                                     size="sm"
                                     leftIcon={<Link2 className="w-3 h-3" strokeWidth={1.5} />}
-                                    onClick={async () => {
-                                        try {
-                                            const res = await fetch(
-                                                '/api/dashboard/connect-instagram',
-                                                {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'x-shop-id':
-                                                            localStorage.getItem(
-                                                                'smarthub_active_shop_id'
-                                                            ) || '',
-                                                    },
-                                                }
-                                            );
-                                            const data = await res.json();
-                                            if (data.success) {
-                                                toast.success(
-                                                    `Instagram @${data.instagram.username} амжилттай холбогдлоо! ✅`
-                                                );
-                                                setIgConnected(true);
-                                            } else {
-                                                toast.error(
-                                                    data.error || 'Instagram холбоход алдаа гарлаа'
-                                                );
-                                            }
-                                        } catch {
-                                            toast.error('Алдаа гарлаа');
-                                        }
+                                    onClick={() => {
+                                        const shopId =
+                                            localStorage.getItem('smarthub_active_shop_id') || '';
+                                        window.location.href = `/api/auth/instagram?source=settings&shop_id=${encodeURIComponent(shopId)}`;
                                     }}
                                 >
                                     Холбох
