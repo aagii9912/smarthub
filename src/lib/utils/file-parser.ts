@@ -120,7 +120,7 @@ async function getFileContent(buffer: Buffer, extension: string): Promise<string
 /**
  * Parse file using AI (GPT) to extract products and services
  */
-export async function parseProductFile(buffer: Buffer, fileName: string): Promise<ParsedProduct[]> {
+export async function parseProductFile(buffer: Buffer, fileName: string, shopId?: string): Promise<ParsedProduct[]> {
     const extension = fileName.toLowerCase().split('.').pop() || '';
 
     try {
@@ -130,7 +130,7 @@ export async function parseProductFile(buffer: Buffer, fileName: string): Promis
         // 2. Process with AI
         // We import dynamically to avoid circular dependencies if any
         const { parseProductDataWithAI } = await import('@/lib/ai/services/ProductParser');
-        const products = await parseProductDataWithAI(content, fileName);
+        const products = await parseProductDataWithAI(content, fileName, shopId);
 
         // 3. Map to ParsedProduct interface
         return products.map(p => ({

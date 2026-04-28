@@ -115,16 +115,17 @@ ${productList}
             ]);
 
             const responseText = result.response.text();
-            logger.success('Gemini Vision response received');
+            const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
+            logger.success('Gemini Vision response received', { tokensUsed });
 
             const jsonMatch = responseText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch[0]) as VisionResult;
                 logger.success('Gemini Vision analysis complete', { matched: parsed.matchedProduct });
-                return parsed;
+                return { ...parsed, tokensUsed };
             }
 
-            return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.' };
+            return { matchedProduct: null, confidence: 0, description: 'Зургийг таньж чадсангүй.', tokensUsed };
         } catch (error: unknown) {
             const err = error as Error;
             logger.error('Gemini Vision Error:', { message: err.message });

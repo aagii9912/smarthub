@@ -5,6 +5,9 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '@/lib/utils/logger';
+import { persistTokenUsage } from '../tokenUsage';
+
+const PARSE_MODEL = 'gemini-2.5-flash-lite';
 
 export interface AIExtractedProduct {
     name: string;
@@ -18,11 +21,15 @@ export interface AIExtractedProduct {
 }
 
 /**
- * Parse product data from file content using Gemini
+ * Parse product data from file content using Gemini.
+ *
+ * `shopId` is optional for backward compatibility; when present, vision/parse
+ * tokens get billed against the shop's per-feature usage breakdown.
  */
 export async function parseProductDataWithAI(
     fileContent: string,
-    fileName: string
+    fileName: string,
+    shopId?: string
 ): Promise<AIExtractedProduct[]> {
     try {
         const apiKey = process.env.GEMINI_API_KEY;
@@ -35,7 +42,7 @@ export async function parseProductDataWithAI(
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash-lite',
+            model: PARSE_MODEL,
             generationConfig: {
                 responseMimeType: 'application/json',
             },
@@ -73,6 +80,12 @@ Response Format (JSON only):
 
         const result = await model.generateContent(prompt);
         const content = result.response.text();
+        const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
+
+        if (shopId && tokensUsed > 0) {
+            persistTokenUsage(shopId, tokensUsed, 'product_parse', { model: PARSE_MODEL }).catch(() => {});
+        }
+
         const parsed = JSON.parse(content);
 
         if (!Array.isArray(parsed.products)) {

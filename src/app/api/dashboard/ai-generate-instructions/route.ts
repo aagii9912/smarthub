@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
+import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const PROMPT_GEN_MODEL = 'gemini-2.0-flash';
 
 /**
  * POST /api/dashboard/ai-generate-instructions
@@ -69,7 +71,7 @@ ${currentInstructions}
 
         // Call Gemini API
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${PROMPT_GEN_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -91,9 +93,14 @@ ${currentInstructions}
 
         const geminiData = await geminiRes.json();
         const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const tokensUsed: number = geminiData.usageMetadata?.totalTokenCount ?? 0;
 
         if (!generatedText.trim()) {
             return NextResponse.json({ error: 'AI returned empty result' }, { status: 500 });
+        }
+
+        if (tokensUsed > 0) {
+            persistTokenUsage(shopId, tokensUsed, 'system_prompt_gen', { model: PROMPT_GEN_MODEL }).catch(() => {});
         }
 
         return NextResponse.json({

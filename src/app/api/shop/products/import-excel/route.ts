@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Use existing AI parser
-        const products = await parseProductDataWithAI(csvLikeContent, file.name);
+        const products = await parseProductDataWithAI(csvLikeContent, file.name, shop.id);
 
         if (products.length === 0) {
             // Fallback: try manual extraction without AI

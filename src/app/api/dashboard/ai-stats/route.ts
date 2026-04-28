@@ -64,12 +64,18 @@ export async function GET(request: Request) {
 
         const startISO = startDate.toISOString();
 
+        // 30-day window for the per-feature trend chart (independent of `period`)
+        const breakdownStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const breakdownStartDate = breakdownStart.toISOString().split('T')[0];
+        const periodStartDate = startDate.toISOString().split('T')[0];
+
         // Parallel queries
         const [
             chatHistoryRes,
             customerStatsRes,
             dailyMessagesRes,
             topCustomersRes,
+            breakdownRes,
         ] = await Promise.all([
             // Total conversations & intent breakdown
             supabase
@@ -99,6 +105,14 @@ export async function GET(request: Request) {
                 .eq('shop_id', shop.id)
                 .order('message_count', { ascending: false })
                 .limit(10),
+
+            // Per-feature daily breakdown (last 30 days)
+            supabase
+                .from('v_shop_token_breakdown')
+                .select('usage_date, feature, tokens_used, call_count, label_mn, label_en, sort_order')
+                .eq('shop_id', shop.id)
+                .gte('usage_date', breakdownStartDate)
+                .order('usage_date', { ascending: true }),
         ]);
 
         // Process chat history for intent breakdown
@@ -150,6 +164,49 @@ export async function GET(request: Request) {
             ? Math.round((contactsCollected / totalCustomersWithMessages) * 100)
             : 0;
 
+        // Per-feature breakdown
+        interface BreakdownRow {
+            usage_date: string;
+            feature: string;
+            tokens_used: number;
+            call_count: number;
+            label_mn: string;
+            label_en: string;
+            sort_order: number;
+        }
+        const breakdownRows = (breakdownRes.data || []) as BreakdownRow[];
+
+        const currentPeriodMap = new Map<string, BreakdownRow>();
+        for (const row of breakdownRows) {
+            if (row.usage_date < periodStartDate) continue;
+            const existing = currentPeriodMap.get(row.feature);
+            if (existing) {
+                existing.tokens_used += row.tokens_used;
+                existing.call_count += row.call_count;
+            } else {
+                currentPeriodMap.set(row.feature, { ...row });
+            }
+        }
+        const currentPeriodBreakdown = Array.from(currentPeriodMap.values())
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map(row => ({
+                feature: row.feature,
+                tokens: row.tokens_used,
+                calls: row.call_count,
+                label_mn: row.label_mn,
+                label_en: row.label_en,
+            }));
+
+        const dailyMap30 = new Map<string, Record<string, number>>();
+        for (const row of breakdownRows) {
+            const day = dailyMap30.get(row.usage_date) ?? {};
+            day[row.feature] = (day[row.feature] ?? 0) + row.tokens_used;
+            dailyMap30.set(row.usage_date, day);
+        }
+        const last30Days = Array.from(dailyMap30.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([date, byFeature]) => ({ date, by_feature: byFeature }));
+
         return NextResponse.json({
             totalConversations: totalCustomersWithMessages,
             totalMessages: chatHistory.length,
@@ -180,6 +237,10 @@ export async function GET(request: Request) {
             emailsCollected,
             conversionRate,
             period,
+            breakdown: {
+                current_period: currentPeriodBreakdown,
+                last_30_days: last30Days,
+            },
         });
 
     } catch (error) {

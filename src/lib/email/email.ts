@@ -314,3 +314,124 @@ export async function sendDeliveryConfirmationEmail(params: {
         html,
     });
 }
+
+/**
+ * Weekly token usage report — per-feature breakdown.
+ * Sent to shop owners every Monday so they understand WHAT consumed
+ * their tokens (not just chat replies).
+ */
+export interface TokenReportFeatureRow {
+    feature: string;
+    label: string;
+    tokens: number;
+    calls: number;
+}
+
+export async function sendTokenUsageReport(params: {
+    to: string;
+    shopName: string;
+    periodStart: string;
+    periodEnd: string;
+    totalTokens: number;
+    totalCalls: number;
+    rows: TokenReportFeatureRow[];
+    unsubscribeUrl: string;
+    dashboardUrl: string;
+}): Promise<boolean> {
+    const { to, shopName, periodStart, periodEnd, totalTokens, totalCalls, rows, unsubscribeUrl, dashboardUrl } = params;
+
+    const fmt = (n: number) => new Intl.NumberFormat('mn-MN').format(n);
+    const tableRows = rows
+        .map((r) => {
+            const pct = totalTokens > 0 ? ((r.tokens / totalTokens) * 100).toFixed(1) : '0.0';
+            return `
+                <tr>
+                    <td style="padding:10px 12px;border-bottom:1px solid #eef0f4;">${r.label}</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #eef0f4;text-align:right;font-variant-numeric:tabular-nums;">${fmt(r.tokens)}</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #eef0f4;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">${fmt(r.calls)}</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #eef0f4;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">${pct}%</td>
+                </tr>
+            `;
+        })
+        .join('');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.55; color: #1f2937; background: #f3f4f6; margin: 0; padding: 0; }
+        .container { max-width: 640px; margin: 0 auto; padding: 24px; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 28px 24px; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .header p { margin: 6px 0 0; font-size: 13px; opacity: 0.9; }
+        .body { padding: 24px; }
+        .summary { display: flex; gap: 16px; margin-bottom: 20px; }
+        .stat { flex: 1; background: #f9fafb; border-radius: 8px; padding: 14px; }
+        .stat-label { font-size: 11px; color: #6b7280; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .stat-value { font-size: 22px; font-weight: 600; margin: 0; font-variant-numeric: tabular-nums; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 8px 12px; background: #f9fafb; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        th.right { text-align: right; }
+        .cta { display: inline-block; background: #4f46e5; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500; margin-top: 18px; }
+        .footer { padding: 18px 24px; font-size: 11px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; }
+        .footer a { color: #6b7280; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>📊 ${shopName} — Долоо хоногийн токен зарцуулалт</h1>
+                <p>${periodStart} – ${periodEnd}</p>
+            </div>
+            <div class="body">
+                <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">
+                    Та чат хариулахаас гадна доорх AI үйлчилгээнүүдээс <strong>бүгдээс</strong> токен зарцуулдаг. Хаанаас зарцуулагдсаныг харж, төлөвлөхөд тань туслах болно.
+                </p>
+
+                <div class="summary">
+                    <div class="stat">
+                        <p class="stat-label">Нийт токен</p>
+                        <p class="stat-value">${fmt(totalTokens)}</p>
+                    </div>
+                    <div class="stat">
+                        <p class="stat-label">AI дуудлага</p>
+                        <p class="stat-value">${fmt(totalCalls)}</p>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Үйлчилгээ</th>
+                            <th class="right">Токен</th>
+                            <th class="right">Дуудлага</th>
+                            <th class="right">Хувь</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows || '<tr><td colspan="4" style="padding:24px;text-align:center;color:#9ca3af;">Энэ долоо хоногт зарцуулалт байхгүй</td></tr>'}
+                    </tbody>
+                </table>
+
+                <a href="${dashboardUrl}" class="cta">Дашбоарт харах →</a>
+            </div>
+            <div class="footer">
+                Энэ имэйл нь Syncly-ээс автоматаар илгээгдсэн ·
+                <a href="${unsubscribeUrl}">Захиалга цуцлах</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    return sendEmail({
+        to,
+        subject: `${shopName} — Долоо хоногийн токен зарцуулалт (${fmt(totalTokens)} token)`,
+        html,
+    });
+}

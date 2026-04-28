@@ -23,6 +23,10 @@
     {
       "path": "/api/cron/check-trial-expiry",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-token-report",
+      "schedule": "0 7 * * 1"
     }
   ]
 }

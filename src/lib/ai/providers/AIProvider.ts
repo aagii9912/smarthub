@@ -13,6 +13,8 @@ export interface VisionResult {
     description: string;
     isReceipt?: boolean;
     receiptAmount?: number;
+    /** Total tokens consumed by the vision call (for per-feature billing). */
+    tokensUsed?: number;
 }
 
 /**

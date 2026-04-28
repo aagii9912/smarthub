@@ -243,7 +243,8 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
             const imageAnalysis = await analyzeProductImageWithPlan(
                 imageUrls[0],
                 productsForAnalysis,
-                planType
+                planType,
+                shopData.id
             );
 
             if (imageAnalysis.matchedProduct) {

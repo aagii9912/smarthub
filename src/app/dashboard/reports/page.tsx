@@ -10,6 +10,7 @@ import { SalesChart } from '@/components/dashboard/SalesChart';
 import { BestSellersTable } from '@/components/dashboard/BestSellersTable';
 import { RevenueStats } from '@/components/dashboard/RevenueStats';
 import { SmartInsights } from '@/components/dashboard/SmartInsights';
+import { TokenBreakdownCard } from '@/components/dashboard/TokenBreakdownCard';
 import { FeatureGate } from '@/components/FeatureGate';
 import { useReports } from '@/hooks/useReports';
 import { useAIStats } from '@/hooks/useAIStats';
@@ -730,6 +731,13 @@ function ReportsPageContent() {
                                 </div>
                             );
                         })()}
+
+                    {aiData?.breakdown && (
+                        <TokenBreakdownCard
+                            currentPeriod={aiData.breakdown.current_period}
+                            last30Days={aiData.breakdown.last_30_days}
+                        />
+                    )}
                 </>
             )}
         </div>

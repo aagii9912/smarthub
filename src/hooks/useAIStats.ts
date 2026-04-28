@@ -2,6 +2,19 @@
 
 import useSWR from 'swr';
 
+export interface BreakdownFeatureRow {
+    feature: string;
+    tokens: number;
+    calls: number;
+    label_mn: string;
+    label_en: string;
+}
+
+export interface BreakdownDailyRow {
+    date: string;
+    by_feature: Record<string, number>;
+}
+
 interface AIStats {
     totalConversations: number;
     totalMessages: number;
@@ -38,6 +51,10 @@ interface AIStats {
     emailsCollected: number;
     conversionRate: number;
     period: string;
+    breakdown?: {
+        current_period: BreakdownFeatureRow[];
+        last_30_days: BreakdownDailyRow[];
+    };
 }
 
 const fetcher = (url: string) => fetch(url).then(res => {

@@ -19,6 +19,7 @@ import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } 
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
 import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
+import { persistTokenUsage } from './tokenUsage';
 import {
     PlanType,
     getPlanConfig,
@@ -76,56 +77,6 @@ export interface RouterResponse extends ChatResponse {
         creditsLimit?: number;
     };
     limitReached?: boolean;
-}
-
-/**
- * Persist token usage to shop record (atomic increment)
- */
-async function persistTokenUsage(shopId: string, tokensUsed: number): Promise<void> {
-    if (!tokensUsed || tokensUsed <= 0) return;
-
-    try {
-        const supabase = supabaseAdmin();
-        const { error } = await supabase.rpc('increment_shop_token_usage', {
-            p_shop_id: shopId,
-            p_tokens: tokensUsed,
-        });
-
-        if (error) {
-            // SEC-10 FIX: Fallback uses raw SQL increment to avoid race conditions
-            // The RPC with FOR UPDATE lock is the preferred path; this is a safety net
-            logger.warn('Token RPC not available, using SQL fallback:', { error: error.message });
-
-            const nextMonth = new Date();
-            nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
-            nextMonth.setHours(0, 0, 0, 0);
-
-            // Use Supabase's raw SQL increment via PostgREST (avoids read-then-write race)
-            const { error: fallbackError } = await supabase
-                .from('shops')
-                .update({
-                    // PostgREST doesn't support SQL expressions directly,
-                    // so we use the RPC as primary. If that fails, log and skip.
-                    // Tokens will be undercounted rather than double-counted.
-                    token_usage_reset_at: nextMonth.toISOString(),
-                })
-                .eq('id', shopId);
-
-            if (fallbackError) {
-                logger.error('Token fallback also failed:', { error: fallbackError.message });
-            } else {
-                logger.warn('Token usage NOT incremented (RPC unavailable). Deploy migration to fix.', {
-                    shopId,
-                    missedTokens: tokensUsed,
-                });
-            }
-        }
-
-        logger.debug('Token usage persisted', { shopId, tokensUsed });
-    } catch (err) {
-        // Non-blocking: don't fail the response if billing persistence fails
-        logger.error('Failed to persist token usage:', { error: err, shopId, tokensUsed });
-    }
 }
 
 /**
@@ -542,7 +493,9 @@ export async function routeToAI(
             }
 
             // Persist token usage to shop record (non-blocking)
-            persistTokenUsage(context.shopId, totalTokensConsumed).catch(() => {});
+            persistTokenUsage(context.shopId, totalTokensConsumed, 'chat_reply', {
+                model: planConfig.model,
+            }).catch(() => {});
 
             logger.success(`AIRouter response received (${planType}/${planConfig.model}, ${totalTokensConsumed} tokens)`);
 
@@ -592,11 +545,15 @@ export async function routeToAI(
 /**
  * Analyze product image using vision (plan-dependent)
  * Uses Gemini 2.5 Flash for vision analysis
+ *
+ * `shopId` is optional for backward compatibility, but callers should pass it
+ * so vision tokens get attributed to the right shop in the breakdown.
  */
 export async function analyzeProductImageWithPlan(
     imageUrl: string,
     products: Array<{ id: string; name: string; description?: string }>,
-    planType: PlanType = 'starter'
+    planType: PlanType = 'starter',
+    shopId?: string
 ): Promise<{
     matchedProduct: string | null;
     confidence: number;
@@ -617,7 +574,8 @@ export async function analyzeProductImageWithPlan(
     try {
         // Use GeminiProvider for vision
         const { GeminiProvider } = await import('./providers/GeminiProvider');
-        const geminiVision = new GeminiProvider('gemini-3.1-flash-lite-preview');
+        const visionModel = 'gemini-3.1-flash-lite-preview';
+        const geminiVision = new GeminiProvider(visionModel);
 
         if (!geminiVision.isAvailable()) {
             logger.warn('Gemini not available for vision');
@@ -628,8 +586,17 @@ export async function analyzeProductImageWithPlan(
         // GeminiProvider.analyzeImage only uses id, name, description from products
         const result = await geminiVision.analyzeImage(imageUrl, products as unknown as import('@/types/ai').AIProduct[]);
 
-        logger.success('Gemini Vision analysis complete', { matched: result.matchedProduct, confidence: result.confidence });
-        return result;
+        if (shopId && result.tokensUsed && result.tokensUsed > 0) {
+            persistTokenUsage(shopId, result.tokensUsed, 'vision', { model: visionModel }).catch(() => {});
+        }
+
+        logger.success('Gemini Vision analysis complete', {
+            matched: result.matchedProduct,
+            confidence: result.confidence,
+            tokensUsed: result.tokensUsed,
+        });
+        const { tokensUsed: _tokensUsed, ...visionPayload } = result;
+        return visionPayload;
 
     } catch (error: unknown) {
         const err = error as { message?: string; status?: number; code?: string };

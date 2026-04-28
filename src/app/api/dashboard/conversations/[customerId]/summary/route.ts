@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatMemoryForPrompt, type CustomerMemory } from '@/lib/ai/tools/memory';
+import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 import { logger } from '@/lib/utils/logger';
 import { headers } from 'next/headers';
 
@@ -185,6 +186,10 @@ export async function POST(
         try {
             const result = await model.generateContent(prompt);
             summaryText = result.response.text().trim();
+            const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
+            if (tokensUsed > 0) {
+                persistTokenUsage(shopId, tokensUsed, 'ai_memo', { model: SUMMARY_MODEL }).catch(() => {});
+            }
         } catch (genError: unknown) {
             const msg = genError instanceof Error ? genError.message : 'Unknown';
             logger.error('Summary generation failed', { customerId, error: msg });

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(arrayBuffer);
 
         // Parse file
-        const products = await parseProductFile(buffer, file.name);
+        const products = await parseProductFile(buffer, file.name, shop.id);
 
         if (products.length === 0) {
             return NextResponse.json({

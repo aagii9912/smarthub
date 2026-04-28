@@ -450,7 +450,8 @@ export async function POST(request: NextRequest) {
                                 const imageAnalysis = await analyzeProductImageWithPlan(
                                     imageUrl,
                                     productsForAnalysis,
-                                    planType
+                                    planType,
+                                    shop.id
                                 );
 
                                 let responseMessage = '';
