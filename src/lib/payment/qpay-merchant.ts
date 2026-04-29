@@ -158,6 +158,25 @@ export async function registerShopAsMerchant(params: {
 
     if (!response.ok) {
         const errorText = await response.text();
+
+        // QPay treats `register_number` as a uniqueness key. If a merchant for
+        // this register_number already exists (e.g. shop was deleted but merchant
+        // still lives on QPay's side, or user owns multiple shops with same TIN),
+        // recover by looking it up and reusing instead of failing.
+        if (response.status === 400 && params.registerNumber && isAlreadyRegisteredError(errorText)) {
+            logger.info('QPay reports MERCHANT_ALREADY_REGISTERED, attempting lookup-and-reuse:', {
+                registerNumber: params.registerNumber,
+            });
+            const existing = await findMerchantByRegisterNumber(params.registerNumber);
+            if (existing) {
+                logger.success('QPay merchant reused via lookup:', { merchant_id: existing.id, name: existing.name });
+                return existing;
+            }
+            logger.error('MERCHANT_ALREADY_REGISTERED but lookup failed to find it:', {
+                registerNumber: params.registerNumber,
+            });
+        }
+
         logger.error('QPay merchant registration failed:', { error: errorText });
         throw new Error(`QPay merchant registration failed: ${response.status} - ${errorText}`);
     }
@@ -166,6 +185,51 @@ export async function registerShopAsMerchant(params: {
     logger.success('QPay merchant registered:', { merchant_id: merchant.id, name: merchant.name });
 
     return merchant;
+}
+
+/**
+ * Detect QPay's MERCHANT_ALREADY_REGISTERED error code from a 400 response body.
+ * Body is JSON like `{"error":"MERCHANT_ALREADY_REGISTERED","message":"..."}` but
+ * we tolerate non-JSON or shape variations.
+ */
+function isAlreadyRegisteredError(errorText: string): boolean {
+    if (errorText.includes('MERCHANT_ALREADY_REGISTERED')) return true;
+    try {
+        const parsed = JSON.parse(errorText) as { error?: string };
+        return parsed.error === 'MERCHANT_ALREADY_REGISTERED';
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Find an existing QPay merchant by register_number.
+ * Iterates pages of `listMerchants()` until the merchant is found or the list
+ * is exhausted. Returns null if no match within MAX_PAGES * PAGE_SIZE merchants.
+ */
+export async function findMerchantByRegisterNumber(
+    registerNumber: string
+): Promise<QPayMerchant | null> {
+    const PAGE_SIZE = 50;
+    const MAX_PAGES = 5; // up to 250 merchants — sufficient for a single QPay vendor
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+        let result: { count: number; rows: QPayMerchant[] };
+        try {
+            result = await listMerchants(page, PAGE_SIZE);
+        } catch (err) {
+            logger.error('QPay listMerchants failed during lookup:', { page, error: String(err) });
+            return null;
+        }
+
+        const match = result.rows.find((m) => m.register_number === registerNumber);
+        if (match) return match;
+
+        // Stop early if we've consumed all merchants
+        if (page * PAGE_SIZE >= result.count) break;
+    }
+
+    return null;
 }
 
 /**

@@ -39,11 +39,11 @@ export function PayoutSetupStep({ onComplete, initialData }: PayoutSetupStepProp
         merchant_type: initialData?.merchant_type || 'person' as 'person' | 'company',
     });
 
-    const isValid = bankInfo.bank_name && bankInfo.account_name && bankInfo.account_number;
+    const isValid = bankInfo.bank_name && bankInfo.account_name && bankInfo.account_number && bankInfo.register_number;
 
     const handleSave = async () => {
         if (!isValid) {
-            setError('Банк, данс эзэмшигч, дансны дугаар заавал бөглөнө үү');
+            setError('Банк, данс эзэмшигч, дансны дугаар, регистрийн дугаар заавал бөглөнө үү');
             return;
         }
 
@@ -195,8 +195,7 @@ export function PayoutSetupStep({ onComplete, initialData }: PayoutSetupStepProp
             {/* Register Number */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {bankInfo.merchant_type === 'company' ? 'Байгууллагын регистр' : 'Регистрийн дугаар'}
-                    <span className="text-gray-400 text-xs ml-2">(заавал биш)</span>
+                    {bankInfo.merchant_type === 'company' ? 'Байгууллагын регистр' : 'Регистрийн дугаар'} <span className="text-red-500">*</span>
                 </label>
                 <input
                     type="text"

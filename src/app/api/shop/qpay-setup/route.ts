@@ -12,7 +12,7 @@ import { logger } from '@/lib/utils/logger';
  *   bank_code: string,       // e.g. "050000" (Khan bank)
  *   account_number: string,  // e.g. "5012345678"
  *   account_name: string,    // e.g. "Бат-Эрдэнэ"
- *   register_number?: string // Company register (optional)
+ *   register_number: string  // Хувь хүний регистр / компанийн TIN (required — QPay-н uniqueness key)
  * }
  */
 export async function POST(request: NextRequest) {
@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
         const { bank_code, account_number, account_name, register_number } = body;
 
         // Validate required fields
-        if (!bank_code || !account_number || !account_name) {
+        if (!bank_code || !account_number || !account_name || !register_number) {
             return NextResponse.json({
-                error: 'Банкны код, дансны дугаар, данс эзэмшигчийн нэр шаардлагатай',
-                required: ['bank_code', 'account_number', 'account_name'],
+                error: 'Банкны код, дансны дугаар, данс эзэмшигчийн нэр, регистрийн дугаар заавал шаардлагатай',
+                required: ['bank_code', 'account_number', 'account_name', 'register_number'],
             }, { status: 400 });
         }
 

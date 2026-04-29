@@ -576,7 +576,7 @@ function SettingsContent() {
                         <label className={labelCls}>
                             {bankInfo.merchant_type === 'company'
                                 ? 'Байгууллагын регистр'
-                                : 'Регистрийн дугаар'}
+                                : 'Регистрийн дугаар'} <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
@@ -602,7 +602,8 @@ function SettingsContent() {
                             saving ||
                             !bankInfo.bank_name ||
                             !bankInfo.account_number ||
-                            !bankInfo.account_name
+                            !bankInfo.account_name ||
+                            !bankInfo.register_number
                         }
                         leftIcon={
                             saving ? (

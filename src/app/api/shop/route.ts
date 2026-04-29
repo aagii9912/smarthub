@@ -196,8 +196,8 @@ export async function PATCH(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    // Get user's shop (include QPay status for auto-registration)
-    let query = supabase.from('shops').select('id, name, phone, qpay_merchant_id, qpay_status').eq('user_id', userId);
+    // Get user's shop (include QPay status + register_number for auto-registration)
+    let query = supabase.from('shops').select('id, name, phone, register_number, qpay_merchant_id, qpay_status').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -355,44 +355,60 @@ export async function PATCH(request: NextRequest) {
         try {
           logger.info('Auto-registering QPay merchant for shop:', { shopId: shop.id });
 
-          const registerNumber = (sanitizedUpdate.register_number as string) || (body.register_number as string) || undefined;
+          // register_number is required by QPay (uniqueness key). Accept it from
+          // this update, the raw body, or fall back to what's already saved on
+          // the shop. Skip auto-register if none of those produce a value.
+          const registerNumber =
+            (sanitizedUpdate.register_number as string) ||
+            (body.register_number as string) ||
+            (shop as { register_number?: string | null }).register_number ||
+            undefined;
+
+          if (!registerNumber) {
+            logger.warn('Auto QPay registration skipped: register_number missing', { shopId: shop.id });
+            return NextResponse.json({
+              shop: updatedShop,
+              qpay_setup: {
+                success: false,
+                message: 'Регистрийн дугаар заавал шаардлагатай. Settings-ээс оруулна уу.',
+              },
+            });
+          }
 
           // Local reuse: QPay scopes merchants by register_number, not by shop.
           // If this user already has another shop with a merchant_id for the
           // same register_number, copy it locally and skip the QPay round-trip.
-          if (registerNumber) {
-            const { data: existingShopWithMerchant } = await supabase
+          const { data: existingShopWithMerchant } = await supabase
+            .from('shops')
+            .select('qpay_merchant_id')
+            .eq('user_id', userId)
+            .eq('register_number', registerNumber)
+            .not('qpay_merchant_id', 'is', null)
+            .neq('id', shop.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingShopWithMerchant?.qpay_merchant_id) {
+            await supabase
               .from('shops')
-              .select('qpay_merchant_id')
-              .eq('user_id', userId)
-              .eq('register_number', registerNumber)
-              .not('qpay_merchant_id', 'is', null)
-              .neq('id', shop.id)
-              .limit(1)
-              .maybeSingle();
+              .update({
+                qpay_merchant_id: existingShopWithMerchant.qpay_merchant_id,
+                qpay_bank_code: bankCode,
+                qpay_account_number: sanitizedUpdate.account_number as string,
+                qpay_account_name: sanitizedUpdate.account_name as string,
+                qpay_status: 'active',
+              })
+              .eq('id', shop.id);
 
-            if (existingShopWithMerchant?.qpay_merchant_id) {
-              await supabase
-                .from('shops')
-                .update({
-                  qpay_merchant_id: existingShopWithMerchant.qpay_merchant_id,
-                  qpay_bank_code: bankCode,
-                  qpay_account_number: sanitizedUpdate.account_number as string,
-                  qpay_account_name: sanitizedUpdate.account_name as string,
-                  qpay_status: 'active',
-                })
-                .eq('id', shop.id);
+            logger.success('QPay merchant reused from sibling shop:', {
+              shopId: shop.id,
+              merchantId: existingShopWithMerchant.qpay_merchant_id,
+            });
 
-              logger.success('QPay merchant reused from sibling shop:', {
-                shopId: shop.id,
-                merchantId: existingShopWithMerchant.qpay_merchant_id,
-              });
-
-              return NextResponse.json({
-                shop: updatedShop,
-                qpay_setup: { success: true, merchant_id: existingShopWithMerchant.qpay_merchant_id, message: 'QPay merchant аль хэдийнэ бүртгэгдсэн байсан тул дахин ашиглалаа. ✅' },
-              });
-            }
+            return NextResponse.json({
+              shop: updatedShop,
+              qpay_setup: { success: true, merchant_id: existingShopWithMerchant.qpay_merchant_id, message: 'QPay merchant аль хэдийнэ бүртгэгдсэн байсан тул дахин ашиглалаа. ✅' },
+            });
           }
 
           // Get user email from Supabase auth
