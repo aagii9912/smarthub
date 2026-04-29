@@ -77,7 +77,13 @@ export async function POST() {
             .maybeSingle();
 
         if (planErr || !plan) {
-            logger.error('start-trial: lite plan not found', { error: planErr?.message });
+            logger.error('start-trial: lite plan not found', {
+                error: planErr?.message,
+                code: planErr?.code,
+                details: planErr?.details,
+                hint: planErr?.hint,
+                userId,
+            });
             return NextResponse.json(
                 { error: 'Туршилтын план тохируулагдаагүй байна.', code: 'plan_missing' },
                 { status: 500 }
@@ -105,7 +111,14 @@ export async function POST() {
             .single();
 
         if (subErr || !sub) {
-            logger.error('start-trial: subscription insert failed', { error: subErr?.message });
+            logger.error('start-trial: subscription insert failed', {
+                error: subErr?.message,
+                code: subErr?.code,
+                details: subErr?.details,
+                hint: subErr?.hint,
+                userId,
+                planId: plan.id,
+            });
             return NextResponse.json(
                 { error: 'Туршилт эхлүүлэхэд алдаа гарлаа. Дахин оролдоно уу.', code: 'insert_failed' },
                 { status: 500 }
@@ -149,6 +162,7 @@ export async function POST() {
     } catch (err: unknown) {
         logger.error('start-trial: unexpected error', {
             error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
         });
         return NextResponse.json(
             { error: 'Туршилт эхлүүлэхэд алдаа гарлаа.', code: 'unexpected' },
