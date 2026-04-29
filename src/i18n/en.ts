@@ -263,6 +263,7 @@ export const en: Translations = {
     analytics: 'Analytics',
     expandMenu: 'Expand menu',
     collapseMenu: 'Collapse menu',
+    comingSoonBadge: 'Coming soon',
   },
 
   // ─── Header ───
@@ -587,6 +588,12 @@ export const en: Translations = {
     reply: 'Reply',
     active: 'Active',
     inactive: 'Inactive',
+
+    // Coming soon placeholder
+    comingSoonBadge: 'Coming soon',
+    comingSoonTitle: 'Coming soon',
+    comingSoonDescription: 'Comment automation is being polished. We will notify you when it is ready.',
+    comingSoonHint: 'We are making this feature more reliable and powerful. Stay tuned.',
 
     // Hero / page chrome
     eyebrow: 'Comment → DM',

@@ -261,6 +261,7 @@ export const mn = {
     analytics: 'Аналитик',
     expandMenu: 'Цэс дэлгэх',
     collapseMenu: 'Цэс хураах',
+    comingSoonBadge: 'Тун удахгүй',
   },
 
   // ─── Header ───
@@ -591,6 +592,12 @@ export const mn = {
     reply: 'Хариу',
     active: 'Идэвхтэй',
     inactive: 'Идэвхгүй',
+
+    // Coming soon placeholder
+    comingSoonBadge: 'Тун удахгүй',
+    comingSoonTitle: 'Тун удахгүй ажиллана',
+    comingSoonDescription: 'Comment автомат функцийг сайжруулж байна. Бэлэн болсон даруйд танилцуулна.',
+    comingSoonHint: 'Бид энэ функцийг илүү найдвартай, хүчирхэг болгож байна. Удахгүй идэвхжих болно.',
 
     // Hero / page chrome
     eyebrow: 'Comment → DM',

@@ -26,6 +26,8 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+const COMING_SOON = true;
+
 interface ShopPost {
     id: string;
     message: string;
@@ -40,6 +42,32 @@ const inputCls =
     'w-full px-3 py-2.5 border border-white/[0.08] rounded-lg text-[13px] text-foreground bg-white/[0.02] focus:outline-none focus:border-[var(--border-accent)] focus:bg-white/[0.04] transition-colors placeholder:text-white/30';
 
 export default function CommentAutomationPage() {
+    const { t } = useLanguage();
+
+    if (COMING_SOON) {
+        const c = t.commentAutomation;
+        return (
+            <div className="px-4 md:px-6 lg:px-8 pt-6 md:pt-8 pb-12">
+                <PageHero
+                    eyebrow={c.comingSoonBadge}
+                    eyebrowTone="violet"
+                    title={c.comingSoonTitle}
+                    subtitle={c.comingSoonDescription}
+                />
+                <div className="mt-10 flex flex-col items-center text-center max-w-md mx-auto py-12">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+                        <MessageSquareMore className="w-8 h-8 text-amber-300" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-sm text-white/60">{c.comingSoonHint}</p>
+                </div>
+            </div>
+        );
+    }
+
+    return <CommentAutomationActive />;
+}
+
+function CommentAutomationActive() {
     const { t, locale } = useLanguage();
     const c = t.commentAutomation;
     const dateLocale = locale === 'mn' ? 'mn-MN' : 'en-US';

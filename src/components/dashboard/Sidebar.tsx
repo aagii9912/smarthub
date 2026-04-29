@@ -27,6 +27,7 @@ interface RailItem {
     href: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     feature?: string;
+    comingSoon?: boolean;
 }
 
 const primaryItems: RailItem[] = [
@@ -40,7 +41,7 @@ const primaryItems: RailItem[] = [
 ];
 
 const secondaryItems: RailItem[] = [
-    { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore },
+    { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore, comingSoon: true },
     { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
     { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
@@ -96,6 +97,18 @@ export function Sidebar() {
                 >
                     {label}
                 </span>
+                {item.comingSoon && (
+                    <span
+                        className={cn(
+                            'ml-auto px-1.5 py-0.5 rounded-md whitespace-nowrap',
+                            'text-[9px] font-semibold uppercase tracking-wider',
+                            'bg-amber-500/15 text-amber-300 border border-amber-500/25',
+                            'opacity-0 group-hover/rail:opacity-100 transition-opacity duration-200 delay-[30ms]'
+                        )}
+                    >
+                        {getLabel('comingSoonBadge')}
+                    </span>
+                )}
             </>
         );
 
