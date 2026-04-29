@@ -81,6 +81,9 @@ export async function provisionNewUserTrial(userId: string, email: string | null
  *
  *  - 0 shops → /setup (kick off onboarding)
  *  - 1+ shops with `setup_completed=true` → /dashboard
+ *  - Active subscription (paid OR trialing) → /dashboard (fallback for
+ *    legacy users whose `setup_completed` flag wasn't backfilled when
+ *    they started their trial)
  *  - Otherwise (incomplete setup) → /setup
  *
  * Service & beauty businesses can finish onboarding without connecting
@@ -104,8 +107,22 @@ export async function chooseLandingPath(userId: string): Promise<string> {
         }
 
         const ready = shops.find((s) => s.setup_completed === true);
+        if (ready) return '/dashboard';
 
-        return ready ? '/dashboard' : '/setup';
+        // Fallback: if the user has an active or trialing subscription, the
+        // wizard's final step has effectively been completed even if the
+        // flag wasn't set. Send them to /dashboard.
+        const { data: openSub } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('user_id', userId)
+            .in('status', ['active', 'trialing', 'past_due'])
+            .limit(1)
+            .maybeSingle();
+
+        if (openSub) return '/dashboard';
+
+        return '/setup';
     } catch (err) {
         logger.warn('chooseLandingPath: falling back to /setup', {
             userId,

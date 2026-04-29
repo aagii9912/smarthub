@@ -144,6 +144,10 @@ export async function POST() {
         //    user_profiles uses 'trialing'. Keep the shop value consistent
         //    with what the cron looks for. New shops created later will
         //    inherit the snapshot via the existing shop-creation flow.
+        //
+        //    Also flip `setup_completed=true` here: starting a trial is the
+        //    final wizard step. Without this, sign-out + sign-in routes the
+        //    user back to /setup → resume modal at step 9 every time.
         await supabase
             .from('shops')
             .update({
@@ -151,6 +155,7 @@ export async function POST() {
                 subscription_plan: plan.slug,
                 subscription_status: 'trial',
                 trial_ends_at: trialEnd.toISOString(),
+                setup_completed: true,
             })
             .eq('user_id', userId);
 
