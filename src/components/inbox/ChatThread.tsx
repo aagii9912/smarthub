@@ -16,6 +16,7 @@ import type {
     ChatMessage,
     ConversationDetailResponse,
     InboxCustomerDetail,
+    MessagingWindowState,
     SummaryResponse,
 } from './types';
 
@@ -39,6 +40,7 @@ export function ChatThread({ customerId }: ChatThreadProps) {
 
     const [customer, setCustomer] = useState<InboxCustomerDetail | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [lastInboundAt, setLastInboundAt] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [replyValue, setReplyValue] = useState('');
@@ -65,6 +67,7 @@ export function ChatThread({ customerId }: ChatThreadProps) {
             const data = (await res.json()) as ConversationDetailResponse;
             setCustomer(data.customer);
             setMessages(data.messages);
+            setLastInboundAt(data.last_customer_message_at);
         } catch {
             toast.error(t.inbox.error);
         } finally {
@@ -121,6 +124,14 @@ export function ChatThread({ customerId }: ChatThreadProps) {
         return messages.length - lastCount >= STALE_MEMO_DELTA;
     }, [customer, messages.length]);
 
+    const windowState: MessagingWindowState = useMemo(() => {
+        if (!lastInboundAt) return 'expired';
+        const hours = (Date.now() - new Date(lastInboundAt).getTime()) / 3_600_000;
+        if (hours <= 24) return 'within_24h';
+        if (hours <= 168) return 'within_7d';
+        return 'expired';
+    }, [lastInboundAt]);
+
     useEffect(() => {
         if (loading || !customer) return;
         if (autoRegenAttemptedRef.current === customerId) return;
@@ -158,7 +169,21 @@ export function ChatThread({ customerId }: ChatThreadProps) {
                 }),
             });
             if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
+                const data = (await res.json().catch(() => ({}))) as {
+                    error?: string;
+                    code?: string;
+                    details?: string;
+                    last_customer_message_at?: string | null;
+                };
+                if (data.code === 'OUTSIDE_MESSAGING_WINDOW') {
+                    toast.error(t.inbox.window.expiredToast);
+                    setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+                    setReplyValue(messageText);
+                    if (data.last_customer_message_at !== undefined) {
+                        setLastInboundAt(data.last_customer_message_at);
+                    }
+                    return;
+                }
                 throw new Error(data.error || data.details || t.inbox.sendError);
             }
             toast.success(t.inbox.messageSent);
@@ -182,6 +207,7 @@ export function ChatThread({ customerId }: ChatThreadProps) {
         aiPauseMode,
         t.inbox.sendError,
         t.inbox.messageSent,
+        t.inbox.window.expiredToast,
         patchConversation,
         refreshConversations,
     ]);
@@ -257,6 +283,7 @@ export function ChatThread({ customerId }: ChatThreadProps) {
                 isSending={isSending}
                 aiPauseMode={aiPauseMode}
                 onAiPauseModeChange={setAiPauseMode}
+                windowState={windowState}
                 autoFocus
             />
         </div>

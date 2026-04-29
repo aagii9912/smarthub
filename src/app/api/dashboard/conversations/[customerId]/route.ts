@@ -97,13 +97,25 @@ export async function GET(
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        const messages = flattenChats((chatsResult.data ?? []) as ChatRow[]);
+        const chatRows = (chatsResult.data ?? []) as ChatRow[];
+        const messages = flattenChats(chatRows);
+
+        // Most recent inbound (customer-authored) message timestamp.
+        // Used by the inbox UI to show the 24h/7d Messenger-window state.
+        const lastInboundAt =
+            chatRows
+                .filter((r) => r.message && r.message.trim())
+                .reduce<string | null>((latest, r) => {
+                    if (!latest || r.created_at > latest) return r.created_at;
+                    return latest;
+                }, null);
 
         return NextResponse.json({
             customer: customerResult.data,
             messages,
             complaints: complaintsResult.data ?? [],
             message_count: messages.length,
+            last_customer_message_at: lastInboundAt,
         });
     } catch (error: unknown) {
         const errMsg = error instanceof Error ? error.message : 'Unknown error';

@@ -71,13 +71,47 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Shop not configured with Facebook' }, { status: 400 });
         }
 
-        // Step 4: Send message via Graph API (works for both Messenger and Instagram DM)
+        // Step 4: Pre-flight messaging-window check.
+        // Facebook policy: standard sends require the customer to have messaged within 24h.
+        // HUMAN_AGENT tag can extend that to 7 days IF the app has the `human_agent` feature.
+        // Beyond 7 days, no path can succeed — short-circuit with a structured 422.
+        const { data: lastInbound } = await supabase
+            .from('chat_history')
+            .select('created_at')
+            .eq('customer_id', customerId)
+            .eq('shop_id', shopId)
+            .not('message', 'is', null)
+            .neq('message', '')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        const lastInboundAt = lastInbound?.created_at ? new Date(lastInbound.created_at) : null;
+        const hoursSinceLast = lastInboundAt
+            ? (Date.now() - lastInboundAt.getTime()) / 3_600_000
+            : Infinity;
+
+        if (hoursSinceLast > 168) {
+            logger.info('Reply API: blocked, conversation outside 7-day window', {
+                customerId,
+                hoursSinceLast: Math.round(hoursSinceLast),
+            });
+            return NextResponse.json({
+                error: 'OUTSIDE_MESSAGING_WINDOW',
+                code: 'OUTSIDE_MESSAGING_WINDOW',
+                details: '7 хоногоос их хугацаа өнгөрсөн тул хариу илгээх боломжгүй.',
+                last_customer_message_at: lastInboundAt?.toISOString() ?? null,
+            }, { status: 422 });
+        }
+
+        // Step 5: Send message via Graph API (works for both Messenger and Instagram DM)
         logger.info('Reply API: Sending message', {
             shopName: shop.name,
             customerName: customer.name,
             recipientId,
             platform,
             messageLength: message.length,
+            hoursSinceLast: Number.isFinite(hoursSinceLast) ? Math.round(hoursSinceLast) : null,
         });
 
         try {
@@ -87,20 +121,37 @@ export async function POST(request: NextRequest) {
                 pageAccessToken: shop.facebook_page_access_token,
             });
         } catch (sendError: unknown) {
-            // Fallback: try tagged message (bypasses 24-hour window, Messenger only)
-            logger.warn('Reply API: Standard message failed, trying tagged message', {
-                error: sendError instanceof Error ? sendError.message : 'Unknown',
+            const errMsg = sendError instanceof Error ? sendError.message : 'Unknown';
+            logger.warn('Reply API: Standard message failed, trying HUMAN_AGENT tag', {
+                error: errMsg,
                 platform,
             });
-            await sendTaggedMessage({
-                recipientId,
-                message: message,
-                pageAccessToken: shop.facebook_page_access_token,
-                tag: 'ACCOUNT_UPDATE',
-            });
+            try {
+                await sendTaggedMessage({
+                    recipientId,
+                    message: message,
+                    pageAccessToken: shop.facebook_page_access_token,
+                    tag: 'HUMAN_AGENT',
+                });
+            } catch (taggedError: unknown) {
+                const taggedMsg = taggedError instanceof Error ? taggedError.message : 'Unknown';
+                if (taggedMsg.includes('2018278') || /outside of allowed window/i.test(taggedMsg)) {
+                    logger.info('Reply API: HUMAN_AGENT also blocked by FB window policy', {
+                        customerId,
+                        platform,
+                    });
+                    return NextResponse.json({
+                        error: 'OUTSIDE_MESSAGING_WINDOW',
+                        code: 'OUTSIDE_MESSAGING_WINDOW',
+                        details: 'Хэрэглэгч 24 цагийн дотор бичээгүй учир Facebook хариу илгээхийг хориглож байна.',
+                        last_customer_message_at: lastInboundAt?.toISOString() ?? null,
+                    }, { status: 422 });
+                }
+                throw taggedError;
+            }
         }
 
-        // Step 5: Save message to chat_history
+        // Step 6: Save message to chat_history
         const { error: insertError } = await supabase.from('chat_history').insert({
             shop_id: shopId,
             customer_id: customerId,
@@ -113,7 +164,7 @@ export async function POST(request: NextRequest) {
             logger.warn('Reply API: chat_history insert failed (non-blocking)', { error: insertError.message });
         }
 
-        // Step 6: AI Takeover control
+        // Step 7: AI Takeover control
         if (aiPauseMode === 'off') {
             // Permanently disable AI for this customer (until manually re-enabled)
             const farFuture = new Date('2099-12-31T23:59:59Z').toISOString();

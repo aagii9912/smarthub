@@ -53,7 +53,10 @@ export interface ConversationDetailResponse {
     messages: ChatMessage[];
     complaints: InboxComplaint[];
     message_count: number;
+    last_customer_message_at: string | null;
 }
+
+export type MessagingWindowState = 'within_24h' | 'within_7d' | 'expired';
 
 export interface SummaryResponse {
     summary: string;

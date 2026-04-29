@@ -351,6 +351,11 @@ export const en: Translations = {
       pause30: 'Pause 30 min',
       off: 'Turn off AI',
     },
+    window: {
+      within7dWarning: '24-hour window has passed. Replies may be blocked by Facebook.',
+      expiredNotice: 'Over 7 days have passed. Facebook policy blocks replies.',
+      expiredToast: "The customer's last message is over 7 days old, so Facebook is blocking replies.",
+    },
   },
 
   // ─── Mobile Nav ───

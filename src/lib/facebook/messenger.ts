@@ -73,7 +73,11 @@ export async function sendTextMessage({ recipientId, message, pageAccessToken }:
     return response.json();
 }
 
-// Send a message using Message Tags (for notifications outside 24-hour window)
+// Send a message using Message Tags.
+// Standard tags (POST_PURCHASE_UPDATE / CONFIRMED_EVENT_UPDATE / ACCOUNT_UPDATE)
+// only narrow the message intent — they do NOT extend the 24-hour customer-message window.
+// HUMAN_AGENT extends the window to 7 days but requires the `human_agent` feature
+// on the Facebook app and is only valid for genuine human-agent replies.
 export async function sendTaggedMessage({
     recipientId,
     message,
@@ -83,7 +87,7 @@ export async function sendTaggedMessage({
     recipientId: string;
     message: string;
     pageAccessToken: string;
-    tag?: 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE' | 'ACCOUNT_UPDATE';
+    tag?: 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE' | 'ACCOUNT_UPDATE' | 'HUMAN_AGENT';
 }) {
     const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
