@@ -1,43 +1,82 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, RotateCcw, Play, ArrowLeft } from 'lucide-react';
+import { RotateCcw, Play, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useConfetti } from '@/hooks/useConfetti';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/utils/logger';
 
 // Setup components
+import { BusinessTypeStep } from '@/components/setup/BusinessTypeStep';
 import { ShopInfoStep } from '@/components/setup/ShopInfoStep';
 import { FacebookStep } from '@/components/setup/FacebookStep';
 import { InstagramStep } from '@/components/setup/InstagramStep';
 import { ProductStep } from '@/components/setup/ProductStep';
+import { OperationsStep } from '@/components/setup/OperationsStep';
 import { AISetupStep } from '@/components/setup/AISetupStep';
 import { PayoutSetupStep } from '@/components/setup/PayoutSetupStep';
 import { SubscriptionStep } from '@/components/setup/SubscriptionStep';
 import { PWAInstallBanner } from '@/components/setup/PWAInstallBanner';
 import { SetupPreview } from '@/components/setup/SetupPreview';
-import { logger } from '@/lib/utils/logger';
 
-const stepLabels = [
-  'Дэлгүүр',
-  'Facebook',
-  'Instagram',
-  'Бараа',
-  'AI',
-  'Орлогын данс',
-  'Төлбөр',
-];
+import { BUSINESS_TYPES, isBusinessType, type BusinessType } from '@/lib/constants/business-types';
+
+type StepKey =
+  | 'businessType'
+  | 'shopInfo'
+  | 'facebook'
+  | 'instagram'
+  | 'products'
+  | 'operations'
+  | 'aiSetup'
+  | 'payout'
+  | 'subscription';
+
+function getStepSequence(businessType: BusinessType | null): StepKey[] {
+  if (!businessType) return ['businessType'];
+  const meta = BUSINESS_TYPES[businessType];
+  return [
+    'businessType',
+    'shopInfo',
+    'facebook',
+    'instagram',
+    'products',
+    ...(meta.hasOperations ? (['operations'] as const) : []),
+    'aiSetup',
+    'payout',
+    'subscription',
+  ];
+}
+
+function getStepLabels(businessType: BusinessType | null): string[] {
+  if (!businessType) return ['Бизнес төрөл'];
+  const meta = BUSINESS_TYPES[businessType];
+  return [
+    'Бизнес төрөл',
+    'Дэлгүүр',
+    'Facebook',
+    'Instagram',
+    meta.productNoun,
+    ...(meta.hasOperations ? ['Үйл ажиллагаа'] : []),
+    'AI',
+    'Орлогын данс',
+    'Төлбөр',
+  ];
+}
 
 function SetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, shop, refreshShop, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
-  const [step, setStepLocal] = useState(1);
+  const [stepIndex, setStepIndexLocal] = useState(0);
   const [error, setError] = useState('');
   const [fbPages, setFbPages] = useState([]);
   const [igAccounts, setIgAccounts] = useState<Array<{ pageId: string; pageName: string; pageAccessToken: string; instagramId: string; instagramUsername: string; instagramName: string; profilePicture: string }>>([]);
@@ -49,36 +88,53 @@ function SetupContent() {
   const [previewShopName, setPreviewShopName] = useState('');
   const [previewOwnerName, setPreviewOwnerName] = useState('');
   const [previewPhone, setPreviewPhone] = useState('');
-  const [previewBankName, setPreviewBankName] = useState('');
-  const [previewAccountNumber, setPreviewAccountNumber] = useState('');
-  const [previewProducts, setPreviewProducts] = useState<Array<{ name: string; price?: number }>>([]);
+  const [previewBankName] = useState('');
+  const [previewAccountNumber] = useState('');
+  const [previewProducts] = useState<Array<{ name: string; price?: number }>>([]);
   const [previewAiEmotion, setPreviewAiEmotion] = useState('');
 
   const isNewShopMode = searchParams.get('new') === 'true';
 
   const {
-    step: savedStep,
+    step: savedStepIndex,
+    businessType: savedBusinessType,
     isLoaded: stateLoaded,
     hasExistingState,
     setStep: savePersistentStep,
+    setBusinessType: savePersistentBusinessType,
+    clearTypeSpecificData,
     clearState,
-    continueFromSaved
+    continueFromSaved,
   } = useOnboardingState();
+
+  // Resolve business type: prefer DB, fall back to localStorage
+  const businessType: BusinessType | null = useMemo(() => {
+    if (shop?.business_type && isBusinessType(shop.business_type)) return shop.business_type;
+    if (savedBusinessType && isBusinessType(savedBusinessType)) return savedBusinessType;
+    return null;
+  }, [shop?.business_type, savedBusinessType]);
+
+  const stepSequence = useMemo(() => getStepSequence(businessType), [businessType]);
+  const stepLabels = useMemo(() => getStepLabels(businessType), [businessType]);
+  const totalSteps = stepSequence.length;
+  const currentStepKey = stepSequence[Math.min(stepIndex, totalSteps - 1)];
+
+  const aiTemplate = businessType ? BUSINESS_TYPES[businessType].aiTemplate : 'general';
 
   const { triggerSmall, triggerFinal } = useConfetti();
   const { triggerPromptAfterStep } = usePWAInstall();
 
-  const setStep = (newStep: number) => {
-    if (newStep > step) {
-      if (newStep === 7) {
+  const setStepIndex = (newIndex: number) => {
+    if (newIndex > stepIndex) {
+      if (newIndex === totalSteps - 1) {
         triggerFinal();
       } else {
         triggerSmall();
       }
-      triggerPromptAfterStep(newStep);
+      triggerPromptAfterStep(newIndex);
     }
-    setStepLocal(newStep);
-    savePersistentStep(newStep);
+    setStepIndexLocal(newIndex);
+    savePersistentStep(newIndex);
   };
 
   // Handle Facebook OAuth callback
@@ -101,9 +157,11 @@ function SetupContent() {
       setError(errorMessages[fbError] || `Facebook холболт амжилтгүй: ${fbError}`);
     } else if (fbSuccess && pageCount) {
       fetchAvailablePages();
-      setStep(2);
+      const fbStep = stepSequence.indexOf('facebook');
+      if (fbStep >= 0) setStepIndex(fbStep + 1);
       router.replace('/setup');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Handle Instagram OAuth callback
@@ -114,20 +172,22 @@ function SetupContent() {
 
     if (igError) {
       const errorMessages: Record<string, string> = {
-        'no_instagram_account': 'Instagram Business Account олдсонгүй.',
-        'token_error': 'Access token авахад алдаа гарлаа.',
-        'pages_error': 'Facebook Page татахад алдаа гарлаа.',
-        'config_missing': 'App тохиргоо дутуу байна.',
+        no_instagram_account: 'Instagram Business Account олдсонгүй.',
+        token_error: 'Access token авахад алдаа гарлаа.',
+        pages_error: 'Facebook Page татахад алдаа гарлаа.',
+        config_missing: 'App тохиргоо дутуу байна.',
       };
       setError(errorMessages[igError] || `Instagram холболт амжилтгүй: ${igError}`);
     } else if (igSuccess && igCount) {
       fetchInstagramAccounts();
-      setStep(3);
+      const igStep = stepSequence.indexOf('instagram');
+      if (igStep >= 0) setStepIndex(igStep + 1);
       router.replace('/setup');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Initial redirect logic
+  // Initial redirect / resume logic
   useEffect(() => {
     if (!authLoading && stateLoaded && isInitializing) {
       if (!user) {
@@ -138,7 +198,7 @@ function SetupContent() {
       if (shop) {
         if (isNewShopMode) {
           clearState();
-          setStepLocal(1);
+          setStepIndexLocal(0);
           setIsInitializing(false);
           return;
         }
@@ -153,37 +213,48 @@ function SetupContent() {
         setPreviewOwnerName(shop.owner_name || '');
         setPreviewPhone(shop.phone || '');
 
-        if (!shop.facebook_page_id) {
-          setStepLocal(2);
-          savePersistentStep(2);
+        // Resolve resume step from shop state
+        const resolvedType = (shop.business_type && isBusinessType(shop.business_type)) ? shop.business_type : null;
+        const seq = getStepSequence(resolvedType);
+        let target = 0;
+        if (!resolvedType) {
+          target = 0; // businessType
+        } else if (!shop.name) {
+          target = seq.indexOf('shopInfo');
+        } else if (!shop.facebook_page_id) {
+          target = seq.indexOf('facebook');
         } else if (!shop.instagram_business_account_id) {
-          setStepLocal(3);
-          savePersistentStep(3);
-        } else if (step < 4) {
-          setStepLocal(4);
-          savePersistentStep(4);
+          target = seq.indexOf('instagram');
+        } else {
+          // Past Instagram — let saved state guide, but never below 'products'
+          const productsIdx = seq.indexOf('products');
+          target = Math.max(savedStepIndex, productsIdx);
         }
+        setStepIndexLocal(Math.max(0, target));
+        savePersistentStep(Math.max(0, target));
       }
 
-      if (hasExistingState && savedStep > 1) {
+      if (hasExistingState && savedStepIndex > 0) {
         setShowResumeModal(true);
       }
 
       setIsInitializing(false);
     }
-  }, [authLoading, stateLoaded, shop, user, isInitializing, hasExistingState, savedStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, stateLoaded, shop, user, isInitializing, hasExistingState, savedStepIndex]);
 
-  // Auto-fetch pages/accounts
+  // Auto-fetch pages/accounts when entering FB/IG steps
   useEffect(() => {
     if (!isInitializing) {
-      if (step === 2 && fbPages.length === 0 && !shop?.facebook_page_id) {
+      if (currentStepKey === 'facebook' && fbPages.length === 0 && !shop?.facebook_page_id) {
         fetchAvailablePages();
       }
-      if (step === 3 && igAccounts.length === 0 && !shop?.instagram_business_account_id) {
+      if (currentStepKey === 'instagram' && igAccounts.length === 0 && !shop?.instagram_business_account_id) {
         fetchInstagramAccounts();
       }
     }
-  }, [step, isInitializing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepKey, isInitializing]);
 
   const fetchAvailablePages = async () => {
     try {
@@ -207,6 +278,59 @@ function SetupContent() {
     }
   };
 
+  // ─── Step handlers ──────────────────────────────────────────
+
+  const goToStepKey = (key: StepKey) => {
+    const idx = stepSequence.indexOf(key);
+    if (idx >= 0) setStepIndex(idx);
+  };
+  const goNext = () => setStepIndex(Math.min(stepIndex + 1, totalSteps - 1));
+  const goBack = () => setStepIndex(Math.max(stepIndex - 1, 0));
+
+  const handleBusinessTypeSelect = async (type: BusinessType) => {
+    const isChange = !!businessType && businessType !== type;
+    if (isChange) {
+      // Clear type-specific data on the server (products + business_setup_data)
+      try {
+        await fetch('/api/shop/products', {
+          method: 'DELETE',
+          headers: {
+            'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || shop?.id || '',
+          },
+        });
+      } catch (err) {
+        logger.warn('Could not clear products on type change', { error: String(err) });
+      }
+      clearTypeSpecificData();
+    }
+
+    // Persist locally + on server (if shop exists)
+    savePersistentBusinessType(type);
+    if (shop?.id) {
+      try {
+        await fetch('/api/shop', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-shop-id': shop.id,
+          },
+          body: JSON.stringify({
+            business_type: type,
+            ...(isChange ? { business_setup_data: {} } : {}),
+          }),
+        });
+        await refreshShop();
+      } catch (err) {
+        logger.warn('Could not persist business_type', { error: String(err) });
+      }
+    }
+
+    // Move forward to step 1 (shopInfo) — must compute from new sequence
+    const newSeq = getStepSequence(type);
+    const target = newSeq.indexOf('shopInfo');
+    setStepIndex(Math.max(1, target));
+  };
+
   const handleShopSave = async (data: Record<string, unknown>) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (shop?.id && !isNewShopMode) headers['x-shop-id'] = shop.id;
@@ -214,26 +338,22 @@ function SetupContent() {
     const res = await fetch('/api/shop', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...data, forceCreate: isNewShopMode })
+      body: JSON.stringify({ ...data, business_type: businessType, forceCreate: isNewShopMode })
     });
 
     const resData = await res.json();
-    if (!res.ok) {
-      throw new Error(resData.error || 'Хадгалахад алдаа гарлаа');
-    }
+    if (!res.ok) throw new Error(resData.error || 'Хадгалахад алдаа гарлаа');
 
-    // Ensure the new/updated shop is the active one
     if (resData.shop?.id) {
       localStorage.setItem('smarthub_active_shop_id', resData.shop.id);
     }
 
-    // Sync preview
     setPreviewShopName(String(data.name || ''));
     setPreviewOwnerName(String(data.owner_name || ''));
     setPreviewPhone(String(data.phone || ''));
 
     await refreshShop();
-    setStep(2);
+    goNext();
   };
 
   const handleFacebookSelect = async (pageId: string) => {
@@ -257,9 +377,7 @@ function SetupContent() {
       throw new Error(pageData.error);
     }
 
-    if (pageData.page?.access_token) {
-      setFbToken(pageData.page.access_token);
-    }
+    if (pageData.page?.access_token) setFbToken(pageData.page.access_token);
 
     const shopRes = await fetch('/api/shop', {
       method: 'PATCH',
@@ -280,13 +398,11 @@ function SetupContent() {
     }
 
     await refreshShop();
-    setStep(3);
+    goToStepKey('instagram');
   };
 
   const handleManualFacebookSave = async (data: { pageId: string; pageName: string; accessToken: string }) => {
-    if (data.accessToken) {
-      setFbToken(data.accessToken);
-    }
+    if (data.accessToken) setFbToken(data.accessToken);
 
     const res = await fetch('/api/shop', {
       method: 'PATCH',
@@ -304,7 +420,7 @@ function SetupContent() {
     if (!res.ok) throw new Error('Хадгалахад алдаа гарлаа');
 
     await refreshShop();
-    setStep(3);
+    goToStepKey('instagram');
   };
 
   const handleManualInstagramSave = async (data: { businessAccountId: string; username: string; accessToken: string }) => {
@@ -324,7 +440,7 @@ function SetupContent() {
     if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
 
     await refreshShop();
-    setStep(4);
+    goToStepKey('products');
   };
 
   const handleInstagramSelect = async (account: { instagramId: string; instagramUsername: string; pageAccessToken: string }) => {
@@ -345,7 +461,7 @@ function SetupContent() {
 
     setIgAccounts([]);
     await refreshShop();
-    setStep(4);
+    goToStepKey('products');
   };
 
   const handleProductsComplete = async (products: Record<string, unknown>[]) => {
@@ -359,7 +475,25 @@ function SetupContent() {
     });
 
     if (!res.ok) throw new Error('Бүтээгдэхүүн хадгалахад алдаа гарлаа');
-    setStep(5);
+    goNext();
+  };
+
+  const handleOperationsSave = async (data: Record<string, unknown>) => {
+    if (!shop?.id) return;
+    const res = await fetch('/api/shop', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shop-id': shop.id,
+      },
+      body: JSON.stringify({ business_setup_data: data }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Хадгалахад алдаа гарлаа');
+    }
+    await refreshShop();
+    goNext();
   };
 
   const handleAIComplete = async (aiData: Record<string, unknown> & { ai_emotion?: string } | null) => {
@@ -372,9 +506,9 @@ function SetupContent() {
         },
         body: JSON.stringify(aiData)
       });
-      if (aiData.ai_emotion) setPreviewAiEmotion(aiData.ai_emotion);
+      if (aiData.ai_emotion) setPreviewAiEmotion(String(aiData.ai_emotion));
     }
-    setStep(6);
+    goNext();
   };
 
   if (authLoading || isInitializing) {
@@ -384,6 +518,13 @@ function SetupContent() {
       </div>
     );
   }
+
+  // ─── Render ─────────────────────────────────────────────────
+
+  // initial business_setup_data for resuming Operations step
+  const initialOperationsData = (shop?.business_setup_data && typeof shop.business_setup_data === 'object')
+    ? shop.business_setup_data as Record<string, unknown>
+    : {};
 
   return (
     <div className="h-screen overflow-hidden bg-[#FAFAFA] flex flex-col lg:flex-row relative">
@@ -395,34 +536,34 @@ function SetupContent() {
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500/10 to-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <RotateCcw className="w-7 h-7 text-blue-500" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Үргэлжлүүлэх үү?</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t.setup.resumeTitle}</h3>
               <p className="text-sm text-slate-500 mt-2">
-                Та өмнө нь алхам {savedStep} хүртэл хийсэн байна
+                {t.setup.resumeDesc.replace('{step}', String(savedStepIndex + 1))}
               </p>
             </div>
 
             <div className="space-y-3">
               <button
                 onClick={() => {
-                  setStepLocal(savedStep);
+                  setStepIndexLocal(savedStepIndex);
                   continueFromSaved();
                   setShowResumeModal(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-orange-600 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/20"
               >
                 <Play className="w-4 h-4" />
-                Үргэлжлүүлэх ({stepLabels[savedStep - 1]})
+                {t.setup.resumeContinue} ({stepLabels[savedStepIndex] ?? ''})
               </button>
               <button
                 onClick={() => {
                   clearState();
-                  setStepLocal(1);
+                  setStepIndexLocal(0);
                   setShowResumeModal(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-3 px-4 rounded-xl transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
-                Шинээр эхлэх
+                {t.setup.resumeRestart}
               </button>
             </div>
           </div>
@@ -445,19 +586,33 @@ function SetupContent() {
             <span className="text-xl font-bold text-slate-900 tracking-tight">Syncly</span>
           </Link>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
-            <span className="text-sm font-semibold text-slate-700">{step}</span>
-            <span className="text-sm font-medium text-slate-400">/ 7</span>
+            <span className="text-sm font-semibold text-slate-700">{stepIndex + 1}</span>
+            <span className="text-sm font-medium text-slate-400">/ {totalSteps}</span>
           </div>
         </div>
 
+        {/* Business type pill — when set, show + allow change */}
+        {businessType && currentStepKey !== 'businessType' && (
+          <div className="px-8 pb-2 shrink-0 flex justify-center">
+            <button
+              onClick={() => goToStepKey('businessType')}
+              className="text-xs text-slate-500 hover:text-slate-900 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" />
+              {BUSINESS_TYPES[businessType].label}
+              <span className="text-slate-400">— өөрчлөх</span>
+            </button>
+          </div>
+        )}
+
         {/* Minimal Progress Dots */}
         <div className="px-8 pb-4 flex items-center justify-center gap-2 shrink-0">
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => {
-            const isActive = s === step;
-            const isDone = s < step;
+          {Array.from({ length: totalSteps }).map((_, i) => {
+            const isActive = i === stepIndex;
+            const isDone = i < stepIndex;
             return (
               <div
-                key={s}
+                key={i}
                 className={cn(
                   'h-2 transition-all duration-500 ease-out flex items-center justify-center overflow-hidden',
                   isActive
@@ -480,7 +635,15 @@ function SetupContent() {
               </div>
             )}
 
-            {step === 1 && (
+            {currentStepKey === 'businessType' && (
+              <BusinessTypeStep
+                initialType={businessType}
+                isChanging={!!businessType}
+                onSelect={handleBusinessTypeSelect}
+              />
+            )}
+
+            {currentStepKey === 'shopInfo' && (
               <ShopInfoStep
                 initialData={{
                   name: shop?.name || '',
@@ -488,7 +651,7 @@ function SetupContent() {
                   phone: shop?.phone || ''
                 }}
                 onNext={handleShopSave}
-                onPreviewUpdate={(data: Partial<{ name: string; owner_name: string; phone: string }>) => {
+                onPreviewUpdate={(data) => {
                   if (data.name !== undefined) setPreviewShopName(data.name);
                   if (data.owner_name !== undefined) setPreviewOwnerName(data.owner_name);
                   if (data.phone !== undefined) setPreviewPhone(data.phone);
@@ -496,7 +659,7 @@ function SetupContent() {
               />
             )}
 
-            {step === 2 && (
+            {currentStepKey === 'facebook' && (
               <FacebookStep
                 initialData={{
                   fbConnected: !!shop?.facebook_page_id,
@@ -507,12 +670,12 @@ function SetupContent() {
                 onConnect={() => window.location.href = '/api/auth/facebook'}
                 onSelectPage={handleFacebookSelect}
                 onManualSave={handleManualFacebookSave}
-                onBack={() => setStep(1)}
-                onNext={() => setStep(3)}
+                onBack={goBack}
+                onNext={() => goToStepKey('instagram')}
               />
             )}
 
-            {step === 3 && (
+            {currentStepKey === 'instagram' && (
               <InstagramStep
                 initialData={{
                   igConnected: !!shop?.instagram_business_account_id,
@@ -520,25 +683,35 @@ function SetupContent() {
                   igBusinessAccountId: shop?.instagram_business_account_id || ''
                 }}
                 igAccounts={igAccounts}
-                onConnect={() => {
-                  window.location.href = '/api/auth/instagram';
-                }}
+                onConnect={() => { window.location.href = '/api/auth/instagram'; }}
                 onSelectAccount={handleInstagramSelect}
                 onManualSave={handleManualInstagramSave}
-                onBack={() => setStep(2)}
-                onNext={() => setStep(4)}
+                onBack={goBack}
+                onNext={() => goToStepKey('products')}
               />
             )}
 
-            {step === 4 && (
+            {currentStepKey === 'products' && businessType && (
               <ProductStep
                 initialProducts={[]}
-                onBack={() => setStep(3)}
+                onBack={goBack}
                 onComplete={handleProductsComplete}
+                productNoun={BUSINESS_TYPES[businessType].productNoun}
+                defaultType={['service', 'beauty'].includes(businessType) ? 'service' : 'physical'}
               />
             )}
 
-            {step === 5 && (
+            {currentStepKey === 'operations' && businessType && BUSINESS_TYPES[businessType].hasOperations && (
+              <OperationsStep
+                businessType={businessType}
+                initialData={initialOperationsData}
+                onBack={goBack}
+                onSkip={goNext}
+                onSave={handleOperationsSave}
+              />
+            )}
+
+            {currentStepKey === 'aiSetup' && (
               <AISetupStep
                 initialData={{
                   description: shop?.description || '',
@@ -547,14 +720,15 @@ function SetupContent() {
                 }}
                 fbPageId={shop?.facebook_page_id || undefined}
                 fbPageToken={fbToken}
+                defaultTemplate={aiTemplate}
                 onSkip={() => handleAIComplete(null)}
                 onSave={handleAIComplete}
               />
             )}
 
-            {step === 6 && (
+            {currentStepKey === 'payout' && (
               <PayoutSetupStep
-                onComplete={() => setStep(7)}
+                onComplete={goNext}
                 initialData={{
                   bank_name: shop?.bank_name || '',
                   account_name: shop?.account_name || '',
@@ -565,7 +739,7 @@ function SetupContent() {
               />
             )}
 
-            {step === 7 && (
+            {currentStepKey === 'subscription' && (
               <SubscriptionStep
                 onComplete={() => router.push('/dashboard')}
               />
@@ -574,16 +748,14 @@ function SetupContent() {
         </div>
       </div>
 
-      {/* ═══════════ RIGHT: Live Preview (Glassmorphism UI) ═══════════ */}
+      {/* ═══════════ RIGHT: Live Preview ═══════════ */}
       <div className="hidden lg:flex w-1/2 h-full bg-[#0B0A10] relative overflow-hidden items-center justify-center p-6 xl:p-12">
-        {/* Dynamic Gradient background blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[20%] right-[10%] w-[600px] h-[600px] bg-violet-600/30 rounded-full blur-[140px] animate-pulse-slow mix-blend-screen" />
           <div className="absolute bottom-[20%] left-[10%] w-[500px] h-[500px] bg-blue-600/25 rounded-full blur-[120px] mix-blend-screen" />
           <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-500/15 rounded-full blur-[160px] transform rotate-45" />
         </div>
 
-        {/* Elegant Grid pattern */}
         <div className="absolute inset-0 opacity-[0.03]"
           style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)',
@@ -591,16 +763,14 @@ function SetupContent() {
           }}
         />
 
-        {/* Glassmorphism Container around Preview */}
         <div className="relative z-10 w-full max-w-[520px] h-[95%] max-h-[820px]">
           <div className="absolute -inset-1 bg-gradient-to-br from-white/10 to-transparent rounded-[2.5rem] blur-sm opacity-50" />
 
           <div className="relative bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-2xl shadow-black/50 rounded-[2.5rem] p-6 pr-4 overflow-hidden h-full flex flex-col">
-            {/* Glossy top edge highlight */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-50" />
 
             <SetupPreview
-              step={step}
+              step={stepIndex + 1}
               shopName={previewShopName}
               ownerName={previewOwnerName}
               phone={previewPhone}
@@ -612,6 +782,8 @@ function SetupContent() {
               igConnected={!!shop?.instagram_business_account_id}
               products={previewProducts}
               aiEmotion={previewAiEmotion}
+              businessType={businessType}
+              currentStepKey={currentStepKey}
             />
           </div>
         </div>

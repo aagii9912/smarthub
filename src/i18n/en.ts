@@ -84,6 +84,25 @@ export const en: Translations = {
     resumeContinue: 'Continue',
     resumeRestart: 'Start over',
 
+    // Business Type Step (Step 0)
+    businessType: {
+      title: 'What kind of business do you run?',
+      subtitle: 'We tailor the next questions based on your business type',
+      changeTitle: 'Changing business type',
+      changeWarning: 'Switching types will clear data you entered for product/service and operations steps. Basic info (name, phone, address) will be kept.',
+      confirmChange: 'Yes, switch',
+      cancelChange: 'Cancel',
+    },
+
+    // Operations Step (Step 5)
+    operations: {
+      titleDefault: 'Operations setup',
+      subtitleDefault: 'Tell us a bit more about how your business runs',
+      saveAndContinue: 'Save and continue',
+      yes: 'Yes',
+      no: 'No',
+    },
+
     // Shop Info Step
     shop: {
       title: 'Shop Information',

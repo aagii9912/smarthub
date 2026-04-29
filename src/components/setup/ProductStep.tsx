@@ -24,9 +24,13 @@ interface ProductStepProps {
   initialProducts: any[]; // Allow partial initial data
   onBack: () => void;
   onComplete: (products: any[]) => Promise<void>;
+  /** Localized noun used in titles/placeholders ("Бараа" / "Меню" / "Үйлчилгээ"). */
+  productNoun?: string;
+  /** Default product type for new rows — service-style businesses default to 'service'. */
+  defaultType?: 'physical' | 'service';
 }
 
-export function ProductStep({ initialProducts, onBack, onComplete }: ProductStepProps) {
+export function ProductStep({ initialProducts, onBack, onComplete, productNoun, defaultType = 'physical' }: ProductStepProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>(
@@ -37,7 +41,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
         description: p.description || '',
         colors: Array.isArray(p.colors) ? p.colors.join(', ') : (p.colors || ''),
         sizes: Array.isArray(p.sizes) ? p.sizes.join(', ') : (p.sizes || ''),
-        type: p.type || 'physical',
+        type: p.type || defaultType,
         stock: p.stock || '10',
         imageUrl: p.imageUrl,
         imageFile: null
@@ -48,7 +52,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
         description: '',
         colors: '',
         sizes: '',
-        type: 'physical',
+        type: defaultType,
         stock: '10',
         imageFile: null
       }]
@@ -76,7 +80,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
       description: '',
       colors: '',
       sizes: '',
-      type: 'physical',
+      type: defaultType,
       stock: '10',
       imageFile: null
     }]);
@@ -206,7 +210,7 @@ export function ProductStep({ initialProducts, onBack, onComplete }: ProductStep
         <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Package className="w-8 h-8 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.setup.products.title}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{productNoun ?? t.setup.products.title}</h2>
         <p className="text-gray-500">{t.setup.products.subtitle}</p>
       </div>
 

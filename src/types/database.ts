@@ -24,6 +24,9 @@ export interface Shop {
     // Setup & Status
     setup_completed?: boolean;
     is_active?: boolean;
+    // Business Type (drives setup wizard flow + dashboard customization)
+    business_type?: 'retail' | 'restaurant' | 'service' | 'ecommerce' | 'beauty' | 'other' | null;
+    business_setup_data?: Record<string, unknown> | null;
     // Bank Information
     bank_name?: string | null;
     account_number?: string | null;

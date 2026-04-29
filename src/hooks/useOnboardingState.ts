@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/utils/logger';
+import type { BusinessType } from '@/lib/constants/business-types';
 
 const STORAGE_KEY = 'syncly_onboarding_state';
 const EXPIRY_HOURS = 24; // State expires after 24 hours
 
 interface OnboardingState {
     step: number;
+    businessType?: BusinessType | null;
     shopData: {
         name?: string;
         owner_name?: string;
@@ -17,16 +19,19 @@ interface OnboardingState {
     igConnected: boolean;
     productsAdded: boolean;
     aiConfigured: boolean;
+    operationsConfigured: boolean;
     timestamp: number;
 }
 
 const defaultState: OnboardingState = {
-    step: 1,
+    step: 0,
+    businessType: null,
     shopData: {},
     fbConnected: false,
     igConnected: false,
     productsAdded: false,
     aiConfigured: false,
+    operationsConfigured: false,
     timestamp: Date.now()
 };
 
@@ -45,8 +50,14 @@ export function useOnboardingState() {
                 // Check if state is expired
                 const hoursElapsed = (Date.now() - parsed.timestamp) / (1000 * 60 * 60);
                 if (hoursElapsed < EXPIRY_HOURS) {
-                    setState(parsed);
-                    setHasExistingState(parsed.step > 1);
+                    // Backwards-compat: older state may not have new fields
+                    setState({
+                        ...defaultState,
+                        ...parsed,
+                        operationsConfigured: parsed.operationsConfigured ?? false,
+                        businessType: parsed.businessType ?? null,
+                    });
+                    setHasExistingState(parsed.step > 0);
                 } else {
                     // Clear expired state
                     localStorage.removeItem(STORAGE_KEY);
@@ -83,6 +94,21 @@ export function useOnboardingState() {
         saveState({ step });
     }, [saveState]);
 
+    // Update business type
+    const setBusinessType = useCallback((type: BusinessType | null) => {
+        saveState({ businessType: type });
+    }, [saveState]);
+
+    // Clear type-specific data when user changes business type mid-wizard.
+    // Keeps general data (name, FB/IG, AI, bank) — clears products/operations flags
+    // and the type itself if requested.
+    const clearTypeSpecificData = useCallback(() => {
+        saveState({
+            productsAdded: false,
+            operationsConfigured: false,
+        });
+    }, [saveState]);
+
     // Update shop data
     const updateShopData = useCallback((data: Partial<OnboardingState['shopData']>) => {
         setState(prev => {
@@ -103,7 +129,7 @@ export function useOnboardingState() {
     }, []);
 
     // Mark step as complete
-    const markComplete = useCallback((key: 'fbConnected' | 'igConnected' | 'productsAdded' | 'aiConfigured') => {
+    const markComplete = useCallback((key: 'fbConnected' | 'igConnected' | 'productsAdded' | 'aiConfigured' | 'operationsConfigured') => {
         saveState({ [key]: true });
     }, [saveState]);
 
@@ -127,11 +153,13 @@ export function useOnboardingState() {
     return {
         // State
         step: state.step,
+        businessType: state.businessType ?? null,
         shopData: state.shopData,
         fbConnected: state.fbConnected,
         igConnected: state.igConnected,
         productsAdded: state.productsAdded,
         aiConfigured: state.aiConfigured,
+        operationsConfigured: state.operationsConfigured,
 
         // Meta
         isLoaded,
@@ -139,6 +167,8 @@ export function useOnboardingState() {
 
         // Actions
         setStep,
+        setBusinessType,
+        clearTypeSpecificData,
         updateShopData,
         markComplete,
         saveState,

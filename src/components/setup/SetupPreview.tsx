@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { BUSINESS_TYPES, type BusinessType } from '@/lib/constants/business-types';
+
 interface SetupPreviewProps {
     step: number;
     shopName: string;
@@ -23,6 +25,8 @@ interface SetupPreviewProps {
     igConnected: boolean;
     products: Array<{ name: string; price?: number }>;
     aiEmotion: string;
+    businessType?: BusinessType | null;
+    currentStepKey?: string;
 }
 
 export function SetupPreview({
@@ -38,9 +42,13 @@ export function SetupPreview({
     igConnected,
     products,
     aiEmotion,
+    businessType,
+    currentStepKey,
 }: SetupPreviewProps) {
     const displayName = shopName || 'Таны дэлгүүр';
     const displayOwner = ownerName || 'Нэр';
+    const businessLabel = businessType ? BUSINESS_TYPES[businessType].label : null;
+    void currentStepKey;
 
     return (
         <div className="w-full h-full flex items-center justify-center p-6 lg:p-8">
@@ -104,12 +112,17 @@ export function SetupPreview({
 
                             {/* Content area — changes per step */}
                             <div className="flex-1 p-3 overflow-hidden">
-                                {step <= 1 && <ShopInfoPreview name={displayName} owner={displayOwner} phone={phone} bankName={bankName} accountNumber={accountNumber} />}
-                                {step === 2 && <FacebookPreview fbPageName={fbPageName} connected={fbConnected} shopName={displayName} />}
-                                {step === 3 && <InstagramPreview igUsername={igUsername} connected={igConnected} shopName={displayName} />}
-                                {step === 4 && <ProductsPreview products={products} shopName={displayName} />}
-                                {step === 5 && <AIPreview emotion={aiEmotion} shopName={displayName} />}
-                                {step === 6 && <CompletionPreview shopName={displayName} />}
+                                {currentStepKey === 'businessType' && <BusinessTypePreview businessLabel={businessLabel} shopName={displayName} />}
+                                {currentStepKey === 'shopInfo' && <ShopInfoPreview name={displayName} owner={displayOwner} phone={phone} bankName={bankName} accountNumber={accountNumber} />}
+                                {currentStepKey === 'facebook' && <FacebookPreview fbPageName={fbPageName} connected={fbConnected} shopName={displayName} />}
+                                {currentStepKey === 'instagram' && <InstagramPreview igUsername={igUsername} connected={igConnected} shopName={displayName} />}
+                                {currentStepKey === 'products' && <ProductsPreview products={products} shopName={displayName} />}
+                                {currentStepKey === 'operations' && <OperationsPreview businessLabel={businessLabel} shopName={displayName} />}
+                                {currentStepKey === 'aiSetup' && <AIPreview emotion={aiEmotion} shopName={displayName} />}
+                                {currentStepKey === 'payout' && <CompletionPreview shopName={displayName} />}
+                                {currentStepKey === 'subscription' && <CompletionPreview shopName={displayName} />}
+                                {/* Fallback when currentStepKey is missing — use step number */}
+                                {!currentStepKey && step <= 1 && <ShopInfoPreview name={displayName} owner={displayOwner} phone={phone} bankName={bankName} accountNumber={accountNumber} />}
                             </div>
                         </div>
                     </div>
@@ -441,6 +454,48 @@ function AIPreview({ emotion, shopName }: {
                     <div key={f} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-[#0F0B2E] border border-white/[0.04]">
                         <Sparkles className="w-3 h-3 text-blue-400/50" />
                         <span className="text-[9px] text-white/40">{f}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ─── Business Type Preview (Step 0) ─── */
+function BusinessTypePreview({ businessLabel, shopName }: { businessLabel: string | null; shopName: string }) {
+    return (
+        <div className="h-full flex flex-col items-center justify-center text-center animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/10">
+                <Sparkles className="w-8 h-8 text-violet-400" />
+            </div>
+            <p className="text-[14px] font-bold text-white/90 mb-1">{businessLabel ?? 'Бизнесийн төрлөө сонгоно уу'}</p>
+            <p className="text-[11px] text-white/40 max-w-[220px] leading-relaxed">
+                Таны сонгосноос хамаарч дараагийн алхамууд тохируулагдана
+            </p>
+            {businessLabel && (
+                <div className="mt-3 px-3 py-1.5 rounded-full bg-[#0F0B2E] border border-white/[0.06]">
+                    <span className="text-[10px] text-white/50">{shopName}</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ─── Operations Preview ─── */
+function OperationsPreview({ businessLabel, shopName }: { businessLabel: string | null; shopName: string }) {
+    return (
+        <div className="space-y-3 animate-fade-in">
+            <div className="rounded-xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border border-white/[0.08] p-3">
+                <p className="text-[11px] font-bold text-white/80 mb-1">{shopName}</p>
+                <p className="text-[10px] text-white/40">
+                    {businessLabel ? `${businessLabel} — үйл ажиллагааны тохиргоо` : 'Үйл ажиллагааны тохиргоо'}
+                </p>
+            </div>
+            <div className="space-y-1.5">
+                {['Үндсэн тохиргоо', 'Ажилтан / хүчин чадал', 'Хүргэлт / захиалга'].map((label) => (
+                    <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0F0B2E] border border-white/[0.04]">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400/60" />
+                        <span className="text-[11px] text-white/50">{label}</span>
                     </div>
                 ))}
             </div>

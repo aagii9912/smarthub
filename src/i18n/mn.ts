@@ -82,6 +82,25 @@ export const mn = {
     resumeContinue: 'Үргэлжлүүлэх',
     resumeRestart: 'Шинээр эхлэх',
 
+    // Business Type Step (Step 0)
+    businessType: {
+      title: 'Та ямар бизнес эрхэлдэг вэ?',
+      subtitle: 'Бизнесийнхээ төрлөөс хамаарч таньд тохирсон асуултуудыг үзүүлнэ',
+      changeTitle: 'Төрлөө сольж байна',
+      changeWarning: 'Төрлөө сольвол өмнө бөглөсөн дараагийн алхамуудын мэдээлэл (бараа/үйлчилгээ, үйл ажиллагааны тохиргоо) арилна. Үндсэн мэдээлэл (нэр, утас, хаяг) хэвээр үлдэнэ.',
+      confirmChange: 'Тийм, сольно',
+      cancelChange: 'Үгүй, болих',
+    },
+
+    // Operations Step (Step 5)
+    operations: {
+      titleDefault: 'Үйл ажиллагааны тохиргоо',
+      subtitleDefault: 'Бизнесийнхээ талаар нэмэлт мэдээлэл',
+      saveAndContinue: 'Хадгалах ба үргэлжлүүлэх',
+      yes: 'Тийм',
+      no: 'Үгүй',
+    },
+
     // Shop Info Step
     shop: {
       title: 'Дэлгүүрийн мэдээлэл',

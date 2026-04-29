@@ -74,3 +74,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// DELETE - Wipe all products for this shop. Used when the user changes their
+// business type mid-wizard and the previously-entered products no longer apply.
+export async function DELETE() {
+  try {
+    const shop = await getAuthUserShop();
+    if (!shop) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabase = supabaseAdmin();
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('shop_id', shop.id);
+
+    if (error) throw error;
+    return NextResponse.json({ message: 'Products cleared' });
+  } catch (error: unknown) {
+    logger.error('Clear products error:', { error });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+  }
+}
+

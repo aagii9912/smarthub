@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -48,7 +48,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, owner_name, phone, forceCreate } = body;
+    const { name, owner_name, phone, forceCreate, business_type } = body;
+    const ALLOWED_BUSINESS_TYPES = ['retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other'];
+    const sanitizedBusinessType = business_type && ALLOWED_BUSINESS_TYPES.includes(business_type) ? business_type : undefined;
 
     if (!name) {
       return NextResponse.json({ error: 'Shop name required' }, { status: 400 });
@@ -70,9 +72,12 @@ export async function POST(request: NextRequest) {
 
       if (existingShop) {
         // Update existing shop instead of returning error
+        const updatePayload: Record<string, unknown> = { name, owner_name, phone };
+        if (sanitizedBusinessType) updatePayload.business_type = sanitizedBusinessType;
+
         const { data: updatedShop, error } = await supabase
           .from('shops')
-          .update({ name, owner_name, phone })
+          .update(updatePayload)
           .eq('id', existingShop.id)
           .select()
           .single();
@@ -142,6 +147,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       is_active: true,
       setup_completed: false,
+      ...(sanitizedBusinessType ? { business_type: sanitizedBusinessType } : {}),
     };
 
     if (userHasPlan) {
@@ -214,12 +220,30 @@ export async function PATCH(request: NextRequest) {
       'facebook_page_id', 'facebook_page_name', 'facebook_page_username',
       'facebook_page_access_token',
       'instagram_business_account_id', 'instagram_access_token', 'instagram_username',
+      // Business taxonomy (setup wizard)
+      'business_type', 'business_setup_data',
     ] as const;
+
+    const ALLOWED_BUSINESS_TYPES = ['retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other'];
 
     const sanitizedUpdate: Record<string, unknown> = {};
     for (const key of ALLOWED_FIELDS) {
       if (body[key] !== undefined) {
         sanitizedUpdate[key] = body[key];
+      }
+    }
+
+    // Reject business_type values that don't match the CHECK constraint to fail fast (better error)
+    if (sanitizedUpdate.business_type !== undefined && sanitizedUpdate.business_type !== null) {
+      if (!ALLOWED_BUSINESS_TYPES.includes(String(sanitizedUpdate.business_type))) {
+        return NextResponse.json({ error: 'Invalid business_type' }, { status: 400 });
+      }
+    }
+    // business_setup_data must be a plain object (JSONB)
+    if (sanitizedUpdate.business_setup_data !== undefined) {
+      const v = sanitizedUpdate.business_setup_data;
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+        return NextResponse.json({ error: 'business_setup_data must be an object' }, { status: 400 });
       }
     }
 

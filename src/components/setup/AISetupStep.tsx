@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check, RefreshCw, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
 import { TEMPLATES, EMOTIONS, STEPS } from '@/lib/constants/ai-setup';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+type TemplateKey = keyof typeof TEMPLATES;
 
 interface AISetupStepProps {
     initialData: {
@@ -18,24 +20,45 @@ interface AISetupStepProps {
     onSave: (data: any) => Promise<void>;
     fbPageId?: string;
     fbPageToken?: string;
+    /**
+     * Optional template key derived from the wizard's selected business type.
+     * When provided, it preselects the AI template and updates emotion/instructions
+     * to match — unless the user has already customized them.
+     */
+    defaultTemplate?: TemplateKey;
 }
 
-export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken }: AISetupStepProps) {
+export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken, defaultTemplate }: AISetupStepProps) {
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [fetchingFb, setFetchingFb] = useState(false);
     const { t } = useLanguage();
 
-    const [template, setTemplate] = useState('general');
+    const initialTemplate: TemplateKey = defaultTemplate && TEMPLATES[defaultTemplate] ? defaultTemplate : 'general';
+    const [template, setTemplate] = useState<TemplateKey>(initialTemplate);
     const [description, setDescription] = useState(initialData.description || '');
-    const [emotion, setEmotion] = useState(initialData.ai_emotion || 'friendly');
-    const [instructions, setInstructions] = useState(initialData.ai_instructions || TEMPLATES['general'].instructions);
+    const [emotion, setEmotion] = useState(initialData.ai_emotion || TEMPLATES[initialTemplate].emotion);
+    const [instructions, setInstructions] = useState(initialData.ai_instructions || TEMPLATES[initialTemplate].instructions);
+    const userEditedRef = useRef(Boolean(initialData.ai_instructions));
 
-    const handleTemplateChange = (newTemplate: string) => {
+    // When defaultTemplate changes (e.g. user picked a different business type
+    // and came back to AI step), realign template/emotion/instructions — but
+    // only if the user hasn't manually edited the instructions yet.
+    useEffect(() => {
+        if (!defaultTemplate || !TEMPLATES[defaultTemplate]) return;
+        if (userEditedRef.current) return;
+        const tpl = TEMPLATES[defaultTemplate];
+        setTemplate(defaultTemplate);
+        setEmotion((prev) => prev === '' ? tpl.emotion : prev || tpl.emotion);
+        setInstructions((prev) => (prev && userEditedRef.current ? prev : tpl.instructions));
+    }, [defaultTemplate]);
+
+    const handleTemplateChange = (newTemplate: TemplateKey) => {
         setTemplate(newTemplate);
-        const t = TEMPLATES[newTemplate as keyof typeof TEMPLATES];
-        setInstructions(t.instructions);
-        setEmotion(t.emotion);
+        const tpl = TEMPLATES[newTemplate];
+        setInstructions(tpl.instructions);
+        setEmotion(tpl.emotion);
+        userEditedRef.current = false;
     };
 
     const fetchFacebookContext = async () => {
@@ -113,7 +136,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                     {Object.entries(TEMPLATES).map(([key, t]) => (
                                         <button
                                             key={key}
-                                            onClick={() => handleTemplateChange(key)}
+                                            onClick={() => handleTemplateChange(key as TemplateKey)}
                                             className={`text-left p-3 rounded-xl border transition-all flex items-center justify-between ${template === key
                                                 ? 'border-violet-600 bg-violet-50 ring-1 ring-violet-600'
                                                 : 'border-gray-200 hover:border-violet-200'
@@ -198,7 +221,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                 </p>
                                 <Textarea
                                     value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
+                                    onChange={(e) => { userEditedRef.current = true; setInstructions(e.target.value); }}
                                     rows={8}
                                     className="bg-gray-50 font-mono text-sm leading-relaxed"
                                 />
