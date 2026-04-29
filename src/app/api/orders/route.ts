@@ -3,6 +3,8 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateOrderStatusSchema, parseWithErrors, createOrderSchema } from '@/lib/validations';
 import { sendOrderStatusNotification } from '@/lib/services/OrderNotificationService';
+import { sendOrderNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import { logger } from '@/lib/utils/logger';
 
 // GET all orders
@@ -124,6 +126,19 @@ export async function POST(request: NextRequest) {
         { error: reserveError.message },
         { status: 409 },
       );
+    }
+
+    // Push notification to shop owner — manual dashboard order created
+    try {
+      const enabled = await isNotificationEnabled(shopId, 'order');
+      if (enabled) {
+        await sendOrderNotification(shopId, 'new', {
+          orderId: order.id,
+          totalAmount,
+        });
+      }
+    } catch (pushErr) {
+      logger.warn('Manual order push notification failed:', { error: String(pushErr) });
     }
 
     return NextResponse.json({

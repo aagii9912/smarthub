@@ -1,9 +1,10 @@
 import webpush from 'web-push';
+import * as Sentry from '@sentry/nextjs';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
-// Lazy VAPID initialization flag
 let vapidConfigured = false;
+let vapidWarningSent = false;
 
 function ensureVapidConfigured(): boolean {
     if (vapidConfigured) return true;
@@ -14,9 +15,10 @@ function ensureVapidConfigured(): boolean {
 
     if (vapidPublicKey && vapidPrivateKey) {
         try {
-            // Sanitize keys: remove whitespace and base64 padding (=)
-            const cleanPublicKey = vapidPublicKey.trim().replace(/=/g, '');
-            const cleanPrivateKey = vapidPrivateKey.trim().replace(/=/g, '');
+            // web-push tolerates URL-safe base64 with or without padding —
+            // don't strip `=` here, that historically corrupted standard-base64 keys.
+            const cleanPublicKey = vapidPublicKey.trim();
+            const cleanPrivateKey = vapidPrivateKey.trim();
             const cleanEmail = vapidEmail.trim();
 
             webpush.setVapidDetails(cleanEmail, cleanPublicKey, cleanPrivateKey);
@@ -24,6 +26,7 @@ function ensureVapidConfigured(): boolean {
             return true;
         } catch (error: unknown) {
             logger.error('Failed to configure VAPID', { error });
+            Sentry.captureException(error, { tags: { area: 'push.vapid' } });
             return false;
         }
     }
@@ -39,48 +42,64 @@ export interface NotificationPayload {
     actions?: Array<{ action: string; title: string }>;
 }
 
+export interface PushError {
+    endpoint: string;
+    statusCode?: number;
+    message: string;
+}
+
+export type SendResult =
+    | { ok: true; succeeded: number; failed: number; errors: PushError[] }
+    | {
+          ok: false;
+          reason: 'vapid_not_configured' | 'db_error' | 'no_subscriptions';
+          succeeded: 0;
+          failed: 0;
+          errors: [];
+      };
+
 /**
- * Send push notification to all subscriptions for a shop
+ * Verbose variant of sendPushNotification that returns a discriminated result.
+ * Diagnostic endpoints and admin tooling should use this instead of the
+ * back-compat `sendPushNotification` wrapper, so they can tell apart
+ * "no VAPID config" from "no subscriptions" from "all sends failed".
  */
-export async function sendPushNotification(
+export async function sendPushNotificationVerbose(
     shopId: string,
     payload: NotificationPayload
-): Promise<{ success: number; failed: number }> {
-    // Ensure VAPID is configured before sending
+): Promise<SendResult> {
     if (!ensureVapidConfigured()) {
         logger.warn('Push notification skipped: VAPID not configured');
-        return { success: 0, failed: 0 };
+        if (!vapidWarningSent) {
+            vapidWarningSent = true;
+            Sentry.captureMessage('VAPID not configured at send time', 'error');
+        }
+        return { ok: false, reason: 'vapid_not_configured', succeeded: 0, failed: 0, errors: [] };
     }
 
     const supabase = supabaseAdmin();
 
     logger.debug('sendPushNotification called', { shopId, payload });
 
-    // Get all subscriptions for this shop
     const { data: subscriptions, error } = await supabase
         .from('push_subscriptions')
         .select('id, shop_id, endpoint, p256dh, auth, created_at')
         .eq('shop_id', shopId);
 
-    logger.debug('Push subscriptions query result', { count: subscriptions?.length || 0, error: error?.message });
-
     if (error) {
         logger.error('Push notification database error', { error });
-        return { success: 0, failed: 0 };
+        Sentry.captureException(error, { tags: { area: 'push.db' }, extra: { shopId } });
+        return { ok: false, reason: 'db_error', succeeded: 0, failed: 0, errors: [] };
     }
 
     if (!subscriptions || subscriptions.length === 0) {
         logger.debug('No push subscriptions found', { shopId });
-        // Debug: check sample subscriptions
-        const { data: allSubs } = await supabase.from('push_subscriptions').select('shop_id').limit(5);
-        logger.debug('Sample subscriptions in DB', { samples: allSubs });
-        return { success: 0, failed: 0 };
+        return { ok: false, reason: 'no_subscriptions', succeeded: 0, failed: 0, errors: [] };
     }
 
-    logger.debug('Found subscriptions', { count: subscriptions.length });
-
-    let success = 0;
+    let succeeded = 0;
     let failed = 0;
+    const errors: PushError[] = [];
     const nowIso = new Date().toISOString();
 
     for (const sub of subscriptions) {
@@ -93,37 +112,26 @@ export async function sendPushNotification(
                 },
             };
 
-            await webpush.sendNotification(
-                pushSubscription,
-                JSON.stringify(payload)
-            );
-            success++;
-            // Refresh health on success.
+            await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+            succeeded++;
             await supabase
                 .from('push_subscriptions')
                 .update({ last_used_at: nowIso, failure_count: 0 })
                 .eq('id', sub.id);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            logger.error('Push notification failed', { error: errorMessage });
-            failed++;
-
             const statusCode = (err as { statusCode?: number })?.statusCode;
+            logger.error('Push notification failed', { error: errorMessage, statusCode });
+            failed++;
+            errors.push({ endpoint: sub.endpoint, statusCode, message: errorMessage });
+
             if (statusCode === 404 || statusCode === 410) {
-                // Permanently invalid — gone from the browser.
-                await supabase
-                    .from('push_subscriptions')
-                    .delete()
-                    .eq('id', sub.id);
+                await supabase.from('push_subscriptions').delete().eq('id', sub.id);
             } else {
-                // Transient or unknown — bump failure_count so the cleanup
-                // cron can prune chronically-failing rows.
-                const { error: rpcErr } = await supabase.rpc(
-                    'increment_push_failure_count',
-                    { p_subscription_id: sub.id }
-                );
+                const { error: rpcErr } = await supabase.rpc('increment_push_failure_count', {
+                    p_subscription_id: sub.id,
+                });
                 if (rpcErr) {
-                    // Fall back to a manual update if the RPC isn't deployed yet.
                     const subTyped = sub as unknown as { failure_count?: number };
                     const next = (subTyped.failure_count ?? 0) + 1;
                     await supabase
@@ -135,17 +143,34 @@ export async function sendPushNotification(
         }
     }
 
-    if (success === 0 && subscriptions.length > 0) {
-        logger.warn('All push subscriptions for shop failed', { shopId, total: subscriptions.length });
+    if (succeeded === 0 && subscriptions.length > 0) {
+        Sentry.captureMessage('All push subscriptions for shop failed', {
+            level: 'warning',
+            extra: { shopId, total: subscriptions.length, errors },
+        });
     }
 
-    return { success, failed };
+    return { ok: true, succeeded, failed, errors };
+}
+
+/**
+ * Backwards-compatible wrapper that returns the legacy {success, failed} shape.
+ * Existing call sites stay untouched; new code should prefer the verbose variant.
+ */
+export async function sendPushNotification(
+    shopId: string,
+    payload: NotificationPayload
+): Promise<{ success: number; failed: number }> {
+    const result = await sendPushNotificationVerbose(shopId, payload);
+    if (result.ok) {
+        return { success: result.succeeded, failed: result.failed };
+    }
+    return { success: 0, failed: 0 };
 }
 
 /**
  * Quick check: does this shop have any active push subscription right now?
- * Used by the dashboard to surface a "you have no notifications enabled" banner
- * (issue #4 — owner missed customer-support pings because no SW was installed).
+ * Used by the dashboard to surface a "you have no notifications enabled" banner.
  */
 export async function hasActivePushSubscription(shopId: string): Promise<boolean> {
     const supabase = supabaseAdmin();

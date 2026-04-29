@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 // POST - Add products to shop
 export async function POST(request: NextRequest) {
@@ -63,6 +65,25 @@ export async function POST(request: NextRequest) {
 
     // Note: setup_completed is set AFTER subscription payment is verified
     // in check-payment or webhook handler — NOT here
+
+    // Push notification — bulk imports only (heuristic: 3+ products in one call).
+    // Manual single-product additions don't merit a notification, but Excel
+    // imports always include many rows.
+    if (insertedProducts && insertedProducts.length >= 3) {
+      try {
+        const enabled = await isNotificationEnabled(shop.id, 'import');
+        if (enabled) {
+          await sendPushNotification(shop.id, {
+            title: '📥 Бараа импорт дууслаа',
+            body: `${insertedProducts.length} бараа амжилттай нэмэгдлээ`,
+            url: '/dashboard/products',
+            tag: `import-${shop.id}-${Date.now()}`,
+          });
+        }
+      } catch (pushErr) {
+        logger.warn('Product import push failed:', { error: String(pushErr) });
+      }
+    }
 
     return NextResponse.json({
       products: insertedProducts,

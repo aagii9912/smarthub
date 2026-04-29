@@ -67,6 +67,15 @@ export interface NotifySettings {
     support: boolean;
     cancel: boolean;
     complaints?: boolean;
+    payment_received?: boolean;
+    payment_failed?: boolean;
+    refund?: boolean;
+    new_customer?: boolean;
+    subscription?: boolean;
+    automation?: boolean;
+    plan_limit?: boolean;
+    low_stock?: boolean;
+    import?: boolean;
 }
 
 // Shop policies

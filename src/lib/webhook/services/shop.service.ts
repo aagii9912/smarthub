@@ -203,11 +203,31 @@ export async function getAIFeatures(shopId: string): Promise<AIFeatures> {
 }
 
 export function buildNotifySettings(shop: ShopWithProducts): NotifySettings {
+    const s = shop as ShopWithProducts & {
+        notify_on_payment_received?: boolean | null;
+        notify_on_payment_failed?: boolean | null;
+        notify_on_refund?: boolean | null;
+        notify_on_new_customer?: boolean | null;
+        notify_on_subscription?: boolean | null;
+        notify_on_automation?: boolean | null;
+        notify_on_plan_limit?: boolean | null;
+        notify_on_low_stock?: boolean | null;
+        notify_on_import?: boolean | null;
+    };
     return {
         order: shop.notify_on_order ?? true,
         contact: shop.notify_on_contact ?? true,
         support: shop.notify_on_support ?? true,
         cancel: shop.notify_on_cancel ?? true,
         complaints: shop.notify_on_complaints ?? true,
+        payment_received: s.notify_on_payment_received ?? true,
+        payment_failed: s.notify_on_payment_failed ?? true,
+        refund: s.notify_on_refund ?? true,
+        new_customer: s.notify_on_new_customer ?? true,
+        subscription: s.notify_on_subscription ?? true,
+        automation: s.notify_on_automation ?? true,
+        plan_limit: s.notify_on_plan_limit ?? true,
+        low_stock: s.notify_on_low_stock ?? true,
+        import: s.notify_on_import ?? true,
     };
 }

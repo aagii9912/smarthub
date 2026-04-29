@@ -1,5 +1,31 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
+
+async function notifyNewCustomer(
+    shopId: string,
+    customerId: string | undefined,
+    userName: string | null,
+    platform: 'messenger' | 'instagram'
+): Promise<void> {
+    if (!customerId) return;
+    try {
+        const enabled = await isNotificationEnabled(shopId, 'new_customer');
+        if (!enabled) return;
+        const platformSuffix = platform === 'instagram' ? ' (Instagram)' : '';
+        await sendPushNotification(shopId, {
+            title: '👋 Шинэ хэрэглэгч',
+            body: `${userName || 'Шинэ хэрэглэгч'} анх удаа таныг бичлээ${platformSuffix}`,
+            url: '/dashboard/customers',
+            tag: `new-customer-${customerId}`,
+        });
+    } catch (err) {
+        logger.warn('New customer push notification failed', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+    }
+}
 
 export interface CustomerData {
     id: string;
@@ -86,6 +112,8 @@ export async function getOrCreateCustomer(
         .select()
         .single();
 
+    void notifyNewCustomer(shopId, newCustomer?.id, userName, 'messenger');
+
     return {
         id: newCustomer?.id || '',
         name: userName,
@@ -137,6 +165,8 @@ export async function getOrCreateInstagramCustomer(
         })
         .select()
         .single();
+
+    void notifyNewCustomer(shopId, newCustomer?.id, userName, 'instagram');
 
     return {
         id: newCustomer?.id || '',

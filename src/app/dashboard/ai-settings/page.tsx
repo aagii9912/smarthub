@@ -113,6 +113,18 @@ export default function AISettingsPage() {
     const [notifyOnSupport, setNotifyOnSupport] = useState(true);
     const [notifyOnCancel, setNotifyOnCancel] = useState(true);
     const [notifyOnComplaints, setNotifyOnComplaints] = useState(true);
+    const [notifyOnPaymentReceived, setNotifyOnPaymentReceived] = useState(true);
+    const [notifyOnPaymentFailed, setNotifyOnPaymentFailed] = useState(true);
+    const [notifyOnRefund, setNotifyOnRefund] = useState(true);
+    const [notifyOnNewCustomer, setNotifyOnNewCustomer] = useState(true);
+    const [notifyOnSubscription, setNotifyOnSubscription] = useState(true);
+    const [notifyOnAutomation, setNotifyOnAutomation] = useState(true);
+    const [notifyOnPlanLimit, setNotifyOnPlanLimit] = useState(true);
+    const [notifyOnLowStock, setNotifyOnLowStock] = useState(true);
+    const [notifyOnImport, setNotifyOnImport] = useState(true);
+    // Push diagnostic
+    const [testingPush, setTestingPush] = useState(false);
+    const [pushTestResult, setPushTestResult] = useState<unknown>(null);
     // FAQ
     const [faqs, setFaqs] = useState<{ id: string; q: string; a: string }[]>([]);
     const [newFaqQ, setNewFaqQ] = useState('');
@@ -184,6 +196,15 @@ export default function AISettingsPage() {
                 setNotifyOnSupport(s.notify_on_support !== false);
                 setNotifyOnCancel(s.notify_on_cancel !== false);
                 setNotifyOnComplaints(s.notify_on_complaints !== false);
+                setNotifyOnPaymentReceived(s.notify_on_payment_received !== false);
+                setNotifyOnPaymentFailed(s.notify_on_payment_failed !== false);
+                setNotifyOnRefund(s.notify_on_refund !== false);
+                setNotifyOnNewCustomer(s.notify_on_new_customer !== false);
+                setNotifyOnSubscription(s.notify_on_subscription !== false);
+                setNotifyOnAutomation(s.notify_on_automation !== false);
+                setNotifyOnPlanLimit(s.notify_on_plan_limit !== false);
+                setNotifyOnLowStock(s.notify_on_low_stock !== false);
+                setNotifyOnImport(s.notify_on_import !== false);
                 if (s.custom_knowledge)
                     setKnowledge(
                         Object.entries(s.custom_knowledge).map(([key, value]) => ({
@@ -371,6 +392,15 @@ export default function AISettingsPage() {
                     notify_on_support: notifyOnSupport,
                     notify_on_cancel: notifyOnCancel,
                     notify_on_complaints: notifyOnComplaints,
+                    notify_on_payment_received: notifyOnPaymentReceived,
+                    notify_on_payment_failed: notifyOnPaymentFailed,
+                    notify_on_refund: notifyOnRefund,
+                    notify_on_new_customer: notifyOnNewCustomer,
+                    notify_on_subscription: notifyOnSubscription,
+                    notify_on_automation: notifyOnAutomation,
+                    notify_on_plan_limit: notifyOnPlanLimit,
+                    notify_on_low_stock: notifyOnLowStock,
+                    notify_on_import: notifyOnImport,
                 }),
             });
             toast.success('Ерөнхий тохиргоо хадгалагдлаа');
@@ -378,6 +408,35 @@ export default function AISettingsPage() {
             toast.error('Алдаа гарлаа');
         } finally {
             setSaving(false);
+        }
+    }
+
+    async function handleTestPush() {
+        setTestingPush(true);
+        setPushTestResult(null);
+        try {
+            const res = await fetch('/api/push/test', {
+                method: 'POST',
+                headers: { 'x-shop-id': shopId },
+            });
+            const data = await res.json();
+            setPushTestResult(data);
+            if (data.succeeded > 0) {
+                toast.success('Илгээгдлээ — утсан дээрх notification-оо шалгана уу');
+            } else if (data.reason === 'no_subscriptions') {
+                toast.warning('Энэ дэлгүүрт идэвхтэй subscription байхгүй. Header дэх Bell товчийг дарж идэвхжүүлнэ үү.');
+            } else if (data.reason === 'vapid_not_configured') {
+                toast.error('VAPID түлхүүр тохируулаагүй байна (server env)');
+            } else if (data.failed > 0) {
+                toast.error('Бүх subscription амжилтгүй боллоо. Дэлгэрэнгүйг доороос харна уу.');
+            } else {
+                toast.error('Тодорхойгүй алдаа');
+            }
+        } catch (err) {
+            toast.error('Сүлжээний алдаа');
+            setPushTestResult({ error: err instanceof Error ? err.message : String(err) });
+        } finally {
+            setTestingPush(false);
         }
     }
 
@@ -1319,68 +1378,157 @@ export default function AISettingsPage() {
 
             {/* ═══ TAB: Notifications ═══ */}
             {activeTab === 'notifications' && (
-                <div className="card-outlined p-6">
-                    <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-5">
-                        Мэдэгдлийн тохиргоо
-                    </h3>
-                    <div className="space-y-3">
-                        {[
-                            {
-                                l: 'Шинэ захиалга бүртгэгдэхэд',
-                                d: 'AI амжилттай захиалга бүртгэх үед утсанд дуугарах',
-                                v: notifyOnOrder,
-                                s: setNotifyOnOrder,
-                            },
-                            {
-                                l: 'Холбогдох дугаар үлдээхэд',
-                                d: 'Хэрэглэгч утсаа үлдээх үед түлхүү мэдэгдэх',
-                                v: notifyOnContact,
-                                s: setNotifyOnContact,
-                            },
-                            {
-                                l: 'Тусламж хүсэхэд (Оператор руу шилжих)',
-                                d: 'Хэрэглэгч амьд хүнтэй холбогдохыг шаардах үед',
-                                v: notifyOnSupport,
-                                s: setNotifyOnSupport,
-                            },
-                            {
-                                l: 'Захиалга цуцлах хүсэлт',
-                                d: 'Хэрэглэгч захиалгаа цуцлахыг хүссэн үед',
-                                v: notifyOnCancel,
-                                s: setNotifyOnCancel,
-                            },
-                            {
-                                l: 'Гомдол хүлээн авах',
-                                d: 'Үйлчлүүлэгчийн гомдол, санал хүлээн авсан үед',
-                                v: notifyOnComplaints,
-                                s: setNotifyOnComplaints,
-                            },
-                        ].map((n) => (
-                            <ToggleRow
-                                key={n.l}
-                                title={n.l}
-                                description={n.d}
-                                value={n.v}
-                                onChange={n.s}
-                            />
-                        ))}
+                <div className="space-y-4">
+                    <div className="card-outlined p-6">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.01em]">
+                                    Push notification шалгах
+                                </h3>
+                                <p className="text-[11.5px] text-white/45 mt-1">
+                                    Туршилтын мэдэгдэл илгээж тохиргоо зөв байгаа эсэхийг шалгана.
+                                </p>
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="md"
+                                onClick={handleTestPush}
+                                disabled={testingPush}
+                                leftIcon={
+                                    testingPush ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Bell className="w-3.5 h-3.5" />
+                                    )
+                                }
+                            >
+                                Туршилтын мэдэгдэл илгээх
+                            </Button>
+                        </div>
+                        {pushTestResult ? (
+                            <pre className="mt-3 max-h-60 overflow-auto rounded-md bg-black/40 p-3 text-[11px] text-slate-300 font-mono">
+                                {JSON.stringify(pushTestResult, null, 2)}
+                            </pre>
+                        ) : null}
                     </div>
-                    <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
-                        <Button
-                            variant="primary"
-                            size="md"
-                            onClick={saveGeneral}
-                            disabled={saving}
-                            leftIcon={
-                                saving ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                    <Save className="w-3.5 h-3.5" strokeWidth={2} />
-                                )
-                            }
-                        >
-                            Тохиргоог хадгалах
-                        </Button>
+
+                    <div className="card-outlined p-6">
+                        <h3 className="text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-5">
+                            Мэдэгдлийн тохиргоо
+                        </h3>
+                        <div className="space-y-3">
+                            {[
+                                {
+                                    l: 'Шинэ захиалга бүртгэгдэхэд',
+                                    d: 'AI амжилттай захиалга бүртгэх үед утсанд дуугарах',
+                                    v: notifyOnOrder,
+                                    s: setNotifyOnOrder,
+                                },
+                                {
+                                    l: 'Холбогдох дугаар үлдээхэд',
+                                    d: 'Хэрэглэгч утсаа үлдээх үед түлхүү мэдэгдэх',
+                                    v: notifyOnContact,
+                                    s: setNotifyOnContact,
+                                },
+                                {
+                                    l: 'Тусламж хүсэхэд (Оператор руу шилжих)',
+                                    d: 'Хэрэглэгч амьд хүнтэй холбогдохыг шаардах үед',
+                                    v: notifyOnSupport,
+                                    s: setNotifyOnSupport,
+                                },
+                                {
+                                    l: 'Захиалга цуцлах хүсэлт',
+                                    d: 'Хэрэглэгч захиалгаа цуцлахыг хүссэн үед',
+                                    v: notifyOnCancel,
+                                    s: setNotifyOnCancel,
+                                },
+                                {
+                                    l: 'Гомдол хүлээн авах',
+                                    d: 'Үйлчлүүлэгчийн гомдол, санал хүлээн авсан үед',
+                                    v: notifyOnComplaints,
+                                    s: setNotifyOnComplaints,
+                                },
+                                {
+                                    l: 'Төлбөр төлөгдөх',
+                                    d: 'Захиалгын төлбөр амжилттай хүлээн авагдсан үед',
+                                    v: notifyOnPaymentReceived,
+                                    s: setNotifyOnPaymentReceived,
+                                },
+                                {
+                                    l: 'Төлбөр амжилтгүй болох',
+                                    d: 'Төлбөр амжилтгүй болсон гэж тэмдэглэгдсэн үед',
+                                    v: notifyOnPaymentFailed,
+                                    s: setNotifyOnPaymentFailed,
+                                },
+                                {
+                                    l: 'Буцаалт',
+                                    d: 'Төлбөрийн буцаалт хийгдсэн үед',
+                                    v: notifyOnRefund,
+                                    s: setNotifyOnRefund,
+                                },
+                                {
+                                    l: 'Шинэ хэрэглэгч',
+                                    d: 'Messenger/Instagram-аас анх удаа мессеж бичсэн үед',
+                                    v: notifyOnNewCustomer,
+                                    s: setNotifyOnNewCustomer,
+                                },
+                                {
+                                    l: 'Захиалга / туршилтын төлөв',
+                                    d: 'Subscription идэвхжих, trial эхлэх, дуусах үед',
+                                    v: notifyOnSubscription,
+                                    s: setNotifyOnSubscription,
+                                },
+                                {
+                                    l: 'Сэтгэгдлийн автомат хариу',
+                                    d: 'Comment automation амжилттай эсвэл амжилтгүй ажилласан үед',
+                                    v: notifyOnAutomation,
+                                    s: setNotifyOnAutomation,
+                                },
+                                {
+                                    l: 'Планы хязгаар дүүрэх',
+                                    d: 'Одоогийн планы limit-д хүрэх үед',
+                                    v: notifyOnPlanLimit,
+                                    s: setNotifyOnPlanLimit,
+                                },
+                                {
+                                    l: 'Бараа дуусах / нөөц багадах',
+                                    d: 'Барааны үлдэгдэл 0 эсвэл бага үед',
+                                    v: notifyOnLowStock,
+                                    s: setNotifyOnLowStock,
+                                },
+                                {
+                                    l: 'Бараа импорт',
+                                    d: 'Excel импорт амжилттай дууссан үед',
+                                    v: notifyOnImport,
+                                    s: setNotifyOnImport,
+                                },
+                            ].map((n) => (
+                                <ToggleRow
+                                    key={n.l}
+                                    title={n.l}
+                                    description={n.d}
+                                    value={n.v}
+                                    onChange={n.s}
+                                />
+                            ))}
+                        </div>
+                        <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
+                            <Button
+                                variant="primary"
+                                size="md"
+                                onClick={saveGeneral}
+                                disabled={saving}
+                                leftIcon={
+                                    saving ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Save className="w-3.5 h-3.5" strokeWidth={2} />
+                                    )
+                                }
+                            >
+                                Тохиргоог хадгалах
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

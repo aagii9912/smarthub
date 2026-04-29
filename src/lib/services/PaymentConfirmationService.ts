@@ -18,6 +18,8 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { deductStockForOrder } from '@/lib/services/StockService';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 export interface ConfirmOrderPaymentParams {
     paymentId: string;
@@ -142,6 +144,29 @@ export async function confirmOrderPayment(params: ConfirmOrderPaymentParams): Pr
             paymentMethod,
             existingMeta,
         });
+    }
+
+    // ── 6. Push notification to shop owner ──
+    if (existingPayment.shop_id) {
+        try {
+            const enabled = await isNotificationEnabled(
+                existingPayment.shop_id,
+                'payment_received'
+            );
+            if (enabled) {
+                await sendPushNotification(existingPayment.shop_id, {
+                    title: '💳 Төлбөр төлөгдлөө',
+                    body: `Захиалга #${(orderId ?? '').slice(0, 8)} — ${Number(amount).toLocaleString()}₮ амжилттай төлөгдлөө`,
+                    url: '/dashboard/orders',
+                    tag: `payment-paid-${paymentId}`,
+                });
+            }
+        } catch (pushErr) {
+            logger.warn('confirmOrderPayment: push notification failed (non-critical)', {
+                paymentId,
+                error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+            });
+        }
     }
 
     logger.success('Payment confirmation completed:', {

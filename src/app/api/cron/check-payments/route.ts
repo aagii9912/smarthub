@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted, getTransactionId } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 /**
  * GET /api/cron/check-payments
@@ -167,6 +169,26 @@ export async function GET() {
                     order_id: payment.order_id,
                     transaction_id: transactionId,
                 });
+
+                // ── Push notification to shop owner ──
+                if (payment.shop_id) {
+                    try {
+                        const enabled = await isNotificationEnabled(
+                            payment.shop_id,
+                            'payment_received'
+                        );
+                        if (enabled) {
+                            await sendPushNotification(payment.shop_id, {
+                                title: '💳 Төлбөр төлөгдлөө',
+                                body: `Захиалга #${(payment.order_id ?? '').slice(0, 8)} — ${Number(payment.amount).toLocaleString()}₮ амжилттай төлөгдлөө`,
+                                url: '/dashboard/orders',
+                                tag: `payment-paid-${payment.id}`,
+                            });
+                        }
+                    } catch (pushErr) {
+                        logger.warn('Cron push notification failed:', { error: String(pushErr) });
+                    }
+                }
 
             } catch (checkErr) {
                 logger.warn('QPay check failed for payment:', {

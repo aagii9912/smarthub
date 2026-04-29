@@ -15,6 +15,8 @@ import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getRedisClient } from '@/lib/redis/client';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
@@ -249,6 +251,23 @@ export async function routeToAI(
 
                 // Track that we warned them to avoid spamming
                 await redis.set(warnKey, '1', { ex: 60 * 60 * 24 * 31 }); // 31 days expiry
+
+                // Push notification — owner approaching plan limit.
+                try {
+                    const enabled = await isNotificationEnabled(context.shopId, 'plan_limit');
+                    if (enabled) {
+                        await sendPushNotification(context.shopId, {
+                            title: threshold >= 90 ? '🚨 Планы хязгаар бараг дүүрлээ' : '⚠️ Планы хязгаарын ойролцоо байна',
+                            body: `AI credit ${tokenLimitCheck.usagePercent}%-д хүрсэн. План шинэчилж үргэлжлүүлнэ үү.`,
+                            url: '/dashboard/subscription',
+                            tag: `plan-limit-${threshold}-${context.shopId}-${currentMonth}`,
+                        });
+                    }
+                } catch (pushErr) {
+                    logger.warn('Plan limit push notification failed', {
+                        error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+                    });
+                }
             }
         } catch (err) {
             logger.error('Failed to process token usage warning', { error: err });

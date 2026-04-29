@@ -7,6 +7,8 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTextMessage } from '@/lib/facebook/messenger';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import type { CommentAutomation } from '@/types/database';
 
 export type { CommentAutomation } from '@/types/database';
@@ -116,9 +118,14 @@ export async function executeAutomation(
 ): Promise<{ dmSent: boolean; replySent: boolean }> {
     const result = { dmSent: false, replySent: false };
     const supabase = supabaseAdmin();
+    let dmAttempted = false;
+    let dmFailed = false;
+    let replyAttempted = false;
+    let replyFailed = false;
 
     // 1. Send DM if action includes it
     if (automation.action_type === 'send_dm' || automation.action_type === 'both') {
+        dmAttempted = true;
         try {
             await sendTextMessage({
                 recipientId: senderId,
@@ -132,6 +139,7 @@ export async function executeAutomation(
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
             logger.error(`[Comment Automation] Failed to send DM`, { error: msg, senderId });
+            dmFailed = true;
         }
     }
 
@@ -140,6 +148,7 @@ export async function executeAutomation(
         (automation.action_type === 'reply_comment' || automation.action_type === 'both') &&
         automation.reply_message
     ) {
+        replyAttempted = true;
         try {
             const apiVersion = 'v21.0';
             const response = await fetch(
@@ -163,10 +172,12 @@ export async function executeAutomation(
             } else {
                 const errorData = await response.json();
                 logger.error(`[Comment Automation] Comment reply failed`, { error: errorData });
+                replyFailed = true;
             }
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
             logger.error(`[Comment Automation] Comment reply error`, { error: msg });
+            replyFailed = true;
         }
     }
 
@@ -179,7 +190,52 @@ export async function executeAutomation(
         })
         .eq('id', automation.id);
 
-    // 4. Save to chat history
+    // 4. Push notification — success path (at least one channel delivered)
+    if (result.dmSent || result.replySent) {
+        try {
+            const enabled = await isNotificationEnabled(automation.shop_id, 'automation');
+            if (enabled) {
+                const parts: string[] = [];
+                if (result.dmSent) parts.push('DM');
+                if (result.replySent) parts.push('Хариу');
+                const channelText = parts.join(' + ');
+                await sendPushNotification(automation.shop_id, {
+                    title: '💬 Сэтгэгдэл автоматаар хариулагдлаа',
+                    body: `${automation.name} — ${channelText} илгээгдлээ`,
+                    url: '/dashboard/comment-automation',
+                    tag: `automation-${automation.id}-${commentId}`,
+                });
+            }
+        } catch (pushErr) {
+            logger.warn('Comment automation success push failed', {
+                error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+            });
+        }
+    }
+
+    // 5. Push notification — failure path (everything we attempted failed)
+    const totalFailed =
+        (dmAttempted && dmFailed && (!replyAttempted || replyFailed)) ||
+        (replyAttempted && replyFailed && (!dmAttempted || dmFailed));
+    if (totalFailed) {
+        try {
+            const enabled = await isNotificationEnabled(automation.shop_id, 'automation');
+            if (enabled) {
+                await sendPushNotification(automation.shop_id, {
+                    title: '⚠️ Автомат хариу амжилтгүй',
+                    body: `${automation.name} автомат дүрэм хариу илгээж чадсангүй`,
+                    url: '/dashboard/comment-automation',
+                    tag: `automation-fail-${automation.id}`,
+                });
+            }
+        } catch (pushErr) {
+            logger.warn('Comment automation failure push failed', {
+                error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+            });
+        }
+    }
+
+    // 6. Save to chat history
     await supabase.from('chat_history').insert({
         shop_id: automation.shop_id,
         message: `[Comment Automation: ${automation.name}] Trigger by comment`,

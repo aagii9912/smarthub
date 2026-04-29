@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 /**
  * GET /api/payment/audit
@@ -239,6 +241,23 @@ export async function POST(request: NextRequest) {
                 notes: reason || 'Shop owner initiated refund',
             });
 
+            // Push notification — refund processed
+            if (payment.shop_id) {
+                try {
+                    const enabled = await isNotificationEnabled(payment.shop_id, 'refund');
+                    if (enabled) {
+                        await sendPushNotification(payment.shop_id, {
+                            title: '↩️ Буцаалт хийгдлээ',
+                            body: `${refundAmount.toLocaleString()}₮ буцаалт амжилттай хийгдлээ${reason ? `. Шалтгаан: ${reason}` : ''}`,
+                            url: '/dashboard/payment-audit',
+                            tag: `refund-${payment.id}`,
+                        });
+                    }
+                } catch (pushErr) {
+                    logger.warn('Refund push notification failed:', { error: String(pushErr) });
+                }
+            }
+
             return NextResponse.json({
                 success: true,
                 action: 'refund',
@@ -293,6 +312,23 @@ export async function POST(request: NextRequest) {
             },
             notes: reason || 'Shop owner marked failed',
         });
+
+        // Push notification — payment failed
+        if (payment.shop_id) {
+            try {
+                const enabled = await isNotificationEnabled(payment.shop_id, 'payment_failed');
+                if (enabled) {
+                    await sendPushNotification(payment.shop_id, {
+                        title: '⚠️ Төлбөр амжилтгүй боллоо',
+                        body: `Захиалга #${(payment.order_id ?? '').slice(0, 8)} — ${Number(payment.amount).toLocaleString()}₮ амжилтгүй болсон`,
+                        url: '/dashboard/payment-audit',
+                        tag: `payment-failed-${payment.id}`,
+                    });
+                }
+            } catch (pushErr) {
+                logger.warn('Payment failed push notification failed:', { error: String(pushErr) });
+            }
+        }
 
         return NextResponse.json({ success: true, action: 'mark_failed' });
     } catch (error: unknown) {

@@ -17,6 +17,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -30,7 +32,64 @@ export async function GET(request: NextRequest) {
         }
 
         const supabase = supabaseAdmin();
-        const nowIso = new Date().toISOString();
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const threeDaysFromNowIso = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+        const oneDayAgoIso = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+        // ── Trial ending in ≤3 days — remind once per 24h via trial_ending_notified_at ──
+        let endingNotified = 0;
+        try {
+            const { data: endingShops, error: endingErr } = await supabase
+                .from('shops')
+                .select('id, trial_ends_at, trial_ending_notified_at')
+                .eq('subscription_status', 'trial')
+                .gt('trial_ends_at', nowIso)
+                .lte('trial_ends_at', threeDaysFromNowIso)
+                .or(`trial_ending_notified_at.is.null,trial_ending_notified_at.lt.${oneDayAgoIso}`);
+            if (endingErr) {
+                logger.warn('check-trial-expiry: failed to query ending-soon trials', {
+                    error: endingErr.message,
+                });
+            } else if (endingShops && endingShops.length > 0) {
+                for (const shop of endingShops as Array<{
+                    id: string;
+                    trial_ends_at: string | null;
+                }>) {
+                    try {
+                        const enabled = await isNotificationEnabled(shop.id, 'subscription');
+                        if (!enabled) continue;
+                        const endsAt = shop.trial_ends_at ? new Date(shop.trial_ends_at) : null;
+                        const daysLeft = endsAt
+                            ? Math.max(
+                                  1,
+                                  Math.ceil((endsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                              )
+                            : 3;
+                        await sendPushNotification(shop.id, {
+                            title: '⏰ Туршилт удахгүй дуусна',
+                            body: `${daysLeft} хоногийн дотор туршилт дуусна. План сонгож үргэлжлүүлнэ үү.`,
+                            url: '/dashboard/subscription',
+                            tag: `trial-ending-${shop.id}`,
+                        });
+                        await supabase
+                            .from('shops')
+                            .update({ trial_ending_notified_at: nowIso })
+                            .eq('id', shop.id);
+                        endingNotified++;
+                    } catch (innerErr) {
+                        logger.warn('Trial-ending push failed for shop', {
+                            shop_id: shop.id,
+                            error: innerErr instanceof Error ? innerErr.message : String(innerErr),
+                        });
+                    }
+                }
+            }
+        } catch (endingPushErr) {
+            logger.warn('Trial-ending notification block failed (non-fatal)', {
+                error: endingPushErr instanceof Error ? endingPushErr.message : String(endingPushErr),
+            });
+        }
 
         const { data: expired, error } = await supabase
             .from('shops')
@@ -54,6 +113,25 @@ export async function GET(request: NextRequest) {
             logger.success(`Expired ${count} trial shop(s)`, {
                 shopIds: expired?.map(s => s.id),
             });
+
+            // ── Push: trial expired ──
+            for (const shop of expired || []) {
+                try {
+                    const enabled = await isNotificationEnabled(shop.id, 'subscription');
+                    if (!enabled) continue;
+                    await sendPushNotification(shop.id, {
+                        title: '⌛ Туршилт дууслаа',
+                        body: 'Үнэгүй туршилтын хугацаа дууслаа. Үргэлжлүүлэхийн тулд төлбөртэй планыг сонгоно уу.',
+                        url: '/dashboard/subscription',
+                        tag: `trial-expired-${shop.id}`,
+                    });
+                } catch (innerErr) {
+                    logger.warn('Trial-expired push failed for shop', {
+                        shop_id: shop.id,
+                        error: innerErr instanceof Error ? innerErr.message : String(innerErr),
+                    });
+                }
+            }
         }
 
         // Roll the per-user token pool over for any user whose 30-day window
@@ -82,6 +160,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             success: true,
             expired_count: count,
+            ending_notified_count: endingNotified,
             expired_shops: expired?.map(s => ({ id: s.id, name: s.name })) ?? [],
             token_pool_resets: resetCount,
             checked_at: nowIso,

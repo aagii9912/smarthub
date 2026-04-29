@@ -17,6 +17,8 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 const TRIAL_DAYS = 3;
 const TRIAL_PLAN_SLUG = 'lite';
@@ -151,6 +153,39 @@ export async function POST() {
                 trial_ends_at: trialEnd.toISOString(),
             })
             .eq('user_id', userId);
+
+        // Push notification: trial started (fan-out across user's shops).
+        try {
+            const { data: ownerShops } = await supabase
+                .from('shops')
+                .select('id')
+                .eq('user_id', userId);
+            const trialEndLocale = trialEnd.toLocaleDateString('mn-MN');
+            await Promise.all(
+                (ownerShops || []).map(async (s: { id: string }) => {
+                    try {
+                        const enabled = await isNotificationEnabled(s.id, 'subscription');
+                        if (!enabled) return;
+                        await sendPushNotification(s.id, {
+                            title: '🆓 3 хоногийн туршилт эхэллээ',
+                            body: `Lite планы 3 хоногийн үнэгүй туршилт ${trialEndLocale} хүртэл идэвхтэй.`,
+                            url: '/dashboard/subscription',
+                            tag: `trial-started-${userId}`,
+                        });
+                    } catch (innerErr) {
+                        logger.warn('Trial-started push failed for shop', {
+                            shop_id: s.id,
+                            error: innerErr instanceof Error ? innerErr.message : String(innerErr),
+                        });
+                    }
+                })
+            );
+        } catch (pushErr) {
+            logger.warn('Trial-started push notification failed (non-fatal)', {
+                user_id: userId,
+                error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+            });
+        }
 
         return NextResponse.json({
             success: true,

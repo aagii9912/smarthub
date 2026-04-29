@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted, getTransactionId } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 import crypto from 'crypto';
+import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 /**
  * Verify QPay webhook signature.
@@ -463,6 +465,39 @@ async function handleSubscriptionPayment(
         logger.warn('Mirroring plan to all user shops failed (non-fatal)', {
             user_id: userId,
             error: allShopsUpdateError.message,
+        });
+    }
+
+    // ── Push notifications: subscription activated (fan out to all of user's shops) ──
+    try {
+        const { data: ownerShops } = await supabase
+            .from('shops')
+            .select('id')
+            .eq('user_id', userId);
+        const endLocaleDate = endDate.toLocaleDateString('mn-MN');
+        await Promise.all(
+            (ownerShops || []).map(async (s: { id: string }) => {
+                try {
+                    const enabled = await isNotificationEnabled(s.id, 'subscription');
+                    if (!enabled) return;
+                    await sendPushNotification(s.id, {
+                        title: '🎉 Захиалга идэвхжлээ',
+                        body: `${plan.name} планд амжилттай шилжлээ. ${endLocaleDate} хүртэл идэвхтэй.`,
+                        url: '/dashboard/subscription',
+                        tag: `subscription-activated-${plan.slug}-${s.id}`,
+                    });
+                } catch (innerErr) {
+                    logger.warn('Subscription activated push failed for shop', {
+                        shop_id: s.id,
+                        error: innerErr instanceof Error ? innerErr.message : String(innerErr),
+                    });
+                }
+            })
+        );
+    } catch (pushErr) {
+        logger.warn('Subscription activated push notification failed (non-fatal)', {
+            user_id: userId,
+            error: pushErr instanceof Error ? pushErr.message : String(pushErr),
         });
     }
 
