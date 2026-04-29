@@ -80,8 +80,11 @@ export async function provisionNewUserTrial(userId: string, email: string | null
  * Decide where to land an authenticated user after the OAuth callback.
  *
  *  - 0 shops → /setup (kick off onboarding)
- *  - 1+ shops with `setup_completed=true` and a Facebook page connected → /dashboard
+ *  - 1+ shops with `setup_completed=true` → /dashboard
  *  - Otherwise (incomplete setup) → /setup
+ *
+ * Service & beauty businesses can finish onboarding without connecting
+ * Facebook/Instagram, so we trust `setup_completed` alone.
  */
 export async function chooseLandingPath(userId: string): Promise<string> {
     if (!userId) return '/auth/login';
@@ -90,7 +93,7 @@ export async function chooseLandingPath(userId: string): Promise<string> {
         const supabase = supabaseAdmin();
         const { data: shops, error } = await supabase
             .from('shops')
-            .select('id, setup_completed, facebook_page_id, instagram_business_account_id, is_active')
+            .select('id, setup_completed, is_active')
             .eq('user_id', userId)
             .order('setup_completed', { ascending: false })
             .order('is_active', { ascending: false })
@@ -100,11 +103,7 @@ export async function chooseLandingPath(userId: string): Promise<string> {
             return '/setup';
         }
 
-        const ready = shops.find(
-            (s) =>
-                s.setup_completed === true &&
-                (s.facebook_page_id || s.instagram_business_account_id)
-        );
+        const ready = shops.find((s) => s.setup_completed === true);
 
         return ready ? '/dashboard' : '/setup';
     } catch (err) {

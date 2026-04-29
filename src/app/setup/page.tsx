@@ -203,7 +203,7 @@ function SetupContent() {
           return;
         }
 
-        if (shop.setup_completed && shop.facebook_page_id) {
+        if (shop.setup_completed) {
           router.push('/dashboard');
           return;
         }
@@ -213,7 +213,10 @@ function SetupContent() {
         setPreviewOwnerName(shop.owner_name || '');
         setPreviewPhone(shop.phone || '');
 
-        // Resolve resume step from shop state
+        // Resolve resume step from shop state. Never overwrite saved progress
+        // with an earlier step — a user who advanced past FB/IG (voluntarily
+        // skipped, or e.g. on a service business where they're optional) must
+        // not be dragged back when they return.
         const resolvedType = (shop.business_type && isBusinessType(shop.business_type)) ? shop.business_type : null;
         const seq = getStepSequence(resolvedType);
         let target = 0;
@@ -226,12 +229,12 @@ function SetupContent() {
         } else if (!shop.instagram_business_account_id) {
           target = seq.indexOf('instagram');
         } else {
-          // Past Instagram — let saved state guide, but never below 'products'
           const productsIdx = seq.indexOf('products');
           target = Math.max(savedStepIndex, productsIdx);
         }
-        setStepIndexLocal(Math.max(0, target));
-        savePersistentStep(Math.max(0, target));
+        const resumeStep = Math.max(0, savedStepIndex, target);
+        setStepIndexLocal(resumeStep);
+        savePersistentStep(resumeStep);
       }
 
       if (hasExistingState && savedStepIndex > 0) {

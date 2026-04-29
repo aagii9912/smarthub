@@ -7,13 +7,47 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockContext } from './fixtures';
 
 // ─── Mock Dependencies ──────────────────────────────────────────
+// Shop phone returned by `.from('shops').select(...).eq(...).single()`.
+// Tests can mutate this between cases to exercise the null-phone branch.
+const shopPhoneFixture: { phone: string | null; userId: string | null } = {
+    phone: '99001100',
+    userId: null,
+};
+
 vi.mock('@/lib/supabase', () => ({
     supabaseAdmin: vi.fn(() => ({
-        from: vi.fn().mockReturnValue({
-            update: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({ error: null }),
-            }),
+        from: vi.fn((table: string) => {
+            if (table === 'shops') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({
+                                data: {
+                                    phone: shopPhoneFixture.phone,
+                                    user_id: shopPhoneFixture.userId,
+                                    name: 'Test Shop',
+                                },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'customer_complaints') {
+                return { insert: vi.fn().mockResolvedValue({ error: null }) };
+            }
+            // customers (collect_contact)
+            return {
+                update: vi.fn().mockReturnValue({
+                    eq: vi.fn().mockResolvedValue({ error: null }),
+                }),
+            };
         }),
+        auth: {
+            admin: {
+                getUserById: vi.fn().mockResolvedValue({ data: { user: null } }),
+            },
+        },
     })),
 }));
 vi.mock('@/lib/utils/logger', () => ({
@@ -40,6 +74,8 @@ describe('CustomerHandlers', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(saveCustomerPreference).mockResolvedValue({ success: true } as any);
+        shopPhoneFixture.phone = '99001100';
+        shopPhoneFixture.userId = null;
     });
 
     // ─── collect_contact_info ────────────────────────────────────
@@ -102,6 +138,14 @@ describe('CustomerHandlers', () => {
             expect(result.success).toBe(true);
             expect(result.message).toContain('No info');
         });
+
+        it('should signal create_order as the next action so the AI registers the order', async () => {
+            const result = await executeCollectContact({ phone: '99001122' }, ctx);
+
+            expect(result.success).toBe(true);
+            expect(result.data).toMatchObject({ next_action: 'create_order' });
+            expect(result.message).toContain('create_order');
+        });
     });
 
     // ─── request_human_support ───────────────────────────────────
@@ -136,6 +180,26 @@ describe('CustomerHandlers', () => {
             await executeRequestSupport({ reason: 'test' }, noNotify);
 
             expect(vi.mocked(sendPushNotification)).not.toHaveBeenCalled();
+        });
+
+        it('should fail when shop phone is missing so the AI falls back to create_order', async () => {
+            shopPhoneFixture.phone = null;
+
+            const result = await executeRequestSupport({ reason: 'захиалга' }, ctx);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('create_order');
+        });
+
+        it('should expose a CALL: button when shop phone is configured', async () => {
+            shopPhoneFixture.phone = '99001100';
+
+            const result = await executeRequestSupport({ reason: 'захиалга' }, ctx);
+
+            expect(result.success).toBe(true);
+            expect(result.actions).toBeDefined();
+            const button = result.actions?.[0]?.buttons?.[0];
+            expect(button?.payload).toContain('CALL:+976');
         });
     });
 

@@ -25,10 +25,17 @@ interface FormVariant {
 export default function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) {
     const createProduct = useCreateProduct();
     const updateProduct = useUpdateProduct();
-    const { user } = useAuth();
+    const { user, shop } = useAuth();
+
+    // Service & beauty businesses don't ship physical goods. Hide the
+    // "Бараа" tab and default new entries to "Үйлчилгээ" so neither stock
+    // nor delivery sections appear.
+    const isServiceBusiness = shop?.business_type === 'service' || shop?.business_type === 'beauty';
 
     const [saving, setSaving] = useState(false);
-    const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(product?.type || 'physical');
+    const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(
+        product?.type ?? (isServiceBusiness ? 'service' : 'physical')
+    );
     const [deliveryType, setDeliveryType] = useState<string>(product?.delivery_type || 'included');
 
     // Lifecycle status (#8/#9/#10): controls how the AI talks about availability.
@@ -245,7 +252,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     { type: 'physical', label: 'Бараа', icon: Box },
                     { type: 'service', label: 'Үйлчилгээ', icon: Layers },
                     { type: 'appointment', label: 'Цаг захиалга', icon: Calendar }
-                ].map((item) => (
+                ].filter((item) => !(isServiceBusiness && item.type === 'physical')).map((item) => (
                     <button
                         key={item.type}
                         type="button"

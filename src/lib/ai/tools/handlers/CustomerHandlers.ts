@@ -64,11 +64,16 @@ export async function executeCollectContact(
 
     return {
         success: true,
-        message: `Мэдээлэл хадгалагдлаа! ✅\n${savedParts.join('\n')}\n\nОдоо төлбөрийн хэсэг рүү шилжинэ...`,
-        data: { 
-            phone: phone || null, 
+        // Phone is captured. AI must NOT improvise an apology or call
+        // request_human_support — its next move is to register the order
+        // (create_order) for the product the customer just agreed to buy.
+        message: `Мэдээлэл хадгалагдлаа. Дараагийн алхам: create_order tool-ыг саяхан ярилцсан бараа дээр шууд дууд. Хэрэглэгчийн өгсөн утсыг "бизнесийн утас" мэт буруу бүү танилцуул.\n${savedParts.join('\n')}`,
+        data: {
+            phone: phone || null,
             address: address || null,
-            auto_checkout: true,  // Signal AI to auto-proceed with checkout
+            // Explicit signal so the AI knows what tool to fire next.
+            next_action: 'create_order',
+            auto_checkout: true,
         },
     };
 }
@@ -174,25 +179,32 @@ export async function executeRequestSupport(
         logger.warn('Failed to read shop phone for call button:', { error: phoneErr });
     }
 
-    const buttons: Array<{ id: string; label: string; icon?: string; variant: 'secondary'; payload: string }> = [];
-    if (shopPhoneE164) {
-        buttons.push({
-            id: 'call_phone',
-            label: '📞 Залгах',
-            icon: 'phone',
-            variant: 'secondary',
-            // CALL: prefix is decoded by sendActionsAsButtons into a Meta
-            // phone_number button so the customer can tap-to-call.
-            payload: `CALL:${shopPhoneE164}`,
-        });
+    // Without a configured business phone we can't surface a Залгах button
+    // and the AI tends to invent an apology that echoes the *customer's*
+    // phone back as the contact number. Fail explicitly so the AI falls
+    // back to creating the order itself.
+    if (!shopPhoneE164) {
+        return {
+            success: false,
+            error: 'Дэлгүүрийн утас тохируулагдаагүй. AI: request_human_support бүү дахин дууд. Харин create_order ашиглан захиалгыг шууд бүртгэ. Хэрэглэгчийн өгсөн утсыг бизнесийн холбоо барих утас гэж бүү танилцуул.',
+        };
     }
 
     return {
         success: true,
         message: 'Дэлгүүрийн эзэнд мэдэгдэл илгээлээ. Тун удахгүй холбогдоно.',
-        actions: buttons.length
-            ? [{ type: 'support_actions', buttons }]
-            : undefined,
+        actions: [{
+            type: 'support_actions',
+            buttons: [{
+                id: 'call_phone',
+                label: '📞 Залгах',
+                icon: 'phone',
+                variant: 'secondary',
+                // CALL: prefix is decoded by sendActionsAsButtons into a Meta
+                // phone_number button so the customer can tap-to-call.
+                payload: `CALL:${shopPhoneE164}`,
+            }],
+        }],
     };
 }
 
