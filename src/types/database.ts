@@ -25,7 +25,17 @@ export interface Shop {
     setup_completed?: boolean;
     is_active?: boolean;
     // Business Type (drives setup wizard flow + dashboard customization)
-    business_type?: 'retail' | 'restaurant' | 'service' | 'ecommerce' | 'beauty' | 'other' | null;
+    business_type?:
+        | 'retail'
+        | 'restaurant'
+        | 'service'
+        | 'ecommerce'
+        | 'beauty'
+        | 'other'
+        | 'healthcare'
+        | 'education'
+        | 'realestate_auto'
+        | null;
     business_setup_data?: Record<string, unknown> | null;
     // Bank Information
     bank_name?: string | null;
@@ -46,6 +56,12 @@ export interface Shop {
     ai_total_messages?: number;
     ai_conversion_rate?: number;
     ai_avg_response_time?: number;
+    // AI Agent (role + capabilities)
+    ai_agent_role?: 'sales' | 'booking' | 'information' | 'support' | 'lead_capture' | 'hybrid';
+    ai_agent_capabilities?: ('sales' | 'booking' | 'information' | 'support' | 'lead_capture')[];
+    ai_agent_config?: Record<string, unknown> | null;
+    ai_agent_name?: string | null;
+    ai_setup_completed_at?: string | null;
     // Notification Settings
     notify_order?: boolean;
     notify_contact?: boolean;

@@ -20,6 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_shop_token_usage_daily ON shop_token_usage_daily 
 ALTER TABLE shop_token_usage_daily ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can read their own shop's daily token usage
+DROP POLICY IF EXISTS "Users can view their shop's daily usage" ON shop_token_usage_daily;
 CREATE POLICY "Users can view their shop's daily usage"
     ON shop_token_usage_daily FOR SELECT
     USING (

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import type { AIProduct, AIFAQ, AIQuickReply, AISlogan, NotifySettings } from '@/types/ai';
+import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
 
 interface ShopProductRow {
     id: string;
@@ -93,6 +94,13 @@ export interface ShopWithProducts {
     // Token billing
     token_usage_total?: number;
     token_usage_reset_at?: string | null;
+    // Agent role + capabilities (multi-agent support)
+    ai_agent_role?: AgentRole | null;
+    ai_agent_capabilities?: AgentCapability[] | null;
+    ai_agent_config?: Record<string, unknown> | null;
+    ai_agent_name?: string | null;
+    ai_setup_completed_at?: string | null;
+    business_type?: string | null;
 }
 
 export interface AIFeatures {
@@ -129,6 +137,12 @@ function mapShopRowToShopWithProducts(data: Record<string, unknown>): ShopWithPr
         custom_knowledge: get<Record<string, unknown> | null>('custom_knowledge'),
         token_usage_total: get<number | undefined>('token_usage_total') || 0,
         token_usage_reset_at: get<string | null>('token_usage_reset_at'),
+        ai_agent_role: get<AgentRole | null>('ai_agent_role'),
+        ai_agent_capabilities: get<AgentCapability[] | null>('ai_agent_capabilities'),
+        ai_agent_config: get<Record<string, unknown> | null>('ai_agent_config'),
+        ai_agent_name: get<string | null>('ai_agent_name'),
+        ai_setup_completed_at: get<string | null>('ai_setup_completed_at'),
+        business_type: get<string | null>('business_type'),
     };
 }
 

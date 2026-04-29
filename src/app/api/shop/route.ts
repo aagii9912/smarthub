@@ -225,9 +225,21 @@ export async function PATCH(request: NextRequest) {
       'instagram_business_account_id', 'instagram_access_token', 'instagram_username',
       // Business taxonomy (setup wizard)
       'business_type', 'business_setup_data',
+      // AI agent role / capabilities (multi-agent support)
+      'ai_agent_role', 'ai_agent_capabilities', 'ai_agent_config',
+      'ai_agent_name', 'ai_setup_completed_at',
     ] as const;
 
-    const ALLOWED_BUSINESS_TYPES = ['retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other'];
+    const ALLOWED_BUSINESS_TYPES = [
+      'retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other',
+      'healthcare', 'education', 'realestate_auto',
+    ];
+    const ALLOWED_AGENT_ROLES = [
+      'sales', 'booking', 'information', 'support', 'lead_capture', 'hybrid',
+    ];
+    const ALLOWED_AGENT_CAPABILITIES = [
+      'sales', 'booking', 'information', 'support', 'lead_capture',
+    ];
 
     const sanitizedUpdate: Record<string, unknown> = {};
     for (const key of ALLOWED_FIELDS) {
@@ -247,6 +259,32 @@ export async function PATCH(request: NextRequest) {
       const v = sanitizedUpdate.business_setup_data;
       if (v === null || typeof v !== 'object' || Array.isArray(v)) {
         return NextResponse.json({ error: 'business_setup_data must be an object' }, { status: 400 });
+      }
+    }
+    // ai_agent_role
+    if (sanitizedUpdate.ai_agent_role !== undefined && sanitizedUpdate.ai_agent_role !== null) {
+      if (!ALLOWED_AGENT_ROLES.includes(String(sanitizedUpdate.ai_agent_role))) {
+        return NextResponse.json({ error: 'Invalid ai_agent_role' }, { status: 400 });
+      }
+    }
+    // ai_agent_capabilities — array of capability strings
+    if (sanitizedUpdate.ai_agent_capabilities !== undefined) {
+      const caps = sanitizedUpdate.ai_agent_capabilities;
+      if (!Array.isArray(caps) || caps.some((c) => !ALLOWED_AGENT_CAPABILITIES.includes(String(c)))) {
+        return NextResponse.json({ error: 'Invalid ai_agent_capabilities' }, { status: 400 });
+      }
+    }
+    // ai_agent_config — must be a plain object
+    if (sanitizedUpdate.ai_agent_config !== undefined) {
+      const v = sanitizedUpdate.ai_agent_config;
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+        return NextResponse.json({ error: 'ai_agent_config must be an object' }, { status: 400 });
+      }
+    }
+    // ai_agent_name — string or null
+    if (sanitizedUpdate.ai_agent_name !== undefined && sanitizedUpdate.ai_agent_name !== null) {
+      if (typeof sanitizedUpdate.ai_agent_name !== 'string' || sanitizedUpdate.ai_agent_name.length > 100) {
+        return NextResponse.json({ error: 'ai_agent_name must be a string up to 100 chars' }, { status: 400 });
       }
     }
 

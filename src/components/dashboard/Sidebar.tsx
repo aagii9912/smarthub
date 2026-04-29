@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import type { AgentCapability } from '@/lib/ai/agents/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -28,13 +30,30 @@ interface RailItem {
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     feature?: string;
     comingSoon?: boolean;
+    /**
+     * Capability gates: the menu item is shown only if the shop's agent
+     * has at least one of these capabilities. Items with no gate are
+     * always visible.
+     */
+    requiresAnyCapability?: AgentCapability[];
 }
 
 const primaryItems: RailItem[] = [
     { nameKey: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { nameKey: 'orders', href: '/dashboard/orders', icon: ShoppingCart, feature: 'payment_integration' },
+    {
+        nameKey: 'orders',
+        href: '/dashboard/orders',
+        icon: ShoppingCart,
+        feature: 'payment_integration',
+        requiresAnyCapability: ['sales', 'support'],
+    },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
-    { nameKey: 'products', href: '/dashboard/products', icon: Package },
+    {
+        nameKey: 'products',
+        href: '/dashboard/products',
+        icon: Package,
+        requiresAnyCapability: ['sales', 'booking'],
+    },
     { nameKey: 'customers', href: '/dashboard/customers', icon: Users },
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot },
     { nameKey: 'reports', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
@@ -42,9 +61,25 @@ const primaryItems: RailItem[] = [
 
 const secondaryItems: RailItem[] = [
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore, comingSoon: true },
-    { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
-    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
-    { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
+    {
+        nameKey: 'cart',
+        href: '/dashboard/cart',
+        icon: ShoppingCart,
+        feature: 'cart_system',
+        requiresAnyCapability: ['sales'],
+    },
+    {
+        nameKey: 'paymentAudit',
+        href: '/dashboard/payment-audit',
+        icon: Shield,
+        requiresAnyCapability: ['sales'],
+    },
+    {
+        nameKey: 'complaints',
+        href: '/dashboard/complaints',
+        icon: AlertTriangle,
+        requiresAnyCapability: ['sales', 'support'],
+    },
 ];
 
 const bottomItems: RailItem[] = [
@@ -56,6 +91,14 @@ export function Sidebar() {
     const pathname = usePathname();
     const { t } = useLanguage();
     const { hasFeature, isPaidPlan, plan } = useFeatures();
+    const agent = useActiveShopAgent();
+
+    const isCapabilityVisible = (item: RailItem) => {
+        if (!item.requiresAnyCapability || item.requiresAnyCapability.length === 0) return true;
+        // While loading, show everything to avoid layout flicker.
+        if (agent.loading) return true;
+        return item.requiresAnyCapability.some((c) => agent.capabilities.includes(c));
+    };
 
     const getLabel = (key: string) => (t.sidebar as Record<string, string>)[key] || key;
 
@@ -167,9 +210,9 @@ export function Sidebar() {
             <div className="mx-4 mb-2 h-px bg-white/[0.06]" />
 
             <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden scrollbar-hide">
-                <ul className="flex flex-col gap-1">{primaryItems.map(renderItem)}</ul>
+                <ul className="flex flex-col gap-1">{primaryItems.filter(isCapabilityVisible).map(renderItem)}</ul>
                 <div className="mx-4 my-3 h-px bg-white/[0.06]" />
-                <ul className="flex flex-col gap-1">{secondaryItems.map(renderItem)}</ul>
+                <ul className="flex flex-col gap-1">{secondaryItems.filter(isCapabilityVisible).map(renderItem)}</ul>
             </nav>
 
             <div className="mt-auto flex flex-col gap-1 pt-3 border-t border-white/[0.04] w-full">

@@ -6,6 +6,9 @@ import {
   ShoppingBag,
   Sparkles,
   MoreHorizontal,
+  HeartPulse,
+  GraduationCap,
+  Building2,
 } from 'lucide-react';
 
 export type BusinessType =
@@ -14,7 +17,10 @@ export type BusinessType =
   | 'service'
   | 'ecommerce'
   | 'beauty'
-  | 'other';
+  | 'other'
+  | 'healthcare'
+  | 'education'
+  | 'realestate_auto';
 
 export interface BusinessTypeMeta {
   label: string;
@@ -77,6 +83,36 @@ export const BUSINESS_TYPES: Record<BusinessType, BusinessTypeMeta> = {
     hasOperations: true,
     aiTemplate: 'beauty',
     accentClass: 'bg-pink-100 text-pink-600',
+  },
+  healthcare: {
+    label: 'Эрүүл мэнд',
+    description: 'Эмнэлэг, клиник, эрүүл мэндийн төв',
+    icon: HeartPulse,
+    productNoun: 'Үйлчилгээ',
+    productNounSingular: 'Үйлчилгээ',
+    hasOperations: true,
+    aiTemplate: 'general',
+    accentClass: 'bg-red-100 text-red-600',
+  },
+  education: {
+    label: 'Боловсрол',
+    description: 'Сургалт, курс, боловсролын байгууллага',
+    icon: GraduationCap,
+    productNoun: 'Сургалт',
+    productNounSingular: 'Сургалт',
+    hasOperations: true,
+    aiTemplate: 'general',
+    accentClass: 'bg-indigo-100 text-indigo-600',
+  },
+  realestate_auto: {
+    label: 'Үл хөдлөх / Авто',
+    description: 'Үл хөдлөх хөрөнгө, автомашин зарах бизнес',
+    icon: Building2,
+    productNoun: 'Зар',
+    productNounSingular: 'Зар',
+    hasOperations: true,
+    aiTemplate: 'general',
+    accentClass: 'bg-amber-100 text-amber-600',
   },
   other: {
     label: 'Бусад',
@@ -279,6 +315,90 @@ export const OPERATIONS_CONFIG: Record<BusinessType, OperationsConfig | null> = 
       },
     ],
   },
+  healthcare: {
+    title: 'Эрүүл мэндийн байгууллагын тохиргоо',
+    subtitle: 'Үйл ажиллагааны мэдээлэл (заавал биш)',
+    fields: [
+      {
+        key: 'doctor_count',
+        label: 'Эмчийн тоо',
+        type: 'number',
+        min: 0,
+        max: 1000,
+        placeholder: '5',
+      },
+      {
+        key: 'specialties',
+        label: 'Үндсэн чиглэлүүд',
+        type: 'text',
+        placeholder: 'Шүд, дотрын, хүүхэд...',
+        helpText: 'Таслалаар тусгаарлан бичээрэй',
+      },
+      {
+        key: 'business_hours',
+        label: 'Ажиллах цаг',
+        type: 'text',
+        placeholder: 'Да-Ба: 09:00 - 18:00',
+      },
+    ],
+  },
+  education: {
+    title: 'Сургалтын төвийн тохиргоо',
+    subtitle: 'Үйл ажиллагааны мэдээлэл (заавал биш)',
+    fields: [
+      {
+        key: 'course_types',
+        label: 'Сургалтын төрлүүд',
+        type: 'text',
+        placeholder: 'Хэлний сургалт, програмчлал...',
+        helpText: 'Таслалаар тусгаарлан бичээрэй',
+      },
+      {
+        key: 'student_capacity',
+        label: 'Анги дүүргэлтийн дээд хязгаар',
+        type: 'number',
+        min: 0,
+        max: 1000,
+        placeholder: '25',
+      },
+      {
+        key: 'business_hours',
+        label: 'Ажиллах цаг',
+        type: 'text',
+        placeholder: 'Да-Ба: 09:00 - 21:00',
+      },
+    ],
+  },
+  realestate_auto: {
+    title: 'Үл хөдлөх / Автоны тохиргоо',
+    subtitle: 'Үйл ажиллагааны мэдээлэл (заавал биш)',
+    fields: [
+      {
+        key: 'category',
+        label: 'Чиглэл',
+        type: 'radio',
+        options: [
+          { value: 'realestate', label: 'Үл хөдлөх' },
+          { value: 'auto', label: 'Авто' },
+          { value: 'both', label: 'Хоёулаа' },
+        ],
+      },
+      {
+        key: 'agent_count',
+        label: 'Менежерийн тоо',
+        type: 'number',
+        min: 0,
+        max: 500,
+        placeholder: '3',
+      },
+      {
+        key: 'service_areas',
+        label: 'Үйлчилгээний бүс',
+        type: 'text',
+        placeholder: 'УБ, Дархан...',
+      },
+    ],
+  },
   other: null,
 };
 
@@ -319,10 +439,31 @@ export interface BeautySetupData {
   default_duration_minutes?: number;
 }
 
+export interface HealthcareSetupData {
+  doctor_count?: number;
+  specialties?: string;
+  business_hours?: string;
+}
+
+export interface EducationSetupData {
+  course_types?: string;
+  student_capacity?: number;
+  business_hours?: string;
+}
+
+export interface RealEstateAutoSetupData {
+  category?: 'realestate' | 'auto' | 'both';
+  agent_count?: number;
+  service_areas?: string;
+}
+
 export type BusinessSetupData =
   | RetailSetupData
   | RestaurantSetupData
   | ServiceSetupData
   | EcommerceSetupData
   | BeautySetupData
+  | HealthcareSetupData
+  | EducationSetupData
+  | RealEstateAutoSetupData
   | Record<string, never>;

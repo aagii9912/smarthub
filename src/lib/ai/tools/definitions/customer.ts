@@ -23,16 +23,19 @@ export const CUSTOMER_TOOLS: ToolDefinition[] = [
     {
         name: 'collect_contact_info',
         description: 'Save customer contact information when they provide phone number or delivery address for an order. Use this when customer shares their phone or address.',
-        parameters: { type: 'object', properties: { phone: { type: 'string', description: 'Customer phone number (8 digits for Mongolia)' }, address: { type: 'string', description: 'Delivery address' }, name: { type: 'string', description: 'Customer name if provided' } }, required: [] }
+        parameters: { type: 'object', properties: { phone: { type: 'string', description: 'Customer phone number (8 digits for Mongolia)' }, address: { type: 'string', description: 'Delivery address' }, name: { type: 'string', description: 'Customer name if provided' } }, required: [] },
+        capabilities: ['sales', 'booking', 'lead_capture', 'support', 'information']
     },
     {
         name: 'request_human_support',
         description: 'Call this when customer explicitly asks to speak to a human, operator, administrative staff, or when you cannot help them.',
-        parameters: { type: 'object', properties: { reason: { type: 'string', description: 'Reason for requesting human support' } }, required: ['reason'] }
+        parameters: { type: 'object', properties: { reason: { type: 'string', description: 'Reason for requesting human support' } }, required: ['reason'] },
+        capabilities: ['sales', 'booking', 'lead_capture', 'support', 'information']
     },
     {
         name: 'remember_preference',
         description: 'Хэрэглэгчийн сонголтыг санах. Размер, өнгө, стиль гэх мэт хэлэхэд ашиглана.',
-        parameters: { type: 'object', properties: { key: { type: 'string', description: 'Сонголтын төрөл (size, color, style, budget)' }, value: { type: 'string', description: 'Санах утга' } }, required: ['key', 'value'] }
+        parameters: { type: 'object', properties: { key: { type: 'string', description: 'Сонголтын төрөл (size, color, style, budget)' }, value: { type: 'string', description: 'Санах утга' } }, required: ['key', 'value'] },
+        capabilities: ['sales', 'booking', 'lead_capture', 'support', 'information']
     }
 ];

@@ -299,6 +299,9 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     shopDescription: shopData.description || undefined,
                     aiInstructions: shopData.ai_instructions || undefined,
                     aiEmotion: (shopData.ai_emotion || 'friendly') as AIEmotion,
+                    aiAgentRole: (shopData as unknown as { ai_agent_role?: import('@/lib/ai/agents/types').AgentRole }).ai_agent_role,
+                    aiAgentCapabilities: (shopData as unknown as { ai_agent_capabilities?: import('@/lib/ai/agents/types').AgentCapability[] }).ai_agent_capabilities,
+                    aiAgentName: (shopData as unknown as { ai_agent_name?: string | null }).ai_agent_name ?? undefined,
                     customKnowledge: undefined,
                     // AI info-sharing controls (#5b/#5c). Columns may not exist
                     // in older DBs; cast through unknown so TypeScript stays

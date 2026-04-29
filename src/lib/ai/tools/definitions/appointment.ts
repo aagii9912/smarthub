@@ -28,12 +28,14 @@ export const APPOINTMENT_TOOLS: ToolDefinition[] = [
                 notes: { type: 'string', description: 'Customer notes for the appointment (optional)' }
             },
             required: ['product_name', 'scheduled_at']
-        }
+        },
+        capabilities: ['booking']
     },
     {
         name: 'list_appointments',
         description: 'List the customer\'s upcoming appointments at this shop. Use when they ask "what appointments do I have", "миний цаг", etc.',
-        parameters: { type: 'object', properties: {}, required: [] }
+        parameters: { type: 'object', properties: {}, required: [] },
+        capabilities: ['booking']
     },
     {
         name: 'cancel_appointment',
@@ -44,6 +46,7 @@ export const APPOINTMENT_TOOLS: ToolDefinition[] = [
                 appointment_id: { type: 'string', description: 'UUID of the appointment to cancel (optional)' }
             },
             required: []
-        }
+        },
+        capabilities: ['booking']
     }
 ];

@@ -36,27 +36,32 @@ export const ORDER_TOOLS: ToolDefinition[] = [
     {
         name: 'create_order',
         description: 'Create a new order when customer explicitly says they want to buy something. Do not use for general inquiries.',
-        parameters: { type: 'object', properties: { product_name: { type: 'string', description: 'Name of the product to order (fuzzy match)' }, quantity: { type: 'number', description: 'Quantity to order', default: 1 }, color: { type: 'string', description: 'Selected color variant (optional)' }, size: { type: 'string', description: 'Selected size variant (optional)' } }, required: ['product_name', 'quantity'] }
+        parameters: { type: 'object', properties: { product_name: { type: 'string', description: 'Name of the product to order (fuzzy match)' }, quantity: { type: 'number', description: 'Quantity to order', default: 1 }, color: { type: 'string', description: 'Selected color variant (optional)' }, size: { type: 'string', description: 'Selected size variant (optional)' } }, required: ['product_name', 'quantity'] },
+        capabilities: ['sales']
     },
     {
         name: 'cancel_order',
         description: 'Cancel an order when customer explicitly says they want to cancel their order. This will restore the reserved stock.',
-        parameters: { type: 'object', properties: { reason: { type: 'string', description: 'Reason for cancellation' } }, required: [] }
+        parameters: { type: 'object', properties: { reason: { type: 'string', description: 'Reason for cancellation' } }, required: [] },
+        capabilities: ['sales', 'support']
     },
     {
         name: 'check_order_status',
         description: 'Check the status of customer\'s orders. Use when customer asks "Захиалга минь хаана?", "Хүргэлт хэзээ?", "Order status". Returns recent orders with status.',
-        parameters: { type: 'object', properties: { order_id: { type: 'string', description: 'Specific order ID if known (optional)' } }, required: [] }
+        parameters: { type: 'object', properties: { order_id: { type: 'string', description: 'Specific order ID if known (optional)' } }, required: [] },
+        capabilities: ['sales', 'support']
     },
     {
         name: 'update_order',
         description: 'Modify a pending order. Use when customer wants to change quantity, add/remove items, or update details. Only works on pending orders.',
-        parameters: { type: 'object', properties: { action: { type: 'string', enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'], description: 'Type of modification' }, product_name: { type: 'string', description: 'Product to modify (for quantity/add/remove)' }, new_quantity: { type: 'number', description: 'New quantity (for change_quantity)' }, notes: { type: 'string', description: 'Updated notes (for update_notes)' } }, required: ['action'] }
+        parameters: { type: 'object', properties: { action: { type: 'string', enum: ['change_quantity', 'add_item', 'remove_item', 'update_notes'], description: 'Type of modification' }, product_name: { type: 'string', description: 'Product to modify (for quantity/add/remove)' }, new_quantity: { type: 'number', description: 'New quantity (for change_quantity)' }, notes: { type: 'string', description: 'Updated notes (for update_notes)' } }, required: ['action'] },
+        capabilities: ['sales']
     },
     {
         name: 'check_delivery_status',
         description: 'Check delivery status and estimated delivery time for customer orders. Use when customer asks "Хүргэлт хаана?", "Хэзээ авах вэ?", "Delivery status". Returns delivery tracking info with ETA.',
-        parameters: { type: 'object', properties: { order_id: { type: 'string', description: 'Specific order ID to check delivery for (optional — defaults to latest shipped order)' } }, required: [] }
+        parameters: { type: 'object', properties: { order_id: { type: 'string', description: 'Specific order ID to check delivery for (optional — defaults to latest shipped order)' } }, required: [] },
+        capabilities: ['sales', 'support']
     }
 ];
 

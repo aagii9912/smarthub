@@ -107,6 +107,7 @@ CREATE TRIGGER trigger_payment_audit
 ALTER TABLE payment_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Shop owners can read their own audit logs
+DROP POLICY IF EXISTS "Shop owners can view own audit logs" ON payment_audit_logs;
 CREATE POLICY "Shop owners can view own audit logs"
     ON payment_audit_logs
     FOR SELECT
@@ -117,6 +118,7 @@ CREATE POLICY "Shop owners can view own audit logs"
     );
 
 -- Service role has full access (for triggers and API)
+DROP POLICY IF EXISTS "Service role full access to audit logs" ON payment_audit_logs;
 CREATE POLICY "Service role full access to audit logs"
     ON payment_audit_logs
     FOR ALL

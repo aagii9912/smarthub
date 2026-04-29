@@ -117,6 +117,12 @@ export interface ChatContext {
     shopDescription?: string;
     aiInstructions?: string;
     aiEmotion?: AIEmotion;
+    /** Primary agent role for this shop. Defaults to 'sales' for backwards compat. */
+    aiAgentRole?: import('@/lib/ai/agents/types').AgentRole;
+    /** Capabilities active when role is 'hybrid' (or as supplemental skills). */
+    aiAgentCapabilities?: import('@/lib/ai/agents/types').AgentCapability[];
+    /** Display name the AI introduces itself with (e.g. "Сүхээ"). */
+    aiAgentName?: string | null;
     products: AIProduct[];
     customerName?: string;
     orderHistory?: number;

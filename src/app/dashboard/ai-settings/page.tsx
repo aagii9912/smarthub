@@ -23,6 +23,10 @@ import { logger } from '@/lib/utils/logger';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
 import { cn } from '@/lib/utils';
+import { AgentWizard } from './components/AgentWizard';
+import { AgentOverview } from './components/AgentOverview';
+import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
+import type { BusinessType } from '@/lib/constants/business-types';
 
 const TABS = [
     { id: 'persona', label: 'AI Persona', icon: Settings },
@@ -95,8 +99,13 @@ function ToggleRow({
     );
 }
 
-export default function AISettingsPage() {
-    const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('persona');
+interface AdvancedSettingsProps {
+    initialTab?: 'persona' | 'knowledge' | 'automation' | 'notifications';
+    onBack?: () => void;
+}
+
+function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
+    const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>(initialTab ?? 'persona');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     // General
@@ -1532,6 +1541,134 @@ export default function AISettingsPage() {
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ============================================================
+// Default export: routes between Wizard / Overview / Advanced
+// ============================================================
+
+type ViewMode = 'overview' | 'wizard' | 'advanced';
+
+interface AgentShopState {
+    is_ai_active?: boolean | null;
+    ai_agent_role?: AgentRole | null;
+    ai_agent_capabilities?: AgentCapability[] | null;
+    ai_agent_name?: string | null;
+    ai_emotion?: string | null;
+    ai_instructions?: string | null;
+    ai_setup_completed_at?: string | null;
+    business_type?: BusinessType | null;
+    description?: string | null;
+}
+
+export default function AISettingsPage() {
+    const [view, setView] = useState<ViewMode>('overview');
+    const [advancedTab, setAdvancedTab] = useState<'persona' | 'knowledge' | 'automation' | 'notifications'>('persona');
+    const [shopState, setShopState] = useState<AgentShopState | null>(null);
+    const [bootstrapLoading, setBootstrapLoading] = useState(true);
+
+    const shopId =
+        typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
+
+    const fetchShop = async () => {
+        try {
+            const res = await fetch('/api/shop', { headers: { 'x-shop-id': shopId } });
+            const data = await res.json();
+            if (data?.shop) {
+                const s = data.shop as AgentShopState;
+                setShopState(s);
+                // Auto-open wizard for new users.
+                if (!s.ai_setup_completed_at) {
+                    setView('wizard');
+                }
+            }
+        } catch (err) {
+            logger.error('AI settings page bootstrap failed', { error: err });
+        } finally {
+            setBootstrapLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchShop();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleToggleAi = async () => {
+        if (!shopState) return;
+        const next = !(shopState.is_ai_active !== false);
+        try {
+            const res = await fetch('/api/shop', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({ is_ai_active: next }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setShopState({ ...shopState, is_ai_active: next });
+            toast.success(next ? 'AI идэвхжлээ' : 'AI зогссон');
+        } catch {
+            toast.error('Алдаа гарлаа');
+        }
+    };
+
+    if (bootstrapLoading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+            </div>
+        );
+    }
+
+    if (view === 'wizard') {
+        return (
+            <AgentWizard
+                initial={{
+                    businessType: shopState?.business_type ?? null,
+                    agentRole: shopState?.ai_agent_role ?? null,
+                    capabilities: shopState?.ai_agent_capabilities ?? null,
+                    agentName: shopState?.ai_agent_name ?? null,
+                    emotion: (shopState?.ai_emotion as 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful' | null) ?? null,
+                    instructions: shopState?.ai_instructions ?? null,
+                    description: shopState?.description ?? null,
+                }}
+                onClose={shopState?.ai_setup_completed_at ? () => setView('overview') : undefined}
+                onComplete={() => {
+                    fetchShop();
+                    setView('overview');
+                }}
+            />
+        );
+    }
+
+    if (view === 'advanced') {
+        return <AdvancedSettings initialTab={advancedTab} onBack={() => setView('overview')} />;
+    }
+
+    // overview (default)
+    return (
+        <div className="px-4 md:px-8 py-6 max-w-6xl mx-auto">
+            <PageHero
+                eyebrow="AI Agent"
+                title="AI тохиргоо"
+                subtitle="Бизнестээ тохирсон AI agent-аа удирдаарай"
+            />
+            <div className="mt-6">
+                <AgentOverview
+                    shop={shopState ?? {}}
+                    onWizardOpen={() => setView('wizard')}
+                    onAdvancedClick={() => {
+                        setAdvancedTab('persona');
+                        setView('advanced');
+                    }}
+                    onTabClick={(tab) => {
+                        setAdvancedTab(tab);
+                        setView('advanced');
+                    }}
+                    onToggleAi={handleToggleAi}
+                />
+            </div>
         </div>
     );
 }

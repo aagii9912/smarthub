@@ -22,6 +22,8 @@ import { buildSystemPrompt } from './services/PromptService';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
 import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
 import { persistTokenUsage } from './tokenUsage';
+import { getAllowedToolsForRole } from './agents/registry';
+import type { AgentRole, AgentCapability } from './agents/types';
 import {
     PlanType,
     getPlanConfig,
@@ -159,6 +161,47 @@ function getToolsForPlan(plan: PlanType, override?: ToolName[] | null) {
         enabledTools.includes(tool.name as ToolName)
     );
     return getGeminiFunctionDeclarations(filtered);
+}
+
+/**
+ * Filter tools by plan AND agent role/capabilities. The intersection means a
+ * tool must be both enabled by the plan and supported by the active role.
+ *
+ * `userOverride` lets a shop owner narrow the tool list further (e.g. an
+ * info-agent shop disabling `collect_contact_info`). It can never broaden
+ * past the plan/role intersection.
+ */
+function getToolsForAgent(args: {
+    plan: PlanType;
+    role: AgentRole;
+    capabilities: AgentCapability[];
+    planOverride?: ToolName[] | null;
+    userOverride?: ToolName[] | null;
+}) {
+    const { plan, role, capabilities, planOverride, userOverride } = args;
+
+    const planAllowed = new Set(getEnabledToolsForPlan(plan, planOverride));
+    const roleAllowed = new Set(getAllowedToolsForRole(role, capabilities));
+
+    let intersection = TOOL_DEFINITIONS.filter((tool) => {
+        if (!planAllowed.has(tool.name as ToolName)) return false;
+        if (!roleAllowed.has(tool.name as ToolName)) return false;
+        // If the tool itself declares capabilities, require overlap with
+        // the active set (or the tool's whitelist for non-hybrid roles).
+        if (tool.capabilities && tool.capabilities.length > 0) {
+            const activeCaps = role === 'hybrid' ? capabilities : ([role] as AgentCapability[]);
+            const ok = tool.capabilities.some((c) => activeCaps.includes(c));
+            if (!ok) return false;
+        }
+        return true;
+    });
+
+    if (userOverride && userOverride.length > 0) {
+        const userSet = new Set(userOverride);
+        intersection = intersection.filter((t) => userSet.has(t.name as ToolName));
+    }
+
+    return getGeminiFunctionDeclarations(intersection);
 }
 
 /**
@@ -332,10 +375,29 @@ export async function routeToAI(
         // Returns null when the plan row has no override → falls back to PLAN_CONFIGS.
         const enabledToolsOverride = await loadPlanEnabledToolsOverride(context.subscription?.plan);
 
-        // Get function declarations enabled for this plan
+        // Resolve agent role + capabilities. Defaults preserve old sales-only
+        // behaviour for shops that haven't been migrated yet.
+        const agentRole: AgentRole = context.aiAgentRole ?? 'sales';
+        const agentCapabilities: AgentCapability[] =
+            context.aiAgentCapabilities && context.aiAgentCapabilities.length > 0
+                ? context.aiAgentCapabilities
+                : ['sales'];
+
+        // Get function declarations enabled for this plan + role/capabilities.
         const functionDeclarations = planConfig.features.toolCalling
-            ? getToolsForPlan(planType, enabledToolsOverride)
+            ? getToolsForAgent({
+                  plan: planType,
+                  role: agentRole,
+                  capabilities: agentCapabilities,
+                  planOverride: enabledToolsOverride,
+              })
             : undefined;
+
+        // Defensive guard: the model occasionally invents a tool name that
+        // wasn't in `functionDeclarations`. We cross-check on each invocation.
+        const allowedToolNames = new Set(
+            (functionDeclarations || []).map((d) => d.name as ToolName),
+        );
 
         // Convert history to Gemini format
         const geminiHistory = toGeminiHistory(previousHistory);
@@ -418,6 +480,19 @@ export async function routeToAI(
                                 name: fc.name,
                                 response: {
                                     error: `Энэ боломж (${functionName}) одоогийн ${planType} багцад идэвхгүй байна. Pro багц руу шилжвэл захиалга, төлбөр төлөх, дэлгэрэнгүй тайлан зэрэг бүх боломж нээгдэнэ! 🚀`
+                                }
+                            }
+                        });
+                        continue;
+                    }
+
+                    if (allowedToolNames.size > 0 && !allowedToolNames.has(functionName)) {
+                        logger.warn(`Tool ${functionName} not allowed for agent role ${agentRole}`);
+                        functionResponseParts.push({
+                            functionResponse: {
+                                name: fc.name,
+                                response: {
+                                    error: `Энэ AI agent (${agentRole}) тус үүргэд "${functionName}" tool ашиглах боломжгүй. AI Settings-ээс үүрэг тохируулна уу.`
                                 }
                             }
                         });

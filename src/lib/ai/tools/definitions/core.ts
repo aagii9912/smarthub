@@ -1,5 +1,17 @@
 import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
 
+/**
+ * Capability tag — must match the AgentCapability union in
+ * `src/lib/ai/agents/types.ts`. Tools list which capabilities they
+ * are valid for; the AI Router uses this to gate tool exposure.
+ */
+export type ToolCapability =
+    | 'sales'
+    | 'booking'
+    | 'information'
+    | 'support'
+    | 'lead_capture';
+
 export interface ToolDefinition {
     name: string;
     description: string;
@@ -8,6 +20,12 @@ export interface ToolDefinition {
         properties: Record<string, any>;
         required: string[];
     };
+    /**
+     * Capabilities that this tool supports. The AI Router exposes the
+     * tool only when the shop's role/capabilities include at least one
+     * of these. Tools without `capabilities` are treated as universal.
+     */
+    capabilities?: ToolCapability[];
 }
 
 export function toSchemaType(type: string): SchemaType {

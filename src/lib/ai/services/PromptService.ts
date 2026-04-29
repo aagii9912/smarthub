@@ -1,12 +1,18 @@
 /**
  * PromptService - Handles prompt engineering for OpenAI
  * Builds system prompts based on shop context and settings
- * 
+ *
  * Enhanced for natural, human-like conversation
+ *
+ * Role-aware: the role-specific rule set comes from
+ * `src/lib/ai/agents/registry.ts`. The cross-cutting parts (emotion,
+ * conversation patterns, shared info) are assembled here.
  */
 
 import type { ChatContext, AIProduct } from '@/types/ai';
 import { formatMemoryForPrompt } from '../tools/memory';
+import { buildRolePromptRules, getRoleTitle, getRoleGoalLine } from '../agents/registry';
+import type { AgentRole, AgentCapability } from '../agents/types';
 
 /**
  * Emotion prompts for AI personality - Enhanced for natural feel
@@ -352,7 +358,31 @@ export function buildSystemPrompt(context: ChatContext): string {
         ? `\nХЭРЭГЛЭГЧ: ${context.customerName} (нэрээр нь дуудаж болно, гэхдээ хэт олон удаа биш)`
         : '';
 
-    // Basic prompt for Starter/Free plans
+    // Resolve agent role / capabilities (defaults preserve old sales-only behaviour).
+    const agentRole: AgentRole = context.aiAgentRole ?? 'sales';
+    const agentCapabilities: AgentCapability[] =
+        context.aiAgentCapabilities && context.aiAgentCapabilities.length > 0
+            ? context.aiAgentCapabilities
+            : ['sales'];
+
+    const rolePromptRules = buildRolePromptRules(
+        agentRole,
+        agentCapabilities,
+        context,
+        hasSalesIntelligence,
+    );
+
+    const roleTitle = getRoleTitle(agentRole, 'mn');
+    const roleGoal = getRoleGoalLine(agentRole, 'mn');
+
+    // Display name for the AI persona, if user picked one.
+    const personaIntro = context.aiAgentName
+        ? `Чи бол "${context.shopName}"-ийн ${roleTitle}. Нэр чинь "${context.aiAgentName}".`
+        : `Чи бол "${context.shopName}" дэлгүүрийн ${roleTitle}.`;
+
+    // ── Legacy block kept ONLY as a fallback reference. The role registry
+    //    now owns the live rules. Leaving the strings here lets old call
+    //    sites keep working while new ones use `rolePromptRules`.
     const basicRules = `ЧУХАЛ ДҮРЭМ:
 1. Хэрэглэгчийн асуултад шууд хариул - урт оршил хэрэггүй.
 2. БИЗНЕСИЙН ТУХАЙ асуулт → ДЭЛГҮҮРИЙН ТУХАЙ мэдээллээс хариул.
@@ -504,11 +534,14 @@ UPSELLING & CROSS-SELL (suggest_related_products tool ашигла):
 - Хэрэглэгч "QPay ажиллахгүй", "линк алдаатай" гэвэл → Дансны мэдээлэл өг
 - QPay-тэй холбоотой алдаа гарвал дансаар шилжүүлэх зааварчилгаа өг`;
 
-    // Choose rules based on plan
-    const rulesSection = hasSalesIntelligence ? salesIntelligenceRules : basicRules;
+    // Suppress unused-variable warnings for the legacy rule blocks above.
+    // They are kept for reference but the live rules now come from the
+    // role registry via `rolePromptRules`.
+    void basicRules;
+    void salesIntelligenceRules;
 
-    return `Чи бол "${context.shopName}" дэлгүүрийн ${hasSalesIntelligence ? 'борлуулалтын мэргэжилтэн' : 'туслагч'}.
-${hasSalesIntelligence ? 'Зорилго: Хэрэглэгчид тохирох бүтээгдэхүүн олж, худалдан авахад нь тусла.' : 'Зорилго: Хэрэглэгчид мэдээлэл өг.'}
+    return `${personaIntro}
+${roleGoal}
 
 ХАМГИЙН ЧУХАЛ: ЧИ БОЛ РОБОТ БИШ, ЖИНХЭНЭ ХҮН. Байгалийн, дотно ярь!
 
@@ -518,7 +551,7 @@ ${emotionStyle}
 ${HUMAN_LIKE_PATTERNS}
 ${shopInfo}${sharedInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
 
-${rulesSection}
+${rolePromptRules}
 
 БҮТЭЭГДЭХҮҮН/ҮЙЛЧИЛГЭЭ (⚠️ Доорх тоо ширхэг нь БОДИТ DATABASE-ийн мэдээлэл. Энэ тоонуудыг Л хэрэглэ, ХЭЗЭЭ Ч өөрөө тоо зохиохгүй):
 ${productsInfo}
