@@ -119,8 +119,6 @@ function SetupContent() {
   const totalSteps = stepSequence.length;
   const currentStepKey = stepSequence[Math.min(stepIndex, totalSteps - 1)];
 
-  const aiTemplate = businessType ? BUSINESS_TYPES[businessType].aiTemplate : 'general';
-
   const { triggerSmall, triggerFinal } = useConfetti();
   const { triggerPromptAfterStep } = usePWAInstall();
 
@@ -719,11 +717,12 @@ function SetupContent() {
                 initialData={{
                   description: shop?.description || '',
                   ai_emotion: shop?.ai_emotion || '',
-                  ai_instructions: shop?.ai_instructions || ''
+                  ai_instructions: shop?.ai_instructions || '',
+                  ai_agent_name: shop?.ai_agent_name || null,
                 }}
                 fbPageId={shop?.facebook_page_id || undefined}
                 fbPageToken={fbToken}
-                defaultTemplate={aiTemplate}
+                businessType={businessType || undefined}
                 onSkip={() => handleAIComplete(null)}
                 onSave={handleAIComplete}
               />

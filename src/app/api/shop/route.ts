@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data, ai_agent_role, ai_agent_capabilities, ai_agent_config, ai_agent_name, ai_setup_completed_at').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, owner_name, phone, forceCreate, business_type } = body;
-    const ALLOWED_BUSINESS_TYPES = ['retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other'];
+    const ALLOWED_BUSINESS_TYPES = [
+      'retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other',
+      'healthcare', 'education', 'realestate_auto',
+    ];
     const sanitizedBusinessType = business_type && ALLOWED_BUSINESS_TYPES.includes(business_type) ? business_type : undefined;
 
     if (!name) {
@@ -352,6 +355,46 @@ export async function PATCH(request: NextRequest) {
         try {
           logger.info('Auto-registering QPay merchant for shop:', { shopId: shop.id });
 
+          const registerNumber = (sanitizedUpdate.register_number as string) || (body.register_number as string) || undefined;
+
+          // Local reuse: QPay scopes merchants by register_number, not by shop.
+          // If this user already has another shop with a merchant_id for the
+          // same register_number, copy it locally and skip the QPay round-trip.
+          if (registerNumber) {
+            const { data: existingShopWithMerchant } = await supabase
+              .from('shops')
+              .select('qpay_merchant_id')
+              .eq('user_id', userId)
+              .eq('register_number', registerNumber)
+              .not('qpay_merchant_id', 'is', null)
+              .neq('id', shop.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (existingShopWithMerchant?.qpay_merchant_id) {
+              await supabase
+                .from('shops')
+                .update({
+                  qpay_merchant_id: existingShopWithMerchant.qpay_merchant_id,
+                  qpay_bank_code: bankCode,
+                  qpay_account_number: sanitizedUpdate.account_number as string,
+                  qpay_account_name: sanitizedUpdate.account_name as string,
+                  qpay_status: 'active',
+                })
+                .eq('id', shop.id);
+
+              logger.success('QPay merchant reused from sibling shop:', {
+                shopId: shop.id,
+                merchantId: existingShopWithMerchant.qpay_merchant_id,
+              });
+
+              return NextResponse.json({
+                shop: updatedShop,
+                qpay_setup: { success: true, merchant_id: existingShopWithMerchant.qpay_merchant_id, message: 'QPay merchant аль хэдийнэ бүртгэгдсэн байсан тул дахин ашиглалаа. ✅' },
+              });
+            }
+          }
+
           // Get user email from Supabase auth
           let userEmail = '';
           try {
@@ -362,7 +405,7 @@ export async function PATCH(request: NextRequest) {
           const merchant = await registerShopAsMerchant({
             shopName: (updatedShop as { name?: string } | null)?.name || shop.name || 'Shop',
             merchantType: (sanitizedUpdate.merchant_type as 'company' | 'person') || (body.merchant_type as 'company' | 'person') || 'person',
-            registerNumber: (sanitizedUpdate.register_number as string) || (body.register_number as string) || undefined,
+            registerNumber,
             bankCode,
             accountNumber: sanitizedUpdate.account_number as string,
             accountName: sanitizedUpdate.account_name as string,
@@ -462,6 +505,14 @@ export async function DELETE(request: NextRequest) {
     for (const table of tablesToClean) {
       await supabase.from(table).delete().eq('shop_id', shopId);
     }
+
+    // NOTE: QPay merchant intentionally NOT removed.
+    // Merchants are scoped by register_number on QPay's side (not by shop), so:
+    //   - If the user creates a new shop with the same register_number, the
+    //     PATCH/auto-register flow looks up and reuses the existing merchant.
+    //   - Historical invoices/transactions on QPay are indexed by merchant_id;
+    //     deleting it would orphan that history.
+    // For full GDPR-style erasure, call removeMerchant() from an admin tool.
 
     // Delete the shop (CASCADE handles: products, product_variants, customers, orders, order_items, chat_history)
     const { error } = await supabase
