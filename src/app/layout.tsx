@@ -8,6 +8,7 @@ import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { Toaster } from 'sonner';
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { MetaPixel } from "@/components/MetaPixel";
 
 // Typography: Inter for body UI, Geist Mono for numerics.
 // GIP (display/brand) is self-hosted via @font-face in globals.css
@@ -70,6 +71,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <PWAInstallPrompt />
         <SpeedInsights />
+        <MetaPixel />
         <QueryProvider>
           <LanguageProvider>
             <AuthProvider>
