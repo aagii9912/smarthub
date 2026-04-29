@@ -20,6 +20,8 @@ const publicPaths = [
     '/auth/login',
     '/auth/register',
     '/auth/callback',
+    '/auth/forgot-password',
+    '/auth/reset-password',
     '/admin/login',
     '/api/webhook',
     '/api/subscription/webhook',

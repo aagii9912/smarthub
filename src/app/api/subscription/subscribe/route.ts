@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { createSubscriptionInvoice } from '@/lib/payment/qpay';
+import { createSubscriptionInvoiceDetailed } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/constants/legal';
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
             // FIX: Use plan.slug (not plan.name) and correct callback URL
             const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn'}/api/payment/webhook?type=subscription`;
 
-            const qpayResult = await createSubscriptionInvoice({
+            const qpayResult = await createSubscriptionInvoiceDetailed({
                 planSlug: plan.slug,  // FIX: was plan.name → now plan.slug
                 amount,
                 userId: userId || shop.id,
@@ -140,24 +140,28 @@ export async function POST(request: NextRequest) {
                 callbackUrl,  // FIX: now points to /api/payment/webhook
             });
 
-            if (!qpayResult) {
+            if (!qpayResult.success) {
                 return NextResponse.json({
                     invoice_id: invoice.id,
                     invoice_number: invoice.invoice_number,
                     amount,
                     message: 'QPay одоогоор түр ажиллахгүй байна. Дараа дахин оролдоно уу.',
                     payment_required: true,
-                    qpay_error: true
+                    qpay_error: true,
+                    qpay_error_code: qpayResult.code,
+                    qpay_error_detail: qpayResult.detail,
                 });
             }
+
+            const qpayInvoice = qpayResult.invoice;
 
             // Update invoice with QPay info
             await supabase
                 .from('invoices')
                 .update({
-                    qpay_invoice_id: qpayResult.invoice_id,
-                    qpay_qr_code: qpayResult.qr_image,
-                    qpay_urls: qpayResult.urls
+                    qpay_invoice_id: qpayInvoice.invoice_id,
+                    qpay_qr_code: qpayInvoice.qr_image,
+                    qpay_urls: qpayInvoice.urls
                 })
                 .eq('id', invoice.id);
 
@@ -173,17 +177,17 @@ export async function POST(request: NextRequest) {
                     status: 'pending',
                     subscription_user_id: userId || shop.id,
                     subscription_plan_slug: plan.slug,
-                    qpay_invoice_id: qpayResult.invoice_id,
-                    qpay_qr_text: qpayResult.qr_text,
-                    qpay_qr_image: qpayResult.qr_image,
+                    qpay_invoice_id: qpayInvoice.invoice_id,
+                    qpay_qr_text: qpayInvoice.qr_text,
+                    qpay_qr_image: qpayInvoice.qr_image,
                     metadata: {
-                        urls: qpayResult.urls,
+                        urls: qpayInvoice.urls,
                         plan_name: plan.name,
                         plan_price: amount,
                         invoice_id: invoice.id,
                         billing_cycle,
                     },
-                    expires_at: qpayResult.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    expires_at: qpayInvoice.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
                 });
 
             // Store pending subscription info — keyed by user (per-user plan model).
@@ -217,8 +221,8 @@ export async function POST(request: NextRequest) {
                 invoice_id: invoice.id,
                 invoice_number: invoice.invoice_number,
                 amount,
-                qr_code: qpayResult.qr_image,
-                urls: qpayResult.urls,
+                qr_code: qpayInvoice.qr_image,
+                urls: qpayInvoice.urls,
                 message: 'QR кодоор төлбөрөө төлнө үү',
                 payment_required: true
             });

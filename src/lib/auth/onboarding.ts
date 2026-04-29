@@ -1,18 +1,16 @@
 /**
  * First-login onboarding helpers.
  *
- * Idempotently provisions a user_profiles row + a 3-day Lite trial
- * subscription on first OAuth/email sign-in, so the flow described in the
- * fix for bug #6 (Google sign-in landing on /dashboard with no plan) cannot
- * happen — the auth callback always lands new users on a tier with a
- * known trial end.
+ * Ensures a `user_profiles` row exists for every authenticated user.
+ *
+ * The 3-day Lite trial is now opt-in via the setup wizard's plan-selection
+ * step (`POST /api/subscription/start-trial`). New users land at /setup and
+ * choose between starting a trial or paying for a plan. This function no
+ * longer creates a subscription — it only provisions the profile row.
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
-
-const TRIAL_DAYS = 3;
-const DEFAULT_TRIAL_PLAN_SLUG = 'lite';
 
 export interface ProvisionResult {
     /** True if a trial subscription was created in this call (vs. already existed). */
@@ -24,12 +22,13 @@ export interface ProvisionResult {
 }
 
 /**
- * Ensure the user has a `user_profiles` row and an active trial/subscription.
+ * Ensure the user has a `user_profiles` row.
  *
- * Idempotent: safe to call on every login. Returns immediately if the user
- * already has any non-terminal subscription (active/trialing/past_due/pending).
+ * Idempotent: safe to call on every login. The function name is preserved
+ * for call-site compatibility, but trial creation now happens explicitly via
+ * the start-trial endpoint. Returns the existing subscription metadata if any.
  *
- * Never throws. Billing must not block sign-in — failures are logged.
+ * Never throws. Failures are logged but never block sign-in.
  */
 export async function provisionNewUserTrial(userId: string, email: string | null): Promise<ProvisionResult> {
     if (!userId) {
@@ -39,8 +38,8 @@ export async function provisionNewUserTrial(userId: string, email: string | null
     const supabase = supabaseAdmin();
 
     try {
-        // 1. user_profiles is normally created by the on_auth_user_created
-        //    trigger; double-check and upsert as a safety net.
+        // user_profiles is normally created by the on_auth_user_created
+        // trigger; double-check and upsert as a safety net.
         await supabase
             .from('user_profiles')
             .upsert(
@@ -48,7 +47,7 @@ export async function provisionNewUserTrial(userId: string, email: string | null
                 { onConflict: 'id', ignoreDuplicates: false }
             );
 
-        // 2. Bail if any open subscription already exists for this user.
+        // Report whatever subscription the user already has, if any.
         const { data: existing } = await supabase
             .from('subscriptions')
             .select('id, status, plans(slug)')
@@ -67,82 +66,7 @@ export async function provisionNewUserTrial(userId: string, email: string | null
             };
         }
 
-        // 3. Resolve the Lite plan id.
-        const { data: plan, error: planErr } = await supabase
-            .from('plans')
-            .select('id, slug')
-            .eq('slug', DEFAULT_TRIAL_PLAN_SLUG)
-            .eq('is_active', true)
-            .maybeSingle();
-
-        if (planErr || !plan) {
-            logger.warn('provisionNewUserTrial: lite plan not found, skipping trial', {
-                userId,
-                error: planErr?.message,
-            });
-            return { created: false, subscriptionId: null, planSlug: 'unpaid' };
-        }
-
-        // 4. Insert the trial subscription. The partial unique index on
-        //    user_id (where status IN active/trialing/pending/past_due) means
-        //    a concurrent insert would conflict — race is OK because we
-        //    already returned early for any open subscription.
-        const now = new Date();
-        const trialEnd = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-
-        const { data: sub, error: subErr } = await supabase
-            .from('subscriptions')
-            .insert({
-                user_id: userId,
-                plan_id: plan.id,
-                status: 'trialing',
-                billing_cycle: 'monthly',
-                current_period_start: now.toISOString(),
-                current_period_end: trialEnd.toISOString(),
-                period_anchor_at: now.toISOString(),
-                tokens_used_in_period: 0,
-            })
-            .select('id')
-            .single();
-
-        if (subErr) {
-            // Most likely cause: a concurrent insert won the partial unique.
-            // Re-read once before declaring failure.
-            const { data: race } = await supabase
-                .from('subscriptions')
-                .select('id')
-                .eq('user_id', userId)
-                .in('status', ['active', 'trialing', 'pending', 'past_due'])
-                .limit(1)
-                .maybeSingle();
-            if (race) {
-                return { created: false, subscriptionId: race.id, planSlug: plan.slug };
-            }
-            logger.warn('provisionNewUserTrial: failed to create trial subscription', {
-                userId,
-                error: subErr.message,
-            });
-            return { created: false, subscriptionId: null, planSlug: 'unpaid' };
-        }
-
-        // 5. Mirror onto the user_profiles snapshot so feature reads are O(1).
-        await supabase
-            .from('user_profiles')
-            .update({
-                plan_id: plan.id,
-                subscription_plan: plan.slug,
-                subscription_status: 'trialing',
-                trial_ends_at: trialEnd.toISOString(),
-            })
-            .eq('id', userId);
-
-        logger.info('provisionNewUserTrial: created lite trial', {
-            userId,
-            subscriptionId: sub.id,
-            trialEnd: trialEnd.toISOString(),
-        });
-
-        return { created: true, subscriptionId: sub.id, planSlug: plan.slug };
+        return { created: false, subscriptionId: null, planSlug: 'unpaid' };
     } catch (err) {
         logger.error('provisionNewUserTrial: unexpected error', {
             userId,

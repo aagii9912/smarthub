@@ -4,7 +4,6 @@ import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 import { registerShopAsMerchant } from '@/lib/payment/qpay-merchant';
-import { getBillingSettings } from '@/lib/admin/settings';
 
 // GET - Get user's shop
 export async function GET(request: NextRequest) {
@@ -123,15 +122,9 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Pull admin-configured trial length so the new shop's trial respects the setting.
-    // Falls back to DEFAULT_SETTINGS.billing.trial_days (3) on read failure.
-    const billing = await getBillingSettings();
-    const trialDays = Math.max(0, Math.floor(billing.trial_days));
-    const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
-
     // Per-user plan model: a new shop adopts the user's existing plan + status.
-    // Only fall back to a fresh trial when the user has no active plan yet
-    // (truly first-time user).
+    // First-time users land on 'unpaid' until they explicitly start a trial
+    // or pay for a plan from the setup wizard's plan-selection step.
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('plan_id, subscription_plan, subscription_status, trial_ends_at')
@@ -154,12 +147,15 @@ export async function POST(request: NextRequest) {
     if (userHasPlan) {
       newShopRow.plan_id = profile?.plan_id ?? null;
       newShopRow.subscription_plan = profile?.subscription_plan ?? 'starter';
-      newShopRow.subscription_status = profile?.subscription_status ?? 'active';
+      // user_profiles uses 'trialing'; shops uses the legacy 'trial' enum
+      // so the daily trial-expiry cron can find the row.
+      newShopRow.subscription_status =
+        profile?.subscription_status === 'trialing' ? 'trial' : (profile?.subscription_status ?? 'unpaid');
       newShopRow.trial_ends_at = profile?.trial_ends_at ?? null;
     } else {
-      newShopRow.subscription_plan = 'starter';
-      newShopRow.subscription_status = trialDays > 0 ? 'trial' : 'expired_trial';
-      newShopRow.trial_ends_at = trialEndsAt.toISOString();
+      newShopRow.subscription_plan = null;
+      newShopRow.subscription_status = 'unpaid';
+      newShopRow.trial_ends_at = null;
     }
 
     const { data: shop, error } = await supabase

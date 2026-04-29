@@ -19,8 +19,13 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get('code');
     const explicitRedirect = requestUrl.searchParams.get('redirect_url');
+    // Password-reset flow uses ?next=/auth/reset-password. Same-origin only.
+    const nextParam = requestUrl.searchParams.get('next');
+    const nextRedirect = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+        ? nextParam
+        : null;
 
-    let landing = explicitRedirect;
+    let landing = explicitRedirect || nextRedirect;
 
     if (code) {
         const supabase = await createSupabaseServerClient();
@@ -32,10 +37,13 @@ export async function GET(request: NextRequest) {
 
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
-            // Always provision — idempotent. Failure here must not block sign-in.
+            // Always provision the user_profiles row. Failure here must not
+            // block sign-in. Trial subscription itself is now opt-in via the
+            // setup wizard — this call only ensures the profile exists.
             await provisionNewUserTrial(user.id, user.email ?? null);
 
-            // Only auto-route when caller didn't pin a destination.
+            // Only auto-route when caller didn't pin a destination via
+            // redirect_url or next.
             if (!landing) {
                 landing = await chooseLandingPath(user.id);
             }

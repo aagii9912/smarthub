@@ -74,6 +74,22 @@ export interface QPayInvoice {
     expiry_date?: string;
 }
 
+// Reason codes surfaced to callers when invoice creation fails. Used by the
+// subscription UI to render a specific error message instead of a generic
+// "QPay түр ажиллахгүй байна".
+export type QPayErrorCode =
+    | 'circuit_open'
+    | 'mock'
+    | 'config'
+    | 'token'
+    | 'http_4xx'
+    | 'http_5xx'
+    | 'network';
+
+export type QPayCreateResult =
+    | { success: true; invoice: QPayInvoice }
+    | { success: false; code: QPayErrorCode; status?: number; detail?: string };
+
 export interface QPayBankUrl {
     name: string;
     description: string;
@@ -222,42 +238,58 @@ async function refreshAccessToken(): Promise<string> {
 // ──────────────────────────────────────────────
 
 /**
- * Create QPay invoice (generic — works for both platform and shop merchants)
+ * Create QPay invoice with a structured failure reason.
+ *
+ * Use this when you need to display a specific error message to the user
+ * (e.g. "credentials rejected" vs "circuit breaker open"). The simpler
+ * `createQPayInvoice` wraps this and returns `null` on failure for callers
+ * that don't care about the reason.
  */
-export async function createQPayInvoice(params: CreateInvoiceParams): Promise<QPayInvoice | null> {
-    // Circuit breaker check
+export async function createQPayInvoiceDetailed(
+    params: CreateInvoiceParams
+): Promise<QPayCreateResult> {
     if (!qpayBreaker.isAllowed()) {
         logger.warn('QPay circuit breaker OPEN — skipping invoice creation');
-        return null;
-    }
-
-    // Mock mode
-    if (!QPAY_USERNAME || !QPAY_PASSWORD) {
-        logger.warn('QPay in mock mode');
         return {
-            invoice_id: `MOCK_INV_${Date.now()}`,
-            qr_text: `MOCK_QPAY_${Date.now()}`,
-            qr_image: '',
-            urls: [],
+            success: false,
+            code: 'circuit_open',
+            detail: 'QPay түр ажиллахгүй байна (circuit breaker open).',
         };
     }
 
-    try {
-        const token = await getAccessToken();
-
-        const body = {
-            merchant_id: params.merchantId,
-            amount: params.amount,
-            currency: params.currency || 'MNT',
-            customer_name: params.customerName || '',
-            callback_url: params.callbackUrl || QPAY_CALLBACK_URL,
-            description: params.description,
-            bank_accounts: params.bankAccounts,
+    if (!QPAY_USERNAME || !QPAY_PASSWORD) {
+        logger.warn('QPay in mock mode — credentials not configured');
+        return {
+            success: false,
+            code: 'mock',
+            detail: 'QPAY_USERNAME / QPAY_PASSWORD env тохируулагдаагүй байна.',
         };
+    }
 
-        logger.info('Creating QPay invoice:', { merchantId: params.merchantId, amount: params.amount });
+    let token: string;
+    try {
+        token = await getAccessToken();
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Unknown token error';
+        qpayBreaker.recordFailure(error instanceof Error ? error : msg);
+        return { success: false, code: 'token', detail: msg.slice(0, 200) };
+    }
 
-        const response = await fetch(`${QPAY_BASE_URL}/v2/invoice`, {
+    const body = {
+        merchant_id: params.merchantId,
+        amount: params.amount,
+        currency: params.currency || 'MNT',
+        customer_name: params.customerName || '',
+        callback_url: params.callbackUrl || QPAY_CALLBACK_URL,
+        description: params.description,
+        bank_accounts: params.bankAccounts,
+    };
+
+    logger.info('Creating QPay invoice:', { merchantId: params.merchantId, amount: params.amount });
+
+    let response: Response;
+    try {
+        response = await fetch(`${QPAY_BASE_URL}/v2/invoice`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -265,43 +297,138 @@ export async function createQPayInvoice(params: CreateInvoiceParams): Promise<QP
             },
             body: JSON.stringify(body),
         });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Network error';
+        qpayBreaker.recordFailure(error instanceof Error ? error : msg);
+        logger.error('QPay invoice network error', { error: msg });
+        return { success: false, code: 'network', detail: msg.slice(0, 200) };
+    }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`QPay invoice creation failed: ${response.status} - ${errorText}`);
-        }
+    if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        const code: QPayErrorCode = response.status >= 500 ? 'http_5xx' : 'http_4xx';
+        const detail = `QPay ${response.status}: ${errorText.slice(0, 200)}`;
+        qpayBreaker.recordFailure(new Error(detail));
+        logger.error('QPay invoice creation failed', { status: response.status, body: errorText.slice(0, 500) });
+        return { success: false, code, status: response.status, detail };
+    }
 
+    try {
         const raw: QPayInvoiceRaw = await response.json();
         const invoice = mapInvoiceResponse(raw);
-
         qpayBreaker.recordSuccess();
         logger.success('QPay invoice created:', { invoice_id: invoice.invoice_id });
-        return invoice;
+        return { success: true, invoice };
     } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : 'Unknown error';
+        const msg = error instanceof Error ? error.message : 'Failed to parse QPay response';
         qpayBreaker.recordFailure(error instanceof Error ? error : msg);
-        logger.error('Failed to create QPay invoice', { error: msg });
-        return null;
+        return { success: false, code: 'http_5xx', detail: msg.slice(0, 200) };
     }
 }
 
 /**
- * Create invoice for Syncly subscription payment
- * Uses Syncly's own merchant account
+ * Create QPay invoice (generic — works for both platform and shop merchants).
+ * Returns `null` on failure. For diagnostics, use `createQPayInvoiceDetailed`.
  */
-export async function createSubscriptionInvoice(params: {
+export async function createQPayInvoice(params: CreateInvoiceParams): Promise<QPayInvoice | null> {
+    const result = await createQPayInvoiceDetailed(params);
+    return result.success ? result.invoice : null;
+}
+
+/**
+ * Validate QPay configuration end-to-end without creating a live invoice.
+ * Used by /api/debug/qpay-status. Never returns secrets.
+ */
+export async function verifyQPayConfig(): Promise<{
+    env_present: {
+        username: boolean;
+        password: boolean;
+        terminal: boolean;
+        merchant: boolean;
+        bank_code: boolean;
+        account_number: boolean;
+        callback_url: boolean;
+    };
+    base_url: string;
+    qpay_env: string | null;
+    token_check: { ok: boolean; status?: number; error?: string };
+}> {
+    const env_present = {
+        username: !!QPAY_USERNAME,
+        password: !!QPAY_PASSWORD,
+        terminal: !!QPAY_TERMINAL_ID,
+        merchant: !!SYNCLY_MERCHANT_ID,
+        bank_code: !!SYNCLY_BANK_CODE,
+        account_number: !!SYNCLY_ACCOUNT_NUMBER,
+        callback_url: !!QPAY_CALLBACK_URL,
+    };
+
+    if (!QPAY_USERNAME || !QPAY_PASSWORD) {
+        return {
+            env_present,
+            base_url: QPAY_BASE_URL,
+            qpay_env: process.env.QPAY_ENV ?? null,
+            token_check: { ok: false, error: 'QPAY_USERNAME or QPAY_PASSWORD missing' },
+        };
+    }
+
+    try {
+        clearTokenCache();
+        const credentials = Buffer.from(`${QPAY_USERNAME}:${QPAY_PASSWORD}`).toString('base64');
+        const response = await fetch(`${QPAY_BASE_URL}/v2/auth/token`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ terminal_id: QPAY_TERMINAL_ID }),
+        });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            return {
+                env_present,
+                base_url: QPAY_BASE_URL,
+                qpay_env: process.env.QPAY_ENV ?? null,
+                token_check: { ok: false, status: response.status, error: errorText.slice(0, 200) },
+            };
+        }
+        return {
+            env_present,
+            base_url: QPAY_BASE_URL,
+            qpay_env: process.env.QPAY_ENV ?? null,
+            token_check: { ok: true, status: response.status },
+        };
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+            env_present,
+            base_url: QPAY_BASE_URL,
+            qpay_env: process.env.QPAY_ENV ?? null,
+            token_check: { ok: false, error: msg.slice(0, 200) },
+        };
+    }
+}
+
+/**
+ * Create invoice for Syncly subscription payment with structured failure reason.
+ */
+export async function createSubscriptionInvoiceDetailed(params: {
     planSlug: string;
     amount: number;
     userId: string;
     description?: string;
     callbackUrl?: string;
-}): Promise<QPayInvoice | null> {
+}): Promise<QPayCreateResult> {
     if (!SYNCLY_MERCHANT_ID || !SYNCLY_ACCOUNT_NUMBER) {
         logger.error('Syncly QPay merchant not configured');
-        return null;
+        return {
+            success: false,
+            code: 'config',
+            detail: 'QPAY_MERCHANT_ID эсвэл QPAY_ACCOUNT_NUMBER env тохируулагдаагүй.',
+        };
     }
 
-    return createQPayInvoice({
+    return createQPayInvoiceDetailed({
         merchantId: SYNCLY_MERCHANT_ID,
         amount: params.amount,
         description: params.description || `Syncly ${params.planSlug} plan`,
@@ -314,6 +441,21 @@ export async function createSubscriptionInvoice(params: {
             is_default: true,
         }],
     });
+}
+
+/**
+ * Create invoice for Syncly subscription payment.
+ * Returns `null` on failure. For diagnostics, use `createSubscriptionInvoiceDetailed`.
+ */
+export async function createSubscriptionInvoice(params: {
+    planSlug: string;
+    amount: number;
+    userId: string;
+    description?: string;
+    callbackUrl?: string;
+}): Promise<QPayInvoice | null> {
+    const result = await createSubscriptionInvoiceDetailed(params);
+    return result.success ? result.invoice : null;
 }
 
 /**

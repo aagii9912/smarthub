@@ -155,6 +155,15 @@ export default function LoginPage() {
                         >
                             {loading ? t.auth.loggingIn : t.auth.login}
                         </button>
+
+                        <div className="text-center">
+                            <Link
+                                href="/auth/forgot-password"
+                                className="text-sm text-primary hover:text-primary/80"
+                            >
+                                {t.auth.forgotPassword}
+                            </Link>
+                        </div>
                     </form>
 
                     <p className="text-center text-sm text-muted-foreground">

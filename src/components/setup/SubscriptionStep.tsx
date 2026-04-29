@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import {
     Crown, Rocket, Building2, Sparkles,
-    CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone
+    CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone, Gift, Clock
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,12 +38,35 @@ interface PaymentInfo {
     amount?: number;
     payment_required?: boolean;
     qpay_error?: boolean;
+    qpay_error_code?: string;
+    qpay_error_detail?: string;
     message?: string;
+}
+
+interface Promotion {
+    id?: string;
+    code: string;
+    name: string;
+    description: string | null;
+    bonus_months: number;
+    eligible_billing_cycles: string[];
+    eligible_plan_slugs: string[];
 }
 
 interface SubscriptionStepProps {
     onComplete: () => void;
 }
+
+// Map QPay error codes to user-facing Mongolian messages.
+const qpayErrorMessage: Record<string, string> = {
+    circuit_open: 'QPay түр ачаалал ихтэй байна. Хэдхэн минутын дараа дахин оролдоно уу.',
+    mock: 'Тестийн орчинд ажиллаж байна — QPay-н тохиргоо хийгдээгүй байна.',
+    config: 'QPay-н тохиргоо дутуу байна. Админтай холбогдоно уу.',
+    token: 'QPay-н нэвтрэлт амжилтгүй боллоо. Credentials шалгана уу.',
+    http_4xx: 'QPay-н хүсэлт зөв бус байна. Credentials эсвэл данс буруу байж магадгүй.',
+    http_5xx: 'QPay-н сервер түр ажиллахгүй байна.',
+    network: 'Сүлжээний алдаа. Холболтоо шалгана уу.',
+};
 
 // Icon and color mappings
 const planIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -60,6 +83,7 @@ const planColors: Record<string, { bg: string; text: string }> = {
 
 export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [plans, setPlans] = useState<Plan[]>([]);
+    const [promotion, setPromotion] = useState<Promotion | null>(null);
     const [loading, setLoading] = useState(true);
     const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -73,6 +97,10 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [ageConfirmed, setAgeConfirmed] = useState(false);
     const [marketingConsent, setMarketingConsent] = useState(false);
     const [consentError, setConsentError] = useState('');
+    const [trialState, setTrialState] = useState<'available' | 'active' | 'used' | 'unknown'>('unknown');
+    const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+    const [trialLoading, setTrialLoading] = useState(false);
+    const [trialError, setTrialError] = useState('');
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
     const { refreshShop } = useAuth();
@@ -136,6 +164,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 const res = await fetch('/api/subscription/plans');
                 const data = await res.json();
                 setPlans(data.plans || []);
+                setPromotion(data.promotion ?? null);
             } catch (err) {
                 logger.error('Error fetching plans:', { error: err });
             } finally {
@@ -154,6 +183,93 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             }
         };
     }, []);
+
+    // Determine the user's current trial state once on mount.
+    useEffect(() => {
+        let active = true;
+        const fetchTrialState = async () => {
+            try {
+                const res = await fetch('/api/subscription/current');
+                if (!res.ok) {
+                    if (active) setTrialState('available');
+                    return;
+                }
+                const data = await res.json();
+                const subStatus = data?.subscription?.status as string | undefined;
+                const shopStatus = data?.shop_status?.subscription_status as string | undefined;
+                const endsAt = (data?.subscription?.trial_ends_at as string | undefined)
+                    ?? (data?.shop_status?.trial_ends_at as string | undefined)
+                    ?? null;
+
+                if (!active) return;
+
+                if (subStatus === 'trialing' || shopStatus === 'trial' || shopStatus === 'trialing') {
+                    setTrialState('active');
+                    setTrialEndsAt(endsAt);
+                } else if (
+                    subStatus === 'active' ||
+                    shopStatus === 'active' ||
+                    shopStatus === 'expired_trial' ||
+                    subStatus === 'expired' ||
+                    subStatus === 'canceled'
+                ) {
+                    // Already on a paid plan, or trial was previously used.
+                    setTrialState('used');
+                } else {
+                    setTrialState('available');
+                }
+            } catch {
+                if (active) setTrialState('available');
+            }
+        };
+        fetchTrialState();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const trialDaysRemaining = (() => {
+        if (!trialEndsAt) return null;
+        const diffMs = new Date(trialEndsAt).getTime() - Date.now();
+        if (Number.isNaN(diffMs) || diffMs <= 0) return 0;
+        return Math.max(1, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
+    })();
+
+    const handleStartTrial = async () => {
+        if (!allRequiredConsents) {
+            setConsentError(t.setup.subscription.consent.errorRequired);
+            if (typeof window !== 'undefined') {
+                document.getElementById('consent-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+        setConsentError('');
+        setTrialError('');
+        setTrialLoading(true);
+        try {
+            const res = await fetch('/api/subscription/start-trial', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                setTrialError(data?.error || 'Туршилт эхлүүлэхэд алдаа гарлаа.');
+                if (data?.code === 'subscription_exists') setTrialState('active');
+                else if (data?.code === 'trial_already_used') setTrialState('used');
+                return;
+            }
+            await refreshShop();
+            setTrialState('active');
+            setTrialEndsAt(data?.trial_ends_at ?? null);
+            onComplete();
+        } catch (err) {
+            logger.error('start-trial error', { error: err });
+            setTrialError('Сүлжээний алдаа. Дахин оролдоно уу.');
+        } finally {
+            setTrialLoading(false);
+        }
+    };
+
+    const handleContinueWithTrial = () => {
+        onComplete();
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('mn-MN').format(amount) + '₮';
@@ -302,12 +418,22 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 setPaymentInfo(data);
 
                 if (data.qpay_error) {
-                    // QPay unavailable — show error
-                    setPollingError(data.message || 'QPay түр ажиллахгүй байна');
+                    // QPay unavailable — show error with specific reason if available.
+                    const codeMsg = data.qpay_error_code && qpayErrorMessage[data.qpay_error_code];
+                    const headline = codeMsg || data.message || 'QPay түр ажиллахгүй байна';
+                    const detail = data.qpay_error_detail
+                        ? `${headline}\n${data.qpay_error_detail}`
+                        : headline;
+                    setPollingError(detail);
                     setPaymentStatus('error');
-                } else if (data.qr_code) {
+                } else if (typeof data.qr_code === 'string' && data.qr_code.length > 0) {
                     // QR code received — start polling
                     startPolling(data.invoice_id);
+                } else {
+                    // Empty QR string — treat as a silent failure rather than
+                    // hanging the user on a blank modal.
+                    setPollingError('QR код хоосон ирлээ. QPay-н тохиргоог шалгана уу.');
+                    setPaymentStatus('error');
                 }
             } else {
                 // Free plan (shouldn't happen given current backend but handle gracefully)
@@ -393,6 +519,11 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const filteredPlans = plans.filter(plan => plan.slug !== 'free' && (plan.price_monthly || 0) > 0);
     const selected = plans.find(p => p.slug === selectedPlan);
 
+    const promoActiveForCycle =
+        !!promotion && promotion.eligible_billing_cycles.includes(billingPeriod);
+    const isPlanEligibleForPromo = (slug: string) =>
+        promoActiveForCycle && promotion!.eligible_plan_slugs.includes(slug);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -420,9 +551,91 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 </button>
                 <span className={`text-sm font-medium ${billingPeriod === 'yearly' ? 'text-gray-900' : 'text-gray-500'}`}>
                     {t.setup.subscription.yearly}
-                    <span className="ml-2 text-xs text-green-600 font-semibold">{t.setup.subscription.freeMonths}</span>
+                    {promotion && promotion.eligible_billing_cycles.includes('yearly') && (
+                        <span className="ml-2 text-xs text-green-600 font-semibold">
+                            +{promotion.bonus_months} {t.setup.subscription.bonusMonthsShort}
+                        </span>
+                    )}
                 </span>
             </div>
+
+            {/* Promo Banner */}
+            {promoActiveForCycle && (
+                <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50 p-4 flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-violet-900">{promotion!.name}</div>
+                        {promotion!.description && (
+                            <div className="text-xs text-violet-700 mt-0.5">{promotion!.description}</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Trial Card */}
+            {trialState !== 'unknown' && (
+                <div className={`rounded-2xl border p-5 ${trialState === 'used'
+                    ? 'border-gray-200 bg-gray-50 opacity-70'
+                    : 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50'
+                    }`}>
+                    <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${trialState === 'used' ? 'bg-gray-200' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                            }`}>
+                            {trialState === 'active' ? (
+                                <Clock className="w-5 h-5 text-white" />
+                            ) : (
+                                <Gift className={`w-5 h-5 ${trialState === 'used' ? 'text-gray-500' : 'text-white'}`} />
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900">
+                                3 хоног үнэгүй туршаад үзэх
+                            </h3>
+                            {trialState === 'active' && (
+                                <p className="text-sm text-emerald-700 mt-1">
+                                    Туршилт идэвхтэй
+                                    {trialDaysRemaining !== null && trialDaysRemaining > 0 && (
+                                        <> — {trialDaysRemaining} хоног үлдсэн</>
+                                    )}
+                                </p>
+                            )}
+                            {trialState === 'available' && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                    Картын мэдээлэл хэрэггүй. 3 хоногийн дараа автоматаар зогсоно.
+                                </p>
+                            )}
+                            {trialState === 'used' && (
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Та өмнө нь туршилт ашигласан байна. Доорх төлбөртэй планаас сонгоно уу.
+                                </p>
+                            )}
+                            {trialError && (
+                                <p className="text-xs text-red-600 mt-2">{trialError}</p>
+                            )}
+                        </div>
+                        {trialState === 'available' && (
+                            <Button
+                                onClick={handleStartTrial}
+                                disabled={trialLoading}
+                                className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                {trialLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Эхлүүлэх'}
+                            </Button>
+                        )}
+                        {trialState === 'active' && (
+                            <Button
+                                onClick={handleContinueWithTrial}
+                                variant="secondary"
+                                className="flex-shrink-0"
+                            >
+                                Үргэлжлүүлэх
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Plans Grid */}
             <div className="grid grid-cols-1 gap-4">
@@ -446,6 +659,14 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                                     <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1 text-xs font-semibold text-white">
                                         <Sparkles className="w-3 h-3" />
                                         {t.setup.subscription.recommended}
+                                    </span>
+                                </div>
+                            )}
+
+                            {isPlanEligibleForPromo(plan.slug) && (
+                                <div className="absolute -top-3 right-4">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                                        +{promotion!.bonus_months} {t.setup.subscription.bonusMonthsShort}
                                     </span>
                                 </div>
                             )}
