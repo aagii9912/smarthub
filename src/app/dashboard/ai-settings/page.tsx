@@ -10,7 +10,6 @@ import {
     Shield,
     Settings,
     Zap,
-    Globe,
     Check,
     Loader2,
     Hash,
@@ -39,12 +38,6 @@ const MODELS = [
     { id: 'flash-lite', name: 'Хурдан туслах', icon: Zap, req: 'lite', desc: 'Хурдан, энгийн хариулт' },
     { id: 'flash', name: 'Нийтлэг хэрэглээний AI', icon: Cpu, req: 'standard', desc: 'Хэвийн харилцан яриа' },
     { id: 'pro', name: 'Борлуулалтын ур чадвар', icon: Sparkles, req: 'pro', desc: 'Ухаалаг, борлуулалт сайтай' },
-];
-
-const LANGUAGES = [
-    { id: 'mn', name: 'Монгол' },
-    { id: 'en', name: 'English' },
-    { id: 'ru', name: 'Русский' },
 ];
 
 const PAYMENT_METHODS = [
@@ -114,7 +107,6 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
     const [description, setDescription] = useState('');
     const [aiInstructions, setAiInstructions] = useState('');
     const [aiModel, setAiModel] = useState('flash-lite');
-    const [aiLanguage, setAiLanguage] = useState('mn');
     const [shopPlan, setShopPlan] = useState('lite');
     // Notifications
     const [notifyOnOrder, setNotifyOnOrder] = useState(true);
@@ -197,7 +189,6 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                 setAiInstructions(s.ai_instructions || '');
                 setShopName(s.name || '');
                 setAiModel(s.ai_model || 'flash-lite');
-                setAiLanguage(s.ai_language || 'mn');
                 setShopPlan(s.subscription_plan || 'lite');
 
                 setNotifyOnOrder(s.notify_on_order !== false);
@@ -636,28 +627,6 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                         value={aiEnabled}
                         onChange={setAiEnabled}
                     />
-
-                    {/* Language */}
-                    <div>
-                        <label className={labelCls}>Харилцах хэл</label>
-                        <div className="flex flex-wrap gap-2">
-                            {LANGUAGES.map((l) => (
-                                <button
-                                    key={l.id}
-                                    onClick={() => setAiLanguage(l.id)}
-                                    className={cn(
-                                        'px-4 py-2 rounded-xl text-[12px] font-medium transition-all flex items-center gap-2 border tracking-[-0.01em]',
-                                        aiLanguage === l.id
-                                            ? 'border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-foreground'
-                                            : 'border-white/[0.08] bg-white/[0.02] text-white/55 hover:border-white/[0.15] hover:text-white'
-                                    )}
-                                >
-                                    <Globe className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                    {l.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
 
                     {/* Models */}
                     <div>

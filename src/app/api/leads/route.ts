@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         // Generate AI response
         let aiResponse = '';
         try {
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
             
             const prompt = `Чи Syncly компанийн найрсаг менежер шүү! 😊
 

@@ -11,7 +11,6 @@ import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 import { useFeatures } from '@/hooks/useFeatures';
 import { Avatar } from '@/components/ui/Avatar';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/utils/logger';
 import { buildBreadcrumbs } from '@/lib/breadcrumbs';
@@ -116,10 +115,6 @@ export function Header() {
 
                 {/* Right actions */}
                 <div className="ml-auto flex items-center gap-1.5">
-                    <div className="hidden md:block">
-                        <LanguageSwitcher />
-                    </div>
-
                     <ShopSwitcher
                         onAddShop={
                             limits?.max_shops === -1 || shops.length < (limits?.max_shops || 1)

@@ -30,7 +30,6 @@ const publicPaths = [
     '/pay',
     '/privacy',
     '/terms',
-    '/help',
 ];
 
 // AI/Chat routes (strict rate limit)

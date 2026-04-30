@@ -47,7 +47,7 @@ export function MobileNav() {
         { name: t.sidebar.paymentAudit, href: '/dashboard/payment-audit', icon: Shield },
         { name: t.setup.subscription.title, href: '/dashboard/subscription', icon: CreditCard },
         { name: t.sidebar.settings, href: '/dashboard/settings', icon: Settings },
-        { name: 'Санал хүсэлт', href: '/help', icon: HelpCircle },
+        { name: 'Тусламж', href: '/dashboard/help', icon: HelpCircle },
     ];
 
     useEffect(() => {

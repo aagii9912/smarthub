@@ -44,7 +44,6 @@ const primaryItems: RailItem[] = [
         nameKey: 'orders',
         href: '/dashboard/orders',
         icon: ShoppingCart,
-        feature: 'payment_integration',
         requiresAnyCapability: ['sales', 'support'],
     },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
@@ -83,7 +82,7 @@ const secondaryItems: RailItem[] = [
 ];
 
 const bottomItems: RailItem[] = [
-    { nameKey: 'help', href: '/help', icon: HelpCircle },
+    { nameKey: 'help', href: '/dashboard/help', icon: HelpCircle },
     { nameKey: 'settings', href: '/dashboard/settings', icon: Settings },
 ];
 

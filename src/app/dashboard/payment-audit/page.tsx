@@ -261,7 +261,7 @@ export default function PaymentAuditPage() {
         {
             icon: TrendingUp,
             tone: 'info' as const,
-            label: 'Нийт бичлэг',
+            label: 'Нийт үзэлтийн түүх',
             value: summary.total.toLocaleString(),
         },
         {
@@ -300,7 +300,7 @@ export default function PaymentAuditPage() {
                         Найдвартай бүртгэл
                     </span>
                 }
-                title="Төлбөрийн Audit"
+                title="Төлбөрийн мэдээлэл"
                 subtitle="Захиалгын төлбөрийн бүх өөрчлөлт, амжилтгүй болсон гүйлгээ, буцаалтыг ил тод бүртгэнэ."
                 actions={
                     <Button
@@ -405,7 +405,7 @@ export default function PaymentAuditPage() {
                     <div className="flex-1" />
 
                     <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground tabular-nums pb-2.5">
-                        Нийт <span className="text-foreground">{pagination.total}</span> бичлэг
+                        Нийт <span className="text-foreground">{pagination.total}</span> үзэлт
                     </div>
                 </div>
             </div>

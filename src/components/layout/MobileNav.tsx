@@ -68,7 +68,7 @@ const MORE_ITEMS: MoreItem[] = [
     { nameKey: 'complaints', fallback: 'Гомдол', href: '/dashboard/complaints', icon: AlertTriangle },
     { nameKey: 'subscription', fallback: 'Багц', href: '/dashboard/subscription', icon: CreditCard },
     { nameKey: 'settings', fallback: 'Тохиргоо', href: '/dashboard/settings', icon: Settings },
-    { nameKey: 'help', fallback: 'Тусламж', href: '/help', icon: HelpCircle },
+    { nameKey: 'help', fallback: 'Тусламж', href: '/dashboard/help', icon: HelpCircle },
 ];
 
 export function MobileNav() {

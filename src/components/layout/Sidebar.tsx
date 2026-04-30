@@ -56,18 +56,7 @@ interface NavLink {
 /** Workspace-level navigation — primary day-to-day surfaces */
 const WORKSPACE: NavLink[] = [
     { nameKey: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
-    {
-        nameKey: 'orders',
-        href: '/dashboard/orders',
-        icon: Package,
-        feature: 'payment_integration',
-        children: [
-            { nameKey: 'ordersAll', href: '/dashboard/orders' },
-            { nameKey: 'ordersPending', href: '/dashboard/orders?status=pending' },
-            { nameKey: 'ordersProcessing', href: '/dashboard/orders?status=processing' },
-            { nameKey: 'ordersShipped', href: '/dashboard/orders?status=shipped' },
-        ],
-    },
+    { nameKey: 'orders', href: '/dashboard/orders', icon: Package },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
     { nameKey: 'products', href: '/dashboard/products', icon: Box },
     { nameKey: 'customers', href: '/dashboard/customers', icon: Users },
@@ -87,7 +76,7 @@ const INSIGHTS: NavLink[] = [
  *  the existing t.sidebar dict has no key for it. */
 const SYSTEM: NavLink[] = [
     { nameKey: 'subscription', href: '/dashboard/subscription', icon: Crown },
-    { nameKey: 'help', href: '/help', icon: HelpCircle },
+    { nameKey: 'help', href: '/dashboard/help', icon: HelpCircle },
     { nameKey: 'settings', href: '/dashboard/settings', icon: Settings },
 ];
 
