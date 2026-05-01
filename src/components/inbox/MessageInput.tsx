@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { AlertTriangle, Ban, Loader2, Send } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Ban, CreditCard, Loader2, Send } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AIModeControls } from './AIModeControls';
+import { QPayInvoiceModal } from './QPayInvoiceModal';
 import type { AiPauseMode, MessagingWindowState } from './types';
 
 interface MessageInputProps {
@@ -15,6 +16,7 @@ interface MessageInputProps {
     onAiPauseModeChange: (value: AiPauseMode) => void;
     autoFocus?: boolean;
     windowState?: MessagingWindowState;
+    customerId?: string;
 }
 
 export function MessageInput({
@@ -26,9 +28,11 @@ export function MessageInput({
     onAiPauseModeChange,
     autoFocus,
     windowState = 'within_24h',
+    customerId,
 }: MessageInputProps) {
     const { t } = useLanguage();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [qpayOpen, setQpayOpen] = useState(false);
 
     const expired = windowState === 'expired';
     const stale = windowState === 'within_7d';
@@ -55,8 +59,20 @@ export function MessageInput({
 
     return (
         <div className="px-4 py-3 border-t border-white/[0.06] bg-[#09090b]">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between gap-2">
                 <AIModeControls value={aiPauseMode} onChange={onAiPauseModeChange} />
+                {customerId && (
+                    <button
+                        type="button"
+                        onClick={() => setQpayOpen(true)}
+                        disabled={expired}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-[12px] text-white/85 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                        title="QPay invoice үүсгэх"
+                    >
+                        <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        QPay
+                    </button>
+                )}
             </div>
 
             {stale && (
@@ -107,6 +123,14 @@ export function MessageInput({
             <div className="mt-2 flex items-center gap-3 text-[11px] text-white/35 px-1 tracking-[-0.01em]">
                 <span>{t.inbox.cmdEnterToSend}</span>
             </div>
+
+            {customerId && (
+                <QPayInvoiceModal
+                    open={qpayOpen}
+                    onClose={() => setQpayOpen(false)}
+                    customerId={customerId}
+                />
+            )}
         </div>
     );
 }

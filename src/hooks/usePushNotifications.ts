@@ -41,20 +41,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
                     const registration = await Promise.race([
                         navigator.serviceWorker.ready,
-                        timeoutPromise
+                        timeoutPromise,
                     ]) as ServiceWorkerRegistration | null;
 
                     if (registration) {
                         const subscription = await registration.pushManager.getSubscription();
-                        if (subscription) {
-                            setIsSubscribed(true);
-                            // Sync subscription with server to ensure it's linked to current shop
-                            fetch('/api/push/subscribe', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ subscription: subscription.toJSON() }),
-                            }).catch(err => { if (isDev) logger.error('Subscription sync error:', { error: err }); });
-                        }
+                        // UI state нь зөвхөн browser-н бодит subscription байгаа эсэхээс
+                        // хамаарна. Хуурмаг auto-resubscribe хийхгүй — энэ нь хэрэглэгч
+                        // өмнө OFF дарсан атлаа дахин нээгдэж auto-ON болж байсан bug-ыг
+                        // арилгана.
+                        setIsSubscribed(!!subscription);
                     }
                 } catch {
                     // Service worker not ready yet - will register on subscribe
@@ -94,6 +90,19 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             const registration = await navigator.serviceWorker.register('/sw.js');
             await navigator.serviceWorker.ready;
 
+            // Хуучин subscription байвал орхио гэж үзэн арилгана. Browser-ын
+            // pushManager заримдаа шинэ endpoint үүсгэдэг — хуучин orphan-г
+            // үлдээвэл UI/server state mismatch үүсэх эрсдэлтэй.
+            const existing = await registration.pushManager.getSubscription();
+            if (existing) {
+                await fetch('/api/push/subscribe', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: existing.endpoint }),
+                }).catch(() => { /* non-critical, server-talasaa cleanup */ });
+                await existing.unsubscribe();
+            }
+
             // Subscribe to push
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -108,6 +117,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             });
 
             if (!res.ok) {
+                // Browser subscription үүссэн ч server-руу хадгалаагүй —
+                // browser side-аас хүчингүй болгож, UI false болгоно.
+                await subscription.unsubscribe().catch(() => {});
                 throw new Error('Failed to save subscription');
             }
 
@@ -116,7 +128,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             return true;
         } catch (err: unknown) {
             if (isDev) logger.error('Subscribe error:', { error: err });
-            alert('Notification error: ' + ((err instanceof Error ? err.message : String(err)) || 'Failed to subscribe'));
+            setIsSubscribed(false);
             setIsLoading(false);
             return false;
         }
@@ -133,15 +145,19 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             const subscription = await registration.pushManager.getSubscription();
 
             if (subscription) {
-                // Unsubscribe locally
-                await subscription.unsubscribe();
-
-                // Remove from server
-                await fetch('/api/push/subscribe', {
+                // 1. Server-ийг хүчингүй болгох — амжилтгүй болбол throw,
+                //    UI optimistic-аар false-руу шилжихгүй.
+                const res = await fetch('/api/push/subscribe', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ endpoint: subscription.endpoint }),
                 });
+                if (!res.ok) {
+                    throw new Error('Server unsubscribe амжилтгүй');
+                }
+
+                // 2. Зөвхөн server цэвэрлэгдсэний дараа browser-аас unsubscribe
+                await subscription.unsubscribe();
             }
 
             setIsSubscribed(false);
@@ -149,6 +165,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
             return true;
         } catch (err) {
             if (isDev) logger.error('Unsubscribe error:', { error: err });
+            // UI/state-г server-н бодит state-тэй давтан шалгана
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                setIsSubscribed(!!sub);
+            } catch { /* noop */ }
             setIsLoading(false);
             return false;
         }

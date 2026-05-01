@@ -285,6 +285,7 @@ export function ChatThread({ customerId }: ChatThreadProps) {
                 onAiPauseModeChange={setAiPauseMode}
                 windowState={windowState}
                 autoFocus
+                customerId={customerId}
             />
         </div>
     );

@@ -317,10 +317,15 @@ function SettingsContent() {
                 throw new Error(data?.error || 'Failed to disconnect');
             }
 
-            if (platform === 'facebook') setFbConnected(false);
-            else setIgConnected(false);
+            // Сервертэй давтан синк хийж, UI-н state-г жинхэнэ DB утгатай нийцүүлэх.
+            // Optimistic-ээр setFbConnected(false) хийх нь disconnect амжилтгүй
+            // болсон ч false харуулах эрсдэлтэй байсан.
+            await fetchSettings();
+            if (platform === 'facebook') setFbPages([]);
+
             toast.success(`${platform === 'facebook' ? 'Facebook' : 'Instagram'} салгагдлаа`);
         } catch (err) {
+            logger.error('disconnectPlatform error', { error: err, platform });
             toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
         }
     }

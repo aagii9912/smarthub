@@ -72,10 +72,18 @@ export async function DELETE(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        await supabase
+        // Зөвхөн өөрийн shop-ын subscription-ыг устгана. shop_id хязгаар
+        // нь өөр shop-ын subscription-ыг тохиолдлоор устгахаас сэргийлнэ.
+        const { error } = await supabase
             .from('push_subscriptions')
             .delete()
-            .eq('endpoint', endpoint);
+            .eq('endpoint', endpoint)
+            .eq('shop_id', authShop.id);
+
+        if (error) {
+            logger.error('Push unsubscribe DB error:', { error });
+            return NextResponse.json({ error: 'Failed to unsubscribe' }, { status: 500 });
+        }
 
         return NextResponse.json({ success: true, message: 'Unsubscribed' });
     } catch (error: unknown) {

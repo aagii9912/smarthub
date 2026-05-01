@@ -55,7 +55,7 @@ export function PricingSection({ content: c }: PricingSectionProps) {
           </div>
 
           {/* Cards */}
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Lite */}
             <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
               <p className="text-[14px] font-semibold">{c.pricing.lite.label}</p>
@@ -68,11 +68,13 @@ export function PricingSection({ content: c }: PricingSectionProps) {
                 <p className="mt-1 text-[11px] text-emerald-400">{getPlan('lite').savings}</p>
               )}
               <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.lite.features.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                    <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                  </li>
-                ))}
+                {c.pricing.lite.features
+                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
+                  .map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
+                      <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
+                    </li>
+                  ))}
               </ul>
               <Link
                 href="/auth/register?plan=lite"
@@ -93,11 +95,13 @@ export function PricingSection({ content: c }: PricingSectionProps) {
                 <p className="mt-1 text-[11px] text-emerald-400">{getPlan('starter').savings}</p>
               )}
               <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.starter.features.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                    <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                  </li>
-                ))}
+                {c.pricing.starter.features
+                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
+                  .map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
+                      <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
+                    </li>
+                  ))}
               </ul>
               <Link
                 href="/auth/register?plan=starter"
@@ -127,11 +131,13 @@ export function PricingSection({ content: c }: PricingSectionProps) {
                 <p className="mt-1 text-[11px] text-emerald-400">{getPlan('pro').savings}</p>
               )}
               <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.pro.features.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-300">
-                    <Check className="h-4 w-4 text-indigo-400 shrink-0" /> {item}
-                  </li>
-                ))}
+                {c.pricing.pro.features
+                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
+                  .map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-300">
+                      <Check className="h-4 w-4 text-indigo-400 shrink-0" /> {item}
+                    </li>
+                  ))}
               </ul>
               <Link
                 href="/auth/register?plan=pro"
@@ -141,27 +147,6 @@ export function PricingSection({ content: c }: PricingSectionProps) {
               </Link>
             </div>
 
-            {/* Enterprise */}
-            <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
-              <p className="text-[14px] font-semibold">{c.pricing.enterprise.label}</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.enterprise.desc}</p>
-              <div className="mt-5">
-                <span className="text-3xl font-bold tracking-[-0.02em]">{getPlan('enterprise').price}</span>
-              </div>
-              <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.enterprise.features.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                    <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/contact"
-                className="mt-7 inline-flex items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.08] transition-all duration-200"
-              >
-                Холбогдох
-              </Link>
-            </div>
           </div>
         </div>
       </section>
@@ -178,28 +163,29 @@ export function PricingSection({ content: c }: PricingSectionProps) {
                   <th className="font-medium p-4 text-center text-slate-400">Lite</th>
                   <th className="font-medium p-4 text-center text-slate-400">Starter</th>
                   <th className="font-medium p-4 text-center text-indigo-400">Pro</th>
-                  <th className="font-medium p-4 text-center text-slate-400">Enterprise</th>
                 </tr>
               </thead>
               <tbody>
-                {c.comparison.map((row, i) => (
-                  <tr key={row.name} className={i < c.comparison.length - 1 ? "border-b border-white/[0.04]" : ""}>
-                    <td className="p-4 text-slate-400">{row.name}</td>
-                    {[row.lite, row.starter, row.pro, row.enterprise].map((val, j) => (
-                      <td key={j} className="p-4 text-center">
-                        {val === true ? (
-                          <Check className="h-4 w-4 text-emerald-400 mx-auto" />
-                        ) : val === false ? (
-                          <Minus className="h-4 w-4 text-slate-700 mx-auto" />
-                        ) : (
-                          <span className={j === 2 ? "text-indigo-400 font-medium" : "text-slate-500"}>
-                            {val as string}
-                          </span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {c.comparison
+                  .filter((row) => row.name !== 'Бүтээгдэхүүн')
+                  .map((row, i, arr) => (
+                    <tr key={row.name} className={i < arr.length - 1 ? "border-b border-white/[0.04]" : ""}>
+                      <td className="p-4 text-slate-400">{row.name}</td>
+                      {[row.lite, row.starter, row.pro].map((val, j) => (
+                        <td key={j} className="p-4 text-center">
+                          {val === true ? (
+                            <Check className="h-4 w-4 text-emerald-400 mx-auto" />
+                          ) : val === false ? (
+                            <Minus className="h-4 w-4 text-slate-700 mx-auto" />
+                          ) : (
+                            <span className={j === 2 ? "text-indigo-400 font-medium" : "text-slate-500"}>
+                              {val as string}
+                            </span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

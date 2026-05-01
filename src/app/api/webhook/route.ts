@@ -5,6 +5,7 @@ import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { getUserBilling } from '@/lib/billing/getUserBilling';
+import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import * as Sentry from '@sentry/nextjs';
 import type { ChatMessage, AIEmotion } from '@/types/ai';
 import {
@@ -311,15 +312,24 @@ export async function POST(request: NextRequest) {
                         continue;
                     }
 
+                    // CHECK: Paid subscription required for AI
+                    // Хэрэглэгч төлбөрөө төлөөгүй (status='unpaid' эсвэл огт байхгүй)
+                    // үед AI ажиллахгүй. Trial хүчинтэй бол зөвшөөрнө.
+                    const billing = shop.user_id ? await getUserBilling(shop.user_id) : null;
+                    if (!isAiAuthorized(billing, shop)) {
+                        logger.info(`[${shop.name}] No active subscription — AI алгасаж байна.`, {
+                            shopId: shop.id,
+                            billingStatus: billing?.status,
+                            billingPlan: billing?.plan,
+                            shopStatus: shop.subscription_status,
+                            shopPlan: shop.subscription_plan,
+                        });
+                        continue;
+                    }
+
                     // === REALTIME AI PROCESSING ===
                     try {
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
-
-                        // Source plan/quota from the USER pool (one plan per
-                        // user, shared across shops). Falls back to the shop
-                        // row when the user-level snapshot isn't populated yet
-                        // (legacy data path).
-                        const billing = shop.user_id ? await getUserBilling(shop.user_id) : null;
 
                         const response = await routeToAI(
                             userMessage,
@@ -343,8 +353,8 @@ export async function POST(request: NextRequest) {
                                 slogans: aiFeatures.slogans,
                                 notifySettings: buildNotifySettings(shop),
                                 subscription: {
-                                    plan: billing?.plan || shop.subscription_plan || 'starter',
-                                    status: billing?.status || shop.subscription_status || 'active',
+                                    plan: billing?.plan || shop.subscription_plan || undefined,
+                                    status: billing?.status || shop.subscription_status || undefined,
                                     trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
                                 },
                                 messageCount: customer.message_count || 0,
@@ -445,11 +455,20 @@ export async function POST(request: NextRequest) {
                                 continue;
                             }
 
+                            // CHECK: Paid subscription required for AI image analysis
+                            const imgBilling = shop.user_id ? await getUserBilling(shop.user_id) : null;
+                            if (!isAiAuthorized(imgBilling, shop)) {
+                                logger.info(`[${shop.name}] No active subscription — image analysis алгасаж байна.`, {
+                                    shopId: shop.id,
+                                });
+                                continue;
+                            }
+
                             // === REALTIME IMAGE PROCESSING ===
                             try {
                                 const planType = getPlanTypeFromSubscription({
-                                    plan: shop.subscription_plan || 'starter',
-                                    status: shop.subscription_status || 'active',
+                                    plan: imgBilling?.plan || shop.subscription_plan || undefined,
+                                    status: imgBilling?.status || shop.subscription_status || undefined,
                                 });
 
                                 const productsForAnalysis = shop.products.map(p => ({
@@ -574,10 +593,18 @@ export async function POST(request: NextRequest) {
                     }
 
                     if (userMessage) {
+                        // CHECK: Paid subscription required for AI postback handling
+                        const pbBilling = shop.user_id ? await getUserBilling(shop.user_id) : null;
+                        if (!isAiAuthorized(pbBilling, shop)) {
+                            logger.info(`[${shop.name}] No active subscription — postback AI алгасаж байна.`, {
+                                shopId: shop.id,
+                            });
+                            continue;
+                        }
                         try {
                             const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
-                            const billing = shop.user_id ? await getUserBilling(shop.user_id) : null;
+                            const billing = pbBilling;
 
                             const response = await routeToAI(
                                 userMessage,
@@ -609,8 +636,8 @@ export async function POST(request: NextRequest) {
                                         description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
                                     },
                                     subscription: {
-                                        plan: billing?.plan || shop.subscription_plan || 'starter',
-                                        status: billing?.status || shop.subscription_status || 'active',
+                                        plan: billing?.plan || shop.subscription_plan || undefined,
+                                        status: billing?.status || shop.subscription_status || undefined,
                                         trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
                                     },
                                     messageCount: customer.message_count || 0,

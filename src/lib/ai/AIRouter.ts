@@ -240,12 +240,46 @@ export async function routeToAI(
     const planType = getPlanTypeFromSubscription(context.subscription);
     const planConfig = getPlanConfig(planType);
 
-    // Trial expiry gate — block AI when trial period is over and user hasn't paid
+    // Defense-in-depth: webhook-н gate-аас гадуур AI Router-руу шууд орж ирвэл
+    // (cron, internal call гэх мэт) төлбөргүй хэрэглэгчийг хааж байна.
     const subStatus = context.subscription?.status;
+    const subPlan = context.subscription?.plan;
+    const isAuthorizedStatus =
+        subStatus === 'active' ||
+        subStatus === 'trial' ||
+        subStatus === 'trialing';
+
+    if (!isAuthorizedStatus || !subPlan || subPlan === 'unpaid') {
+        logger.warn('No active paid subscription — blocking AI', {
+            shopId: context.shopId,
+            status: subStatus,
+            plan: subPlan,
+        });
+        return {
+            text: '',
+            limitReached: true,
+            usage: {
+                plan: planType,
+                model: planConfig.model,
+                messagesUsed: context.messageCount || 0,
+                tokensUsed: context.tokenUsageTotal || 0,
+                tokensRemaining: 0,
+                tokenUsagePercent: 0,
+                creditsUsed: 0,
+                creditsRemaining: 0,
+                creditsLimit: getCreditsPerMonth(planType),
+            },
+        };
+    }
+
+    // Trial expiry gate — block AI when trial period is over and user hasn't paid.
+    // 'expired_trial' status нь дээрх authorize gate-аар хаагддаг тул энд зөвхөн
+    // 'trial'/'trialing' статус хугацаагаа хэтрүүлсэн тохиолдлыг шалгана.
     const trialEndsAt = context.subscription?.trialEndsAt;
     const trialExpired =
-        subStatus === 'expired_trial' ||
-        (subStatus === 'trial' && !!trialEndsAt && new Date(trialEndsAt) < new Date());
+        (subStatus === 'trial' || subStatus === 'trialing') &&
+        !!trialEndsAt &&
+        new Date(trialEndsAt) < new Date();
 
     if (trialExpired) {
         logger.warn('Trial expired — blocking AI', {

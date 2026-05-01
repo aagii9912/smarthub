@@ -85,7 +85,7 @@ export function Footer() {
   return (
     <footer className="border-t border-white/[0.05] bg-white/[0.01]">
       <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-8">
           <div className="col-span-2 sm:col-span-1">
             <div className="flex items-center gap-2.5">
               <Image src="/logo.png" alt="Syncly" width={24} height={24} />
@@ -103,7 +103,7 @@ export function Footer() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-3">
               Бүтээгдэхүүн
             </p>
-            <ul className="space-y-2 text-[13px] text-slate-500">
+            <ul className="space-y-2 text-[13px] text-slate-300">
               <li><a href="#features" className="hover:text-white transition-colors">Боломжууд</a></li>
               <li><a href="#pricing" className="hover:text-white transition-colors">Үнэ</a></li>
               <li><Link href="/docs" className="hover:text-white transition-colors">API Баримт</Link></li>
@@ -114,10 +114,32 @@ export function Footer() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-3">
               Компани
             </p>
-            <ul className="space-y-2 text-[13px] text-slate-500">
+            <ul className="space-y-2 text-[13px] text-slate-300">
               <li><Link href="/about" className="hover:text-white transition-colors">Бидний тухай</Link></li>
               <li><Link href="/blog" className="hover:text-white transition-colors">Блог</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Холбоо барих</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-3">
+              Холбоо барих
+            </p>
+            <ul className="space-y-2 text-[13px] text-slate-300">
+              <li>
+                <a href="mailto:Info@syncly.mn" className="hover:text-white transition-colors">
+                  Info@syncly.mn
+                </a>
+              </li>
+              <li>
+                <a href="tel:+97699542482" className="hover:text-white transition-colors">
+                  9954-2482
+                </a>
+              </li>
+              <li>
+                <a href="tel:+97686870092" className="hover:text-white transition-colors">
+                  8687-0092
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -125,7 +147,7 @@ export function Footer() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-3">
               Хууль
             </p>
-            <ul className="space-y-2 text-[13px] text-slate-500">
+            <ul className="space-y-2 text-[13px] text-slate-300">
               <li><Link href="/privacy" className="hover:text-white transition-colors">Нууцлалын бодлого</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">Үйлчилгээний нөхцөл</Link></li>
             </ul>
