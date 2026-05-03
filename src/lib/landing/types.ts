@@ -73,24 +73,15 @@ export interface CreditBlock {
     fixed?: { icon: string; text: string };
 }
 
-export interface SliderConfig {
-    label: string;
-    value: string;
-    ticks: [string, string, string];
-    fillPercent: number;
-}
-
 export interface PlanCard {
     tag: string;
     desc: string;
     accent: PlanAccent;
     banner?: { text: string; variant: BannerVariant };
     credit: CreditBlock;
-    slider?: SliderConfig;
     price: PriceFace;
     cta: { text: string; href: string };
     save?: { annual?: string; monthly?: string };
-    seats?: { enabled: true; defaultCount: number; label: string };
     features: FeatureRow[];
     showDiscountBadge?: boolean;
     featured?: boolean;
