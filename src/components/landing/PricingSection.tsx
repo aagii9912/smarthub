@@ -1,196 +1,335 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { Check, Minus } from "lucide-react";
-import type { LandingContent } from "@/lib/landing/types";
+import type {
+    LandingContent,
+    PlanCard,
+    PlanAccent,
+    BannerVariant,
+    FeatureRow,
+    FeaturePillVariant,
+    SliderConfig,
+} from "@/lib/landing/types";
 
 interface PricingSectionProps {
-  content: LandingContent;
+    content: LandingContent;
+}
+
+type Mode = "monthly" | "annual";
+
+const PLAN_KEYS = ["lite", "starter", "pro", "business"] as const;
+type PlanKey = (typeof PLAN_KEYS)[number];
+
+const ACCENT_VARS: Record<PlanAccent, CSSProperties> = {
+    warm: { ["--plan-accent" as string]: "#f5f1e8", ["--plan-accent-fg" as string]: "#0c0c14", ["--plan-glow" as string]: "rgba(245,241,232,0.18)" },
+    lime: { ["--plan-accent" as string]: "var(--p-lime)", ["--plan-accent-fg" as string]: "#0c0c14", ["--plan-glow" as string]: "rgba(200,255,61,0.25)" },
+    pink: { ["--plan-accent" as string]: "var(--p-pink)", ["--plan-accent-fg" as string]: "#fff", ["--plan-glow" as string]: "rgba(236,72,153,0.30)" },
+    indigo: { ["--plan-accent" as string]: "var(--p-indigo)", ["--plan-accent-fg" as string]: "#fff", ["--plan-glow" as string]: "rgba(74,124,231,0.30)" },
+};
+
+function bannerClass(variant: BannerVariant): string {
+    if (variant === "muted") return "bg-white/5 text-white/60";
+    if (variant === "indigo") return "bg-[var(--p-indigo)] text-white";
+    return "bg-[var(--plan-accent)] text-[var(--plan-accent-fg)]";
+}
+
+function pillClass(variant: FeaturePillVariant): string {
+    return variant === "lime"
+        ? "bg-[var(--p-lime)] text-[#0c0c14]"
+        : "bg-[rgba(232,213,183,0.12)] text-[var(--p-warm)]";
+}
+
+function FeatureItem({ row }: { row: FeatureRow }) {
+    if (row.kind === "section") {
+        return (
+            <li className="basis-full mt-3 pt-3 border-t border-white/5 text-[10.5px] font-bold tracking-[0.12em] text-white/60 uppercase">
+                {row.text}
+            </li>
+        );
+    }
+    const isOk = row.kind === "ok";
+    return (
+        <li
+            className={`flex items-start gap-2.5 text-[12.5px] leading-[1.45] flex-wrap ${
+                isOk ? "text-white" : "text-white/40"
+            }`}
+        >
+            <span
+                className={`mt-[2px] w-[14px] shrink-0 text-[11px] font-bold ${
+                    isOk ? "text-[var(--plan-accent)]" : "text-white/40"
+                }`}
+            >
+                {isOk ? "✓" : "×"}
+            </span>
+            <span>{row.text}</span>
+            {isOk && row.pill && (
+                <span
+                    className={`ml-auto whitespace-nowrap rounded-[4px] px-1.5 py-[2px] font-mono text-[9.5px] font-bold tracking-[0.06em] ${pillClass(
+                        row.pill.variant
+                    )}`}
+                >
+                    {row.pill.text}
+                </span>
+            )}
+        </li>
+    );
+}
+
+function Slider({ fillPercent, label, value, ticks }: SliderConfig) {
+    return (
+        <div className="mt-3 pt-3 border-t border-dashed border-white/5">
+            <div className="flex items-baseline justify-between font-mono text-[11px] tracking-[0.04em] text-white/60 mb-1">
+                <span>{label}</span>
+                <strong className="font-semibold text-white">{value}</strong>
+            </div>
+            <div className="relative h-1 my-3 rounded-full bg-white/[0.08]">
+                <div
+                    className="absolute left-0 top-0 h-full rounded-full bg-[var(--plan-accent)]"
+                    style={{ width: `${fillPercent}%` }}
+                />
+                <div
+                    className="absolute top-1/2 h-[14px] w-[14px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.5),0_0_0_4px_rgba(255,255,255,0.06)]"
+                    style={{ left: `${fillPercent}%` }}
+                />
+            </div>
+            <div className="flex justify-between font-mono text-[10.5px] text-white/40">
+                <span>{ticks[0]}</span>
+                <span>{ticks[1]}</span>
+                <span>{ticks[2]}</span>
+            </div>
+        </div>
+    );
+}
+
+function PlanCardView({ plan, mode, discountBadge }: { plan: PlanCard; mode: Mode; discountBadge: string }) {
+    const initialSeats = plan.seats?.defaultCount ?? 2;
+    const [seats, setSeats] = useState(initialSeats);
+
+    const accentStyle = ACCENT_VARS[plan.accent];
+    const priceFace = mode === "annual" ? plan.price.annual : plan.price.monthly;
+    const showStrike = mode === "annual" && !!priceFace.strike;
+    const showDiscount = !!plan.showDiscountBadge && mode === "annual" && !!discountBadge;
+    const saveText = mode === "annual" ? plan.save?.annual : plan.save?.monthly;
+
+    return (
+        <article
+            className={`reveal-on-scroll relative flex flex-col overflow-hidden rounded-[18px] border bg-[#14141d] transition-[transform,border-color] duration-300 hover:-translate-y-[3px] ${
+                plan.featured
+                    ? "border-[color-mix(in_oklab,var(--plan-accent)_40%,transparent)] shadow-[0_30px_70px_-22px_var(--plan-glow)]"
+                    : "border-white/5 hover:border-white/10"
+            }`}
+            style={accentStyle}
+        >
+            {plan.banner && (
+                <div
+                    className={`px-3 py-[9px] text-center text-[11px] font-bold tracking-[0.12em] ${bannerClass(
+                        plan.banner.variant
+                    )}`}
+                >
+                    <span className="inline-flex items-center gap-1.5">{plan.banner.text}</span>
+                </div>
+            )}
+
+            <div className="border-b border-white/5 px-[22px] pt-6 pb-[22px]">
+                <div className="mb-1">
+                    <span className="font-display inline-flex items-center gap-2 text-[24px] font-bold tracking-[-0.01em] text-white">
+                        {plan.tag}
+                        {showDiscount && (
+                            <span className="rounded-[5px] bg-[var(--plan-accent)] px-[7px] py-[3px] font-mono text-[10px] font-bold tracking-[0.05em] text-[var(--plan-accent-fg)]">
+                                {discountBadge}
+                            </span>
+                        )}
+                    </span>
+                </div>
+
+                <p className="mt-0 mb-[18px] text-[12.5px] leading-[1.45] text-white/60">{plan.desc}</p>
+
+                <div className="mb-[22px] rounded-xl border border-white/5 bg-white/[0.025] px-3.5 py-3 text-[12px] text-white/60">
+                    <div className="mb-2 flex items-center gap-2 text-[14px] font-semibold text-white">
+                        <span className="text-[13px]">{plan.credit.icon}</span>
+                        {plan.credit.headline}
+                    </div>
+                    {plan.credit.lines.map((line, i) => (
+                        <div
+                            key={i}
+                            className="relative pl-3 leading-[1.7] text-white/60 before:absolute before:left-0 before:top-0 before:font-mono before:text-[11px] before:text-white/40 before:content-['=']"
+                        >
+                            {line}
+                        </div>
+                    ))}
+                    {plan.credit.fixed && (
+                        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-white/5 bg-white/[0.03] px-2.5 py-2 text-[11.5px] text-white/60">
+                            <span className="text-[var(--plan-accent)]">{plan.credit.fixed.icon}</span>
+                            {plan.credit.fixed.text}
+                        </div>
+                    )}
+                    {plan.slider && <Slider {...plan.slider} />}
+                </div>
+
+                <div className="font-display mb-4 flex flex-wrap items-baseline gap-2.5">
+                    {showStrike && (
+                        <span className="text-[22px] font-semibold tracking-[-0.02em] text-[var(--plan-accent)] line-through decoration-2 opacity-70 [font-feature-settings:'tnum']">
+                            {priceFace.strike}
+                        </span>
+                    )}
+                    <span className="text-[36px] leading-none font-bold tracking-[-0.04em] text-white [font-feature-settings:'tnum']">
+                        {priceFace.value}
+                    </span>
+                    <span className="basis-full -mt-0.5 font-sans text-[12px] font-medium text-white/60">
+                        {plan.price.perLabel}
+                    </span>
+                </div>
+
+                {plan.accent === "warm" ? (
+                    <Link
+                        href={plan.cta.href}
+                        className="flex w-full items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.06] px-4 py-3.5 text-[14px] font-bold text-white transition-all hover:bg-white/10"
+                    >
+                        {plan.cta.text}
+                    </Link>
+                ) : (
+                    <Link
+                        href={plan.cta.href}
+                        className="flex w-full items-center justify-center rounded-[10px] bg-[var(--plan-accent)] px-4 py-3.5 text-[14px] font-bold text-[var(--plan-accent-fg)] transition-all hover:-translate-y-px hover:brightness-105 hover:shadow-[0_12px_28px_-8px_var(--plan-glow)]"
+                    >
+                        {plan.cta.text}
+                    </Link>
+                )}
+
+                {plan.seats && (
+                    <div className="mt-3 flex items-center justify-center gap-4 rounded-[10px] border border-white/5 bg-white/[0.025] p-2">
+                        <button
+                            type="button"
+                            onClick={() => setSeats((n) => Math.max(1, n - 1))}
+                            className="h-7 w-7 rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold text-white transition-all hover:bg-white/10"
+                            aria-label="Хэрэглэгч хасах"
+                        >
+                            −
+                        </button>
+                        <span className="font-mono text-[13px] font-semibold text-white">
+                            {seats} {plan.seats.label}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setSeats((n) => Math.min(15, n + 1))}
+                            className="h-7 w-7 rounded-lg border border-white/10 bg-white/[0.04] text-sm font-semibold text-white transition-all hover:bg-white/10"
+                            aria-label="Хэрэглэгч нэмэх"
+                        >
+                            +
+                        </button>
+                    </div>
+                )}
+
+                <p className="mt-3 min-h-[16px] text-center font-sans text-[11.5px] text-white/60">
+                    {saveText ?? ""}
+                </p>
+            </div>
+
+            <ul className="m-0 flex flex-col gap-2.5 px-[22px] pt-[22px] pb-6 list-none">
+                {plan.features.map((row, i) => (
+                    <FeatureItem key={i} row={row} />
+                ))}
+            </ul>
+        </article>
+    );
 }
 
 export function PricingSection({ content: c }: PricingSectionProps) {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+    const p = c.pricing;
+    const [mode, setMode] = useState<Mode>(p.toggle?.defaultMode ?? "annual");
 
-  const getPlan = (plan: 'lite' | 'starter' | 'pro' | 'enterprise') => {
-    const p = c.pricing[plan];
-    return billingPeriod === 'monthly' ? p.monthly : p.yearly;
-  };
+    const plans: PlanCard[] = PLAN_KEYS.map((k) => p[k as PlanKey]);
 
-  return (
-    <>
-      <section id="pricing" className="py-24 sm:py-32 px-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent" />
-        <div className="mx-auto max-w-5xl relative z-10">
-          <div className="text-center reveal-on-scroll">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-violet-400">{c.pricing.sectionLabel}</p>
-            <h2 className="mt-3 text-[clamp(1.5rem,3.5vw,2.5rem)] font-bold tracking-[-0.03em]">
-              {c.pricing.sectionTitle} <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">үнэ</span>
-            </h2>
-          </div>
+    return (
+        <section id="pricing" className="relative px-6 py-20 sm:py-24">
+            <div className="relative z-10 mx-auto max-w-[1280px]">
+                {/* Header */}
+                <header className="mb-14 text-center reveal-on-scroll">
+                    <div className="mb-7 inline-flex items-baseline gap-3.5 font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-white/60 before:h-px before:w-7 before:self-center before:bg-white/60 before:content-['']">
+                        <span className="font-semibold text-[var(--p-warm)]">{p.eyebrowNum}</span>
+                        {p.sectionLabel}
+                    </div>
+                    <h1 className="font-display m-0 mb-5 text-balance text-[clamp(48px,6.5vw,88px)] font-medium leading-[0.94] tracking-[-0.05em]">
+                        {p.headlineLines.line1}
+                        <br />
+                        <em className="font-light italic text-[var(--p-warm)]">{p.headlineLines.emphasis}</em>{" "}
+                        <span className="bg-gradient-to-r from-[var(--p-indigo)] via-[var(--p-violet)] to-[var(--p-cyan)] bg-clip-text text-transparent">
+                            {p.headlineLines.gradient}
+                        </span>
+                    </h1>
+                    <p className="mx-auto mb-9 max-w-[540px] text-[16px] leading-[1.55] text-white/60">{p.lede}</p>
 
-          {/* Toggle */}
-          <div className="mt-8 flex justify-center">
-            <div className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.03] p-1 text-[13px]">
-              <button
-                onClick={() => setBillingPeriod("monthly")}
-                className={`rounded-full px-5 py-2 font-medium transition-all duration-200 ${billingPeriod === "monthly"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-slate-400 hover:text-white"
-                  }`}
-              >
-                Сар бүр
-              </button>
-              <button
-                onClick={() => setBillingPeriod("yearly")}
-                className={`rounded-full px-5 py-2 font-medium transition-all duration-200 ${billingPeriod === "yearly"
-                  ? "bg-white text-black shadow-sm"
-                  : "text-slate-400 hover:text-white"
-                  }`}
-              >
-                Жилээр
-                <span className="ml-1.5 text-[11px] text-emerald-400 font-medium">-17%</span>
-              </button>
+                    {/* Toggle */}
+                    <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.025] px-4 py-1.5 text-[13.5px] font-medium backdrop-blur-md">
+                        <button
+                            type="button"
+                            onClick={() => setMode("monthly")}
+                            className={`cursor-pointer py-1.5 transition-colors duration-200 ${
+                                mode === "monthly" ? "text-white" : "text-white/60"
+                            }`}
+                        >
+                            Сар бүр
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode(mode === "annual" ? "monthly" : "annual")}
+                            aria-label="Toggle billing period"
+                            className={`relative h-6 w-11 cursor-pointer rounded-full transition-colors duration-300 ${
+                                mode === "annual"
+                                    ? "bg-gradient-to-br from-[var(--p-indigo)] to-[var(--p-violet)]"
+                                    : "bg-white/10"
+                            }`}
+                        >
+                            <span
+                                className="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.4)] transition-transform duration-300"
+                                style={{ transform: mode === "annual" ? "translateX(20px)" : "translateX(0)" }}
+                            />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode("annual")}
+                            className={`cursor-pointer py-1.5 transition-colors duration-200 ${
+                                mode === "annual" ? "text-white" : "text-white/60"
+                            }`}
+                        >
+                            Жилээр
+                        </button>
+                        <span
+                            className="whitespace-nowrap rounded-md bg-[var(--p-pink)] px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white transition-opacity duration-200"
+                            style={{ opacity: mode === "annual" ? 1 : 0.3 }}
+                        >
+                            {p.toggle.savePill}
+                        </span>
+                    </div>
+                </header>
+
+                {/* Plans */}
+                <div className="grid grid-cols-1 items-start gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+                    {plans.map((plan, i) => (
+                        <PlanCardView
+                            key={`${plan.tag}-${i}`}
+                            plan={plan}
+                            mode={mode}
+                            discountBadge={p.toggle.discountBadge ?? ""}
+                        />
+                    ))}
+                </div>
+
+                {/* Trust line */}
+                <div className="mt-10 flex flex-wrap items-center justify-center font-mono text-[11.5px] tracking-[0.04em] text-white/60">
+                    {p.trustLine.map((label, i) => (
+                        <span
+                            key={i}
+                            className={`relative inline-flex items-center gap-2 px-[18px] before:h-1 before:w-1 before:shrink-0 before:rounded-full before:bg-[var(--p-warm)] before:opacity-70 before:content-[''] ${
+                                i > 0 ? "after:absolute after:left-0 after:top-1/2 after:h-3 after:w-px after:-translate-y-1/2 after:bg-white/10 after:content-['']" : ""
+                            }`}
+                        >
+                            {label}
+                        </span>
+                    ))}
+                </div>
             </div>
-          </div>
-
-          {/* Cards */}
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* Lite */}
-            <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
-              <p className="text-[14px] font-semibold">{c.pricing.lite.label}</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.lite.desc}</p>
-              <div className="mt-5">
-                <span className="text-3xl font-bold tracking-[-0.02em]">{getPlan('lite').price}</span>
-                <span className="text-[13px] text-slate-500">{getPlan('lite').period}</span>
-              </div>
-              {billingPeriod === "yearly" && getPlan('lite').savings && (
-                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('lite').savings}</p>
-              )}
-              <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.lite.features
-                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
-                  .map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                      <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                    </li>
-                  ))}
-              </ul>
-              <Link
-                href="/auth/register?plan=lite"
-                className="mt-7 inline-flex items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.08] transition-all duration-200"
-              >
-                Эхлүүлэх
-              </Link>
-            </div>
-            {/* Starter */}
-            <div className="reveal-on-scroll rounded-2xl border border-white/[0.06] bg-white/[0.02] p-7 sm:p-8 flex flex-col hover:border-white/[0.1] transition-all duration-300">
-              <p className="text-[14px] font-semibold">{c.pricing.starter.label}</p>
-              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.starter.desc}</p>
-              <div className="mt-5">
-                <span className="text-3xl font-bold tracking-[-0.02em]">{getPlan('starter').price}</span>
-                <span className="text-[13px] text-slate-500">{getPlan('starter').period}</span>
-              </div>
-              {billingPeriod === "yearly" && getPlan('starter').savings && (
-                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('starter').savings}</p>
-              )}
-              <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.starter.features
-                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
-                  .map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-400">
-                      <Check className="h-4 w-4 text-slate-600 shrink-0" /> {item}
-                    </li>
-                  ))}
-              </ul>
-              <Link
-                href="/auth/register?plan=starter"
-                className="mt-7 inline-flex items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-2.5 text-[13px] font-medium text-white hover:bg-white/[0.08] transition-all duration-200"
-              >
-                Эхлүүлэх
-              </Link>
-            </div>
-
-            {/* Pro — featured */}
-            <div className="reveal-on-scroll rounded-2xl border border-indigo-500/30 bg-gradient-to-b from-indigo-500/[0.06] to-transparent p-7 sm:p-8 flex flex-col relative shadow-xl shadow-indigo-500/[0.05]">
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 rounded-t-2xl" />
-              <div className="flex items-center justify-between">
-                <p className="text-[14px] font-semibold">{c.pricing.pro.label}</p>
-                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-300 bg-indigo-500/15 px-2.5 py-1 rounded-full">
-                  Санал болгох
-                </span>
-              </div>
-              <p className="text-[12px] text-slate-500 mt-0.5">{c.pricing.pro.desc}</p>
-              <div className="mt-5">
-                <span className="text-3xl font-bold tracking-[-0.02em] text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-                  {getPlan('pro').price}
-                </span>
-                <span className="text-[13px] text-slate-500">{getPlan('pro').period}</span>
-              </div>
-              {billingPeriod === "yearly" && getPlan('pro').savings && (
-                <p className="mt-1 text-[11px] text-emerald-400">{getPlan('pro').savings}</p>
-              )}
-              <ul className="mt-6 space-y-3 flex-1">
-                {c.pricing.pro.features
-                  .filter((item) => !/бүтээгдэхүүн|product/i.test(item))
-                  .map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-[13px] text-slate-300">
-                      <Check className="h-4 w-4 text-indigo-400 shrink-0" /> {item}
-                    </li>
-                  ))}
-              </ul>
-              <Link
-                href="/auth/register?plan=pro"
-                className="mt-7 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:brightness-110 transition-all duration-200"
-              >
-                Эхлүүлэх
-              </Link>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison Table */}
-      <section className="pb-24 sm:pb-28 px-6">
-        <div className="mx-auto max-w-4xl reveal-on-scroll">
-          <h3 className="text-lg font-semibold tracking-[-0.01em] mb-6">Бүх боломжуудыг харьцуулах</h3>
-          <div className="rounded-2xl border border-white/[0.06] overflow-hidden bg-white/[0.01]">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left font-medium p-4 text-slate-500">Боломжууд</th>
-                  <th className="font-medium p-4 text-center text-slate-400">Lite</th>
-                  <th className="font-medium p-4 text-center text-slate-400">Starter</th>
-                  <th className="font-medium p-4 text-center text-indigo-400">Pro</th>
-                </tr>
-              </thead>
-              <tbody>
-                {c.comparison
-                  .filter((row) => row.name !== 'Бүтээгдэхүүн')
-                  .map((row, i, arr) => (
-                    <tr key={row.name} className={i < arr.length - 1 ? "border-b border-white/[0.04]" : ""}>
-                      <td className="p-4 text-slate-400">{row.name}</td>
-                      {[row.lite, row.starter, row.pro].map((val, j) => (
-                        <td key={j} className="p-4 text-center">
-                          {val === true ? (
-                            <Check className="h-4 w-4 text-emerald-400 mx-auto" />
-                          ) : val === false ? (
-                            <Minus className="h-4 w-4 text-slate-700 mx-auto" />
-                          ) : (
-                            <span className={j === 2 ? "text-indigo-400 font-medium" : "text-slate-500"}>
-                              {val as string}
-                            </span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+        </section>
+    );
 }

@@ -52,18 +52,62 @@ export interface SocialProofContent {
     items: SocialProofCard[];
 }
 
-export interface PlanPricing {
-    monthly: { price: string; period: string; savings?: string };
-    yearly: { price: string; period: string; savings?: string };
+export type PlanAccent = 'warm' | 'lime' | 'pink' | 'indigo';
+export type BannerVariant = 'muted' | 'accent' | 'indigo';
+export type FeaturePillVariant = 'warm' | 'lime';
+
+export type FeatureRow =
+    | { kind: 'ok'; text: string; pill?: { text: string; variant: FeaturePillVariant } }
+    | { kind: 'no'; text: string }
+    | { kind: 'section'; text: string };
+
+export interface PriceFace {
+    monthly: { value: string; strike?: string };
+    annual: { value: string; strike?: string };
+    perLabel: string;
+}
+
+export interface CreditBlock {
+    icon: string;
+    headline: string;
+    lines: string[];
+    fixed?: { icon: string; text: string };
+}
+
+export interface SliderConfig {
+    label: string;
+    value: string;
+    ticks: [string, string, string];
+    fillPercent: number;
+}
+
+export interface PlanCard {
+    tag: string;
+    desc: string;
+    accent: PlanAccent;
+    banner?: { text: string; variant: BannerVariant };
+    credit: CreditBlock;
+    slider?: SliderConfig;
+    price: PriceFace;
+    cta: { text: string; href: string };
+    save?: { annual?: string; monthly?: string };
+    seats?: { enabled: true; defaultCount: number; label: string };
+    features: FeatureRow[];
+    showDiscountBadge?: boolean;
+    featured?: boolean;
 }
 
 export interface PricingContent {
+    eyebrowNum: string;
     sectionLabel: string;
-    sectionTitle: string;
-    lite: PlanPricing & { label: string; desc: string; features: string[]; recommended?: boolean };
-    starter: PlanPricing & { label: string; desc: string; features: string[] };
-    pro: PlanPricing & { label: string; desc: string; features: string[]; recommended?: boolean };
-    enterprise: PlanPricing & { label: string; desc: string; features: string[] };
+    headlineLines: { line1: string; emphasis: string; gradient: string };
+    lede: string;
+    toggle: { defaultMode: 'monthly' | 'annual'; savePill: string; discountBadge: string };
+    trustLine: string[];
+    lite: PlanCard;
+    starter: PlanCard;
+    pro: PlanCard;
+    business: PlanCard;
 }
 
 export interface ComparisonRow {

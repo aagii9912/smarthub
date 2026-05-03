@@ -172,6 +172,15 @@
   --brand-cyan: #22D3EE;
   --brand-light-bg: #F0F4FF;
 
+  /* ── Pricing palette (matches Syncly Pricing reference design) ── */
+  --p-warm:   #e8d5b7;
+  --p-indigo: #4A7CE7;
+  --p-violet: #8B5CF6;
+  --p-cyan:   #67e8f9;
+  --p-pink:   #ec4899;
+  --p-lime:   #C8FF3D;
+  --p-coral:  #FF6B5B;
+
   /* ── Status badge tokens (also in @theme) ── */
   --badge-pending: #F59E0B;
   --badge-shipping: #3B82F6;

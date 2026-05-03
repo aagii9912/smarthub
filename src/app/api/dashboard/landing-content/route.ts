@@ -30,6 +30,14 @@ export async function GET() {
             return NextResponse.json(defaultLandingContent);
         }
 
+        // Pricing schema v2: must contain `business` plan + `eyebrowNum` (new shape).
+        // Old-shape rows fall back to defaults so the public site never renders garbage during deploy lag.
+        const pricingHasNewShape =
+            data.pricing &&
+            typeof data.pricing === 'object' &&
+            'business' in data.pricing &&
+            'eyebrowNum' in data.pricing;
+
         // Merge DB data with defaults (DB fields override defaults)
         const content: LandingContent = {
             hero: data.hero && Object.keys(data.hero).length > 0 ? data.hero : defaultLandingContent.hero,
@@ -37,7 +45,7 @@ export async function GET() {
             features: data.features && Object.keys(data.features).length > 0 ? data.features : defaultLandingContent.features,
             how_it_works: data.how_it_works && Object.keys(data.how_it_works).length > 0 ? data.how_it_works : defaultLandingContent.how_it_works,
             social_proof: data.social_proof && Object.keys(data.social_proof).length > 0 ? data.social_proof : defaultLandingContent.social_proof,
-            pricing: data.pricing && Object.keys(data.pricing).length > 0 ? data.pricing : defaultLandingContent.pricing,
+            pricing: pricingHasNewShape ? data.pricing : defaultLandingContent.pricing,
             comparison: data.comparison && data.comparison.length > 0 ? data.comparison : defaultLandingContent.comparison,
             faq: data.faq && Object.keys(data.faq).length > 0 ? data.faq : defaultLandingContent.faq,
             cta: data.cta && Object.keys(data.cta).length > 0 ? data.cta : defaultLandingContent.cta,
