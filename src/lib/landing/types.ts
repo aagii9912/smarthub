@@ -62,9 +62,8 @@ export type FeatureRow =
     | { kind: 'section'; text: string };
 
 export interface PriceFace {
-    monthly: { value: string; strike?: string };
-    annual: { value: string; strike?: string };
-    perLabel: string;
+    monthly: { value: string; strike?: string; per?: string };
+    annual: { value: string; strike?: string; per?: string };
 }
 
 export interface CreditBlock {

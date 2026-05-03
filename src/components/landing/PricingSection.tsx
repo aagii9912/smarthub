@@ -176,9 +176,11 @@ function PlanCardView({ plan, mode, discountBadge }: { plan: PlanCard; mode: Mod
                     <span className="text-[36px] leading-none font-bold tracking-[-0.04em] text-white [font-feature-settings:'tnum']">
                         {priceFace.value}
                     </span>
-                    <span className="basis-full -mt-0.5 font-sans text-[12px] font-medium text-white/60">
-                        {plan.price.perLabel}
-                    </span>
+                    {priceFace.per && (
+                        <span className="basis-full -mt-0.5 font-sans text-[12px] font-medium text-white/60">
+                            {priceFace.per}
+                        </span>
+                    )}
                 </div>
 
                 {plan.accent === "warm" ? (

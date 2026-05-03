@@ -533,7 +533,7 @@ function PlanEditor({
                     {/* Price */}
                     <fieldset className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
                         <legend className="px-2 text-xs font-bold text-gray-500 uppercase tracking-wider">Үнэ</legend>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                             <Field
                                 label="Сар бүр — үнэ"
                                 value={plan.price.monthly.value}
@@ -556,6 +556,21 @@ function PlanEditor({
                                         },
                                     })
                                 }
+                                placeholder="(хоосон бол харагдахгүй)"
+                            />
+                            <Field
+                                label="Сар бүр — per"
+                                value={plan.price.monthly.per ?? ''}
+                                onChange={(v) =>
+                                    onChange({
+                                        ...plan,
+                                        price: {
+                                            ...plan.price,
+                                            monthly: { ...plan.price.monthly, per: v || undefined },
+                                        },
+                                    })
+                                }
+                                placeholder="/сар"
                             />
                             <Field
                                 label="Жилээр — үнэ"
@@ -579,13 +594,23 @@ function PlanEditor({
                                         },
                                     })
                                 }
+                                placeholder="(хоосон бол харагдахгүй)"
+                            />
+                            <Field
+                                label="Жилээр — per"
+                                value={plan.price.annual.per ?? ''}
+                                onChange={(v) =>
+                                    onChange({
+                                        ...plan,
+                                        price: {
+                                            ...plan.price,
+                                            annual: { ...plan.price.annual, per: v || undefined },
+                                        },
+                                    })
+                                }
+                                placeholder="/жил"
                             />
                         </div>
-                        <Field
-                            label="Үнийн дор бичих текст (perLabel)"
-                            value={plan.price.perLabel}
-                            onChange={(v) => onChange({ ...plan, price: { ...plan.price, perLabel: v } })}
-                        />
                     </fieldset>
 
                     {/* CTA */}
