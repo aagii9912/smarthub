@@ -44,34 +44,51 @@ export async function GET(request: NextRequest) {
         // NOTE: `type` was removed from /published_posts after Graph API v3.3
         // and including it makes the whole call 400 in v21.0 — so the dropdown
         // always rendered empty. Drop it from the field list and infer locally.
-        // Use /feed (broader: page-published + scheduled + visitor posts) since
-        // /published_posts can require pages_read_user_content for some flows.
+        // Try /published_posts first (page's own published posts); fall back
+        // to /feed (broader, includes visitor posts) if /published_posts errors
+        // or returns empty.
+        const fbDiagnostics: { tried: string; status?: number; error?: unknown; count?: number }[] = [];
         if (shop.facebook_page_id && shop.facebook_page_access_token) {
-            try {
-                const fbUrl = `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/feed?fields=id,message,full_picture,created_time&limit=25&access_token=${encodeURIComponent(shop.facebook_page_access_token)}`;
-                const fbRes = await fetch(fbUrl);
+            const token = encodeURIComponent(shop.facebook_page_access_token);
+            const baseFields = 'id,message,full_picture,created_time';
+            const endpoints = [
+                `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/published_posts?fields=${baseFields}&limit=25&access_token=${token}`,
+                `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/feed?fields=${baseFields}&limit=25&access_token=${token}`,
+                `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/posts?fields=${baseFields}&limit=25&access_token=${token}`,
+            ];
 
-                if (fbRes.ok) {
-                    const fbData = await fbRes.json();
-                    for (const post of fbData.data || []) {
-                        posts.push({
-                            id: post.id,
-                            message: post.message || '(Зурагтай пост)',
-                            picture: post.full_picture || null,
-                            created_time: post.created_time,
-                            platform: 'facebook',
-                            type: post.full_picture ? 'photo' : 'status',
+            for (const fbUrl of endpoints) {
+                const tag = fbUrl.split('?')[0].split('/').pop() || 'fb';
+                try {
+                    const fbRes = await fetch(fbUrl);
+                    if (fbRes.ok) {
+                        const fbData = await fbRes.json();
+                        const items = fbData.data || [];
+                        fbDiagnostics.push({ tried: tag, status: fbRes.status, count: items.length });
+                        for (const post of items) {
+                            posts.push({
+                                id: post.id,
+                                message: post.message || '(Зурагтай пост)',
+                                picture: post.full_picture || null,
+                                created_time: post.created_time,
+                                platform: 'facebook',
+                                type: post.full_picture ? 'photo' : 'status',
+                            });
+                        }
+                        if (items.length > 0) break; // got results — stop trying further endpoints
+                    } else {
+                        const errBody = await fbRes.json().catch(() => ({}));
+                        fbDiagnostics.push({ tried: tag, status: fbRes.status, error: errBody?.error });
+                        logger.error('FB posts API non-OK response', {
+                            endpoint: tag,
+                            status: fbRes.status,
+                            error: errBody?.error,
                         });
                     }
-                } else {
-                    const errBody = await fbRes.json().catch(() => ({}));
-                    logger.error('FB posts API non-OK response', {
-                        status: fbRes.status,
-                        error: errBody?.error,
-                    });
+                } catch (e) {
+                    fbDiagnostics.push({ tried: tag, error: e instanceof Error ? e.message : String(e) });
+                    logger.error('Error fetching FB posts:', { endpoint: tag, error: e });
                 }
-            } catch (e) {
-                logger.error('Error fetching FB posts:', { error: e });
             }
         }
 
@@ -104,7 +121,21 @@ export async function GET(request: NextRequest) {
         // Sort by date (newest first)
         posts.sort((a, b) => new Date(b.created_time).getTime() - new Date(a.created_time).getTime());
 
-        return NextResponse.json({ posts });
+        // Diagnostics: surface FB-side issues to the client so the dashboard
+        // can show a precise reason ("token expired", "missing permission",
+        // etc.) when no FB posts come back. The IG fetch already works
+        // separately, so this only flags the FB hot path.
+        const fbHasResults = posts.some(p => p.platform === 'facebook');
+        return NextResponse.json({
+            posts,
+            diagnostics: {
+                facebook: {
+                    pageConnected: !!shop.facebook_page_id,
+                    hasResults: fbHasResults,
+                    attempts: fbDiagnostics,
+                },
+            },
+        });
     } catch (error: unknown) {
         logger.error('GET posts error:', { error: error });
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
