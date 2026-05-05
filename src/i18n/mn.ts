@@ -644,6 +644,22 @@ export const mn = {
     postNotFound: 'Пост олдсонгүй',
     dmPreviewLabel: 'DM Preview',
 
+    // Form section headers
+    sectionTriggerTitle: 'Хэзээ ажиллах',
+    sectionTriggerSubtitle: '— дүрэм хэзээ дуудагдах вэ',
+    sectionActionTitle: 'Юу хийх',
+    sectionActionSubtitle: '— автоматаар явуулах хариу',
+    sectionTargetingTitle: 'Аль пост',
+    sectionTargetingSubtitle: '— заавал биш, хоосон бол бүх пост',
+
+    // Live preview
+    previewTitle: 'Урьдчилан харах',
+    previewSubtitle: 'comment ирэхэд ийм урсгал явна',
+    previewSampleKeyword: 'үнэ',
+    previewCustomerLabel: 'Хэрэглэгч post-д сэтгэгдэл бичлээ',
+    previewReplyLabel: 'Бид олон нийтэд хариу бичнэ',
+    previewDmLabel: 'Ингээд хувийн DM явна',
+
     // Action options
     actionDmLabel: 'DM илгээх',
     actionDmDesc: 'Хэрэглэгч рүү шууд мессеж',

@@ -640,6 +640,22 @@ export const en: Translations = {
     postNotFound: 'No posts found',
     dmPreviewLabel: 'DM preview',
 
+    // Form section headers
+    sectionTriggerTitle: 'When to fire',
+    sectionTriggerSubtitle: '— what triggers this rule',
+    sectionActionTitle: 'What to do',
+    sectionActionSubtitle: '— the automated reply',
+    sectionTargetingTitle: 'Which post',
+    sectionTargetingSubtitle: '— optional, empty means every post',
+
+    // Live preview
+    previewTitle: 'Live preview',
+    previewSubtitle: 'this is what happens when a comment matches',
+    previewSampleKeyword: 'price',
+    previewCustomerLabel: 'A customer comments on the post',
+    previewReplyLabel: 'We reply publicly on the comment',
+    previewDmLabel: 'Then a private DM goes out',
+
     // Action options
     actionDmLabel: 'Send DM',
     actionDmDesc: 'Direct message to the commenter',

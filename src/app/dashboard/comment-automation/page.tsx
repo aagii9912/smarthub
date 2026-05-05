@@ -367,15 +367,29 @@ function CommentAutomationActive() {
 
             {/* Create/Edit Form */}
             {showForm && (
-                <div className="card-featured p-6 space-y-6">
+                <div className="card-featured p-6 space-y-8">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
-                                {editingId ? c.editTitle : c.createTitle}
-                            </h3>
-                            <p className="text-[12px] text-white/45 mt-1 tracking-[-0.01em]">
-                                {c.formHint}
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <div
+                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                style={{
+                                    background: 'color-mix(in oklab, var(--brand-indigo) 14%, transparent)',
+                                    border: '1px solid color-mix(in oklab, var(--brand-indigo) 22%, transparent)',
+                                }}
+                            >
+                                <Sparkles
+                                    className="w-4 h-4 text-[var(--brand-indigo-400)]"
+                                    strokeWidth={1.75}
+                                />
+                            </div>
+                            <div>
+                                <h3 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
+                                    {editingId ? c.editTitle : c.createTitle}
+                                </h3>
+                                <p className="text-[12px] text-white/45 mt-0.5 tracking-[-0.01em]">
+                                    {c.formHint}
+                                </p>
+                            </div>
                         </div>
                         <button
                             onClick={resetForm}
@@ -385,6 +399,26 @@ function CommentAutomationActive() {
                             <X className="w-4 h-4" />
                         </button>
                     </div>
+
+                    {/* SECTION 1: TRIGGER (when does this fire?) */}
+                    <div className="space-y-5">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold tabular-nums"
+                                style={{
+                                    background: 'color-mix(in oklab, var(--brand-indigo) 18%, transparent)',
+                                    color: 'var(--brand-indigo-400)',
+                                }}
+                            >
+                                1
+                            </span>
+                            <h4 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-white/70">
+                                {c.sectionTriggerTitle ?? 'Хэзээ ажиллах'}
+                            </h4>
+                            <span className="text-[11px] text-white/35 tracking-[-0.01em]">
+                                {c.sectionTriggerSubtitle ?? '— дүрэм хэзээ дуудагдах вэ'}
+                            </span>
+                        </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Name */}
@@ -465,6 +499,31 @@ function CommentAutomationActive() {
                             </div>
                         </div>
                     </div>
+                    </div>
+                    {/* END SECTION 1: TRIGGER */}
+
+                    {/* Visual divider between sections */}
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+
+                    {/* SECTION 2: ACTION (what to do?) */}
+                    <div className="space-y-5">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold tabular-nums"
+                                style={{
+                                    background: 'color-mix(in oklab, var(--brand-violet-500) 18%, transparent)',
+                                    color: 'var(--brand-violet-400, #c4b5fd)',
+                                }}
+                            >
+                                2
+                            </span>
+                            <h4 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-white/70">
+                                {c.sectionActionTitle ?? 'Юу хийх'}
+                            </h4>
+                            <span className="text-[11px] text-white/35 tracking-[-0.01em]">
+                                {c.sectionActionSubtitle ?? '— автоматаар явуулах хариу'}
+                            </span>
+                        </div>
 
                     {/* Action Type */}
                     <div>
@@ -533,6 +592,31 @@ function CommentAutomationActive() {
                             />
                         </div>
                     )}
+                    </div>
+                    {/* END SECTION 2: ACTION */}
+
+                    {/* Visual divider */}
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+
+                    {/* SECTION 3: TARGETING (which post?) */}
+                    <div className="space-y-5">
+                        <div className="flex items-center gap-2">
+                            <span
+                                className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold tabular-nums"
+                                style={{
+                                    background: 'color-mix(in oklab, var(--brand-emerald, #10b981) 18%, transparent)',
+                                    color: 'var(--brand-emerald-400, #34d399)',
+                                }}
+                            >
+                                3
+                            </span>
+                            <h4 className="text-[12px] font-semibold uppercase tracking-[0.1em] text-white/70">
+                                {c.sectionTargetingTitle ?? 'Аль пост'}
+                            </h4>
+                            <span className="text-[11px] text-white/35 tracking-[-0.01em]">
+                                {c.sectionTargetingSubtitle ?? '— заавал биш, хоосон бол бүх пост'}
+                            </span>
+                        </div>
 
                     {/* Post Selector */}
                     <div className="relative">
@@ -689,24 +773,98 @@ function CommentAutomationActive() {
                             </div>
                         )}
                     </div>
+                    </div>
+                    {/* END SECTION 3: TARGETING */}
 
-                    {/* Preview */}
-                    {dmMessage && (
-                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                            <p className="text-[10px] text-white/40 uppercase tracking-[0.08em] mb-2 font-medium">
-                                {c.dmPreviewLabel}
-                            </p>
+                    {/* LIVE PREVIEW — full conversation flow */}
+                    {(dmMessage || replyMessage) && (() => {
+                        const sampleKeyword = (triggerKeywords.split(',')[0] || '').trim() || (c.previewSampleKeyword ?? 'үнэ');
+                        const showReply = (actionType === 'reply_comment' || actionType === 'both') && !!replyMessage;
+                        const showDm = (actionType === 'send_dm' || actionType === 'both') && !!dmMessage;
+                        const platformAccent = platform === 'instagram' ? 'pink' : 'indigo';
+                        return (
                             <div
-                                className="inline-block rounded-2xl rounded-bl-sm px-4 py-3 text-[13px] text-white/85 max-w-sm tracking-[-0.01em]"
+                                className="rounded-2xl border p-5"
                                 style={{
-                                    background:
-                                        'color-mix(in oklab, var(--brand-indigo) 14%, transparent)',
+                                    background: 'color-mix(in oklab, var(--brand-indigo) 4%, transparent)',
+                                    borderColor: 'color-mix(in oklab, var(--brand-indigo) 18%, transparent)',
                                 }}
                             >
-                                {dmMessage}
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Sparkles
+                                        className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]"
+                                        strokeWidth={2}
+                                    />
+                                    <p className="text-[11px] uppercase tracking-[0.1em] font-semibold text-[var(--brand-indigo-400)]">
+                                        {c.previewTitle ?? 'Урьдчилан харах'}
+                                    </p>
+                                    <span className="text-[11px] text-white/35 tracking-[-0.01em]">
+                                        — {c.previewSubtitle ?? 'comment ирэхэд ийм урсгал явна'}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {/* 1. Customer comment */}
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-7 h-7 rounded-full bg-white/[0.08] border border-white/[0.06] flex items-center justify-center text-[10px] font-semibold text-white/55 shrink-0">
+                                            ?
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] text-white/35 mb-1 tracking-[-0.01em]">
+                                                {c.previewCustomerLabel ?? 'Хэрэглэгч post-д сэтгэгдэл бичлээ'}
+                                            </p>
+                                            <div className="inline-block rounded-2xl rounded-tl-sm px-3.5 py-2 text-[13px] text-white/85 bg-white/[0.04] border border-white/[0.06]">
+                                                {sampleKeyword}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Page comment reply (if enabled) */}
+                                    {showReply && (
+                                        <div className="flex items-start gap-2.5 pl-9">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] text-white/35 mb-1 tracking-[-0.01em] flex items-center gap-1.5">
+                                                    <MessageCircle className="w-3 h-3" />
+                                                    {c.previewReplyLabel ?? 'Бид олон нийтэд хариу бичнэ'}
+                                                </p>
+                                                <div
+                                                    className={cn(
+                                                        'inline-block rounded-2xl rounded-tl-sm px-3.5 py-2 text-[13px] tracking-[-0.01em]',
+                                                        platformAccent === 'indigo'
+                                                            ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)] text-[var(--brand-indigo-400)] border border-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)]'
+                                                            : 'bg-pink-500/8 text-pink-300 border border-pink-500/22'
+                                                    )}
+                                                >
+                                                    {replyMessage}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* 3. Private DM (if enabled) */}
+                                    {showDm && (
+                                        <div className="flex items-start gap-2.5 pl-9 pt-1">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] text-white/35 mb-1 tracking-[-0.01em] flex items-center gap-1.5">
+                                                    <Send className="w-3 h-3" />
+                                                    {c.previewDmLabel ?? 'Ингээд хувийн DM явна'}
+                                                </p>
+                                                <div
+                                                    className="inline-block rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[13px] text-white tracking-[-0.01em] max-w-md whitespace-pre-wrap"
+                                                    style={{
+                                                        background: 'var(--brand-indigo)',
+                                                        boxShadow: 'var(--shadow-cta-indigo, 0 4px 14px rgba(99,102,241,0.25))',
+                                                    }}
+                                                >
+                                                    {dmMessage}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
 
                     {/* Save */}
                     <div className="flex justify-end gap-2 pt-2 border-t border-white/[0.06]">
