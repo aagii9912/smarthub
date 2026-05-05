@@ -40,12 +40,16 @@ export async function GET(request: NextRequest) {
             type: string;
         }> = [];
 
-        // 1. Fetch Facebook Page posts
+        // 1. Fetch Facebook Page posts.
+        // NOTE: `type` was removed from /published_posts after Graph API v3.3
+        // and including it makes the whole call 400 in v21.0 — so the dropdown
+        // always rendered empty. Drop it from the field list and infer locally.
+        // Use /feed (broader: page-published + scheduled + visitor posts) since
+        // /published_posts can require pages_read_user_content for some flows.
         if (shop.facebook_page_id && shop.facebook_page_access_token) {
             try {
-                const fbRes = await fetch(
-                    `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/published_posts?fields=id,message,full_picture,created_time,is_published,type&limit=25&access_token=${shop.facebook_page_access_token}`
-                );
+                const fbUrl = `https://graph.facebook.com/v21.0/${shop.facebook_page_id}/feed?fields=id,message,full_picture,created_time&limit=25&access_token=${encodeURIComponent(shop.facebook_page_access_token)}`;
+                const fbRes = await fetch(fbUrl);
 
                 if (fbRes.ok) {
                     const fbData = await fbRes.json();
@@ -56,9 +60,15 @@ export async function GET(request: NextRequest) {
                             picture: post.full_picture || null,
                             created_time: post.created_time,
                             platform: 'facebook',
-                            type: post.type || 'status',
+                            type: post.full_picture ? 'photo' : 'status',
                         });
                     }
+                } else {
+                    const errBody = await fbRes.json().catch(() => ({}));
+                    logger.error('FB posts API non-OK response', {
+                        status: fbRes.status,
+                        error: errBody?.error,
+                    });
                 }
             } catch (e) {
                 logger.error('Error fetching FB posts:', { error: e });
