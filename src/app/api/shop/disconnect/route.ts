@@ -48,14 +48,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
         }
 
-        // Clear platform-specific fields
+        // Clear platform-specific fields. Mirrors the columns the connect
+        // flow writes (see /api/shop PATCH from setup wizard); do NOT add
+        // columns here that the connect path doesn't touch — that risks
+        // hitting non-existent columns and 500-ing the disconnect.
         let updateData: Record<string, null> = {};
 
         if (platform === 'facebook') {
             updateData = {
                 facebook_page_id: null,
                 facebook_page_name: null,
-                facebook_page_username: null,
                 facebook_page_access_token: null,
             };
         } else if (platform === 'instagram') {
@@ -72,9 +74,13 @@ export async function POST(request: NextRequest) {
             .eq('id', shop.id);
 
         if (updateError) {
-            logger.error('Disconnect error:', { error: updateError });
+            logger.error('Disconnect error:', { error: updateError, shopId: shop.id, platform });
             return NextResponse.json(
-                { error: 'Failed to disconnect platform' },
+                {
+                    error: 'Failed to disconnect platform',
+                    details: updateError.message,
+                    code: updateError.code,
+                },
                 { status: 500 }
             );
         }
