@@ -20,9 +20,13 @@ declare global {
  *   - on every client-side route change (via usePathname effect)
  *
  * Requires CSP allowances in `next.config.ts`:
- *   - script-src: https://connect.facebook.net
- *   - img-src:    https://www.facebook.com
- *   - connect-src: https://*.facebook.com (already present)
+ *   - script-src:  https://connect.facebook.net
+ *   - connect-src: https://connect.facebook.net https://*.facebook.com
+ *                  (connect.facebook.net хэрэгтэй — Service Worker fbevents.js-ийг
+ *                   fetch() хийхэд connect-src-р шалгагддаг)
+ *   - img-src:     https://www.facebook.com (noscript pixel-д)
+ *   - frame-src:   https://www.facebook.com (зарим Pixel iframe-д)
+ *   - worker-src:  'self' blob: (зарим Pixel build worker үүсгэдэг)
  */
 export function MetaPixel() {
   const pathname = usePathname();

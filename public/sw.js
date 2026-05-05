@@ -1,5 +1,5 @@
 // SmartHub Service Worker
-const CACHE_NAME = 'smarthub-v1';
+const CACHE_NAME = 'smarthub-v2';
 const STATIC_ASSETS = [
     '/dashboard',
     '/icon-192.png',
@@ -38,11 +38,26 @@ self.addEventListener('fetch', (event) => {
     // Skip API requests (always network)
     if (event.request.url.includes('/api/')) return;
 
+    // Cross-origin (өөр домэйны) хүсэлтийг хөндөхгүй —
+    // FB Pixel, Google Fonts г.м-ийг SW барьж авбал CSP-ын
+    // connect-src блок хийнэ, мөн зөв Response буцаахгүй бол
+    // "Failed to convert value to 'Response'" алдаа цацарна.
+    let requestUrl;
+    try {
+        requestUrl = new URL(event.request.url);
+    } catch {
+        return;
+    }
+    if (requestUrl.origin !== self.location.origin) return;
+
+    // Skip non-http(s) schemes (chrome-extension://, blob:, data:, etc.)
+    if (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:') return;
+
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                // Cache successful responses
-                if (response.status === 200) {
+                // Cache successful, basic (same-origin) responses only
+                if (response.status === 200 && response.type === 'basic') {
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseClone);
@@ -50,9 +65,13 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => {
-                // Fallback to cache
-                return caches.match(event.request);
+            .catch(async () => {
+                // Fallback to cache; үргэлж хүчинтэй Response буцаах
+                const cached = await caches.match(event.request);
+                return cached || new Response('', {
+                    status: 504,
+                    statusText: 'Offline',
+                });
             })
     );
 });
