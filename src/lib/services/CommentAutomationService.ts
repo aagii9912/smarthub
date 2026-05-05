@@ -186,15 +186,19 @@ export async function executeAutomation(
     ) {
         replyAttempted = true;
         try {
+            // Meta Graph API expects the page access token in the URL query
+            // string for POST /{comment-id}/comments, not in the JSON body.
+            // Putting it in the body silently produces an OAuthException —
+            // exactly the failure mode the user just reported (DM lands,
+            // public comment reply does not).
             const apiVersion = 'v21.0';
             const response = await fetch(
-                `https://graph.facebook.com/${apiVersion}/${commentId}/comments`,
+                `https://graph.facebook.com/${apiVersion}/${commentId}/comments?access_token=${encodeURIComponent(pageAccessToken)}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: automation.reply_message,
-                        access_token: pageAccessToken,
                     }),
                 }
             );
