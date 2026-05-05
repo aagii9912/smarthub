@@ -1,5 +1,63 @@
 import { logger } from '@/lib/utils/logger';
+import { captureException } from '@/lib/monitoring/errorMonitoring';
+
 const GRAPH_API_URL = 'https://graph.facebook.com/v21.0';
+
+interface MetaApiErrorPayload {
+    code?: number;
+    error_subcode?: number;
+    type?: string;
+    message?: string;
+    fbtrace_id?: string;
+}
+
+export type MetaErrorKind = 'token_expired' | 'permission_denied' | 'rate_limit' | 'other';
+
+const TOKEN_EXPIRED_CODES = new Set([190, 102, 463, 467]);
+const PERMISSION_DENIED_CODES = new Set([200, 10, 100, 294]);
+const RATE_LIMIT_CODES = new Set([4, 17, 32, 613]);
+
+export function classifyMetaError(error: MetaApiErrorPayload | undefined): MetaErrorKind {
+    const code = error?.code;
+    if (!code) return 'other';
+    if (TOKEN_EXPIRED_CODES.has(code)) return 'token_expired';
+    if (PERMISSION_DENIED_CODES.has(code)) return 'permission_denied';
+    if (RATE_LIMIT_CODES.has(code)) return 'rate_limit';
+    return 'other';
+}
+
+interface ReportOpts {
+    operation: string;
+    shopId?: string;
+    platform?: 'facebook' | 'instagram';
+}
+
+function reportMetaError(payload: { error?: MetaApiErrorPayload }, opts: ReportOpts): MetaErrorKind {
+    const apiError = payload?.error;
+    const kind = classifyMetaError(apiError);
+
+    if (kind === 'token_expired' || kind === 'permission_denied') {
+        captureException(
+            new Error(`Meta API ${kind} (${opts.operation}): ${apiError?.message ?? 'no message'}`),
+            {
+                shopId: opts.shopId,
+                action: opts.operation,
+                metadata: {
+                    code: apiError?.code,
+                    subcode: apiError?.error_subcode,
+                    type: apiError?.type,
+                    fbtrace_id: apiError?.fbtrace_id,
+                    platform: opts.platform,
+                    error_kind: kind,
+                    feature: 'comment-automation',
+                },
+            },
+            'error'
+        );
+    }
+
+    return kind;
+}
 
 interface SendMessageOptions {
     recipientId: string;
@@ -66,7 +124,8 @@ export async function sendTextMessage({ recipientId, message, pageAccessToken }:
 
     if (!response.ok) {
         const error = await response.json();
-        logger.error('Facebook API error:', { error: error });
+        const kind = reportMetaError(error, { operation: 'sendTextMessage' });
+        logger.error('Facebook API error:', { error, kind });
         throw new Error(`Failed to send message: ${error.error?.message || 'Unknown error'}`);
     }
 

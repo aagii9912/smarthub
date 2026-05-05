@@ -26,7 +26,13 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const COMING_SOON = true;
+function isShopEnabled(shopId: string | null): boolean {
+    if (!shopId) return false;
+    const raw = process.env.NEXT_PUBLIC_COMMENT_AUTOMATION_ENABLED_SHOPS;
+    if (!raw) return false;
+    if (raw.trim() === '*') return true;
+    return raw.split(',').map((s) => s.trim()).filter(Boolean).includes(shopId);
+}
 
 interface ShopPost {
     id: string;
@@ -43,8 +49,20 @@ const inputCls =
 
 export default function CommentAutomationPage() {
     const { t } = useLanguage();
+    const [enabled] = useState<boolean | null>(() => {
+        if (typeof window === 'undefined') return null;
+        return isShopEnabled(localStorage.getItem('smarthub_active_shop_id'));
+    });
 
-    if (COMING_SOON) {
+    if (enabled === null) {
+        return (
+            <div className="px-4 md:px-6 lg:px-8 pt-6 md:pt-8 pb-12 flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-6 h-6 text-white/40 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!enabled) {
         const c = t.commentAutomation;
         return (
             <div className="px-4 md:px-6 lg:px-8 pt-6 md:pt-8 pb-12">

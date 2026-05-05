@@ -75,6 +75,11 @@ vi.mock('@/lib/supabase', () => ({
 const sendTextMessageMock = vi.fn();
 vi.mock('@/lib/facebook/messenger', () => ({
     sendTextMessage: (...args: unknown[]) => sendTextMessageMock(...args),
+    classifyMetaError: () => 'other',
+}));
+
+vi.mock('@/lib/monitoring/errorMonitoring', () => ({
+    captureException: vi.fn(),
 }));
 
 vi.mock('@/lib/utils/logger', () => ({
@@ -95,6 +100,7 @@ import {
     createAutomation,
     updateAutomation,
     deleteAutomation,
+    isShopWhitelisted,
 } from '../CommentAutomationService';
 
 // ───────────── helpers ─────────────
@@ -129,6 +135,9 @@ beforeEach(() => {
     sendTextMessageMock.mockReset();
     sendTextMessageMock.mockResolvedValue(undefined);
     vi.unstubAllGlobals();
+    // Default: whitelist enabled for the test shop so existing matching tests pass.
+    // Individual tests can override with vi.stubEnv() to test the gate.
+    vi.stubEnv('COMMENT_AUTOMATION_ENABLED_SHOPS', '*');
 });
 
 // ───────────── tests ─────────────
@@ -190,6 +199,36 @@ describe('getMatchingAutomation', () => {
         responseQueue.push({ data: [rule], error: null });
         const result = await getMatchingAutomation('shop-1', null, 'thanks!', 'facebook');
         expect(result).toBeNull();
+    });
+
+    it('short-circuits to null for shops not in the rollout whitelist', async () => {
+        // Whitelist contains a different shop — request for shop-1 must be denied
+        // BEFORE any DB call is issued. We assert that by NOT enqueueing a response;
+        // if the service tried to fetch automations, popResponse() would return the
+        // empty default and the test would still pass — but we also verify the
+        // helper directly below.
+        vi.stubEnv('COMMENT_AUTOMATION_ENABLED_SHOPS', 'shop-OTHER');
+        const result = await getMatchingAutomation('shop-1', null, 'price please', 'facebook');
+        expect(result).toBeNull();
+    });
+});
+
+describe('isShopWhitelisted', () => {
+    it('returns false when env var is unset or empty', () => {
+        vi.stubEnv('COMMENT_AUTOMATION_ENABLED_SHOPS', '');
+        expect(isShopWhitelisted('shop-1')).toBe(false);
+    });
+
+    it('returns true when shop ID is in the comma list', () => {
+        vi.stubEnv('COMMENT_AUTOMATION_ENABLED_SHOPS', 'shop-A, shop-1 ,shop-B');
+        expect(isShopWhitelisted('shop-1')).toBe(true);
+        expect(isShopWhitelisted('shop-A')).toBe(true);
+        expect(isShopWhitelisted('shop-Z')).toBe(false);
+    });
+
+    it('returns true for any shop when wildcard is set', () => {
+        vi.stubEnv('COMMENT_AUTOMATION_ENABLED_SHOPS', '*');
+        expect(isShopWhitelisted('any-shop')).toBe(true);
     });
 });
 

@@ -5,13 +5,27 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { sendTextMessage } from '@/lib/facebook/messenger';
+import { sendTextMessage, classifyMetaError } from '@/lib/facebook/messenger';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
+import { captureException } from '@/lib/monitoring/errorMonitoring';
 import type { CommentAutomation } from '@/types/database';
 
 export type { CommentAutomation } from '@/types/database';
+
+/**
+ * Whitelist of shop IDs that may run comment automations during phased rollout.
+ * Empty list (or unset env var) = feature disabled for everyone.
+ * Set `COMMENT_AUTOMATION_ENABLED_SHOPS=*` to enable for all shops.
+ */
+export function isShopWhitelisted(shopId: string): boolean {
+    const raw = process.env.COMMENT_AUTOMATION_ENABLED_SHOPS;
+    if (!raw) return false;
+    if (raw.trim() === '*') return true;
+    const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
+    return ids.includes(shopId);
+}
 
 /**
  * Get all active automations for a shop.
@@ -23,7 +37,7 @@ export async function getActiveAutomations(shopId: string): Promise<CommentAutom
 
     const { data, error } = await supabase
         .from('comment_automations')
-        .select('id, shop_id, name, is_active, post_id, post_url, trigger_keywords, match_type, reply_template, is_private_reply, private_reply_template, action_type, dm_message, reply_message, platform, trigger_count, last_triggered_at, updated_at, created_at')
+        .select('id, shop_id, name, is_active, post_id, post_url, trigger_keywords, match_type, action_type, dm_message, reply_message, platform, trigger_count, last_triggered_at, updated_at, created_at')
         .eq('shop_id', shopId)
         .eq('is_active', true);
 
@@ -46,6 +60,8 @@ export async function getMatchingAutomation(
     commentText: string,
     platform: 'facebook' | 'instagram'
 ): Promise<CommentAutomation | null> {
+    if (!isShopWhitelisted(shopId)) return null;
+
     const automations = await getActiveAutomations(shopId);
 
     if (automations.length === 0) return null;
@@ -171,7 +187,27 @@ export async function executeAutomation(
                 });
             } else {
                 const errorData = await response.json();
-                logger.error(`[Comment Automation] Comment reply failed`, { error: errorData });
+                const kind = classifyMetaError(errorData?.error);
+                logger.error(`[Comment Automation] Comment reply failed`, { error: errorData, kind });
+                if (kind === 'token_expired' || kind === 'permission_denied') {
+                    captureException(
+                        new Error(`Meta API ${kind} (commentReply): ${errorData?.error?.message ?? 'no message'}`),
+                        {
+                            shopId: automation.shop_id,
+                            action: 'commentReply',
+                            metadata: {
+                                code: errorData?.error?.code,
+                                subcode: errorData?.error?.error_subcode,
+                                fbtrace_id: errorData?.error?.fbtrace_id,
+                                platform,
+                                error_kind: kind,
+                                feature: 'comment-automation',
+                                automationId: automation.id,
+                            },
+                        },
+                        'error'
+                    );
+                }
                 replyFailed = true;
             }
         } catch (error: unknown) {
@@ -255,7 +291,7 @@ export async function getAllAutomations(shopId: string): Promise<CommentAutomati
 
     const { data, error } = await supabase
         .from('comment_automations')
-        .select('id, shop_id, name, is_active, post_id, post_url, trigger_keywords, match_type, reply_template, is_private_reply, private_reply_template, action_type, dm_message, reply_message, platform, trigger_count, last_triggered_at, updated_at, created_at')
+        .select('id, shop_id, name, is_active, post_id, post_url, trigger_keywords, match_type, action_type, dm_message, reply_message, platform, trigger_count, last_triggered_at, updated_at, created_at')
         .eq('shop_id', shopId)
         .order('created_at', { ascending: false });
 
