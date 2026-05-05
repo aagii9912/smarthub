@@ -125,7 +125,7 @@ export async function GET() {
         // Pull trial-related fields from shops (not on the cached `shop` from getAuthUserShop)
         const { data: shopStatus } = await supabase
             .from('shops')
-            .select('subscription_status, trial_ends_at, trial_expired_at')
+            .select('subscription_status, trial_ends_at, trial_expired_at, terms_accepted_at')
             .eq('id', shop.id)
             .single();
 
@@ -142,6 +142,7 @@ export async function GET() {
                 subscription_status: shopStatus?.subscription_status ?? null,
                 trial_ends_at: shopStatus?.trial_ends_at ?? null,
                 trial_expired_at: shopStatus?.trial_expired_at ?? null,
+                requires_consent: !shopStatus?.terms_accepted_at,
             },
         });
     } catch (error: unknown) {

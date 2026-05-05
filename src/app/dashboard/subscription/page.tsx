@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { getPlanConfig, PlanType } from '@/lib/ai/config/plans';
 import {
     Crown,
@@ -21,6 +22,8 @@ import { logger } from '@/lib/utils/logger';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/constants/legal';
 
 interface Plan {
     id: string;
@@ -46,6 +49,16 @@ interface ShopStatus {
     subscription_status: string | null;
     trial_ends_at: string | null;
     trial_expired_at: string | null;
+    requires_consent?: boolean;
+}
+
+interface SubscribeConsent {
+    terms_accepted: boolean;
+    privacy_accepted: boolean;
+    age_confirmed: boolean;
+    marketing_consent: boolean;
+    terms_version: string;
+    privacy_version: string;
 }
 
 export default function SubscriptionPage() {
@@ -78,6 +91,12 @@ export default function SubscriptionPage() {
     } | null>(null);
     const [activePromotion, setActivePromotion] = useState<ActivePromotion | null>(null);
     const [shopStatus, setShopStatus] = useState<ShopStatus | null>(null);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [privacyAccepted, setPrivacyAccepted] = useState(false);
+    const [ageConfirmed, setAgeConfirmed] = useState(false);
+    const [marketingConsent, setMarketingConsent] = useState(false);
+    const [consentError, setConsentError] = useState('');
+    const { t } = useLanguage();
 
     useEffect(() => {
         fetchData();
@@ -186,7 +205,7 @@ export default function SubscriptionPage() {
         }
     }
 
-    async function initSubscription(planId: string) {
+    async function initSubscription(planId: string, consent?: SubscribeConsent) {
         setSelectedPlan(planId);
         setShowUpgrade(true);
         setPaymentInfo(null);
@@ -195,7 +214,11 @@ export default function SubscriptionPage() {
             const res = await fetch('/api/subscription/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plan_id: planId, billing_cycle: billingCycle }),
+                body: JSON.stringify({
+                    plan_id: planId,
+                    billing_cycle: billingCycle,
+                    ...(consent ? { consent } : {}),
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || data.message || 'Алдаа гарлаа');
@@ -426,6 +449,87 @@ export default function SubscriptionPage() {
                 </span>
             </div>
 
+            {shopStatus?.requires_consent && (
+                <div id="consent-block" className="card-outlined p-5 space-y-3">
+                    <h3 className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
+                        {t.setup.subscription.consent.title}
+                    </h3>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={termsAccepted}
+                            onChange={e => { setTermsAccepted(e.target.checked); setConsentError(''); }}
+                            className="mt-0.5 w-4 h-4 accent-[var(--brand-indigo-400)] cursor-pointer"
+                        />
+                        <span className="text-[12.5px] text-white/70 leading-relaxed tracking-[-0.01em]">
+                            <Link href="/terms" target="_blank" rel="noopener noreferrer"
+                                className="text-[var(--brand-indigo-400)] underline hover:text-[var(--brand-indigo)]">
+                                {t.setup.subscription.consent.termsLinkLabel}
+                            </Link>
+                            {t.setup.subscription.consent.acceptTermsSuffix}
+                            <span className="text-[var(--destructive)] ml-1">*</span>
+                        </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={privacyAccepted}
+                            onChange={e => { setPrivacyAccepted(e.target.checked); setConsentError(''); }}
+                            className="mt-0.5 w-4 h-4 accent-[var(--brand-indigo-400)] cursor-pointer"
+                        />
+                        <span className="text-[12.5px] text-white/70 leading-relaxed tracking-[-0.01em]">
+                            <Link href="/privacy" target="_blank" rel="noopener noreferrer"
+                                className="text-[var(--brand-indigo-400)] underline hover:text-[var(--brand-indigo)]">
+                                {t.setup.subscription.consent.privacyLinkLabel}
+                            </Link>
+                            {t.setup.subscription.consent.acceptPrivacySuffix}
+                            <span className="text-[var(--destructive)] ml-1">*</span>
+                        </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={ageConfirmed}
+                            onChange={e => { setAgeConfirmed(e.target.checked); setConsentError(''); }}
+                            className="mt-0.5 w-4 h-4 accent-[var(--brand-indigo-400)] cursor-pointer"
+                        />
+                        <span className="text-[12.5px] text-white/70 leading-relaxed tracking-[-0.01em]">
+                            {t.setup.subscription.consent.ageConfirm}
+                            <span className="text-[var(--destructive)] ml-1">*</span>
+                        </span>
+                    </label>
+
+                    <label className="flex items-start gap-3 cursor-pointer pt-2 border-t border-white/[0.06]">
+                        <input
+                            type="checkbox"
+                            checked={marketingConsent}
+                            onChange={e => setMarketingConsent(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 accent-[var(--brand-indigo-400)] cursor-pointer"
+                        />
+                        <span className="text-[12.5px] text-white/55 leading-relaxed tracking-[-0.01em]">
+                            {t.setup.subscription.consent.marketingOptIn}
+                            <span className="text-white/40 ml-1">{t.setup.subscription.consent.optional}</span>
+                        </span>
+                    </label>
+
+                    {consentError && (
+                        <div
+                            className="mt-2 p-3 rounded-lg text-[11.5px] tracking-[-0.01em]"
+                            style={{
+                                background: 'color-mix(in oklab, var(--destructive) 12%, transparent)',
+                                border: '1px solid color-mix(in oklab, var(--destructive) 30%, transparent)',
+                                color: 'var(--destructive)',
+                            }}
+                        >
+                            {consentError}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Plans Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PLANS.map((p) => {
@@ -509,7 +613,22 @@ export default function SubscriptionPage() {
                             </ul>
                             <Button
                                 onClick={() => {
-                                    if (!isCurrent) {
+                                    if (isCurrent) return;
+                                    if (shopStatus?.requires_consent) {
+                                        if (!termsAccepted || !privacyAccepted || !ageConfirmed) {
+                                            setConsentError(t.setup.subscription.consent.errorRequired);
+                                            document.getElementById('consent-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            return;
+                                        }
+                                        initSubscription(p.id, {
+                                            terms_accepted: termsAccepted,
+                                            privacy_accepted: privacyAccepted,
+                                            age_confirmed: ageConfirmed,
+                                            marketing_consent: marketingConsent,
+                                            terms_version: TERMS_VERSION,
+                                            privacy_version: PRIVACY_VERSION,
+                                        });
+                                    } else {
                                         initSubscription(p.id);
                                     }
                                 }}
