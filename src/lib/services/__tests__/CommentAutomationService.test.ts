@@ -73,8 +73,10 @@ vi.mock('@/lib/supabase', () => ({
 }));
 
 const sendTextMessageMock = vi.fn();
+const sendPrivateReplyMock = vi.fn();
 vi.mock('@/lib/facebook/messenger', () => ({
     sendTextMessage: (...args: unknown[]) => sendTextMessageMock(...args),
+    sendPrivateReplyToComment: (...args: unknown[]) => sendPrivateReplyMock(...args),
     classifyMetaError: () => 'other',
 }));
 
@@ -134,6 +136,8 @@ beforeEach(() => {
     deleteEqCalls.length = 0;
     sendTextMessageMock.mockReset();
     sendTextMessageMock.mockResolvedValue(undefined);
+    sendPrivateReplyMock.mockReset();
+    sendPrivateReplyMock.mockResolvedValue(undefined);
     vi.unstubAllGlobals();
     // Default: whitelist enabled for the test shop so existing matching tests pass.
     // Individual tests can override with vi.stubEnv() to test the gate.
@@ -233,7 +237,7 @@ describe('isShopWhitelisted', () => {
 });
 
 describe('executeAutomation', () => {
-    it('sends a DM only when action_type is send_dm', async () => {
+    it('sends a Private Reply (comment_id) when action_type is send_dm on Facebook', async () => {
         const auto = makeAutomation({ action_type: 'send_dm' });
         // executeAutomation issues two writes: trigger_count update + chat_history insert
         responseQueue.push({ data: null, error: null }); // update
@@ -244,12 +248,30 @@ describe('executeAutomation', () => {
 
         const result = await executeAutomation(auto, 'sender-1', 'comment-1', 'token', 'facebook');
 
-        expect(sendTextMessageMock).toHaveBeenCalledWith({
-            recipientId: 'sender-1',
+        // FB path uses Private Reply (recipient.comment_id), NOT sendTextMessage
+        expect(sendPrivateReplyMock).toHaveBeenCalledWith({
+            commentId: 'comment-1',
             message: 'Hello!',
             pageAccessToken: 'token',
         });
+        expect(sendTextMessageMock).not.toHaveBeenCalled();
         expect(fetchMock).not.toHaveBeenCalled();
+        expect(result).toEqual({ dmSent: true, replySent: false });
+    });
+
+    it('uses sendTextMessage (recipient.id) when DMing on Instagram', async () => {
+        const auto = makeAutomation({ action_type: 'send_dm' });
+        responseQueue.push({ data: null, error: null });
+        responseQueue.push({ data: null, error: null });
+
+        const result = await executeAutomation(auto, 'ig-sender-1', 'ig-comment-1', 'token', 'instagram');
+
+        expect(sendTextMessageMock).toHaveBeenCalledWith({
+            recipientId: 'ig-sender-1',
+            message: 'Hello!',
+            pageAccessToken: 'token',
+        });
+        expect(sendPrivateReplyMock).not.toHaveBeenCalled();
         expect(result).toEqual({ dmSent: true, replySent: false });
     });
 
@@ -295,7 +317,8 @@ describe('executeAutomation', () => {
     });
 
     it('still increments the counter and writes chat_history even when DM send throws', async () => {
-        sendTextMessageMock.mockRejectedValueOnce(new Error('FB down'));
+        // FB path → sendPrivateReplyToComment, so reject on that mock
+        sendPrivateReplyMock.mockRejectedValueOnce(new Error('FB down'));
         const auto = makeAutomation({ action_type: 'send_dm' });
         responseQueue.push({ data: null, error: null }); // update
         responseQueue.push({ data: null, error: null }); // insert

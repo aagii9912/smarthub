@@ -5,7 +5,11 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { sendTextMessage, classifyMetaError } from '@/lib/facebook/messenger';
+import {
+    sendTextMessage,
+    sendPrivateReplyToComment,
+    classifyMetaError,
+} from '@/lib/facebook/messenger';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
@@ -139,22 +143,38 @@ export async function executeAutomation(
     let replyAttempted = false;
     let replyFailed = false;
 
-    // 1. Send DM if action includes it
+    // 1. Send DM if action includes it.
+    // Facebook: must use Private Reply (recipient.comment_id) — the commenter
+    // hasn't necessarily messaged the page, so the standard recipient.id path
+    // falls outside the 24-hour window and Meta rejects it (error 10/200).
+    // Instagram: comment-to-DM uses recipient.id with the IG-DM access token
+    // and does not have an equivalent comment_id form on the same endpoint, so
+    // keep sendTextMessage there (the IG webhook delivers messages from
+    // commenters that the page may already have a thread with).
     if (automation.action_type === 'send_dm' || automation.action_type === 'both') {
         dmAttempted = true;
         try {
-            await sendTextMessage({
-                recipientId: senderId,
-                message: automation.dm_message,
-                pageAccessToken,
-            });
+            if (platform === 'facebook') {
+                await sendPrivateReplyToComment({
+                    commentId,
+                    message: automation.dm_message,
+                    pageAccessToken,
+                });
+            } else {
+                await sendTextMessage({
+                    recipientId: senderId,
+                    message: automation.dm_message,
+                    pageAccessToken,
+                });
+            }
             result.dmSent = true;
-            logger.success(`[Comment Automation] DM sent to ${senderId} via ${platform}`, {
+            logger.success(`[Comment Automation] DM sent for ${senderId} via ${platform}`, {
                 automationName: automation.name,
+                commentId,
             });
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
-            logger.error(`[Comment Automation] Failed to send DM`, { error: msg, senderId });
+            logger.error(`[Comment Automation] Failed to send DM`, { error: msg, senderId, commentId, platform });
             dmFailed = true;
         }
     }

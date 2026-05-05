@@ -132,6 +132,51 @@ export async function sendTextMessage({ recipientId, message, pageAccessToken }:
     return response.json();
 }
 
+/**
+ * Send a Private Reply to a Facebook comment.
+ *
+ * The comment-to-DM use case ("Private Reply") MUST address the recipient by
+ * `comment_id`, not by user id. Using `recipient.id` for a commenter who has
+ * never messaged the page falls outside the 24-hour customer-message window
+ * and Meta returns error 10/200/-32. The `comment_id` form is the documented
+ * Pages API path for turning a public comment into a private DM and is allowed
+ * for 7 days after the comment.
+ *
+ * Returns Meta's response on success; throws on API error.
+ */
+export async function sendPrivateReplyToComment({
+    commentId,
+    message,
+    pageAccessToken,
+}: {
+    commentId: string;
+    message: string;
+    pageAccessToken: string;
+}) {
+    const text = message?.trim();
+    if (!text) {
+        throw new Error('sendPrivateReplyToComment: empty message');
+    }
+
+    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipient: { comment_id: commentId },
+            message: { text },
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        const kind = reportMetaError(error, { operation: 'sendPrivateReplyToComment' });
+        logger.error('Facebook Private Reply error:', { error, kind, commentId });
+        throw new Error(`Failed to send private reply: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.json();
+}
+
 // Send a message using Message Tags.
 // Standard tags (POST_PURCHASE_UPDATE / CONFIRMED_EVENT_UPDATE / ACCOUNT_UPDATE)
 // only narrow the message intent — they do NOT extend the 24-hour customer-message window.
