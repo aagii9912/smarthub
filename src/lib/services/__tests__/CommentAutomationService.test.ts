@@ -239,9 +239,8 @@ describe('isShopWhitelisted', () => {
 describe('executeAutomation', () => {
     it('sends a Private Reply (comment_id) when action_type is send_dm on Facebook', async () => {
         const auto = makeAutomation({ action_type: 'send_dm' });
-        // executeAutomation issues two writes: trigger_count update + chat_history insert
+        // executeAutomation issues a single write: trigger_count update
         responseQueue.push({ data: null, error: null }); // update
-        responseQueue.push({ data: null, error: null }); // insert
 
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);
@@ -299,7 +298,6 @@ describe('executeAutomation', () => {
             trigger_count: 4,
         });
         responseQueue.push({ data: null, error: null });
-        responseQueue.push({ data: null, error: null });
 
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
         vi.stubGlobal('fetch', fetchMock);
@@ -316,7 +314,7 @@ describe('executeAutomation', () => {
         expect(typeof incPayload?.last_triggered_at).toBe('string');
     });
 
-    it('still increments the counter and writes chat_history even when DM send throws', async () => {
+    it('still increments the counter even when DM send throws', async () => {
         // FB path → sendPrivateReplyToComment, so reject on that mock
         sendPrivateReplyMock.mockRejectedValueOnce(new Error('FB down'));
         const auto = makeAutomation({ action_type: 'send_dm' });

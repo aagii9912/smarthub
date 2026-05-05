@@ -87,6 +87,12 @@ export async function GET(request: NextRequest) {
 
         (conversations as ChatRecord[] | null)?.forEach((chat) => {
             const customerId = chat.customer_id;
+            // Skip rows without a customer_id — they would propagate as
+            // `{id: null}` conversations and crash the InboxList renderer
+            // (ConversationListItem.toneFor reads id.length). System-generated
+            // rows (e.g. legacy comment-automation audit entries) intentionally
+            // had no customer attached.
+            if (!customerId) return;
             const customer = customerMap.get(customerId);
 
             if (!groupedMap.has(customerId)) {

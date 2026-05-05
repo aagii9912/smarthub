@@ -295,13 +295,14 @@ export async function executeAutomation(
         }
     }
 
-    // 6. Save to chat history
-    await supabase.from('chat_history').insert({
-        shop_id: automation.shop_id,
-        message: `[Comment Automation: ${automation.name}] Trigger by comment`,
-        response: automation.dm_message,
-        intent: 'COMMENT_AUTOMATION',
-    });
+    // Note: deliberately NOT writing to `chat_history` here.
+    // chat_history rows without a customer_id propagate as `{id: null}`
+    // entries into /api/dashboard/conversations and crash the inbox list
+    // (ConversationListItem.toneFor reads `id.length`). Comment automation
+    // already has its own audit trail on `comment_automations` itself
+    // (trigger_count, last_triggered_at) and a real conversation only starts
+    // once the commenter messages back, at which point the messaging webhook
+    // creates a proper customer + chat_history row.
 
     return result;
 }
