@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { logger } from '@/lib/utils/logger';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -67,11 +68,14 @@ interface EditFormData {
 }
 
 export default function ShopsPage() {
+    const searchParams = useSearchParams();
+    const initialStatus = searchParams?.get('status') ?? '';
+
     const [shops, setShops] = useState<Shop[]>([]);
     const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('');
+    const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
     const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 0 });
 
     // Edit modal state
@@ -103,10 +107,20 @@ export default function ShopsPage() {
             const res = await fetch('/api/admin/plans');
             if (res.ok) {
                 const data = await res.json();
-                setAvailablePlans(data.plans || []);
+                const plans = data.plans || [];
+                setAvailablePlans(plans);
+                if (plans.length === 0) {
+                    toast.error('Идэвхтэй төлөвлөгөө олдсонгүй. plans хүснэгтийг шалгана уу.');
+                    logger.error('Fetch plans returned empty array');
+                }
+            } else {
+                const err = await res.json().catch(() => ({}));
+                toast.error(`Төлөвлөгөөнүүдийг татахад алдаа гарлаа (HTTP ${res.status})`);
+                logger.error('Fetch plans HTTP error:', { status: res.status, body: err });
             }
         } catch (error: unknown) {
             logger.error('Fetch plans error:', { error });
+            toast.error('Төлөвлөгөөнүүдийг татах сүлжээний алдаа гарлаа');
         }
     }
 
@@ -289,12 +303,17 @@ export default function ShopsPage() {
                         <div className="w-full md:w-48 relative">
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setPagination(p => ({ ...p, page: 1 }));
+                                }}
                                 className="w-full appearance-none px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 bg-white transition-all outline-none"
                             >
                                 <option value="">All Statuses</option>
                                 <option value="active">Active Only</option>
                                 <option value="inactive">Inactive Only</option>
+                                <option value="trial">Trial</option>
+                                <option value="expired_trial">Expired Trial</option>
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -526,15 +545,23 @@ export default function ShopsPage() {
                                                     subscription_plan: selectedPlan?.slug || editForm.subscription_plan
                                                 });
                                             }}
-                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white"
+                                            disabled={availablePlans.length === 0}
+                                            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white disabled:opacity-60 disabled:cursor-not-allowed"
                                         >
-                                            <option value="">Select Plan...</option>
+                                            <option value="">
+                                                {availablePlans.length === 0 ? 'Plans loading / not available...' : 'Select Plan...'}
+                                            </option>
                                             {availablePlans.map((plan) => (
                                                 <option key={plan.id} value={plan.id}>
                                                     {plan.name} ({plan.slug})
                                                 </option>
                                             ))}
                                         </select>
+                                        {availablePlans.length === 0 && (
+                                            <p className="mt-1.5 text-xs text-red-600">
+                                                ⚠️ Plans дуудагдаагүй байна. Browser console болон /api/admin/plans-ийг шалгана уу.
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>

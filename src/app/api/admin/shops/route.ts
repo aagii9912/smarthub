@@ -77,6 +77,10 @@ export async function GET(request: NextRequest) {
             query = query.eq('is_active', true);
         } else if (status === 'inactive') {
             query = query.eq('is_active', false);
+        } else if (status === 'trial') {
+            query = query.eq('subscription_status', 'trial');
+        } else if (status === 'expired_trial') {
+            query = query.eq('subscription_status', 'expired_trial');
         }
 
         const { data: shops, count, error } = await query;
@@ -197,7 +201,12 @@ export async function PATCH(request: NextRequest) {
         if (body.subscription_plan !== undefined && !updateData.subscription_plan) {
             updateData.subscription_plan = body.subscription_plan;
         }
-        if (body.subscription_status !== undefined) updateData.subscription_status = body.subscription_status;
+        // subscription_status: when admin assigns a new plan, plan_id sync block above
+        // sets it to 'active' — don't let the (possibly stale) form value override that.
+        // When admin is NOT changing the plan, allow explicit status changes.
+        if (body.subscription_status !== undefined && !plan_id) {
+            updateData.subscription_status = body.subscription_status;
+        }
         if (body.trial_ends_at !== undefined) updateData.trial_ends_at = body.trial_ends_at;
 
         // AI Settings
