@@ -9,7 +9,6 @@ import {
     Zap,
     BarChart3,
     Package,
-    CreditCard,
     Loader2,
     X,
     Sparkles,
@@ -101,6 +100,59 @@ export default function SubscriptionPage() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Auto-poll QPay payment status while the QR modal is open. The QPay
+    // webhook or our /check-payment fallback flips the invoice to 'paid'
+    // shortly after the user scans the QR with their banking app — the next
+    // poll picks that up and immediately switches the plan. No manual
+    // confirmation click needed.
+    useEffect(() => {
+        if (!showUpgrade || !paymentInfo?.invoice_id) return;
+
+        let cancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        const POLL_MS = 3000;
+        const MAX_DURATION_MS = 15 * 60 * 1000;
+        const startedAt = Date.now();
+        const invoiceId = paymentInfo.invoice_id;
+
+        const poll = async () => {
+            if (cancelled || Date.now() - startedAt > MAX_DURATION_MS) return;
+
+            try {
+                const res = await fetch('/api/subscription/check-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoice_id: invoiceId }),
+                });
+                const data = await res.json();
+
+                if (cancelled) return;
+
+                if (data.status === 'paid') {
+                    toast.success(data.message || 'Төлбөр амжилттай! Plan шинэчлэгдлээ 🎉');
+                    setShowUpgrade(false);
+                    setPaymentInfo(null);
+                    fetchData(true);
+                    return;
+                }
+            } catch (e) {
+                logger.error('Auto-check payment error', { error: e });
+            }
+
+            if (!cancelled) {
+                timeoutId = setTimeout(poll, POLL_MS);
+            }
+        };
+
+        timeoutId = setTimeout(poll, POLL_MS);
+
+        return () => {
+            cancelled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showUpgrade, paymentInfo?.invoice_id]);
 
     async function fetchData(refresh = false) {
         try {
@@ -734,59 +786,21 @@ export default function SubscriptionPage() {
                                         unoptimized
                                     />
                                 </div>
-                                <div className="flex gap-3">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="flex items-center gap-2 text-[11px] text-white/55 tracking-[-0.01em]">
+                                        <Loader2 className="w-3 h-3 animate-spin text-[var(--brand-indigo-400)]" />
+                                        <span>Төлбөрийг автоматаар хянаж байна...</span>
+                                    </div>
                                     <Button
                                         variant="outline"
                                         size="md"
-                                        onClick={() => setShowUpgrade(false)}
-                                        className="flex-1"
+                                        onClick={() => {
+                                            setShowUpgrade(false);
+                                            setPaymentInfo(null);
+                                        }}
+                                        className="w-full"
                                     >
                                         Болих
-                                    </Button>
-                                    <Button
-                                        variant="primary"
-                                        size="md"
-                                        className="flex-1"
-                                        leftIcon={
-                                            upgrading ? (
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            ) : (
-                                                <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                            )
-                                        }
-                                        onClick={async () => {
-                                            setUpgrading(true);
-                                            try {
-                                                const checkRes = await fetch(
-                                                    '/api/subscription/check-payment',
-                                                    {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({
-                                                            invoice_id: paymentInfo?.invoice_id,
-                                                        }),
-                                                    }
-                                                );
-                                                const checkData = await checkRes.json();
-
-                                                if (checkData.status === 'paid') {
-                                                    toast.success(checkData.message || 'Амжилттай!');
-                                                    setShowUpgrade(false);
-                                                    fetchData(true);
-                                                } else if (checkData.status === 'pending') {
-                                                    toast.info(
-                                                        checkData.message || 'Төлбөр хүлээгдэж байна'
-                                                    );
-                                                } else {
-                                                    toast.error(checkData.message || 'Алдаа гарлаа');
-                                                }
-                                            } catch {
-                                                toast.error('Төлбөр шалгахад алдаа гарлаа');
-                                            }
-                                            setUpgrading(false);
-                                        }}
-                                    >
-                                        Төлбөр шалгах
                                     </Button>
                                 </div>
                             </>
