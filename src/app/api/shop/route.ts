@@ -450,9 +450,24 @@ export async function PATCH(request: NextRequest) {
         } catch (qpayErr) {
           // QPay failed but bank info saved — non-blocking
           logger.warn('Auto QPay registration failed (non-blocking):', { error: String(qpayErr) });
+
+          // Surface known field-level errors so the user can fix their input
+          // instead of seeing a generic "try again later".
+          const errMsg = String(qpayErr);
+          let userMessage = 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэл амжилтгүй — дараа дахин оролдоно уу.';
+          if (errMsg.includes('phone')) {
+            userMessage = 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэлд утасны дугаар буруу байна — Дэлгүүрийн тохиргоо хэсгээс 8 оронтой утсаа шалгана уу.';
+          } else if (errMsg.includes('email')) {
+            userMessage = 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэлд email хаяг буруу байна — Дэлгүүрийн тохиргоо хэсгээс шалгана уу.';
+          } else if (errMsg.includes('register_number')) {
+            userMessage = 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэлд регистрийн дугаар буруу байна — шалгана уу.';
+          } else if (errMsg.includes('account_number') || errMsg.includes('account_name')) {
+            userMessage = 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэлд дансны дугаар эсвэл нэр буруу байна — шалгана уу.';
+          }
+
           return NextResponse.json({
             shop: updatedShop,
-            qpay_setup: { success: false, message: 'Банкны мэдээлэл хадгалагдлаа. QPay бүртгэл амжилтгүй — дараа дахин оролдоно уу.' },
+            qpay_setup: { success: false, message: userMessage },
           });
         }
       } else {

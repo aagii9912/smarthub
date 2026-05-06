@@ -87,6 +87,22 @@ export const BANK_CODES = {
 // Default MCC code for SaaS/software services
 const DEFAULT_MCC_CODE = '7372';
 
+/**
+ * Normalize a Mongolian phone number to QPay's expected format: 8 digits, no
+ * country code, no separators. Accepts inputs like "+976 9988 7766",
+ * "(+976) 99887766", "9988-7766", etc. Returns an empty string if the digits
+ * don't add up to a valid local number — the caller should validate before
+ * sending to QPay.
+ */
+function normalizeMongolianPhone(raw: string | undefined): string {
+    if (!raw) return '';
+    const digits = raw.replace(/\D/g, '');
+    // Strip leading country code variants: "976...", "00976...", "+976..."
+    if (digits.length === 11 && digits.startsWith('976')) return digits.slice(3);
+    if (digits.length === 13 && digits.startsWith('00976')) return digits.slice(5);
+    return digits;
+}
+
 // ──────────────────────────────────────────────
 // Merchant Registration
 // ──────────────────────────────────────────────
@@ -113,13 +129,22 @@ export async function registerShopAsMerchant(params: {
     const isCompany = params.merchantType === 'company';
     const endpoint = isCompany ? '/v2/merchant/company' : '/v2/merchant/person';
 
+    // QPay rejects anything other than a clean 8-digit local number — strip
+    // country codes and separators before validating.
+    const normalizedPhone = normalizeMongolianPhone(params.phone);
+    if (normalizedPhone.length !== 8) {
+        throw new Error(
+            `QPay merchant registration failed: invalid phone "${params.phone ?? ''}" — expected 8-digit Mongolian number`
+        );
+    }
+
     const body: Record<string, unknown> = {
         name: params.shopName,
         mcc_code: params.mccCode || DEFAULT_MCC_CODE,
         city: params.city || CITY_CODES.ULAANBAATAR,
         district: params.district || UB_DISTRICT_CODES.SUKHBAATAR,
         address: params.address || 'Ulaanbaatar',
-        phone: params.phone || '',
+        phone: normalizedPhone,
         email: params.email || '',
         bank_accounts: [{
             account_bank_code: params.bankCode,
