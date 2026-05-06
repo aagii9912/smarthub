@@ -25,16 +25,16 @@ export async function POST(
         }
 
         const body = await request.json().catch(() => ({}));
-        const amount = Number(body?.amount);
-        const description: string | undefined = body?.description?.toString();
+        const rawAmount = Number(body?.amount);
+        let description: string | undefined = body?.description?.toString();
         const sendToCustomer = Boolean(body?.sendToCustomer);
 
-        if (!Number.isFinite(amount) || amount <= 0) {
-            return NextResponse.json(
-                { error: 'Дүнг 0-ээс их тоогоор оруулна уу.' },
-                { status: 400 }
-            );
-        }
+        // Optional product line items. When supplied, the server resolves the
+        // current product price (defends against tampered client-side prices)
+        // and uses the sum as the invoice amount unless the caller passed an
+        // explicit amount that overrides it.
+        type RawItem = { product_id?: string; quantity?: number };
+        const rawItems: RawItem[] = Array.isArray(body?.items) ? body.items : [];
 
         const supabase = supabaseAdmin();
 
@@ -69,6 +69,88 @@ export async function POST(
 
         if (custErr || !customer) {
             return NextResponse.json({ error: 'Хэрэглэгч олдсонгүй' }, { status: 404 });
+        }
+
+        // ── Resolve product items (if any) ──
+        // Validate IDs exist on this shop and use server-side prices. Build a
+        // human-readable description fragment we can surface to the customer
+        // and store in metadata for downstream reporting.
+        type ResolvedItem = {
+            product_id: string;
+            name: string;
+            price: number;
+            quantity: number;
+            line_total: number;
+        };
+        let resolvedItems: ResolvedItem[] = [];
+        let itemsTotal = 0;
+
+        const cleanedItems = rawItems
+            .filter((it): it is { product_id: string; quantity: number } => {
+                const id = typeof it?.product_id === 'string' ? it.product_id : '';
+                const qty = Number(it?.quantity);
+                return id.length > 0 && Number.isFinite(qty) && qty > 0;
+            })
+            .map((it) => ({ product_id: it.product_id, quantity: Math.floor(Number(it.quantity)) }));
+
+        if (cleanedItems.length > 0) {
+            const ids = Array.from(new Set(cleanedItems.map((it) => it.product_id)));
+            const { data: products, error: prodErr } = await supabase
+                .from('products')
+                .select('id, name, price')
+                .eq('shop_id', authShop.id)
+                .in('id', ids);
+
+            if (prodErr) {
+                logger.warn('Manual QPay product lookup failed', { error: prodErr.message });
+            }
+
+            const byId = new Map((products || []).map((p) => [p.id as string, p]));
+
+            const missing = cleanedItems.filter((it) => !byId.has(it.product_id));
+            if (missing.length > 0) {
+                return NextResponse.json(
+                    {
+                        error: 'Зарим бараа олдсонгүй эсвэл өөр дэлгүүрийнх байна.',
+                        missing_product_ids: missing.map((m) => m.product_id),
+                    },
+                    { status: 400 }
+                );
+            }
+
+            resolvedItems = cleanedItems.map((it) => {
+                const p = byId.get(it.product_id) as { id: string; name: string; price: number };
+                const price = Number(p.price) || 0;
+                return {
+                    product_id: p.id,
+                    name: p.name,
+                    price,
+                    quantity: it.quantity,
+                    line_total: price * it.quantity,
+                };
+            });
+            itemsTotal = resolvedItems.reduce((sum, it) => sum + it.line_total, 0);
+
+            // Auto-fill description if the operator didn't provide one.
+            if (!description || description.trim() === '') {
+                description = resolvedItems
+                    .map((it) => `${it.name} x${it.quantity}`)
+                    .join(', ')
+                    .slice(0, 100);
+            }
+        }
+
+        // Final amount: explicit > items total. Either path must yield a
+        // positive number.
+        const amount = Number.isFinite(rawAmount) && rawAmount > 0
+            ? rawAmount
+            : itemsTotal;
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return NextResponse.json(
+                { error: 'Дүнг 0-ээс их тоогоор оруулна уу, эсвэл бараа нэмнэ үү.' },
+                { status: 400 }
+            );
         }
 
         // QPay invoice үүсгэх (orderId шаардахгүй generic функц)
@@ -111,6 +193,8 @@ export async function POST(
                     customer_id: customerId,
                     description: description || null,
                     urls: invoice.urls,
+                    items: resolvedItems.length > 0 ? resolvedItems : undefined,
+                    items_total: resolvedItems.length > 0 ? itemsTotal : undefined,
                 },
                 expires_at: expiresAt,
             })
@@ -127,7 +211,12 @@ export async function POST(
         if (sendToCustomer && customer.facebook_id && shop.facebook_page_access_token) {
             try {
                 const link = invoice.urls?.[0]?.link || invoice.qr_text;
-                const text = `💳 Төлбөрийн нэхэмжлэл\n\nДүн: ${amount.toLocaleString('mn-MN')}₮${description ? `\nТайлбар: ${description}` : ''}\n\nQPay-р төлөх линк:\n${link}`;
+                const itemsBlock = resolvedItems.length > 0
+                    ? '\n\n' + resolvedItems
+                          .map((it) => `• ${it.name} x${it.quantity} — ${it.line_total.toLocaleString('mn-MN')}₮`)
+                          .join('\n')
+                    : '';
+                const text = `💳 Төлбөрийн нэхэмжлэл\n\nДүн: ${amount.toLocaleString('mn-MN')}₮${description && resolvedItems.length === 0 ? `\nТайлбар: ${description}` : ''}${itemsBlock}\n\nQPay-р төлөх линк:\n${link}`;
                 await sendTextMessage({
                     recipientId: customer.facebook_id,
                     message: text,
@@ -148,6 +237,8 @@ export async function POST(
             qr_image: invoice.qr_image,
             urls: invoice.urls,
             expires_at: expiresAt,
+            amount,
+            items: resolvedItems,
         });
     } catch (error: unknown) {
         logger.error('Manual QPay invoice error', { error: error instanceof Error ? error.message : String(error) });
