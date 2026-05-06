@@ -132,61 +132,149 @@ export async function PATCH(request: NextRequest) {
             updateData.is_active = is_active;
         }
 
-        // When plan_id changes, sync subscription_plan with the plan's slug AND update subscriptions table
+        // When plan_id changes, mirror the per-user plan model used by
+        // the QPay payment webhook (see src/app/api/payment/webhook/route.ts).
+        //
+        // Sources of truth read by the user-facing pages:
+        //   1. subscriptions row keyed by user_id (live source — getUserBilling)
+        //   2. user_profiles snapshot (denormalized — feature gate / paywall)
+        //   3. shops.plan_id / subscription_plan (legacy — middleware fallback)
+        //
+        // Without all three, /dashboard/subscription will keep showing the
+        // user's old plan even after admin changes shops.plan_id.
         if (plan_id) {
             updateData.plan_id = plan_id;
 
-            // Fetch the plan slug to keep subscription_plan in sync
-            const { data: plan } = await supabase
-                .from('plans')
-                .select('slug')
-                .eq('id', plan_id)
-                .single();
+            // Fetch the plan slug AND the shop's owner so we can sync the
+            // per-user subscription record + user_profiles snapshot.
+            const [planRes, shopOwnerRes] = await Promise.all([
+                supabase.from('plans')
+                    .select('id, slug, name')
+                    .eq('id', plan_id)
+                    .single(),
+                supabase.from('shops')
+                    .select('user_id')
+                    .eq('id', id)
+                    .single(),
+            ]);
+
+            const plan = planRes.data;
+            const ownerUserIdRaw = shopOwnerRes.data?.user_id;
+            // shops.user_id is TEXT (legacy Clerk). Empty string → null.
+            const ownerUserId = ownerUserIdRaw && ownerUserIdRaw !== '' ? ownerUserIdRaw : null;
 
             if (plan?.slug) {
                 updateData.subscription_plan = plan.slug;
-                updateData.subscription_status = 'active'; // Activate subscription when plan is set
-                logger.info(`[Admin Shops] Syncing plan_id=${plan_id} with subscription_plan=${plan.slug}`);
+                updateData.subscription_status = 'active';
+                logger.info(`[Admin Shops] Syncing plan_id=${plan_id} (${plan.slug}) for shop=${id} owner=${ownerUserId ?? 'unknown'}`);
             }
 
-            // Also update/create subscription in subscriptions table for UI consistency
-            // First check if subscription exists
-            const { data: existingSubscription } = await supabase
-                .from('subscriptions')
-                .select('id')
-                .eq('shop_id', id)
-                .maybeSingle();
+            const nowIso = new Date().toISOString();
+            const periodEndIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-            if (existingSubscription) {
-                // Update existing subscription
-                await supabase
+            // ── 1. Upsert subscription keyed by user_id (per-user model) ──
+            // Matches the conflict target used by /api/subscription/subscribe
+            // and /api/payment/webhook so /api/subscription/current resolves it.
+            let subUpsertOk = false;
+            if (ownerUserId) {
+                const { error: userUpsertError } = await supabase
                     .from('subscriptions')
+                    .upsert(
+                        {
+                            user_id: ownerUserId,
+                            shop_id: id,
+                            plan_id: plan_id,
+                            status: 'active',
+                            billing_cycle: 'monthly',
+                            current_period_start: nowIso,
+                            current_period_end: periodEndIso,
+                            updated_at: nowIso,
+                        },
+                        { onConflict: 'user_id' }
+                    );
+
+                if (userUpsertError) {
+                    logger.warn('[Admin Shops] subscriptions upsert by user_id failed, falling back to shop_id', {
+                        error: userUpsertError.message,
+                    });
+                } else {
+                    subUpsertOk = true;
+                    logger.info(`[Admin Shops] Upserted subscription by user_id=${ownerUserId} → plan_id=${plan_id}`);
+                }
+            }
+
+            // ── 1b. Legacy fallback: subscriptions keyed by shop_id ──
+            // Used when ownerUserId is missing (orphan shop) or the
+            // user_id partial-unique index doesn't exist yet.
+            if (!subUpsertOk) {
+                const { data: existingSubscription } = await supabase
+                    .from('subscriptions')
+                    .select('id')
+                    .eq('shop_id', id)
+                    .maybeSingle();
+
+                if (existingSubscription) {
+                    await supabase
+                        .from('subscriptions')
+                        .update({
+                            plan_id: plan_id,
+                            status: 'active',
+                            updated_at: nowIso,
+                        })
+                        .eq('id', existingSubscription.id);
+                    logger.info(`[Admin Shops] (legacy) Updated subscription ${existingSubscription.id}`);
+                } else {
+                    const { error: insertError } = await supabase
+                        .from('subscriptions')
+                        .insert({
+                            shop_id: id,
+                            plan_id: plan_id,
+                            status: 'active',
+                            billing_cycle: 'monthly',
+                            current_period_start: nowIso,
+                            current_period_end: periodEndIso,
+                        });
+                    if (insertError) {
+                        logger.error('[Admin Shops] (legacy) Failed to insert subscription', { error: insertError.message });
+                    }
+                }
+            }
+
+            // ── 2. Update user_profiles snapshot (read by getUserBilling fallback + middleware) ──
+            if (ownerUserId && plan?.slug) {
+                const { error: profileUpdateError } = await supabase
+                    .from('user_profiles')
                     .update({
                         plan_id: plan_id,
-                        status: 'active',
-                        updated_at: new Date().toISOString()
+                        subscription_plan: plan.slug,
+                        subscription_status: 'active',
+                        updated_at: nowIso,
                     })
-                    .eq('id', existingSubscription.id);
-                logger.info(`[Admin Shops] Updated subscription ${existingSubscription.id} with plan_id=${plan_id}`);
-            } else {
-                // Create new subscription
-                const { data: newSub, error: subError } = await supabase
-                    .from('subscriptions')
-                    .insert({
-                        shop_id: id,
-                        plan_id: plan_id,
-                        status: 'active',
-                        billing_cycle: 'monthly',
-                        current_period_start: new Date().toISOString(),
-                        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
-                    })
-                    .select()
-                    .single();
+                    .eq('id', ownerUserId);
 
-                if (subError) {
-                    logger.error('[Admin Shops] Failed to create subscription:', { error: subError });
-                } else {
-                    logger.info(`[Admin Shops] Created new subscription ${newSub.id} for shop ${id}`);
+                if (profileUpdateError) {
+                    logger.warn('[Admin Shops] user_profiles snapshot update failed (non-fatal)', {
+                        user_id: ownerUserId,
+                        error: profileUpdateError.message,
+                    });
+                }
+            }
+
+            // ── 3. Mirror plan to ALL of the user's shops (keeps legacy paths in sync) ──
+            if (ownerUserId && plan?.slug) {
+                const { error: allShopsErr } = await supabase
+                    .from('shops')
+                    .update({
+                        plan_id: plan_id,
+                        subscription_plan: plan.slug,
+                        subscription_status: 'active',
+                    })
+                    .eq('user_id', ownerUserId);
+                if (allShopsErr) {
+                    logger.warn('[Admin Shops] mirroring plan to all user shops failed (non-fatal)', {
+                        user_id: ownerUserId,
+                        error: allShopsErr.message,
+                    });
                 }
             }
         }
