@@ -60,7 +60,10 @@ export async function checkProductStock(
 }
 
 /**
- * Get product from DB by name (fuzzy match) - prevents stale context data
+ * Get product from DB by name. Tries exact (case-insensitive) → prefix →
+ * substring in that order; ranking inside each tier is shortest-name-first
+ * so "Цамц" doesn't accidentally resolve to "Цамц улаан Premium" when both
+ * exist.
  */
 export async function getProductFromDB(
     shopId: string,
@@ -74,20 +77,39 @@ export async function getProductFromDB(
     discount_percent: number | null;
 } | null> {
     const supabase = supabaseAdmin();
-    const { data } = await supabase
+    const trimmed = productName.trim();
+    if (!trimmed) return null;
+
+    // Escape PostgREST ilike wildcards (% and _) coming from user/AI input.
+    const escaped = trimmed.replace(/[%_\\]/g, '\\$&');
+
+    const { data: candidates } = await supabase
         .from('products')
         .select('id, name, price, stock, reserved_stock, discount_percent')
         .eq('shop_id', shopId)
         .eq('is_active', true)
-        .ilike('name', `%${productName}%`)
-        .limit(1)
-        .single();
+        .ilike('name', `%${escaped}%`)
+        .limit(20);
 
-    return data;
+    if (!candidates || candidates.length === 0) return null;
+
+    const needle = trimmed.toLowerCase();
+    const ranked = [...candidates].sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aTier = aName === needle ? 0 : aName.startsWith(needle) ? 1 : 2;
+        const bTier = bName === needle ? 0 : bName.startsWith(needle) ? 1 : 2;
+        if (aTier !== bTier) return aTier - bTier;
+        return aName.length - bName.length;
+    });
+
+    return ranked[0];
 }
 
 /**
- * Add item to cart with ON CONFLICT handling - prevents race conditions
+ * Add item to cart. Existing rows are matched on (cart_id, product_id, variant_specs)
+ * so two different variants of the same product (e.g. red M vs blue L) stay as
+ * separate cart_items instead of being merged with the wrong variant info.
  */
 export async function addItemToCart(
     cartId: string,
@@ -98,13 +120,18 @@ export async function addItemToCart(
 ): Promise<{ success: boolean; newQuantity: number }> {
     const supabase = supabaseAdmin();
 
-    // Use upsert with ON CONFLICT to prevent race conditions
-    const { data: existingItem } = await supabase
+    const { data: candidates } = await supabase
         .from('cart_items')
-        .select('id, quantity')
+        .select('id, quantity, variant_specs')
         .eq('cart_id', cartId)
-        .eq('product_id', productId)
-        .single();
+        .eq('product_id', productId);
+
+    const existingItem = (candidates ?? []).find((row) =>
+        variantSpecsEqual(
+            (row.variant_specs ?? {}) as Record<string, string>,
+            variantSpecs
+        )
+    );
 
     if (existingItem) {
         const newQuantity = existingItem.quantity + quantity;
@@ -125,6 +152,16 @@ export async function addItemToCart(
             });
         return { success: true, newQuantity: quantity };
     }
+}
+
+function variantSpecsEqual(
+    a: Record<string, string>,
+    b: Record<string, string>
+): boolean {
+    const aKeys = Object.keys(a).sort();
+    const bKeys = Object.keys(b).sort();
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every((k, i) => bKeys[i] === k && a[k] === b[k]);
 }
 
 /**

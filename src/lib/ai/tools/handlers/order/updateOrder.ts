@@ -62,7 +62,11 @@ export async function executeUpdateOrder(
                     return sum + (i.unit_price * qty);
                 }, 0);
 
-                await supabase.from('orders').update({ total: newTotal }).eq('id', orderId);
+                const { error: totalError } = await supabase
+                    .from('orders')
+                    .update({ total_amount: newTotal })
+                    .eq('id', orderId);
+                if (totalError) throw totalError;
 
                 return {
                     success: true,
@@ -106,7 +110,11 @@ export async function executeUpdateOrder(
                     };
                 }
 
-                await supabase.from('orders').update({ total: newTotal }).eq('id', orderId);
+                const { error: totalError } = await supabase
+                    .from('orders')
+                    .update({ total_amount: newTotal })
+                    .eq('id', orderId);
+                if (totalError) throw totalError;
 
                 return {
                     success: true,
@@ -156,7 +164,11 @@ export async function executeUpdateOrder(
                 );
                 const newTotal = currentTotal + (unitPrice * quantity);
 
-                await supabase.from('orders').update({ total: newTotal }).eq('id', orderId);
+                const { error: totalError } = await supabase
+                    .from('orders')
+                    .update({ total_amount: newTotal })
+                    .eq('id', orderId);
+                if (totalError) throw totalError;
 
                 return {
                     success: true,

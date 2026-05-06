@@ -97,6 +97,14 @@ export interface ToolExecutionContext {
     customerName?: string;
     products: ChatContext['products'];
     notifySettings?: ChatContext['notifySettings'];
+    /**
+     * Set of `${productId}|${sortedVariantSpecsJSON}` keys that already had
+     * an `add_to_cart` succeed during this AIRouter reply. Lets the cart
+     * handler ignore an immediate duplicate call (Gemini occasionally re-fires
+     * the same tool inside its multi-iteration loop, which would otherwise
+     * double the cart quantity).
+     */
+    addToCartKeys?: Set<string>;
 }
 
 /**

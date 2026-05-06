@@ -472,6 +472,9 @@ export async function routeToAI(
                 customerName: context.customerName,
                 products: context.products,
                 notifySettings: context.notifySettings,
+                // Per-reply set so the cart handler can ignore Gemini-side
+                // duplicate add_to_cart firings within one chat turn.
+                addToCartKeys: new Set<string>(),
             };
 
             const extractText = (res: Awaited<ReturnType<typeof chat.sendMessage>>): string => {

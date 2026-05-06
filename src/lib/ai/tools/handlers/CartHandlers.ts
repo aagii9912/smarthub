@@ -11,6 +11,11 @@ import type {
 } from '../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../services/ToolExecutor';
 
+function stableVariantKey(specs: Record<string, string>): string {
+    const keys = Object.keys(specs).sort();
+    return keys.map((k) => `${k}=${specs[k]}`).join('&');
+}
+
 export async function executeAddToCart(
     args: AddToCartArgs,
     context: ToolExecutionContext
@@ -45,7 +50,22 @@ export async function executeAddToCart(
     if (color) variantSpecs.color = color;
     if (size) variantSpecs.size = size;
 
+    // Dedup a Gemini-side duplicate call within the same chat reply. Without
+    // this, "Цамц 2 авъя" can land in the cart as 4 if the model re-fires the
+    // tool while iterating. The first call wins; the second is acknowledged
+    // with the cart total but doesn't double-apply.
+    const dedupKey = `${product.id}|${stableVariantKey(variantSpecs)}`;
+    if (context.addToCartKeys?.has(dedupKey)) {
+        const { data: dupTotal } = await supabase.rpc('calculate_cart_total', { p_cart_id: cartId });
+        return {
+            success: true,
+            message: `${product.name} аль хэдийн сагсанд орсон. Нийт: ${dupTotal?.toLocaleString()}₮`,
+            data: { cart_total: dupTotal, deduped: true },
+        };
+    }
+
     const result = await addItemToCart(cartId, product.id, variantSpecs, quantity, discountedPrice);
+    context.addToCartKeys?.add(dedupKey);
     const { data: total } = await supabase.rpc('calculate_cart_total', { p_cart_id: cartId });
 
     let urgencyHint = '';

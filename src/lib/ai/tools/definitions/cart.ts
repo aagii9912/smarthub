@@ -3,7 +3,7 @@ import { ToolDefinition } from './core';
 
 export const AddToCartSchema = z.object({
     product_name: z.string(),
-    quantity: z.number().default(1).optional(),
+    quantity: z.number().int().min(1).default(1),
     color: z.string().optional(),
     size: z.string().optional()
 });
@@ -24,8 +24,8 @@ export type CheckoutArgs = z.infer<typeof CheckoutSchema>;
 export const CART_TOOLS: ToolDefinition[] = [
     {
         name: 'add_to_cart',
-        description: 'Add a product to shopping cart. Use this IMMEDIATELY when customer wants to buy something. Do NOT ask for confirmation before adding — just add it directly.',
-        parameters: { type: 'object', properties: { product_name: { type: 'string', description: 'Name of the product to add (fuzzy match)' }, quantity: { type: 'number', description: 'Quantity to add', default: 1 }, color: { type: 'string', description: 'Color variant (optional)' }, size: { type: 'string', description: 'Size variant (optional)' } }, required: ['product_name'] },
+        description: 'Add a product to shopping cart. Use IMMEDIATELY when customer wants to buy. Do NOT ask for confirmation. ALWAYS extract the quantity from the customer message verbatim — Mongolian numerals like "хоёр"=2, "гурван"=3, "5 ширхэг"=5, "хос"=2. Pass quantity=1 only when the customer truly did not specify any number. Existing cart items with the same product+variant accumulate, so do NOT call this tool twice for the same product in one reply — combine into a single call. For changing the quantity of a product the customer already ordered, use update_order instead.',
+        parameters: { type: 'object', properties: { product_name: { type: 'string', description: 'Name of the product to add (fuzzy match)' }, quantity: { type: 'number', description: 'Quantity to add — extract from the customer message. Defaults to 1 only if no quantity is mentioned.', default: 1 }, color: { type: 'string', description: 'Color variant (optional)' }, size: { type: 'string', description: 'Size variant (optional)' } }, required: ['product_name', 'quantity'] },
         capabilities: ['sales']
     },
     {

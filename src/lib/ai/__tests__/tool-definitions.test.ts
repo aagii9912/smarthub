@@ -134,11 +134,13 @@ describe('AI Tool Definitions', () => {
             expect(args.phone).toBeUndefined();
         });
 
-        it('AddToCartArgs requires product_name', () => {
+        it('AddToCartArgs requires product_name and quantity', () => {
             const args: AddToCartArgs = {
                 product_name: 'Test',
+                quantity: 2,
             };
             expect(args.product_name).toBe('Test');
+            expect(args.quantity).toBe(2);
         });
 
         it('ShowProductImageArgs has correct shape', () => {
