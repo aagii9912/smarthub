@@ -105,8 +105,29 @@ export async function GET(request: NextRequest) {
     }
 }
 
+// UUID v4 format check (case-insensitive). Used to validate the legacy
+// shops.user_id TEXT column before casting it to a UUID-typed column.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // PATCH - Update shop (enable/disable, change plan, etc.)
 export async function PATCH(request: NextRequest) {
+    // planSync диагностик — admin UI-д буцаах. Frontend-аас энэ
+    // мэдээллийг toast/UI-аар харуулна.
+    const planSync = {
+        attempted: false,
+        plan_slug: null as string | null,
+        owner_user_id: null as string | null,
+        owner_user_id_valid_uuid: false,
+        subscription_upsert_by_user_id: 'skipped' as 'ok' | 'failed' | 'skipped',
+        subscription_upsert_by_user_id_error: null as string | null,
+        subscription_legacy_by_shop_id: 'skipped' as 'updated' | 'inserted' | 'failed' | 'skipped',
+        subscription_legacy_error: null as string | null,
+        user_profiles_snapshot: 'skipped' as 'ok' | 'failed' | 'skipped',
+        user_profiles_error: null as string | null,
+        all_user_shops_mirror: 'skipped' as 'ok' | 'failed' | 'skipped',
+        all_user_shops_error: null as string | null,
+    };
+
     try {
         const admin = await getAdminUser();
 
@@ -143,6 +164,7 @@ export async function PATCH(request: NextRequest) {
         // Without all three, /dashboard/subscription will keep showing the
         // user's old plan even after admin changes shops.plan_id.
         if (plan_id) {
+            planSync.attempted = true;
             updateData.plan_id = plan_id;
 
             // Fetch the plan slug AND the shop's owner so we can sync the
@@ -159,15 +181,27 @@ export async function PATCH(request: NextRequest) {
             ]);
 
             const plan = planRes.data;
-            const ownerUserIdRaw = shopOwnerRes.data?.user_id;
-            // shops.user_id is TEXT (legacy Clerk). Empty string → null.
-            const ownerUserId = ownerUserIdRaw && ownerUserIdRaw !== '' ? ownerUserIdRaw : null;
-
-            if (plan?.slug) {
-                updateData.subscription_plan = plan.slug;
-                updateData.subscription_status = 'active';
-                logger.info(`[Admin Shops] Syncing plan_id=${plan_id} (${plan.slug}) for shop=${id} owner=${ownerUserId ?? 'unknown'}`);
+            if (!plan) {
+                return NextResponse.json(
+                    { error: `Plan id=${plan_id} not found in plans table` },
+                    { status: 400 }
+                );
             }
+            const ownerUserIdRaw = shopOwnerRes.data?.user_id;
+            // shops.user_id is TEXT (legacy Clerk). Validate as UUID before
+            // casting to subscriptions.user_id (UUID NOT NULL) /
+            // user_profiles.id (UUID).
+            const ownerUserId =
+                typeof ownerUserIdRaw === 'string' && UUID_RE.test(ownerUserIdRaw)
+                    ? ownerUserIdRaw
+                    : null;
+            planSync.plan_slug = plan.slug;
+            planSync.owner_user_id = ownerUserIdRaw ?? null;
+            planSync.owner_user_id_valid_uuid = !!ownerUserId;
+
+            updateData.subscription_plan = plan.slug;
+            updateData.subscription_status = 'active';
+            logger.info(`[Admin Shops] Syncing plan_id=${plan_id} (${plan.slug}) for shop=${id} owner=${ownerUserId ?? 'invalid/missing'}`);
 
             const nowIso = new Date().toISOString();
             const periodEndIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -194,11 +228,14 @@ export async function PATCH(request: NextRequest) {
                     );
 
                 if (userUpsertError) {
+                    planSync.subscription_upsert_by_user_id = 'failed';
+                    planSync.subscription_upsert_by_user_id_error = userUpsertError.message;
                     logger.warn('[Admin Shops] subscriptions upsert by user_id failed, falling back to shop_id', {
                         error: userUpsertError.message,
                     });
                 } else {
                     subUpsertOk = true;
+                    planSync.subscription_upsert_by_user_id = 'ok';
                     logger.info(`[Admin Shops] Upserted subscription by user_id=${ownerUserId} → plan_id=${plan_id}`);
                 }
             }
@@ -214,7 +251,7 @@ export async function PATCH(request: NextRequest) {
                     .maybeSingle();
 
                 if (existingSubscription) {
-                    await supabase
+                    const { error: legacyUpdateErr } = await supabase
                         .from('subscriptions')
                         .update({
                             plan_id: plan_id,
@@ -222,7 +259,14 @@ export async function PATCH(request: NextRequest) {
                             updated_at: nowIso,
                         })
                         .eq('id', existingSubscription.id);
-                    logger.info(`[Admin Shops] (legacy) Updated subscription ${existingSubscription.id}`);
+                    if (legacyUpdateErr) {
+                        planSync.subscription_legacy_by_shop_id = 'failed';
+                        planSync.subscription_legacy_error = legacyUpdateErr.message;
+                        logger.error('[Admin Shops] (legacy) Update failed', { error: legacyUpdateErr.message });
+                    } else {
+                        planSync.subscription_legacy_by_shop_id = 'updated';
+                        logger.info(`[Admin Shops] (legacy) Updated subscription ${existingSubscription.id}`);
+                    }
                 } else {
                     const { error: insertError } = await supabase
                         .from('subscriptions')
@@ -235,13 +279,17 @@ export async function PATCH(request: NextRequest) {
                             current_period_end: periodEndIso,
                         });
                     if (insertError) {
+                        planSync.subscription_legacy_by_shop_id = 'failed';
+                        planSync.subscription_legacy_error = insertError.message;
                         logger.error('[Admin Shops] (legacy) Failed to insert subscription', { error: insertError.message });
+                    } else {
+                        planSync.subscription_legacy_by_shop_id = 'inserted';
                     }
                 }
             }
 
             // ── 2. Update user_profiles snapshot (read by getUserBilling fallback + middleware) ──
-            if (ownerUserId && plan?.slug) {
+            if (ownerUserId) {
                 const { error: profileUpdateError } = await supabase
                     .from('user_profiles')
                     .update({
@@ -253,15 +301,19 @@ export async function PATCH(request: NextRequest) {
                     .eq('id', ownerUserId);
 
                 if (profileUpdateError) {
+                    planSync.user_profiles_snapshot = 'failed';
+                    planSync.user_profiles_error = profileUpdateError.message;
                     logger.warn('[Admin Shops] user_profiles snapshot update failed (non-fatal)', {
                         user_id: ownerUserId,
                         error: profileUpdateError.message,
                     });
+                } else {
+                    planSync.user_profiles_snapshot = 'ok';
                 }
             }
 
             // ── 3. Mirror plan to ALL of the user's shops (keeps legacy paths in sync) ──
-            if (ownerUserId && plan?.slug) {
+            if (ownerUserId) {
                 const { error: allShopsErr } = await supabase
                     .from('shops')
                     .update({
@@ -271,10 +323,14 @@ export async function PATCH(request: NextRequest) {
                     })
                     .eq('user_id', ownerUserId);
                 if (allShopsErr) {
+                    planSync.all_user_shops_mirror = 'failed';
+                    planSync.all_user_shops_error = allShopsErr.message;
                     logger.warn('[Admin Shops] mirroring plan to all user shops failed (non-fatal)', {
                         user_id: ownerUserId,
                         error: allShopsErr.message,
                     });
+                } else {
+                    planSync.all_user_shops_mirror = 'ok';
                 }
             }
         }
@@ -310,11 +366,18 @@ export async function PATCH(request: NextRequest) {
 
         if (error) throw error;
 
-        return NextResponse.json({ shop, message: 'Shop updated successfully' });
+        return NextResponse.json({
+            shop,
+            message: 'Shop updated successfully',
+            plan_sync: planSync,
+        });
     } catch (error: unknown) {
         logger.error('Update shop error:', { error: error });
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to update shop' },
+            {
+                error: error instanceof Error ? error.message : 'Failed to update shop',
+                plan_sync: planSync,
+            },
             { status: 500 }
         );
     }

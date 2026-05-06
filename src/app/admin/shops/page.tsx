@@ -8,8 +8,39 @@ import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
 import {
     Search, Users, ToggleLeft, ToggleRight,
-    Loader2, Edit, X, Save, Clock
+    Loader2, Edit, X, Save, Clock, Crown
 } from 'lucide-react';
+
+interface PlanSyncResult {
+    attempted: boolean;
+    plan_slug: string | null;
+    owner_user_id: string | null;
+    owner_user_id_valid_uuid: boolean;
+    subscription_upsert_by_user_id: 'ok' | 'failed' | 'skipped';
+    subscription_upsert_by_user_id_error: string | null;
+    subscription_legacy_by_shop_id: 'updated' | 'inserted' | 'failed' | 'skipped';
+    subscription_legacy_error: string | null;
+    user_profiles_snapshot: 'ok' | 'failed' | 'skipped';
+    user_profiles_error: string | null;
+    all_user_shops_mirror: 'ok' | 'failed' | 'skipped';
+    all_user_shops_error: string | null;
+}
+
+function describePlanSync(s: PlanSyncResult | undefined | null): string {
+    if (!s || !s.attempted) return '';
+    const parts: string[] = [];
+    if (s.subscription_upsert_by_user_id === 'ok') parts.push('subscriptions(user_id)✓');
+    else if (s.subscription_upsert_by_user_id === 'failed') parts.push(`subscriptions(user_id)✗ ${s.subscription_upsert_by_user_id_error ?? ''}`);
+    if (s.subscription_legacy_by_shop_id !== 'skipped') {
+        parts.push(`subscriptions(shop_id)=${s.subscription_legacy_by_shop_id}${s.subscription_legacy_error ? ` (${s.subscription_legacy_error})` : ''}`);
+    }
+    if (s.user_profiles_snapshot === 'ok') parts.push('user_profiles✓');
+    else if (s.user_profiles_snapshot === 'failed') parts.push(`user_profiles✗ ${s.user_profiles_error ?? ''}`);
+    if (s.all_user_shops_mirror === 'ok') parts.push('all_shops✓');
+    else if (s.all_user_shops_mirror === 'failed') parts.push(`all_shops✗ ${s.all_user_shops_error ?? ''}`);
+    if (!s.owner_user_id_valid_uuid) parts.unshift(`⚠️ shop.user_id буруу/хоосон=${s.owner_user_id ?? 'null'}`);
+    return parts.join(' · ');
+}
 
 interface Shop {
     id: string;
@@ -96,6 +127,11 @@ export default function ShopsPage() {
 
     // Toggle loading state
     const [togglingId, setTogglingId] = useState<string | null>(null);
+
+    // Dedicated "Change Plan" quick-action (focused single-purpose dialog)
+    const [planChangingShop, setPlanChangingShop] = useState<Shop | null>(null);
+    const [pickedPlanId, setPickedPlanId] = useState<string>('');
+    const [changingPlan, setChangingPlan] = useState(false);
 
     useEffect(() => {
         fetchShops();
@@ -234,16 +270,100 @@ export default function ShopsPage() {
                     s.id === editingShop.id ? { ...s, ...data.shop } : s
                 ));
                 setEditingShop(null);
-                toast.success('Дэлгүүрийн мэдээлэл хадгаллаа');
+                const sync = data.plan_sync as PlanSyncResult | undefined;
+                const desc = describePlanSync(sync);
+                if (sync?.attempted) {
+                    const okAll = sync.subscription_upsert_by_user_id === 'ok' &&
+                                  sync.user_profiles_snapshot === 'ok' &&
+                                  sync.all_user_shops_mirror === 'ok';
+                    if (okAll) {
+                        toast.success(`План шилжүүлэв → ${sync.plan_slug}. Хэрэглэгч /dashboard/subscription дээр шинэчилсэн харагдана.`);
+                    } else {
+                        toast.warning(`Хэсэгчлэн хадгаллаа. ${desc}`, { duration: 8000 });
+                    }
+                } else {
+                    toast.success('Дэлгүүрийн мэдээлэл хадгаллаа');
+                }
             } else {
-                const error = await res.json();
+                const error = await res.json().catch(() => ({}));
                 toast.error(error.error || 'Хадгалахад алдаа гарлаа');
+                const desc = describePlanSync(error.plan_sync);
+                if (desc) toast.error(`Sync details: ${desc}`, { duration: 10000 });
             }
         } catch (error: unknown) {
             logger.error('Save edit error:', { error });
             toast.error('Холболтын алдаа гарлаа');
         } finally {
             setSaving(false);
+        }
+    }
+
+    function openPlanChangeDialog(shop: Shop) {
+        setPlanChangingShop(shop);
+        setPickedPlanId(shop.plan_id || '');
+    }
+
+    async function handleQuickChangePlan() {
+        if (!planChangingShop) return;
+        if (!pickedPlanId) {
+            toast.error('Шинэ плэн сонгоно уу');
+            return;
+        }
+        if (pickedPlanId === planChangingShop.plan_id) {
+            toast.error('Сонгосон плэн одоогийнхтой ижил байна');
+            return;
+        }
+
+        setChangingPlan(true);
+        try {
+            const res = await fetch('/api/admin/shops', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: planChangingShop.id,
+                    plan_id: pickedPlanId,
+                }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                toast.error(data.error || `HTTP ${res.status}`);
+                const desc = describePlanSync(data.plan_sync);
+                if (desc) toast.error(`Sync details: ${desc}`, { duration: 10000 });
+                return;
+            }
+
+            const sync = data.plan_sync as PlanSyncResult | undefined;
+            const newPlan = availablePlans.find(p => p.id === pickedPlanId);
+            // Update local row
+            setShops(shops.map(s =>
+                s.id === planChangingShop.id
+                    ? {
+                        ...s,
+                        ...data.shop,
+                        plans: newPlan
+                            ? { id: newPlan.id, name: newPlan.name, slug: newPlan.slug, price_monthly: newPlan.price_monthly }
+                            : s.plans,
+                    }
+                    : s
+            ));
+            setPlanChangingShop(null);
+
+            const desc = describePlanSync(sync);
+            const okAll = sync?.subscription_upsert_by_user_id === 'ok' &&
+                          sync?.user_profiles_snapshot === 'ok' &&
+                          sync?.all_user_shops_mirror === 'ok';
+            if (okAll) {
+                toast.success(`План → ${sync?.plan_slug}. Бүх хүснэгт шинэчлэгдлээ.`);
+            } else {
+                toast.warning(`План хэсэгчлэн шилжсэн. ${desc}`, { duration: 12000 });
+            }
+        } catch (error: unknown) {
+            logger.error('Quick change plan error:', { error });
+            toast.error('Холболтын алдаа гарлаа');
+        } finally {
+            setChangingPlan(false);
         }
     }
 
@@ -406,13 +526,24 @@ export default function ShopsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => openEditModal(shop)}
-                                                className="inline-flex p-2 bg-white border border-gray-200 hover:border-violet-300 hover:bg-violet-50 rounded-lg text-gray-500 hover:text-violet-600 transition-colors shadow-sm"
-                                                title="Edit shop details"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
+                                            <div className="inline-flex items-center gap-1.5">
+                                                <button
+                                                    onClick={() => openPlanChangeDialog(shop)}
+                                                    disabled={availablePlans.length === 0}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Change plan (per-user, propagates to /dashboard/subscription)"
+                                                >
+                                                    <Crown className="w-3.5 h-3.5" />
+                                                    Change Plan
+                                                </button>
+                                                <button
+                                                    onClick={() => openEditModal(shop)}
+                                                    className="inline-flex p-2 bg-white border border-gray-200 hover:border-violet-300 hover:bg-violet-50 rounded-lg text-gray-500 hover:text-violet-600 transition-colors shadow-sm"
+                                                    title="Edit shop details"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -637,6 +768,101 @@ export default function ShopsPage() {
                                     <>
                                         <Save className="w-4 h-4 mr-2" />
                                         Save Changes
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick Change Plan Dialog (focused, single-purpose) */}
+            {planChangingShop && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+                        onClick={() => !changingPlan && setPlanChangingShop(null)}
+                    />
+
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 bg-violet-50 text-violet-600 rounded-xl ring-1 ring-violet-100">
+                                    <Crown className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Change Plan</h2>
+                                    <p className="text-xs text-gray-500 mt-0.5">{planChangingShop.name}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => !changingPlan && setPlanChangingShop(null)}
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                                disabled={changingPlan}
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm">
+                                <p className="text-gray-500 text-xs uppercase tracking-wider font-semibold mb-1">Current</p>
+                                <p className="text-gray-900 font-medium">
+                                    {planChangingShop.plans?.name
+                                        ?? planChangingShop.subscription_plan
+                                        ?? 'No plan'}
+                                </p>
+                                {planChangingShop.subscription_status && (
+                                    <p className="text-xs text-gray-500 mt-1">Status: {planChangingShop.subscription_status}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">New plan</label>
+                                <select
+                                    value={pickedPlanId}
+                                    onChange={(e) => setPickedPlanId(e.target.value)}
+                                    disabled={availablePlans.length === 0 || changingPlan}
+                                    className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-white disabled:opacity-60"
+                                >
+                                    <option value="">Select plan...</option>
+                                    {availablePlans.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.name} ({p.slug}) — ₮{p.price_monthly.toLocaleString()}/mo
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Save дарахад: <code className="bg-gray-100 px-1 rounded">subscriptions(user_id)</code>,
+                                    <code className="bg-gray-100 px-1 rounded">user_profiles</code>,
+                                    бүх <code className="bg-gray-100 px-1 rounded">shops</code> зэрэг шинэчлэгдэнэ.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 p-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
+                            <Button
+                                variant="outline"
+                                onClick={() => setPlanChangingShop(null)}
+                                disabled={changingPlan}
+                                className="bg-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleQuickChangePlan}
+                                disabled={changingPlan || !pickedPlanId || pickedPlanId === planChangingShop.plan_id}
+                                className="bg-violet-600 hover:bg-violet-700 text-white border-0 shadow-sm"
+                            >
+                                {changingPlan ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        Switching...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Crown className="w-4 h-4 mr-2" />
+                                        Apply Plan
                                     </>
                                 )}
                             </Button>
