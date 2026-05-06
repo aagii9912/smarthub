@@ -111,6 +111,8 @@ function SettingsContent() {
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
     const [qpayStatus, setQpayStatus] = useState<string>('none');
+    const [qpayUnlinking, setQpayUnlinking] = useState(false);
+    const [showQpayDeleteConfirm, setShowQpayDeleteConfirm] = useState(false);
 
     const [fbPages, setFbPages] = useState<FacebookPage[]>([]);
     const [fbSelecting, setFbSelecting] = useState(false);
@@ -206,8 +208,18 @@ function SettingsContent() {
         if (igError) {
             const errorMessages: Record<string, string> = {
                 no_instagram_account:
-                    'Instagram Business Account олдсонгүй. Facebook Page-тай IG холбогдсон эсэхийг шалгана уу.',
+                    'Instagram Business Account олдсонгүй. Facebook хуудасгүй бол "Шууд Instagram-р" сонгоно уу.',
                 token_error: 'Token авахад алдаа гарлаа',
+                long_token_error: 'Урт хугацааны token авахад алдаа гарлаа',
+                profile_error: 'Instagram профайлыг уншиж чадсангүй',
+                personal_account_unsupported:
+                    'Personal Instagram акаунтыг ашиглаж болохгүй. Business эсвэл Creator руу хувирган дахин оролдоно уу.',
+                already_connected:
+                    'Энэ Instagram акаунт өөр дэлгүүрт холбогдсон байна.',
+                csrf_validation_failed: 'Аюулгүй байдлын шалгалт амжилтгүй боллоо. Дахин оролдоно уу.',
+                missing_shop_id: 'Дэлгүүр сонгогдоогүй байна',
+                not_authenticated: 'Эхлээд нэвтэрнэ үү',
+                shop_ownership: 'Энэ дэлгүүрт танд хандах эрх алга',
                 pages_error: 'Facebook Pages уншихад алдаа гарлаа',
                 config_missing: 'App тохиргоо дутуу',
                 db_save_failed: 'Мэдээлэл хадгалахад алдаа',
@@ -327,6 +339,30 @@ function SettingsContent() {
         } catch (err) {
             logger.error('disconnectPlatform error', { error: err, platform });
             toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        }
+    }
+
+    async function unlinkQpay(mode: 'disconnect' | 'delete') {
+        try {
+            setQpayUnlinking(true);
+            const res = await fetch(`/api/shop/qpay-setup?mode=${mode}`, {
+                method: 'DELETE',
+                headers: {
+                    'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '',
+                },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || 'QPay салгахад алдаа гарлаа');
+            }
+            toast.success(data?.message || (mode === 'delete' ? 'QPay устгагдлаа' : 'QPay салгагдлаа'));
+            setShowQpayDeleteConfirm(false);
+            await fetchSettings();
+        } catch (err) {
+            logger.error('unlinkQpay error', { error: err, mode });
+            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
+        } finally {
+            setQpayUnlinking(false);
         }
     }
 
@@ -598,7 +634,38 @@ function SettingsContent() {
                         />
                     </div>
                 </div>
-                <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
+                <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-white/[0.06]">
+                    <div className="flex flex-wrap gap-2">
+                        {qpayStatus === 'active' && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={() => unlinkQpay('disconnect')}
+                                    disabled={qpayUnlinking}
+                                    leftIcon={
+                                        qpayUnlinking ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Unlink className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                        )
+                                    }
+                                >
+                                    Салгах
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="md"
+                                    onClick={() => setShowQpayDeleteConfirm(true)}
+                                    disabled={qpayUnlinking}
+                                    leftIcon={<Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                                    style={{ color: 'var(--destructive)', borderColor: 'color-mix(in oklab, var(--destructive) 35%, transparent)' }}
+                                >
+                                    Устгах
+                                </Button>
+                            </>
+                        )}
+                    </div>
                     <Button
                         variant="primary"
                         size="md"
@@ -621,6 +688,48 @@ function SettingsContent() {
                         Хадгалах
                     </Button>
                 </div>
+
+                {showQpayDeleteConfirm && (
+                    <div className="mt-4 p-4 rounded-xl border border-[color-mix(in_oklab,var(--destructive)_30%,transparent)] bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--destructive)' }} strokeWidth={1.5} />
+                            <div className="flex-1">
+                                <p className="text-[13px] font-semibold text-foreground mb-1 tracking-[-0.01em]">
+                                    QPay merchant-ыг бүрэн устгах уу?
+                                </p>
+                                <p className="text-[12px] text-white/55 mb-3 tracking-[-0.01em]">
+                                    Энэ үйлдэл QPay-ийн талаас merchant бүртгэлийг устгана. Шинээр бүртгэхэд QPay-аас дахин баталгаажуулах шаардлагатай. &quot;Салгах&quot; гэвэл хожим дахин холбох боломжтой.
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowQpayDeleteConfirm(false)}
+                                        disabled={qpayUnlinking}
+                                    >
+                                        Болих
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => unlinkQpay('delete')}
+                                        disabled={qpayUnlinking}
+                                        leftIcon={
+                                            qpayUnlinking ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-3 h-3" strokeWidth={1.5} />
+                                            )
+                                        }
+                                        style={{ background: 'var(--destructive)', borderColor: 'var(--destructive)' }}
+                                    >
+                                        Тийм, устгая
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Platform Connections */}
@@ -745,23 +854,35 @@ function SettingsContent() {
                                         Салгах
                                     </Button>
                                 </>
-                            ) : fbConnected ? (
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    leftIcon={<Link2 className="w-3 h-3" strokeWidth={1.5} />}
-                                    onClick={() => {
-                                        const shopId =
-                                            localStorage.getItem('smarthub_active_shop_id') || '';
-                                        window.location.href = `/api/auth/instagram?source=settings&shop_id=${encodeURIComponent(shopId)}`;
-                                    }}
-                                >
-                                    Холбох
-                                </Button>
                             ) : (
-                                <span className="text-[11px] text-white/40 tracking-[-0.01em]">
-                                    Facebook эхлээд холбоно уу
-                                </span>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {fbConnected && (
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            leftIcon={<Link2 className="w-3 h-3" strokeWidth={1.5} />}
+                                            onClick={() => {
+                                                const shopId =
+                                                    localStorage.getItem('smarthub_active_shop_id') || '';
+                                                window.location.href = `/api/auth/instagram?source=settings&shop_id=${encodeURIComponent(shopId)}`;
+                                            }}
+                                        >
+                                            Facebook хуудсаар
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant={fbConnected ? 'outline' : 'primary'}
+                                        size="sm"
+                                        leftIcon={<Instagram className="w-3 h-3" strokeWidth={1.5} />}
+                                        onClick={() => {
+                                            const shopId =
+                                                localStorage.getItem('smarthub_active_shop_id') || '';
+                                            window.location.href = `/api/auth/instagram-login?source=settings&shop_id=${encodeURIComponent(shopId)}`;
+                                        }}
+                                    >
+                                        Шууд Instagram-р
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </div>

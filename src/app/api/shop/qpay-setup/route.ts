@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { registerShopAsMerchant, BANK_CODES } from '@/lib/payment/qpay-merchant';
+import { registerShopAsMerchant, removeMerchant, BANK_CODES } from '@/lib/payment/qpay-merchant';
 import { logger } from '@/lib/utils/logger';
 
 /**
@@ -131,6 +131,125 @@ export async function POST(request: NextRequest) {
 
     } catch (error: unknown) {
         logger.error('QPay setup error:', { error: error instanceof Error ? error.message : String(error) });
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+
+/**
+ * DELETE /api/shop/qpay-setup?mode=disconnect|delete
+ *
+ * Two operations on a shop's QPay merchant link:
+ *
+ *   - mode=disconnect (default): Clear our DB link (qpay_merchant_id and bank
+ *     fields) but keep the merchant alive on QPay's side. Use this when the
+ *     user wants to reconnect later — re-running the setup with the same
+ *     register_number will lookup-and-reuse the orphan QPay merchant via the
+ *     existing flow in registerShopAsMerchant().
+ *
+ *   - mode=delete: Also call QPay's DELETE /merchant endpoint to permanently
+ *     remove the merchant on their side. Use this when the user wants to
+ *     fully clean up — e.g. they're using the wrong bank/account and want a
+ *     fresh registration with different details.
+ *
+ * Either way the shop's bank fields and QPay status are cleared so the UI
+ * returns to the "QPay идэвхгүй" state.
+ */
+export async function DELETE(request: NextRequest) {
+    try {
+        const authShop = await getAuthUserShop();
+        if (!authShop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const mode = (searchParams.get('mode') || 'disconnect').toLowerCase();
+        if (mode !== 'disconnect' && mode !== 'delete') {
+            return NextResponse.json({
+                error: 'mode must be "disconnect" or "delete"',
+            }, { status: 400 });
+        }
+
+        const supabase = supabaseAdmin();
+
+        const { data: shop } = await supabase
+            .from('shops')
+            .select('qpay_merchant_id, qpay_status')
+            .eq('id', authShop.id)
+            .single();
+
+        if (!shop) {
+            return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
+        }
+
+        // Call QPay DELETE only when mode=delete AND we have a merchant_id.
+        // We tolerate failures here — the user-facing intent is "clean up our
+        // side"; if QPay rejects (e.g. merchant has paid invoices), we still
+        // want to clear our DB and surface a warning.
+        let qpayRemoveOk: boolean | null = null;
+        if (mode === 'delete' && shop.qpay_merchant_id) {
+            try {
+                qpayRemoveOk = await removeMerchant(shop.qpay_merchant_id);
+                if (!qpayRemoveOk) {
+                    logger.warn('QPay removeMerchant returned non-OK', {
+                        shop_id: authShop.id,
+                        merchant_id: shop.qpay_merchant_id,
+                    });
+                }
+            } catch (e) {
+                logger.warn('QPay removeMerchant threw (non-blocking)', {
+                    shop_id: authShop.id,
+                    merchant_id: shop.qpay_merchant_id,
+                    error: e instanceof Error ? e.message : String(e),
+                });
+                qpayRemoveOk = false;
+            }
+        }
+
+        // Clear our DB link in either mode. Leaving qpay_status at 'none'
+        // matches the value the GET endpoint defaults to when no setup has
+        // ever been done.
+        const { error: updateError } = await supabase
+            .from('shops')
+            .update({
+                qpay_merchant_id: null,
+                qpay_bank_code: null,
+                qpay_account_number: null,
+                qpay_account_name: null,
+                qpay_status: 'none',
+            })
+            .eq('id', authShop.id);
+
+        if (updateError) {
+            logger.error('Failed to clear QPay fields on shop', {
+                shop_id: authShop.id,
+                error: updateError.message,
+            });
+            return NextResponse.json({
+                error: 'QPay салгахад алдаа гарлаа',
+            }, { status: 500 });
+        }
+
+        logger.success('QPay merchant unlinked', {
+            shop_id: authShop.id,
+            mode,
+            qpay_remove_ok: qpayRemoveOk,
+        });
+
+        const successMessage = mode === 'delete'
+            ? (qpayRemoveOk === false
+                ? 'QPay-аас бүрэн устгах боломжгүй байсан ч холбоос салгагдлаа.'
+                : 'QPay merchant амжилттай устгагдлаа.')
+            : 'QPay салгагдлаа. Шинээр бүртгэх боломжтой.';
+
+        return NextResponse.json({
+            success: true,
+            mode,
+            qpay_remove_ok: qpayRemoveOk,
+            message: successMessage,
+        });
+
+    } catch (error: unknown) {
+        logger.error('QPay disconnect error:', { error: error instanceof Error ? error.message : String(error) });
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
