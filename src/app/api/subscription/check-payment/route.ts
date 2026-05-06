@@ -41,7 +41,11 @@ export async function POST(request: NextRequest) {
             .eq('shop_id', shop.id)
             .order('created_at', { ascending: false });
 
-        if (!force) {
+        // When the caller supplies an explicit invoice_id, the ID itself is a
+        // precise selector — no need to additionally filter by status. This lets
+        // us recover the invoice even after the webhook flipped it to 'paid'
+        // (the idempotency guard below handles the already-paid case).
+        if (!force && !invoice_id) {
             invoiceQuery.eq('status', 'pending');
         }
 
@@ -65,7 +69,14 @@ export async function POST(request: NextRequest) {
                 .order('created_at', { ascending: false });
 
             if (!force) {
-                paymentQuery.eq('status', 'pending');
+                // Match either pending (user beat the webhook) or recently-paid
+                // (webhook beat the user). The 15-min window matches QPay's
+                // typical invoice expiry, preventing stale paid records from
+                // being mistaken for the user's current payment.
+                const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+                paymentQuery
+                    .gte('created_at', fifteenMinAgo)
+                    .in('status', ['pending', 'paid']);
             }
 
             const { data: paymentRecord } = await paymentQuery.limit(1).maybeSingle();
