@@ -206,15 +206,64 @@ export async function PATCH(request: NextRequest) {
             const nowIso = new Date().toISOString();
             const periodEndIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-            // ── 1. Upsert subscription keyed by user_id (per-user model) ──
-            // Matches the conflict target used by /api/subscription/subscribe
-            // and /api/payment/webhook so /api/subscription/current resolves it.
-            let subUpsertOk = false;
+            // ── 1. Sync subscription (per-user model) ──
+            //
+            // We can NOT use upsert(onConflict:'user_id') because the migration
+            // 20260429110000_user_level_subscription.sql replaces UNIQUE(shop_id)
+            // with a *partial* unique index:
+            //   CREATE UNIQUE INDEX subscriptions_user_active_unique
+            //       ON subscriptions (user_id)
+            //       WHERE status IN ('active','trialing','pending','past_due');
+            // PostgreSQL ON CONFLICT requires a regular unique constraint or
+            // a non-partial unique index, so the upsert errors out with:
+            //   "there is no unique or exclusion constraint matching the
+            //    ON CONFLICT specification".
+            //
+            // Manual SELECT → UPDATE / INSERT pattern instead. We also can't
+            // fall back to inserting with only shop_id because user_id is
+            // NOT NULL on subscriptions post-migration.
+            let subSyncOk = false;
             if (ownerUserId) {
-                const { error: userUpsertError } = await supabase
+                // Find any existing subscription for this user (any status —
+                // partial-unique index allows multiple closed records but only
+                // one open one; either way we update the most recent row).
+                const { data: existing, error: selErr } = await supabase
                     .from('subscriptions')
-                    .upsert(
-                        {
+                    .select('id, status')
+                    .eq('user_id', ownerUserId)
+                    .order('updated_at', { ascending: false, nullsFirst: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (selErr) {
+                    planSync.subscription_upsert_by_user_id = 'failed';
+                    planSync.subscription_upsert_by_user_id_error = `select: ${selErr.message}`;
+                } else if (existing) {
+                    const { error: updErr } = await supabase
+                        .from('subscriptions')
+                        .update({
+                            shop_id: id,
+                            plan_id: plan_id,
+                            status: 'active',
+                            billing_cycle: 'monthly',
+                            current_period_start: nowIso,
+                            current_period_end: periodEndIso,
+                            updated_at: nowIso,
+                        })
+                        .eq('id', existing.id);
+                    if (updErr) {
+                        planSync.subscription_upsert_by_user_id = 'failed';
+                        planSync.subscription_upsert_by_user_id_error = `update: ${updErr.message}`;
+                        logger.error('[Admin Shops] subscription update failed', { id: existing.id, error: updErr.message });
+                    } else {
+                        subSyncOk = true;
+                        planSync.subscription_upsert_by_user_id = 'ok';
+                        logger.info(`[Admin Shops] Updated subscription ${existing.id} for user_id=${ownerUserId} → plan_id=${plan_id}`);
+                    }
+                } else {
+                    const { error: insErr } = await supabase
+                        .from('subscriptions')
+                        .insert({
                             user_id: ownerUserId,
                             shop_id: id,
                             plan_id: plan_id,
@@ -222,69 +271,58 @@ export async function PATCH(request: NextRequest) {
                             billing_cycle: 'monthly',
                             current_period_start: nowIso,
                             current_period_end: periodEndIso,
-                            updated_at: nowIso,
-                        },
-                        { onConflict: 'user_id' }
-                    );
-
-                if (userUpsertError) {
-                    planSync.subscription_upsert_by_user_id = 'failed';
-                    planSync.subscription_upsert_by_user_id_error = userUpsertError.message;
-                    logger.warn('[Admin Shops] subscriptions upsert by user_id failed, falling back to shop_id', {
-                        error: userUpsertError.message,
-                    });
-                } else {
-                    subUpsertOk = true;
-                    planSync.subscription_upsert_by_user_id = 'ok';
-                    logger.info(`[Admin Shops] Upserted subscription by user_id=${ownerUserId} → plan_id=${plan_id}`);
+                        });
+                    if (insErr) {
+                        planSync.subscription_upsert_by_user_id = 'failed';
+                        planSync.subscription_upsert_by_user_id_error = `insert: ${insErr.message}`;
+                        logger.error('[Admin Shops] subscription insert failed', { user_id: ownerUserId, error: insErr.message });
+                    } else {
+                        subSyncOk = true;
+                        planSync.subscription_upsert_by_user_id = 'ok';
+                        logger.info(`[Admin Shops] Inserted subscription for user_id=${ownerUserId} → plan_id=${plan_id}`);
+                    }
                 }
             }
 
-            // ── 1b. Legacy fallback: subscriptions keyed by shop_id ──
-            // Used when ownerUserId is missing (orphan shop) or the
-            // user_id partial-unique index doesn't exist yet.
-            if (!subUpsertOk) {
-                const { data: existingSubscription } = await supabase
+            // ── 1b. Legacy fallback: orphan shops without a valid user_id ──
+            // user_id is NOT NULL post-migration, so we can only update an
+            // existing subscription if one is already linked to this shop.
+            // We do NOT attempt to INSERT here (would violate NOT NULL).
+            if (!subSyncOk) {
+                const { data: existingByShop } = await supabase
                     .from('subscriptions')
                     .select('id')
                     .eq('shop_id', id)
+                    .order('updated_at', { ascending: false, nullsFirst: false })
+                    .limit(1)
                     .maybeSingle();
 
-                if (existingSubscription) {
+                if (existingByShop) {
                     const { error: legacyUpdateErr } = await supabase
                         .from('subscriptions')
                         .update({
                             plan_id: plan_id,
                             status: 'active',
+                            current_period_start: nowIso,
+                            current_period_end: periodEndIso,
                             updated_at: nowIso,
                         })
-                        .eq('id', existingSubscription.id);
+                        .eq('id', existingByShop.id);
                     if (legacyUpdateErr) {
                         planSync.subscription_legacy_by_shop_id = 'failed';
                         planSync.subscription_legacy_error = legacyUpdateErr.message;
                         logger.error('[Admin Shops] (legacy) Update failed', { error: legacyUpdateErr.message });
                     } else {
                         planSync.subscription_legacy_by_shop_id = 'updated';
-                        logger.info(`[Admin Shops] (legacy) Updated subscription ${existingSubscription.id}`);
+                        logger.info(`[Admin Shops] (legacy) Updated subscription ${existingByShop.id} via shop_id`);
                     }
                 } else {
-                    const { error: insertError } = await supabase
-                        .from('subscriptions')
-                        .insert({
-                            shop_id: id,
-                            plan_id: plan_id,
-                            status: 'active',
-                            billing_cycle: 'monthly',
-                            current_period_start: nowIso,
-                            current_period_end: periodEndIso,
-                        });
-                    if (insertError) {
-                        planSync.subscription_legacy_by_shop_id = 'failed';
-                        planSync.subscription_legacy_error = insertError.message;
-                        logger.error('[Admin Shops] (legacy) Failed to insert subscription', { error: insertError.message });
-                    } else {
-                        planSync.subscription_legacy_by_shop_id = 'inserted';
-                    }
+                    // Cannot insert without user_id (NOT NULL). Mark as
+                    // skipped so admin sees the orphan shop diagnostic.
+                    planSync.subscription_legacy_by_shop_id = 'skipped';
+                    planSync.subscription_legacy_error = ownerUserId
+                        ? null
+                        : 'shop has no valid user_id (UUID); subscriptions.user_id NOT NULL prevents insert';
                 }
             }
 
