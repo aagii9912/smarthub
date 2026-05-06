@@ -2,8 +2,13 @@
 
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Browser-side Supabase client (singleton — see lib/supabase-browser.ts).
+// Avoids the "Multiple GoTrueClient instances" warning that the legacy
+// `supabase` export from '@/lib/supabase' produces in browser contexts.
+const supabase = createSupabaseBrowserClient();
 import { useRouter } from 'next/navigation';
 import { formatTimeAgo } from '@/lib/utils/date';
 

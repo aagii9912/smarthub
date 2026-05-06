@@ -2,8 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Package, ArrowLeft, Check, Upload, X, Plus, Layers, Box, FileSpreadsheet, Facebook } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Browser-side Supabase client (singleton — see lib/supabase-browser.ts).
+// We deliberately do NOT import { supabase } from '@/lib/supabase' here:
+// that file's anon export creates a SECOND GoTrueClient instance and
+// triggers the "Multiple GoTrueClient instances" warning.
+const supabase = createSupabaseBrowserClient();
 import { ProductImportModal } from './ProductImportModal';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
