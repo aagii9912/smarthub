@@ -222,6 +222,40 @@ export async function getAIFeatures(shopId: string): Promise<AIFeatures> {
     };
 }
 
+/**
+ * Pull the shop's real payment configuration into a small object that the AI
+ * prompt can render verbatim. This stops the model from inventing bank
+ * accounts ("Хаан банк 5012345678 (Syncly)") or claiming "QPay сайт түр
+ * ажиллахгүй байна" — it now sees the actual state and quotes it.
+ */
+export function buildPaymentConfig(shop: ShopWithProducts): {
+    acceptedMethods: { cod: boolean; qpay: boolean; bank_transfer: boolean };
+    qpayActive: boolean;
+    bankName: string | null;
+    accountName: string | null;
+    accountNumber: string | null;
+} {
+    const s = shop as ShopWithProducts & {
+        accepted_payment_methods?: Record<string, boolean> | null;
+        qpay_status?: string | null;
+        bank_name?: string | null;
+        account_name?: string | null;
+        account_number?: string | null;
+    };
+    const apm = s.accepted_payment_methods ?? {};
+    return {
+        acceptedMethods: {
+            cod: apm.cod !== false,
+            qpay: apm.qpay !== false,
+            bank_transfer: apm.bank_transfer !== false,
+        },
+        qpayActive: s.qpay_status === 'active',
+        bankName: s.bank_name ?? null,
+        accountName: s.account_name ?? null,
+        accountNumber: s.account_number ?? null,
+    };
+}
+
 export function buildNotifySettings(shop: ShopWithProducts): NotifySettings {
     const s = shop as ShopWithProducts & {
         notify_on_payment_received?: boolean | null;

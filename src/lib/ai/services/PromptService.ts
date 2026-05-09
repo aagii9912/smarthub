@@ -303,6 +303,55 @@ export function buildSloganSection(slogans?: ChatContext['slogans']): string {
  * everything at once. Defaults preserve historical behaviour: description
  * + policies share, phone/address/hours don't.
  */
+/**
+ * Build the payment-methods section consumed by sales / checkout prompts.
+ *
+ * Stops the model from inventing bank account numbers or claiming "QPay
+ * сайт түр ажиллахгүй" by giving it the actual configuration verbatim.
+ * Methods that the shop has disabled in /dashboard/settings (and any
+ * structurally missing prerequisite — no QPay merchant, no bank account)
+ * are explicitly listed as forbidden so the model cannot suggest them.
+ */
+function buildPaymentMethodsSection(context: ChatContext): string {
+    const cfg = context.paymentConfig;
+    if (!cfg) return '';
+
+    const enabled: string[] = [];
+    const disabled: string[] = [];
+
+    if (cfg.acceptedMethods?.cod) {
+        enabled.push('• COD (хүргэлтээр авч төлөх) — payment_type="cod" — Монгол default. Хэрэглэгч "хүргэлтээр", "очоод төлнө" гэвэл энэ.');
+    } else {
+        disabled.push('• COD');
+    }
+
+    if (cfg.acceptedMethods?.qpay && cfg.qpayActive) {
+        enabled.push('• QPay (QR төлбөр) — payment_type="qpay" — checkout tool линк үүсгэнэ. "QPay-ээр", "одоо төлнө", "карт", "линк" гэвэл энэ.');
+    } else {
+        disabled.push(cfg.acceptedMethods?.qpay === false
+            ? '• QPay (дэлгүүрийн зүгээс хаасан)'
+            : '• QPay (merchant идэвхгүй)');
+    }
+
+    if (cfg.acceptedMethods?.bank_transfer && cfg.accountNumber) {
+        const bankLine = `• Банк шилжүүлэг — payment_type="bank" — ${cfg.bankName ?? 'Банк'}, данс: ${cfg.accountNumber}, эзэмшигч: ${cfg.accountName ?? '—'}.`;
+        enabled.push(bankLine);
+    } else {
+        disabled.push(cfg.acceptedMethods?.bank_transfer === false
+            ? '• Банк шилжүүлэг (дэлгүүрийн зүгээс хаасан)'
+            : '• Банк шилжүүлэг (данс тохируулагдаагүй)');
+    }
+
+    return `\n\n=== ТӨЛБӨРИЙН ХЭЛБЭРҮҮД (МАШ ЧУХАЛ — ХЭЗЭЭ Ч ЗОХИОЖ БҮҮ ХЭЛ!) ===
+ЗӨВХӨН доорх ИДЭВХТЭЙ хэлбэрүүдийг хэрэглэгчид санал болго:
+${enabled.length > 0 ? enabled.join('\n') : '⚠️ Идэвхтэй төлбөрийн хэлбэр алга — checkout tool алдаа буцаана.'}
+
+ХОРИГЛОСОН (хэлэхгүй, зохиохгүй, "түр ажиллахгүй" гэхгүй — зүгээр л санал болгох жагсаалтад оруулахгүй):
+${disabled.length > 0 ? disabled.join('\n') : '— байхгүй —'}
+
+⚠️ Дансны дугаар, банкны нэр, эзэмшигчийн нэрийг ХЭЗЭЭ Ч өөрөө зохиож БҮҮ ХЭЛ. Дээрх жагсаалтад байгаа яг утгыг л ашиглана. Хэрэв "Банк шилжүүлэг" идэвхгүй бол хэрэглэгчид өөр идэвхтэй сонголтыг санал болго.\n`;
+}
+
 function buildSharedInfoSection(context: ChatContext): string {
     const flags = context.aiShareFlags ?? {};
     const parts: string[] = [];
@@ -333,6 +382,7 @@ export function buildSystemPrompt(context: ChatContext): string {
         ? `\nДЭЛГҮҮРИЙН ТУХАЙ: ${context.shopDescription}`
         : '';
     const sharedInfo = buildSharedInfoSection(context);
+    const paymentMethodsInfo = buildPaymentMethodsSection(context);
     const customInstructions = buildCustomInstructions(context.aiInstructions, context.products);
     const dynamicKnowledge = buildDynamicKnowledge(context.customKnowledge);
     // Policies sharing also gated on the toggle (defaults to true for parity).
@@ -559,7 +609,7 @@ ${roleGoal}
 ${emotionStyle}
 
 ${HUMAN_LIKE_PATTERNS}
-${shopInfo}${sharedInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
+${shopInfo}${sharedInfo}${paymentMethodsInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
 
 ${rolePromptRules}
 

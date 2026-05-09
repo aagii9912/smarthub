@@ -157,6 +157,16 @@ export interface ChatContext {
         policies?: boolean;
         description?: boolean;
     };
+    // Real payment configuration so the AI quotes the shop's actual bank
+    // account / QPay status instead of hallucinating numbers like "Хаан банк
+    // 5012345678 (Syncly)" — which has happened in production.
+    paymentConfig?: {
+        acceptedMethods?: { cod: boolean; qpay: boolean; bank_transfer: boolean };
+        qpayActive?: boolean;
+        bankName?: string | null;
+        accountName?: string | null;
+        accountNumber?: string | null;
+    };
 }
 
 // Chat message for history

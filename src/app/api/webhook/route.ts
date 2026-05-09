@@ -19,6 +19,7 @@ import {
     saveChatHistory,
     incrementMessageCount,
     buildNotifySettings,
+    buildPaymentConfig,
     generateFallbackResponse,
     processAIResponse,
     replyToComment,
@@ -380,6 +381,7 @@ export async function POST(request: NextRequest) {
                                     policies: (shop as unknown as { ai_share_policies?: boolean }).ai_share_policies,
                                     description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
                                 },
+                                paymentConfig: buildPaymentConfig(shop),
                             },
                             previousHistory
                         );
@@ -592,7 +594,40 @@ export async function POST(request: NextRequest) {
                     } else if (payload === 'CANCEL_ORDER') {
                         userMessage = 'Захиалга цуцлах';
                     } else if (payload === 'VIEW_CART') {
-                        userMessage = 'Сагс харах';
+                        // Bypass the AI for this one — letting the model decide
+                        // between view_cart and checkout has caused real-money
+                        // bugs (a "View Cart" tap once auto-checked out the
+                        // entire stale cart). The user just wants to see what's
+                        // in their cart, deterministically.
+                        try {
+                            const { getCartFromDB } = await import('@/lib/ai/helpers/stockHelpers');
+                            const cart = await getCartFromDB(shop.id, customer.id);
+                            let cartMsg: string;
+                            if (!cart || cart.items.length === 0) {
+                                cartMsg = '🛒 Сагс хоосон байна. Аль бараагаа авмаар байгаагаа хэлээрэй.';
+                            } else {
+                                const lines = cart.items.map((it) => {
+                                    const v = it.variant_specs;
+                                    const variantStr = v && Object.values(v).filter(Boolean).length > 0
+                                        ? ` (${Object.values(v).filter(Boolean).join(' / ')})`
+                                        : '';
+                                    return `• ${it.name}${variantStr} × ${it.quantity} = ${(it.unit_price * it.quantity).toLocaleString()}₮`;
+                                }).join('\n');
+                                cartMsg = `🛒 Таны сагс:\n${lines}\n\n💰 Нийт: ${cart.total_amount.toLocaleString()}₮\n\nЗахиалгаа баталгаажуулах уу?`;
+                            }
+                            await sendTextMessage({
+                                recipientId: senderId,
+                                message: cartMsg,
+                                pageAccessToken: accessToken,
+                                authType: igAuthType,
+                            });
+                        } catch (cartErr) {
+                            logger.warn('Direct VIEW_CART failed, falling back to AI', {
+                                error: String(cartErr),
+                            });
+                            userMessage = 'Сагс харах';
+                        }
+                        if (!userMessage) continue;
                     } else if (payload === 'REQUEST_HUMAN') {
                         userMessage = 'Хүн оператор руу шилжүүлнэ үү';
                     } else if (payload === 'CONTINUE_SHOPPING' || payload === 'ADD_MORE' || payload === 'BROWSE_PRODUCTS') {
@@ -655,6 +690,7 @@ export async function POST(request: NextRequest) {
                                         policies: (shop as unknown as { ai_share_policies?: boolean }).ai_share_policies,
                                         description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
                                     },
+                                    paymentConfig: buildPaymentConfig(shop),
                                     subscription: {
                                         plan: billing?.plan || shop.subscription_plan || undefined,
                                         status: billing?.status || shop.subscription_status || undefined,
