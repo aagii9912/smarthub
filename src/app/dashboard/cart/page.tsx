@@ -1,39 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomerList } from '@/components/dashboard/CustomerList';
 import { ActiveCartWidget } from '@/components/dashboard/ActiveCartWidget';
 import { useActiveCarts } from '@/hooks/useActiveCarts';
 import { toast } from 'sonner';
 import {
     ShoppingCart,
-    Loader2,
     ArrowLeft,
     Info,
     RefreshCcw,
-    Send,
-    MessageSquare,
-    User,
-    Bot,
-    PauseCircle,
     Crown,
 } from 'lucide-react';
 import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-
-interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    created_at: string;
-}
-
-interface Conversation {
-    id: string;
-    customer_name: string;
-    messages: ChatMessage[];
-}
 
 export default function CartPage() {
     const { data: carts = [], isLoading, error, refetch } = useActiveCarts();
@@ -41,118 +22,8 @@ export default function CartPage() {
     const [isConverting, setIsConverting] = useState(false);
     const [isReminding, setIsReminding] = useState(false);
 
-    const [replyMessage, setReplyMessage] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-    const [loadingChat, setLoadingChat] = useState(false);
-    const chatEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-
     const shopId =
         typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
-
-    const fetchChatHistory = useCallback(
-        async (customerId: string) => {
-            setLoadingChat(true);
-            setChatMessages([]);
-            try {
-                const res = await fetch('/api/dashboard/conversations', {
-                    headers: { 'x-shop-id': shopId },
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const convo = (data.conversations || []).find(
-                        (c: Conversation) => c.id === customerId
-                    );
-                    if (convo?.messages) {
-                        const sorted = [...convo.messages].sort(
-                            (a: ChatMessage, b: ChatMessage) =>
-                                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                        );
-                        setChatMessages(sorted.slice(-20));
-                    }
-                }
-            } catch {
-                // Silent fail — chat history is supplementary
-            } finally {
-                setLoadingChat(false);
-            }
-        },
-        [shopId]
-    );
-
-    useEffect(() => {
-        if (activeId) {
-            const cart = carts.find((c) => c.id === activeId);
-            if (cart?.customer?.id) {
-                fetchChatHistory(cart.customer.id);
-            }
-        } else {
-            setChatMessages([]);
-        }
-        setReplyMessage('');
-    }, [activeId, carts, fetchChatHistory]);
-
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages]);
-
-    const handleSendReply = async () => {
-        if (!replyMessage.trim() || isSending || !activeId) return;
-        const cart = carts.find((c) => c.id === activeId);
-        if (!cart?.customer?.id) return;
-
-        const messageText = replyMessage.trim();
-        setIsSending(true);
-        setReplyMessage('');
-
-        const optimisticMsg: ChatMessage = {
-            id: `temp-${Date.now()}`,
-            role: 'assistant',
-            content: messageText,
-            created_at: new Date().toISOString(),
-        };
-        setChatMessages((prev) => [...prev, optimisticMsg]);
-
-        try {
-            const res = await fetch('/api/dashboard/conversations/reply', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-shop-id': shopId,
-                },
-                body: JSON.stringify({
-                    customerId: cart.customer.id,
-                    message: messageText,
-                }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Мессеж илгээхэд алдаа гарлаа');
-            }
-
-            toast.success('Мессеж илгээгдлээ');
-            toast('AI agent 30 минут зогссон', {
-                icon: '⏸️',
-                description: 'Та гараар хариулж байгаа учир AI түр зогслоо.',
-            });
-            inputRef.current?.focus();
-        } catch (err: unknown) {
-            toast.error(err instanceof Error ? err.message : 'Алдаа гарлаа');
-            setChatMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
-            setReplyMessage(messageText);
-        } finally {
-            setIsSending(false);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendReply();
-        }
-    };
 
     const handleConvertToOrder = async () => {
         if (!activeId) return;
@@ -283,8 +154,8 @@ export default function CartPage() {
         <PageHero
             eyebrow="Идэвхтэй сагс"
             live
-            title="Сагс ба Төлбөр"
-            subtitle="AI-тай яриа үргэлжилж буй харилцагчдын сагс, тэдэнтэй шууд мессеж солих."
+            title="Сагс"
+            subtitle="AI-тай яриа үргэлжилж буй харилцагчдын сагс. Чат хариулахдаа Inbox-ыг ашиглана уу."
             actions={
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
                     <ShoppingCart
@@ -381,7 +252,7 @@ export default function CartPage() {
                     />
                 </div>
 
-                {/* Right: Active Cart Details + Chat */}
+                {/* Right: Active Cart Details */}
                 <div
                     className={cn(
                         'flex-1 h-full flex flex-col min-w-0',
@@ -421,108 +292,6 @@ export default function CartPage() {
                                         onRemoveItem={handleRemoveItem}
                                         isLoading={isConverting || isReminding}
                                     />
-
-                                    {/* Chat History */}
-                                    <div className="card-outlined overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-                                            <h4 className="text-[11px] font-medium text-white/45 uppercase tracking-[0.08em] flex items-center gap-2">
-                                                <MessageSquare
-                                                    className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]"
-                                                    strokeWidth={1.5}
-                                                />
-                                                Чат түүх
-                                            </h4>
-                                            {chatMessages.length > 0 && (
-                                                <span className="text-[10px] text-white/35 tabular-nums">
-                                                    {chatMessages.length} мессеж
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="max-h-80 overflow-y-auto p-4 space-y-3">
-                                            {loadingChat ? (
-                                                <div className="flex items-center justify-center py-8">
-                                                    <Loader2 className="w-4 h-4 text-white/30 animate-spin" />
-                                                </div>
-                                            ) : chatMessages.length === 0 ? (
-                                                <div className="text-center py-8">
-                                                    <MessageSquare
-                                                        className="w-8 h-8 text-white/15 mx-auto mb-2"
-                                                        strokeWidth={1.5}
-                                                    />
-                                                    <p className="text-[12px] text-white/30">
-                                                        Чат түүх хоосон байна
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                chatMessages.map((msg) => (
-                                                    <div
-                                                        key={msg.id}
-                                                        className={cn(
-                                                            'flex gap-2',
-                                                            msg.role === 'assistant'
-                                                                ? 'justify-end'
-                                                                : 'justify-start'
-                                                        )}
-                                                    >
-                                                        {msg.role === 'user' && (
-                                                            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo-400)]">
-                                                                <User className="w-3 h-3" />
-                                                            </div>
-                                                        )}
-                                                        <div
-                                                            className={cn(
-                                                                'max-w-[75%] rounded-xl px-3 py-2',
-                                                                msg.role === 'assistant'
-                                                                    ? 'rounded-br-sm text-foreground'
-                                                                    : 'rounded-bl-sm bg-white/[0.05] text-white/80'
-                                                            )}
-                                                            style={
-                                                                msg.role === 'assistant'
-                                                                    ? {
-                                                                          background:
-                                                                              'linear-gradient(135deg, var(--brand-indigo), var(--brand-violet-500))',
-                                                                      }
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            <p className="text-[12px] leading-relaxed whitespace-pre-wrap break-words tracking-[-0.01em]">
-                                                                {msg.content}
-                                                            </p>
-                                                            <p
-                                                                className={cn(
-                                                                    'text-[9px] mt-1 tabular-nums',
-                                                                    msg.role === 'assistant'
-                                                                        ? 'text-white/60'
-                                                                        : 'text-white/30'
-                                                                )}
-                                                            >
-                                                                {new Date(
-                                                                    msg.created_at
-                                                                ).toLocaleTimeString('mn-MN', {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                })}
-                                                            </p>
-                                                        </div>
-                                                        {msg.role === 'assistant' && (
-                                                            <div
-                                                                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                                                                style={{
-                                                                    background:
-                                                                        'color-mix(in oklab, var(--success) 18%, transparent)',
-                                                                    color: 'var(--success)',
-                                                                }}
-                                                            >
-                                                                <Bot className="w-3 h-3" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))
-                                            )}
-                                            <div ref={chatEndRef} />
-                                        </div>
-                                    </div>
 
                                     {/* Customer Info Card */}
                                     <div className="card-outlined p-5">
@@ -589,55 +358,6 @@ export default function CartPage() {
                                         </dl>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Reply bar */}
-                            <div className="border-t border-white/[0.06] px-4 py-3 bg-white/[0.015]">
-                                {activeCart.customer.facebookId ? (
-                                    <>
-                                        <div className="max-w-2xl mx-auto flex items-center gap-2 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-2.5 focus-within:border-[var(--border-accent)] focus-within:bg-white/[0.05] transition-colors">
-                                            <input
-                                                ref={inputRef}
-                                                type="text"
-                                                value={replyMessage}
-                                                onChange={(e) => setReplyMessage(e.target.value)}
-                                                onKeyDown={handleKeyDown}
-                                                placeholder="Мессеж бичих... (Enter = илгээх)"
-                                                disabled={isSending}
-                                                className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-white/35 outline-none px-1.5 py-1 disabled:opacity-50 tracking-[-0.01em]"
-                                            />
-                                            <button
-                                                onClick={handleSendReply}
-                                                disabled={!replyMessage.trim() || isSending}
-                                                className="h-9 w-9 rounded-lg flex items-center justify-center text-white disabled:opacity-30 disabled:pointer-events-none transition-transform active:scale-95"
-                                                style={{
-                                                    background:
-                                                        'linear-gradient(135deg, var(--brand-indigo), var(--brand-violet-500))',
-                                                    boxShadow: 'var(--shadow-cta-indigo)',
-                                                }}
-                                                aria-label="Send"
-                                            >
-                                                {isSending ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                ) : (
-                                                    <Send className="w-4 h-4" />
-                                                )}
-                                            </button>
-                                        </div>
-                                        <p className="max-w-2xl mx-auto text-[11px] text-white/35 mt-2 flex items-center gap-1 tracking-[-0.01em]">
-                                            <PauseCircle className="w-3 h-3" />
-                                            Гараар хариулахад AI agent 30 мин зогсно
-                                        </p>
-                                    </>
-                                ) : (
-                                    <p
-                                        className="max-w-2xl mx-auto text-[11px] flex items-center gap-1.5 py-1 tracking-[-0.01em]"
-                                        style={{ color: 'var(--warning)' }}
-                                    >
-                                        <Info className="w-3.5 h-3.5 shrink-0" />
-                                        Хэрэглэгчид Facebook ID байхгүй тул мессеж илгээх боломжгүй
-                                    </p>
-                                )}
                             </div>
                         </div>
                     ) : (
