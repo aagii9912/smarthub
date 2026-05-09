@@ -21,6 +21,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/cleanup-orders",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/check-trial-expiry",
       "schedule": "0 1 * * *"
     },
