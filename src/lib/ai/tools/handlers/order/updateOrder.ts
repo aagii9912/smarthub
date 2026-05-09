@@ -50,12 +50,40 @@ export async function executeUpdateOrder(
                     return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
                 }
 
+                // Adjust the product's reserved_stock to reflect the new
+                // quantity. Without this the eventual atomic stock deduction
+                // would either overshoot (and "borrow" from another customer)
+                // or undershoot (and leave a phantom reservation behind).
+                const delta = new_quantity - item.quantity;
+                if (delta !== 0) {
+                    const { data: ok, error: reserveError } = await supabase.rpc(
+                        'reserve_stock',
+                        { p_product_id: item.product_id, p_quantity: delta },
+                    );
+                    if (reserveError || (delta > 0 && !ok)) {
+                        logger.warn('change_quantity: reservation adjust failed', {
+                            error: reserveError,
+                            delta,
+                        });
+                        return { success: false, error: 'Үлдэгдэл хүрэлцэхгүй байна.' };
+                    }
+                }
+
                 const { error: updateError } = await supabase
                     .from('order_items')
                     .update({ quantity: new_quantity })
                     .eq('id', item.id);
 
-                if (updateError) throw updateError;
+                if (updateError) {
+                    // Roll back the reservation delta if updating the row failed
+                    if (delta !== 0) {
+                        await supabase.rpc('reserve_stock', {
+                            p_product_id: item.product_id,
+                            p_quantity: -delta,
+                        });
+                    }
+                    throw updateError;
+                }
 
                 const newTotal = orderItems.reduce((sum, i) => {
                     const qty = i.id === item.id ? new_quantity : i.quantity;
@@ -88,6 +116,14 @@ export async function executeUpdateOrder(
                 if (!item) {
                     return { success: false, error: `"${product_name}" захиалгад олдсонгүй.` };
                 }
+
+                // Release the reservation that this item was holding. Without
+                // this, products.reserved_stock keeps blocking future orders
+                // even though no one is buying the item anymore.
+                await supabase.rpc('reserve_stock', {
+                    p_product_id: item.product_id,
+                    p_quantity: -item.quantity,
+                });
 
                 await supabase.from('order_items').delete().eq('id', item.id);
 
@@ -146,16 +182,40 @@ export async function executeUpdateOrder(
                     return { success: false, error: `"${product_name}" бараа олдсонгүй.` };
                 }
 
+                // Reserve stock atomically before inserting the order_item so
+                // that the eventual stock deduction (atomic_claim_stock_deduction)
+                // doesn't "borrow" from other customers' reservations.
+                const { data: reserved, error: reserveError } = await supabase.rpc(
+                    'reserve_stock',
+                    { p_product_id: product.id, p_quantity: quantity },
+                );
+                if (reserveError || !reserved) {
+                    logger.warn('add_item: stock reservation failed', { error: reserveError });
+                    return { success: false, error: 'Үлдэгдэл хүрэлцэхгүй байна. Дахин оролдоно уу.' };
+                }
+
                 const unitPrice = product.discount_percent
                     ? Math.round(product.price * (1 - product.discount_percent / 100))
                     : product.price;
 
-                await supabase.from('order_items').insert({
+                const { error: itemError } = await supabase.from('order_items').insert({
                     order_id: orderId,
                     product_id: product.id,
                     quantity,
                     unit_price: unitPrice
                 });
+
+                if (itemError) {
+                    // Roll back the reservation if the insert failed
+                    await supabase.rpc('reserve_stock', {
+                        p_product_id: product.id,
+                        p_quantity: -quantity,
+                    });
+                    logger.error('add_item: order_item insert failed, reservation released', {
+                        error: itemError.message,
+                    });
+                    return { success: false, error: 'Захиалгад нэмэхэд алдаа гарлаа. Дахин оролдоно уу.' };
+                }
 
                 const orderItems = (pendingOrder.order_items ?? []) as OrderItemRow[];
                 const currentTotal = orderItems.reduce(
