@@ -63,6 +63,29 @@ export async function executeCreateOrder(
         return { success: false, error: 'Missing shop or customer ID context.' };
     }
 
+    // Honor shop-level payment-method toggles. Determines:
+    //   - which payment_method is stamped on the new pending order
+    //   - which checkout buttons are surfaced to the customer
+    const { data: shopPrefs } = await supabase
+        .from('shops')
+        .select('accepted_payment_methods, qpay_status, account_number')
+        .eq('id', context.shopId)
+        .single();
+
+    const apm = (shopPrefs?.accepted_payment_methods ?? {
+        cod: true,
+        qpay: true,
+        bank_transfer: true,
+    }) as Record<string, boolean>;
+    const codEnabled = apm.cod !== false;
+    const qpayEnabled = apm.qpay !== false && shopPrefs?.qpay_status === 'active';
+    const bankEnabled = apm.bank_transfer !== false && !!shopPrefs?.account_number;
+
+    // Pick the most-Mongolian-friendly default that the shop has enabled.
+    // Order: cod → qpay → bank. If somehow nothing is enabled, default to
+    // 'cod' (the order is still created; the customer can be helped manually).
+    const defaultPaymentMethod = codEnabled ? 'cod' : qpayEnabled ? 'qpay' : bankEnabled ? 'bank_transfer' : 'cod';
+
     // Idempotency: only suppress an order when it looks like an accidental
     // double-click — i.e. an EXACT match (product + quantity + variant)
     // submitted within the last 5 seconds. A wider window or a partial match
@@ -144,9 +167,10 @@ export async function executeCreateOrder(
             status: isPreOrder ? 'pending' : 'pending',
             total_amount: dbProduct.price * quantity,
             notes: orderNotes,
-            // Default payment method for Mongolian shops is Cash on Delivery —
-            // payment is collected when the courier hands over the goods.
-            payment_method: 'cod',
+            // Default payment method comes from the shop's enabled methods.
+            // Falls back to COD when nothing else is configured — Mongolian
+            // shops most commonly collect on delivery.
+            payment_method: defaultPaymentMethod,
             payment_status: 'pending',
             created_at: new Date().toISOString()
         })
@@ -206,6 +230,23 @@ export async function executeCreateOrder(
         ? `Урьдчилсан захиалга #${order.id.substring(0, 8)} бүртгэгдлээ! Бараа${dbPreOrderEta ? ` ${new Date(dbPreOrderEta).toISOString().slice(0, 10)}` : ''} ирэх төлөвтэй. Нийт: ${(dbProduct.price * quantity).toLocaleString()}₮.`
         : `Success! Order #${order.id.substring(0, 8)} created. Total: ${(dbProduct.price * quantity).toLocaleString()}₮. Stock reserved.`;
 
+    // Build the action buttons honoring the shop's accepted methods. The
+    // first enabled method becomes the primary button, the rest secondary.
+    type Btn = { id: string; label: string; variant: 'primary' | 'secondary'; payload: string };
+    const checkoutButtons: Btn[] = [];
+    if (codEnabled) {
+        checkoutButtons.push({ id: 'cod', label: '📦 Хүргэлтээр авч төлөх', variant: 'primary', payload: 'CHECKOUT_COD' });
+    }
+    if (qpayEnabled) {
+        checkoutButtons.push({ id: 'checkout_now', label: '💳 QPay-ээр төлөх', variant: codEnabled ? 'secondary' : 'primary', payload: 'CHECKOUT' });
+    }
+    if (bankEnabled && !qpayEnabled) {
+        // Only surface the bank option when QPay isn't there; otherwise QPay
+        // already covers the "pay now" case and bank-transfer would just clutter.
+        checkoutButtons.push({ id: 'bank', label: '🏦 Дансаар шилжүүлэх', variant: 'secondary', payload: 'CHECKOUT_BANK' });
+    }
+    checkoutButtons.push({ id: 'continue', label: '🛒 Үргэлжлүүлэх', variant: 'secondary', payload: 'CONTINUE_SHOPPING' });
+
     return {
         success: true,
         message: successMessage,
@@ -213,26 +254,7 @@ export async function executeCreateOrder(
         actions: [
             {
                 type: 'confirmation',
-                buttons: [
-                    {
-                        id: 'cod',
-                        label: '📦 Хүргэлтээр авч төлөх',
-                        variant: 'primary',
-                        payload: 'CHECKOUT_COD',
-                    },
-                    {
-                        id: 'checkout_now',
-                        label: '💳 Шууд төлөх',
-                        variant: 'secondary',
-                        payload: 'CHECKOUT',
-                    },
-                    {
-                        id: 'continue',
-                        label: '🛒 Үргэлжлүүлэх',
-                        variant: 'secondary',
-                        payload: 'CONTINUE_SHOPPING',
-                    },
-                ],
+                buttons: checkoutButtons,
                 context: { order_id: order.id },
             },
         ],

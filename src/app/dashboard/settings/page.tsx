@@ -108,6 +108,11 @@ function SettingsContent() {
         register_number: '',
         merchant_type: 'person' as 'person' | 'company',
     });
+    const [acceptedMethods, setAcceptedMethods] = useState({
+        cod: true,
+        qpay: true,
+        bank_transfer: true,
+    });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
     const [qpayStatus, setQpayStatus] = useState<string>('none');
@@ -143,6 +148,14 @@ function SettingsContent() {
                 setFbConnected(!!data.shop.facebook_page_id);
                 setIgConnected(!!data.shop.instagram_business_account_id);
                 setQpayStatus(data.shop.qpay_status || 'none');
+                if (data.shop.accepted_payment_methods && typeof data.shop.accepted_payment_methods === 'object') {
+                    const apm = data.shop.accepted_payment_methods as Record<string, boolean>;
+                    setAcceptedMethods({
+                        cod: apm.cod !== false,
+                        qpay: apm.qpay !== false,
+                        bank_transfer: apm.bank_transfer !== false,
+                    });
+                }
             }
         } catch (e) {
             logger.error('Алдаа гарлаа', { error: e });
@@ -730,6 +743,92 @@ function SettingsContent() {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Accepted Payment Methods */}
+            <div className="card-outlined p-6">
+                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-2">
+                    <CreditCard className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
+                    Хүлээж авах төлбөрийн хэлбэрүүд
+                </h3>
+                <p className="text-[12px] text-white/45 tracking-[-0.01em] mb-5">
+                    AI чатанд эдгээр сонголтуудаас идэвхтэйг нь хэрэглэгчид санал болгоно. Хамгийн багадаа нэг сонголт идэвхтэй байх ёстой.
+                </p>
+
+                <div className="space-y-2">
+                    {[
+                        {
+                            key: 'cod' as const,
+                            title: '📦 Хүргэлтээр төлөх (COD)',
+                            desc: 'Бараа хүргэгдсэний дараа хэрэглэгч төлбөрөө төлнө. Монгол хэрэглэгчдэд хамгийн нийтлэг.',
+                        },
+                        {
+                            key: 'qpay' as const,
+                            title: '💳 QPay (шууд төлбөр)',
+                            desc: 'QR код / банк апп-аар шууд төлүүлнэ. QPay merchant идэвхтэй байх шаардлагатай.',
+                        },
+                        {
+                            key: 'bank_transfer' as const,
+                            title: '🏦 Дансаар шилжүүлэг',
+                            desc: 'Хэрэглэгч өөрөө дансанд шилжүүлээд баримт явуулна. Дансны мэдээлэл шаардлагатай.',
+                        },
+                    ].map((m) => (
+                        <label
+                            key={m.key}
+                            className={cn(
+                                'flex items-start justify-between gap-4 p-4 rounded-xl border transition-colors cursor-pointer',
+                                acceptedMethods[m.key]
+                                    ? 'border-[var(--brand-indigo)]/40 bg-[color-mix(in_oklab,var(--brand-indigo)_8%,transparent)]'
+                                    : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1]'
+                            )}
+                        >
+                            <div className="flex-1">
+                                <p className="text-[13px] font-medium text-foreground tracking-[-0.01em]">
+                                    {m.title}
+                                </p>
+                                <p className="text-[11px] text-white/45 mt-0.5 tracking-[-0.01em]">
+                                    {m.desc}
+                                </p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={acceptedMethods[m.key]}
+                                onChange={(e) =>
+                                    setAcceptedMethods((prev) => ({
+                                        ...prev,
+                                        [m.key]: e.target.checked,
+                                    }))
+                                }
+                                className="mt-1 w-4 h-4 accent-[var(--brand-indigo)] cursor-pointer"
+                            />
+                        </label>
+                    ))}
+                </div>
+
+                <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => {
+                            const anyEnabled = Object.values(acceptedMethods).some(Boolean);
+                            if (!anyEnabled) {
+                                toast.error('Хамгийн багадаа нэг төлбөрийн хэлбэр идэвхтэй байх ёстой');
+                                return;
+                            }
+                            saveSettings({ accepted_payment_methods: acceptedMethods });
+                        }}
+                        disabled={saving}
+                        leftIcon={
+                            saving ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Save className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            )
+                        }
+                    >
+                        Хадгалах
+                    </Button>
+                </div>
             </div>
 
             {/* Platform Connections */}

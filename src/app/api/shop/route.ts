@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data, ai_agent_role, ai_agent_capabilities, ai_agent_config, ai_agent_name, ai_setup_completed_at').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data, ai_agent_role, ai_agent_capabilities, ai_agent_config, ai_agent_name, ai_setup_completed_at, accepted_payment_methods').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -231,6 +231,8 @@ export async function PATCH(request: NextRequest) {
       // AI agent role / capabilities (multi-agent support)
       'ai_agent_role', 'ai_agent_capabilities', 'ai_agent_config',
       'ai_agent_name', 'ai_setup_completed_at',
+      // Accepted payment methods toggle (shop-level)
+      'accepted_payment_methods',
     ] as const;
 
     const ALLOWED_BUSINESS_TYPES = [
@@ -288,6 +290,28 @@ export async function PATCH(request: NextRequest) {
     if (sanitizedUpdate.ai_agent_name !== undefined && sanitizedUpdate.ai_agent_name !== null) {
       if (typeof sanitizedUpdate.ai_agent_name !== 'string' || sanitizedUpdate.ai_agent_name.length > 100) {
         return NextResponse.json({ error: 'ai_agent_name must be a string up to 100 chars' }, { status: 400 });
+      }
+    }
+    // accepted_payment_methods — must be a plain object with boolean values
+    // for known method keys. At least one method must remain enabled.
+    if (sanitizedUpdate.accepted_payment_methods !== undefined) {
+      const v = sanitizedUpdate.accepted_payment_methods;
+      const ALLOWED_METHODS = ['cod', 'qpay', 'bank_transfer'];
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+        return NextResponse.json({ error: 'accepted_payment_methods must be an object' }, { status: 400 });
+      }
+      const obj = v as Record<string, unknown>;
+      for (const key of Object.keys(obj)) {
+        if (!ALLOWED_METHODS.includes(key)) {
+          return NextResponse.json({ error: `Unknown payment method: ${key}` }, { status: 400 });
+        }
+        if (typeof obj[key] !== 'boolean') {
+          return NextResponse.json({ error: `Payment method ${key} must be boolean` }, { status: 400 });
+        }
+      }
+      const anyEnabled = ALLOWED_METHODS.some((m) => obj[m] === true);
+      if (!anyEnabled) {
+        return NextResponse.json({ error: 'Хамгийн багадаа нэг төлбөрийн хэлбэр идэвхтэй байх ёстой' }, { status: 400 });
       }
     }
 

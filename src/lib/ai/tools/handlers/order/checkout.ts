@@ -96,12 +96,45 @@ export async function executeCheckout(
         delivery_address: customerData?.data?.address || null,
     }).eq('id', orderId);
 
-    // Get shop details (QPay merchant + bank info)
+    // Get shop details (QPay merchant + bank info + accepted payment methods)
     const { data: shop } = await supabase
         .from('shops')
-        .select('name, bank_name, account_number, account_name, qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status, address')
+        .select('name, bank_name, account_number, account_name, qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status, address, accepted_payment_methods')
         .eq('id', context.shopId)
         .single();
+
+    // Honor shop-level payment-method toggles. If the AI/customer asked for a
+    // disabled method, transparently fall back to the first enabled one in
+    // priority order (cod > qpay > bank). This prevents the checkout from
+    // creating an order the shop has no intention of fulfilling.
+    const acceptedMethods = (shop?.accepted_payment_methods ?? {
+        cod: true,
+        qpay: true,
+        bank_transfer: true,
+    }) as Record<string, boolean>;
+
+    let resolvedPaymentType: 'cod' | 'qpay' | 'bank' = payment_type;
+    const isMethodEnabled = (t: 'cod' | 'qpay' | 'bank') => {
+        if (t === 'cod') return acceptedMethods.cod !== false;
+        if (t === 'qpay') return acceptedMethods.qpay !== false;
+        if (t === 'bank') return acceptedMethods.bank_transfer !== false;
+        return false;
+    };
+    if (!isMethodEnabled(resolvedPaymentType)) {
+        if (isMethodEnabled('cod')) resolvedPaymentType = 'cod';
+        else if (isMethodEnabled('qpay')) resolvedPaymentType = 'qpay';
+        else if (isMethodEnabled('bank')) resolvedPaymentType = 'bank';
+        else {
+            return {
+                success: false,
+                error: 'Дэлгүүрийн зүгээс ямар ч төлбөрийн хэлбэр идэвхжүүлээгүй байна. Дэлгүүрийн эзэнтэй холбогдоно уу.',
+            };
+        }
+        logger.info('payment_type fell back due to shop settings:', {
+            requested: payment_type,
+            resolved: resolvedPaymentType,
+        });
+    }
 
     // Total amount including delivery fee
     const totalWithDelivery = cart.total_amount + totalDeliveryFee;
@@ -114,7 +147,7 @@ export async function executeCheckout(
     // Энэ flow-д QPay invoice үүсгэхгүй. Захиалга шууд 'pending'
     // payment_status-тэй үүсэх ба delivered болсны дараа trigger
     // автоматаар paid болгоно (20260509100000_cash_on_delivery.sql).
-    if (payment_type === 'cod') {
+    if (resolvedPaymentType === 'cod') {
         await supabase
             .from('orders')
             .update({
@@ -179,7 +212,7 @@ export async function executeCheckout(
     }
 
     // ── QPay Invoice (using shop's own merchant) ──
-    if (payment_type === 'qpay' && shop?.qpay_merchant_id && shop.qpay_status === 'active') {
+    if (resolvedPaymentType === 'qpay' && shop?.qpay_merchant_id && shop.qpay_status === 'active') {
         try {
             const qpayInvoice = await createShopOrderInvoice({
                 shopMerchantId: shop.qpay_merchant_id,

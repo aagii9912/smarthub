@@ -582,9 +582,11 @@ export async function POST(request: NextRequest) {
                         const productName = payload.replace('DETAILS_', '');
                         userMessage = `${productName}-ийн талаар дэлгэрэнгүй хэлж өгнө үү`;
                     } else if (payload === 'CHECKOUT') {
-                        userMessage = 'Төлбөр шууд төлөх';
+                        userMessage = 'QPay-ээр шууд төлнө';
                     } else if (payload === 'CHECKOUT_COD') {
-                        userMessage = 'Хүргэлтээр авч төлөх';
+                        userMessage = 'Хүргэлтээр авч төлнө';
+                    } else if (payload === 'CHECKOUT_BANK') {
+                        userMessage = 'Дансаар шилжүүлж төлнө';
                     } else if (payload === 'CHECK_PAYMENT') {
                         userMessage = 'Төлбөр шалгах';
                     } else if (payload === 'CANCEL_ORDER') {
