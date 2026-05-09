@@ -12,7 +12,7 @@ export async function executeCheckout(
     args: CheckoutArgs,
     context: ToolExecutionContext
 ): Promise<ToolExecutionResult> {
-    const { notes } = args;
+    const { notes, payment_type = 'cod' } = args;
     const supabase = supabaseAdmin();
 
     if (!context.customerId) {
@@ -110,8 +110,76 @@ export async function executeCheckout(
     let qpaySuccess = false;
     let paymentLink = '';
 
+    // ── Cash on Delivery: бараа хүргэгдсэний дараа төлнө ──
+    // Энэ flow-д QPay invoice үүсгэхгүй. Захиалга шууд 'pending'
+    // payment_status-тэй үүсэх ба delivered болсны дараа trigger
+    // автоматаар paid болгоно (20260509100000_cash_on_delivery.sql).
+    if (payment_type === 'cod') {
+        await supabase
+            .from('orders')
+            .update({
+                payment_method: 'cod',
+                payment_status: 'pending',
+                total_amount: totalWithDelivery,
+            })
+            .eq('id', orderId);
+
+        const { data: payment } = await supabase
+            .from('payments')
+            .insert({
+                order_id: orderId,
+                shop_id: context.shopId,
+                payment_type: 'order',
+                payment_method: 'cod',
+                amount: totalWithDelivery,
+                status: 'pending',
+                metadata: {
+                    source: 'ai_checkout',
+                    delivery_fee: totalDeliveryFee,
+                    delivery_method: deliveryMethod,
+                },
+            })
+            .select('id')
+            .single();
+
+        if (payment) paymentId = payment.id;
+
+        // Send notification (fire-and-forget)
+        if (context.notifySettings?.order !== false) {
+            try {
+                await sendOrderNotification(context.shopId, 'new', {
+                    orderId,
+                    customerName: context.customerName,
+                    totalAmount: totalWithDelivery,
+                });
+            } catch (notifyError) {
+                logger.warn('Notification failed but COD order created:', { error: String(notifyError) });
+            }
+        }
+
+        const cartAmount = cart.total_amount.toLocaleString();
+        const totalAmount = totalWithDelivery.toLocaleString();
+        const deliveryInfoMsg = totalDeliveryFee > 0
+            ? `\n🛍️ Бараа: ${cartAmount}₮\n🚚 Хүргэлт: ${totalDeliveryFee.toLocaleString()}₮\n💰 Нийт: ${totalAmount}₮`
+            : `\nНийт дүн: ${totalAmount}₮`;
+
+        return {
+            success: true,
+            message: `✅ Захиалга #${orderId.substring(0, 8)} амжилттай үүслээ!${deliveryInfoMsg}\n\n📦 Төлбөрийн хэлбэр: Хүргэлтээр (бараа хүргэгдсэний дараа төлнө)\n\nХүргэлтийн ажилтан тантай удахгүй холбогдоно. Баярлалаа! 🙏`,
+            data: {
+                order_id: orderId,
+                payment_id: paymentId,
+                payment_link: null,
+                qpay: false,
+                payment_type: 'cod',
+                delivery_fee: totalDeliveryFee,
+                delivery_method: deliveryMethod,
+            },
+        };
+    }
+
     // ── QPay Invoice (using shop's own merchant) ──
-    if (shop?.qpay_merchant_id && shop.qpay_status === 'active') {
+    if (payment_type === 'qpay' && shop?.qpay_merchant_id && shop.qpay_status === 'active') {
         try {
             const qpayInvoice = await createShopOrderInvoice({
                 shopMerchantId: shop.qpay_merchant_id,
@@ -170,15 +238,18 @@ export async function executeCheckout(
         }
     }
 
-    // Fallback: bank transfer payment record
+    // Fallback: bank transfer payment record (when payment_type='bank' or
+    // QPay request failed). Customer transfers manually and shop owner
+    // confirms via dashboard.
     if (!qpaySuccess) {
+        const fallbackMethod = shop?.account_number ? 'bank_transfer' : 'cod';
         const { data: payment } = await supabase
             .from('payments')
             .insert({
                 order_id: orderId,
                 shop_id: context.shopId,
                 payment_type: 'order',
-                payment_method: shop?.account_number ? 'bank_transfer' : 'cash',
+                payment_method: fallbackMethod,
                 amount: totalWithDelivery,
                 status: 'pending',
             })
@@ -187,13 +258,14 @@ export async function executeCheckout(
 
         if (payment) paymentId = payment.id;
 
-        // Update order total_amount with delivery fee
-        if (totalDeliveryFee > 0) {
-            await supabase
-                .from('orders')
-                .update({ total_amount: totalWithDelivery })
-                .eq('id', orderId);
-        }
+        await supabase
+            .from('orders')
+            .update({
+                payment_method: fallbackMethod,
+                payment_status: 'pending',
+                total_amount: totalWithDelivery,
+            })
+            .eq('id', orderId);
     }
 
     // Send notification

@@ -63,35 +63,57 @@ export async function executeCreateOrder(
         return { success: false, error: 'Missing shop or customer ID context.' };
     }
 
-    // Idempotency: check for duplicate pending orders
-    const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-    const { data: existingOrder } = await supabase
+    // Idempotency: only suppress an order when it looks like an accidental
+    // double-click — i.e. an EXACT match (product + quantity + variant)
+    // submitted within the last 5 seconds. A wider window or a partial match
+    // (just product_id) is dangerous: a customer changing the quantity or
+    // ordering a different variant of the same product would otherwise be
+    // shown the previous order's total instead of getting a fresh one.
+    //
+    // Variant info lives in `order_items.variant_specs` JSONB, NOT in
+    // standalone `color` / `size` columns (those don't exist).
+    const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+    const { data: recentDuplicates } = await supabase
         .from('orders')
-        .select('id, total_amount')
+        .select('id, total_amount, order_items(product_id, quantity, variant_specs)')
         .eq('customer_id', context.customerId)
         .eq('shop_id', context.shopId)
         .eq('status', 'pending')
-        .gt('created_at', thirtySecondsAgo)
+        .gt('created_at', fiveSecondsAgo)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(3);
 
-    if (existingOrder) {
-        const { data: verifyItem } = await supabase
-            .from('order_items')
-            .select('product_id')
-            .eq('order_id', existingOrder.id)
-            .eq('product_id', product.id)
-            .single();
+    type DupItem = {
+        product_id: string;
+        quantity: number;
+        variant_specs: Record<string, string> | null;
+    };
+    type DupOrder = { id: string; total_amount: number; order_items: DupItem[] };
 
-        if (verifyItem) {
-            logger.info('Duplicate order prevented, returning existing:', { orderId: existingOrder.id });
-            return {
-                success: true,
-                message: `Success! Order #${existingOrder.id.substring(0, 8)} created (Found existing). Total: ${existingOrder.total_amount.toLocaleString()}₮.`,
-                data: { orderId: existingOrder.id, total: existingOrder.total_amount }
-            };
-        }
+    const normVariant = (v: Record<string, string> | null | undefined) => {
+        const c = v?.color ?? null;
+        const s = v?.size ?? null;
+        return `${c ?? ''}::${s ?? ''}`;
+    };
+    const wantedVariant = normVariant({ color: color ?? '', size: size ?? '' });
+
+    const exactDuplicate = (recentDuplicates as DupOrder[] | null)?.find((o) => {
+        if (!o.order_items || o.order_items.length !== 1) return false;
+        const it = o.order_items[0];
+        return (
+            it.product_id === product.id &&
+            Number(it.quantity) === Number(quantity) &&
+            normVariant(it.variant_specs) === wantedVariant
+        );
+    });
+
+    if (exactDuplicate) {
+        logger.info('Exact duplicate order suppressed (≤5s window):', { orderId: exactDuplicate.id });
+        return {
+            success: true,
+            message: `Success! Order #${exactDuplicate.id.substring(0, 8)} created (Found existing). Total: ${exactDuplicate.total_amount.toLocaleString()}₮.`,
+            data: { orderId: exactDuplicate.id, total: exactDuplicate.total_amount }
+        };
     }
 
     // Atomic stock reservation (prevents race conditions via SELECT ... FOR UPDATE).
@@ -122,6 +144,10 @@ export async function executeCreateOrder(
             status: isPreOrder ? 'pending' : 'pending',
             total_amount: dbProduct.price * quantity,
             notes: orderNotes,
+            // Default payment method for Mongolian shops is Cash on Delivery —
+            // payment is collected when the courier hands over the goods.
+            payment_method: 'cod',
+            payment_status: 'pending',
             created_at: new Date().toISOString()
         })
         .select()
@@ -139,13 +165,20 @@ export async function executeCreateOrder(
         return { success: false, error: orderError.message };
     }
 
+    // Build variant_specs JSONB ({color, size}). The standalone `color` /
+    // `size` columns do NOT exist on order_items — variant info is stored
+    // in this JSONB. Previously the code wrote color/size as top-level
+    // columns and PostgREST silently dropped them.
+    const variantSpecs: Record<string, string> = {};
+    if (color) variantSpecs.color = color;
+    if (size) variantSpecs.size = size;
+
     const { error: itemError } = await supabase.from('order_items').insert({
         order_id: order.id,
         product_id: product.id,
         quantity: quantity,
         unit_price: dbProduct.price,
-        color: color || null,
-        size: size || null
+        variant_specs: Object.keys(variantSpecs).length > 0 ? variantSpecs : {},
     });
 
     if (itemError) {
@@ -182,9 +215,15 @@ export async function executeCreateOrder(
                 type: 'confirmation',
                 buttons: [
                     {
-                        id: 'checkout_now',
-                        label: '💳 Төлбөр төлөх',
+                        id: 'cod',
+                        label: '📦 Хүргэлтээр авч төлөх',
                         variant: 'primary',
+                        payload: 'CHECKOUT_COD',
+                    },
+                    {
+                        id: 'checkout_now',
+                        label: '💳 Шууд төлөх',
+                        variant: 'secondary',
                         payload: 'CHECKOUT',
                     },
                     {

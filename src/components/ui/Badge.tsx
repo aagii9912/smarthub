@@ -67,4 +67,41 @@ function OrderStatusBadge({ status, className }: { status: string; className?: s
     );
 }
 
-export { Badge, badgeVariants, OrderStatusBadge };
+/* ─── Payment Status Badge ─── */
+const paymentStatusConfig: Record<string, { label: string; variant: NonNullable<VariantProps<typeof badgeVariants>['variant']> }> = {
+    pending: { label: 'Төлөгдөөгүй', variant: 'warning' },
+    paid: { label: 'Төлөгдсөн', variant: 'success' },
+    failed: { label: 'Амжилтгүй', variant: 'destructive' },
+    refunded: { label: 'Буцаагдсан', variant: 'secondary' },
+    expired: { label: 'Хүчингүй', variant: 'destructive' },
+};
+
+const paymentMethodLabels: Record<string, string> = {
+    cod: '📦 Хүргэлтээр',
+    qpay: '💳 QPay',
+    bank_transfer: '🏦 Банк',
+    cash: '💵 Бэлэн',
+};
+
+function PaymentStatusBadge({
+    status,
+    method,
+    className,
+}: {
+    status: string | null | undefined;
+    method?: string | null;
+    className?: string;
+}) {
+    const cfg = paymentStatusConfig[status || 'pending'] || {
+        label: status || 'Төлөгдөөгүй',
+        variant: 'default' as const,
+    };
+    const methodLabel = method ? paymentMethodLabels[method] : null;
+    return (
+        <Badge variant={cfg.variant} dot className={cn('text-[10px]', className)}>
+            {methodLabel ? `${methodLabel} • ${cfg.label}` : cfg.label}
+        </Badge>
+    );
+}
+
+export { Badge, badgeVariants, OrderStatusBadge, PaymentStatusBadge };

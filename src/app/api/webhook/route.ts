@@ -193,14 +193,24 @@ export async function POST(request: NextRequest) {
             // Get AI features for this shop
             const aiFeatures = await getAIFeatures(shop.id);
 
+            // Resolve the auth flow used for IG (defaults to facebook_login for
+            // legacy rows and Messenger-only shops). Drives both the access
+            // token selection below and the Graph base URL inside the send fns.
+            const igAuthType: 'facebook_login' | 'instagram_login' =
+                shop.instagram_auth_type === 'instagram_login' ? 'instagram_login' : 'facebook_login';
+
             // Get access token from the shop record.
-            // IMPORTANT: Instagram Messaging API requires the PAGE Access Token, NOT the IG content token.
-            // instagram_access_token is the Page token alias used for IG messaging.
+            // FB-Login flow: Instagram Messaging API requires the PAGE Access Token (sent via graph.facebook.com).
+            //   instagram_access_token is the Page token alias used for IG messaging.
+            // IG-Login flow: instagram_access_token is the long-lived IG token (sent via graph.instagram.com);
+            //   facebook_page_access_token is null since there is no FB Page.
             // The global FACEBOOK_PAGE_ACCESS_TOKEN env-var fallback was removed:
             // it silently masked misconfigured shops (a NULL token meant the shop
             // had never connected, but the env fallback let the webhook proceed
             // anyway, often delivering messages with the wrong identity).
-            const accessToken = shop.facebook_page_access_token || shop.instagram_access_token;
+            const accessToken = igAuthType === 'instagram_login'
+                ? shop.instagram_access_token
+                : (shop.facebook_page_access_token || shop.instagram_access_token);
 
             if (!accessToken) {
                 logger.warn(`No access token for shop ${shop.name} on ${platform} — skipping`, {
@@ -284,8 +294,8 @@ export async function POST(request: NextRequest) {
 
                     // Mark Seen & Typing indicators (skip for Instagram - unsupported)
                     if (platform !== 'instagram') {
-                        await sendSenderAction(senderId, 'mark_seen', accessToken);
-                        await sendSenderAction(senderId, 'typing_on', accessToken);
+                        await sendSenderAction(senderId, 'mark_seen', accessToken, igAuthType);
+                        await sendSenderAction(senderId, 'typing_on', accessToken, igAuthType);
                     }
 
                     // Detect intent
@@ -294,7 +304,7 @@ export async function POST(request: NextRequest) {
 
                     // Get or create customer based on platform
                     let customer = platform === 'instagram'
-                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken, igAuthType)
                         : await getOrCreateCustomer(shop.id, senderId, accessToken);
 
                     // Update customer info if needed
@@ -391,10 +401,11 @@ export async function POST(request: NextRequest) {
                             recipientId: senderId,
                             message: aiText,
                             pageAccessToken: accessToken,
+                            authType: igAuthType,
                         });
 
                         // Process product images if AI requested
-                        await processAIResponse(response, senderId, accessToken);
+                        await processAIResponse(response, senderId, accessToken, igAuthType);
 
                         // Send action buttons if AI returned them
                         if (response.actions && response.actions.length > 0) {
@@ -402,6 +413,7 @@ export async function POST(request: NextRequest) {
                                 recipientId: senderId,
                                 actions: response.actions,
                                 pageAccessToken: accessToken,
+                                authType: igAuthType,
                             });
                         }
 
@@ -430,6 +442,7 @@ export async function POST(request: NextRequest) {
                             recipientId: senderId,
                             message: fallback,
                             pageAccessToken: accessToken,
+                            authType: igAuthType,
                         });
                     }
                 }
@@ -443,11 +456,11 @@ export async function POST(request: NextRequest) {
 
                             // Get or create customer for image processing
                             const customer = platform === 'instagram'
-                                ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                                ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken, igAuthType)
                                 : await getOrCreateCustomer(shop.id, senderId, accessToken);
 
                             // Send typing indicator
-                            await sendSenderAction(senderId, 'typing_on', accessToken);
+                            await sendSenderAction(senderId, 'typing_on', accessToken, igAuthType);
 
                             // CHECK: Global AI Switch
                             if (shop.is_ai_active === false) {
@@ -521,6 +534,7 @@ export async function POST(request: NextRequest) {
                                     recipientId: senderId,
                                     message: responseMessage,
                                     pageAccessToken: accessToken,
+                                    authType: igAuthType,
                                 });
 
                                 // Save to history
@@ -534,6 +548,7 @@ export async function POST(request: NextRequest) {
                                     recipientId: senderId,
                                     message: 'Зургийг хүлээж авлаа. Ямар бүтээгдэхүүн сонирхож байгаагаа хэлнэ үү! 📸',
                                     pageAccessToken: accessToken,
+                                    authType: igAuthType,
                                 });
                             }
                         }
@@ -546,12 +561,12 @@ export async function POST(request: NextRequest) {
 
                     // Get or create customer for postback handling
                     const customer = platform === 'instagram'
-                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken)
+                        ? await getOrCreateInstagramCustomer(shop.id, senderId, accessToken, igAuthType)
                         : await getOrCreateCustomer(shop.id, senderId, accessToken);
 
                     // Mark Seen & Typing
                     if (platform !== 'instagram') {
-                        await sendSenderAction(senderId, 'typing_on', accessToken);
+                        await sendSenderAction(senderId, 'typing_on', accessToken, igAuthType);
                     }
 
                     // Route postback as a user message to AI for natural handling
@@ -567,7 +582,9 @@ export async function POST(request: NextRequest) {
                         const productName = payload.replace('DETAILS_', '');
                         userMessage = `${productName}-ийн талаар дэлгэрэнгүй хэлж өгнө үү`;
                     } else if (payload === 'CHECKOUT') {
-                        userMessage = 'Төлбөр төлөх';
+                        userMessage = 'Төлбөр шууд төлөх';
+                    } else if (payload === 'CHECKOUT_COD') {
+                        userMessage = 'Хүргэлтээр авч төлөх';
                     } else if (payload === 'CHECK_PAYMENT') {
                         userMessage = 'Төлбөр шалгах';
                     } else if (payload === 'CANCEL_ORDER') {
@@ -586,6 +603,7 @@ export async function POST(request: NextRequest) {
                             recipientId: senderId,
                             message: `QPay төлбөрийн линк: ${qpayUrl}`,
                             pageAccessToken: accessToken,
+                            authType: igAuthType,
                         });
                         continue;
                     } else {
@@ -655,9 +673,10 @@ export async function POST(request: NextRequest) {
                                 recipientId: senderId,
                                 message: aiText,
                                 pageAccessToken: accessToken,
+                                authType: igAuthType,
                             });
 
-                            await processAIResponse(response, senderId, accessToken);
+                            await processAIResponse(response, senderId, accessToken, igAuthType);
 
                             // Send action buttons if AI returned them
                             if (response.actions && response.actions.length > 0) {
@@ -665,6 +684,7 @@ export async function POST(request: NextRequest) {
                                     recipientId: senderId,
                                     actions: response.actions,
                                     pageAccessToken: accessToken,
+                                    authType: igAuthType,
                                 });
                             }
 
@@ -679,6 +699,7 @@ export async function POST(request: NextRequest) {
                                 recipientId: senderId,
                                 message: 'Уучлаарай, түр алдаа гарлаа. Дахин оролдоно уу! 🙏',
                                 pageAccessToken: accessToken,
+                                authType: igAuthType,
                             });
                         }
                     }

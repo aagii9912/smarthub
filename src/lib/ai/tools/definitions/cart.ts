@@ -17,7 +17,11 @@ export const RemoveFromCartSchema = z.object({
 export type RemoveFromCartArgs = z.infer<typeof RemoveFromCartSchema>;
 
 export const CheckoutSchema = z.object({
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    // 'cod' = pay on delivery (default for Mongolian shops),
+    // 'qpay' = pay now via QPay,
+    // 'bank' = bank transfer (manual confirmation by shop owner)
+    payment_type: z.enum(['cod', 'qpay', 'bank']).default('cod').optional()
 });
 export type CheckoutArgs = z.infer<typeof CheckoutSchema>;
 
@@ -42,8 +46,8 @@ export const CART_TOOLS: ToolDefinition[] = [
     },
     {
         name: 'checkout',
-        description: 'Finalize cart and create order with payment link. Call this IMMEDIATELY when customer clicks checkout button, says "төлбөр төлөх", "checkout", or wants to pay. Do NOT ask for reconfirmation — execute directly.',
-        parameters: { type: 'object', properties: { notes: { type: 'string', description: 'Any special notes for the order' } }, required: [] },
+        description: 'Finalize cart and create order. Call this IMMEDIATELY when customer says "захиалъя", "checkout", "төлбөр төлөх", "хүргэлтээр авна", or clicks any checkout/COD button. Default payment_type=cod (Mongolian customers pay when goods are delivered). Set payment_type=qpay only when customer explicitly says "QPay-ээр төлнө" / "одоо төлнө" / "card", or payment_type=bank when they say "дансаар шилжүүлнэ". Do NOT ask for reconfirmation — execute directly.',
+        parameters: { type: 'object', properties: { notes: { type: 'string', description: 'Any special notes for the order' }, payment_type: { type: 'string', enum: ['cod', 'qpay', 'bank'], description: 'How the customer will pay. cod (default) = pay on delivery, qpay = pay now via QPay, bank = manual bank transfer.', default: 'cod' } }, required: [] },
         capabilities: ['sales']
     }
 ];

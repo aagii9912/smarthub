@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
 // Match the specific shape returned by /api/orders
+export type OrderPaymentMethod = 'cod' | 'qpay' | 'bank_transfer' | 'cash';
+export type OrderPaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'expired';
+
 export interface OrderWithDetails {
     id: string;
     total_amount: number;
@@ -10,6 +13,10 @@ export interface OrderWithDetails {
     delivery_method: 'delivery' | 'pickup' | null;
     delivery_fee: number;
     customer_phone: string | null;
+    payment_method: OrderPaymentMethod | null;
+    payment_status: OrderPaymentStatus | null;
+    paid_at: string | null;
+    delivered_at: string | null;
     created_at: string;
     updated_at: string;
     customers: {

@@ -84,11 +84,22 @@ export function useUpdateOrder() {
 
             const previousQueries = queryClient.getQueriesData<OrderWithDetails[]>({ queryKey: ['orders'] });
 
+            const nowIso = new Date().toISOString();
             queryClient.setQueriesData<OrderWithDetails[]>({ queryKey: ['orders'] }, (old) => {
                 if (!old) return [];
-                return old.map((order) =>
-                    order.id === orderId ? { ...order, status } : order
-                );
+                return old.map((order) => {
+                    if (order.id !== orderId) return order;
+                    const next: OrderWithDetails = { ...order, status };
+                    // COD orders: delivery counts as payment received.
+                    if (status === 'delivered') {
+                        next.delivered_at = nowIso;
+                        if ((order.payment_method ?? 'cod') === 'cod' && order.payment_status !== 'paid') {
+                            next.payment_status = 'paid';
+                            next.paid_at = nowIso;
+                        }
+                    }
+                    return next;
+                });
             });
 
             return { previousQueries };

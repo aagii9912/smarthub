@@ -82,7 +82,7 @@ export async function PATCH(request: Request) {
     // Verify order belongs to shop and get customer_id
     const { data: existingOrder } = await supabase
       .from('orders')
-      .select('id, customer_id, status')
+      .select('id, customer_id, status, payment_method, payment_status')
       .eq('id', id)
       .eq('shop_id', shopId)
       .single();
@@ -91,14 +91,41 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    // Build update payload. The DB trigger handles COD → paid on delivered,
+    // but we also write the same fields here to keep environments without the
+    // trigger consistent and to surface them on the response immediately.
+    const updatePayload: Record<string, unknown> = { status };
+
+    if (status === 'delivered') {
+      updatePayload.delivered_at = new Date().toISOString();
+      const isCod = (existingOrder.payment_method ?? 'cod') === 'cod';
+      if (isCod && existingOrder.payment_status !== 'paid') {
+        updatePayload.payment_status = 'paid';
+        updatePayload.paid_at = new Date().toISOString();
+      }
+    }
+
     const { data, error } = await supabase
       .from('orders')
-      .update({ status })
+      .update(updatePayload)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
+
+    // Sync the corresponding pending COD payment row to 'paid' so reports
+    // and ledgers stay accurate.
+    if (status === 'delivered' && (existingOrder.payment_method ?? 'cod') === 'cod') {
+      const { error: paySyncError } = await supabase
+        .from('payments')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('order_id', id)
+        .eq('status', 'pending');
+      if (paySyncError) {
+        logger.warn('COD payment sync on delivery failed:', { orderId: id, error: paySyncError.message });
+      }
+    }
 
     // Stock management based on status change
     const { deductStockForOrder, releaseStockForOrder } = await import('@/lib/services/StockService');

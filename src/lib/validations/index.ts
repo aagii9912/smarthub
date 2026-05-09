@@ -18,6 +18,8 @@ export const updateOrderStatusSchema = z.object({
     status: orderStatusSchema,
 });
 
+export const paymentMethodSchema = z.enum(['cod', 'qpay', 'bank_transfer', 'cash']);
+
 export const createOrderSchema = z.object({
     customerId: z.string().uuid('Invalid customer ID'),
     items: z.array(z.object({
@@ -27,6 +29,7 @@ export const createOrderSchema = z.object({
     })).min(1, 'Order must have at least one item'),
     notes: z.string().max(500).optional(),
     deliveryAddress: z.string().max(200).optional(),
+    paymentMethod: paymentMethodSchema.optional(),
 });
 
 // ============================================

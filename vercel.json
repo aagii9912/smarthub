@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/check-payments",
-      "schedule": "0 0 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/check-trial-expiry",
@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/cleanup-stale-pushes",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-instagram-tokens",
+      "schedule": "0 3 * * *"
     }
   ]
 }

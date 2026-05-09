@@ -4,13 +4,14 @@ import { useState, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSelectColumn } from '@/components/ui/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { OrderStatusBadge } from '@/components/ui/Badge';
+import { OrderStatusBadge, PaymentStatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { formatDate } from '@/lib/utils/date';
 import { useOrders, OrderWithDetails } from '@/hooks/useOrders';
 import { useUpdateOrder, useBulkUpdateOrders } from '@/hooks/useUpdateOrder';
+import { useRecheckPayment } from '@/hooks/useRecheckPayment';
 import {
   Package,
   User,
@@ -44,6 +45,7 @@ export default function OrdersPage() {
   const { data: orders = [], isLoading, refetch, isRefetching } = useOrders(dateRange);
   const { mutate: updateStatus } = useUpdateOrder();
   const { mutate: bulkUpdateStatus } = useBulkUpdateOrders();
+  const { mutate: recheckPayment, isPending: isRechecking } = useRecheckPayment();
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
@@ -71,7 +73,15 @@ export default function OrdersPage() {
     {
       accessorKey: 'status',
       header: t.orders.status,
-      cell: ({ row }) => <OrderStatusBadge status={row.original.status} />,
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-1">
+          <OrderStatusBadge status={row.original.status} />
+          <PaymentStatusBadge
+            status={row.original.payment_status}
+            method={row.original.payment_method}
+          />
+        </div>
+      ),
       filterFn: (row, _columnId, filterValue) => {
         if (filterValue === 'all') return true;
         return row.original.status === filterValue;
@@ -328,7 +338,13 @@ export default function OrdersPage() {
             <div className="sticky top-6 bg-[var(--panel-bg,#0F0B2E)] rounded-lg border border-white/[0.08] overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
                 <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">{t.orders.details}</span>
-                <OrderStatusBadge status={selectedOrder.status} />
+                <div className="flex items-center gap-1.5">
+                  <OrderStatusBadge status={selectedOrder.status} />
+                  <PaymentStatusBadge
+                    status={selectedOrder.payment_status}
+                    method={selectedOrder.payment_method}
+                  />
+                </div>
               </div>
               <div className="p-5 space-y-5">
                 {/* Customer Info */}
@@ -380,6 +396,52 @@ export default function OrdersPage() {
                     <span className="text-lg font-semibold text-foreground tracking-[-0.02em]">
                       ₮{Number(selectedOrder.total_amount).toLocaleString()}
                     </span>
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div className="space-y-2">
+                  <h3 className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em]">Төлбөр</h3>
+                  <div className="bg-[var(--panel-bg,#0F0B2E)] rounded-md p-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-white/40">Хэлбэр:</span>
+                      <span className="text-foreground tracking-[-0.01em]">
+                        {selectedOrder.payment_method === 'cod' && '📦 Хүргэлтээр (COD)'}
+                        {selectedOrder.payment_method === 'qpay' && '💳 QPay'}
+                        {selectedOrder.payment_method === 'bank_transfer' && '🏦 Банк шилжүүлэг'}
+                        {selectedOrder.payment_method === 'cash' && '💵 Бэлэн'}
+                        {!selectedOrder.payment_method && '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-white/40">Төлөв:</span>
+                      <PaymentStatusBadge status={selectedOrder.payment_status} />
+                    </div>
+                    {selectedOrder.paid_at && (
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span className="text-white/40">Төлсөн:</span>
+                        <span className="text-white/70 tracking-[-0.01em]">
+                          {formatDate(selectedOrder.paid_at)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedOrder.payment_method === 'qpay' &&
+                      selectedOrder.payment_status !== 'paid' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            recheckPayment(selectedOrder.id);
+                          }}
+                          disabled={isRechecking}
+                          className="w-full mt-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-[12px] font-medium text-[var(--brand-indigo)] bg-[color-mix(in_oklab,var(--brand-indigo)_14%,transparent)] hover:bg-[color-mix(in_oklab,var(--brand-indigo)_24%,transparent)] transition-colors disabled:opacity-50"
+                        >
+                          <RefreshCw
+                            className={`w-3.5 h-3.5 ${isRechecking ? 'animate-spin' : ''}`}
+                            strokeWidth={1.5}
+                          />
+                          {isRechecking ? 'Шалгаж байна…' : 'QPay-аас төлбөр шалгах'}
+                        </button>
+                      )}
                   </div>
                 </div>
 

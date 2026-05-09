@@ -11,7 +11,10 @@ import { isNotificationEnabled } from '@/lib/notifications-prefs';
  * Cron job that checks all pending QPay payments and confirms any that have been paid.
  * This is the PRIMARY mechanism for detecting payments when QPay webhook fails.
  * 
- * - Fetches all pending QPay payments created in the last 30 minutes
+ * - Fetches all pending QPay payments created in the last 24 hours
+ *   (was 30 minutes — too narrow; with daily cron a single missed webhook
+ *   would never get reconciled). 24h is wide enough to catch backlogs and
+ *   still narrow enough to skip long-abandoned/expired invoices.
  * - Checks each one against QPay API
  * - If paid: updates status, confirms order, sends Messenger notification
  * - Prevents duplicate notifications via messenger_notified flag
@@ -21,8 +24,8 @@ export async function GET() {
     const supabase = supabaseAdmin();
 
     try {
-        // Find all pending QPay payments from last 30 minutes
-        const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        // Find all pending QPay payments from last 24 hours
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
         const { data: pendingPayments, error } = await supabase
             .from('payments')
@@ -30,9 +33,9 @@ export async function GET() {
             .eq('status', 'pending')
             .eq('payment_method', 'qpay')
             .not('qpay_invoice_id', 'is', null)
-            .gte('created_at', thirtyMinAgo)
+            .gte('created_at', twentyFourHoursAgo)
             .order('created_at', { ascending: false })
-            .limit(20);
+            .limit(100);
 
         if (error) {
             logger.error('Failed to fetch pending payments:', { error: error.message });

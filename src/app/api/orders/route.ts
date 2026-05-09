@@ -27,6 +27,13 @@ export async function GET() {
         status,
         notes,
         delivery_address,
+        delivery_method,
+        delivery_fee,
+        customer_phone,
+        payment_method,
+        payment_status,
+        paid_at,
+        delivered_at,
         created_at,
         updated_at,
         customers (id, name, phone, address, facebook_id),
@@ -62,14 +69,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { customerId, items, notes, deliveryAddress } = validation.data;
+    const { customerId, items, notes, deliveryAddress, paymentMethod } = validation.data;
     const supabase = supabaseAdmin();
     const shopId = authShop.id;
 
     // Calculate total amount
     const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
 
-    // 1. Create Order
+    // 1. Create Order — Default payment method is Cash on Delivery,
+    // matching how Mongolian shops collect payment when goods arrive.
+    const resolvedPaymentMethod = paymentMethod || 'cod';
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -79,6 +88,8 @@ export async function POST(request: NextRequest) {
         total_amount: totalAmount,
         notes: notes,
         delivery_address: deliveryAddress,
+        payment_method: resolvedPaymentMethod,
+        payment_status: 'pending',
         created_at: new Date().toISOString()
       })
       .select()
@@ -182,7 +193,7 @@ export async function PATCH(request: NextRequest) {
     // Verify order belongs to shop
     const { data: order } = await supabase
       .from('orders')
-      .select('id, shop_id, customer_id, total_amount')
+      .select('id, shop_id, customer_id, total_amount, payment_method, payment_status')
       .eq('id', orderId)
       .eq('shop_id', shopId)
       .single();
@@ -191,10 +202,27 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Update order status
+    // Update order status. The DB trigger `trigger_update_payment_on_delivery`
+    // (see 20260509100000_cash_on_delivery.sql) will auto-flip COD orders to
+    // payment_status='paid' on delivered. We mirror the logic in JS as a
+    // safety net for environments where the trigger has not been applied.
+    const updatePayload: Record<string, unknown> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'delivered') {
+      updatePayload.delivered_at = new Date().toISOString();
+      const isCod = (order.payment_method ?? 'cod') === 'cod';
+      if (isCod && order.payment_status !== 'paid') {
+        updatePayload.payment_status = 'paid';
+        updatePayload.paid_at = new Date().toISOString();
+      }
+    }
+
     const { data: updatedOrder, error } = await supabase
       .from('orders')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', orderId)
       .select()
       .single();
@@ -207,6 +235,19 @@ export async function PATCH(request: NextRequest) {
         p_customer_id: order.customer_id,
         p_amount: order.total_amount
       });
+
+      // Sync the corresponding pending COD payment record to 'paid' so the
+      // payments table reflects reality even without the DB trigger.
+      if ((order.payment_method ?? 'cod') === 'cod') {
+        const { error: paySyncError } = await supabase
+          .from('payments')
+          .update({ status: 'paid', paid_at: new Date().toISOString() })
+          .eq('order_id', orderId)
+          .eq('status', 'pending');
+        if (paySyncError) {
+          logger.warn('COD payment sync on delivery failed:', { orderId, error: paySyncError.message });
+        }
+      }
     }
 
     // Send notification to customer via Facebook Messenger

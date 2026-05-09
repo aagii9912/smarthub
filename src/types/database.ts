@@ -160,6 +160,9 @@ export interface Customer {
 // ORDERS
 // ============================================
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+export type PaymentMethod = 'cod' | 'qpay' | 'bank_transfer' | 'cash';
+export type OrderPaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'expired';
+export type DeliveryMethod = 'delivery' | 'pickup';
 
 export interface Order {
     id: string;
@@ -169,6 +172,13 @@ export interface Order {
     total_amount: number;
     notes: string | null;
     delivery_address: string | null;
+    delivery_method?: DeliveryMethod | null;
+    delivery_fee?: number | null;
+    customer_phone?: string | null;
+    payment_method?: PaymentMethod | null;
+    payment_status?: OrderPaymentStatus | null;
+    paid_at?: string | null;
+    delivered_at?: string | null;
     created_at: string;
     updated_at: string;
     // Joined data
