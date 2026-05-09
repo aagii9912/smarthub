@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         // flow writes (see /api/shop PATCH from setup wizard); do NOT add
         // columns here that the connect path doesn't touch — that risks
         // hitting non-existent columns and 500-ing the disconnect.
-        let updateData: Record<string, null> = {};
+        let updateData: Record<string, string | null> = {};
 
         if (platform === 'facebook') {
             updateData = {
@@ -65,6 +65,11 @@ export async function POST(request: NextRequest) {
                 instagram_business_account_id: null,
                 instagram_username: null,
                 instagram_access_token: null,
+                // Reset auth_type so a future re-connect (either flow) starts
+                // from a clean default; clear IG-Login bookkeeping fields too.
+                instagram_auth_type: 'facebook_login',
+                instagram_token_expires_at: null,
+                instagram_token_revoked_at: null,
             };
         }
 

@@ -28,7 +28,7 @@ const QPAY_TERMINAL_ID = process.env.QPAY_TERMINAL_ID;
 const SYNCLY_MERCHANT_ID = process.env.QPAY_MERCHANT_ID;
 const SYNCLY_BANK_CODE = process.env.QPAY_BANK_CODE || '040000';
 const SYNCLY_ACCOUNT_NUMBER = process.env.QPAY_ACCOUNT_NUMBER;
-const SYNCLY_ACCOUNT_NAME = process.env.QPAY_ACCOUNT_NAME || 'Syncly';
+const SYNCLY_ACCOUNT_NAME = process.env.QPAY_ACCOUNT_NAME || 'ЭМ ЭМ ЛАЙН ТРАКИНГ ХХК';
 const QPAY_CALLBACK_URL = process.env.QPAY_CALLBACK_URL || 'https://syncly.mn/api/payment/webhook';
 
 // ──────────────────────────────────────────────
