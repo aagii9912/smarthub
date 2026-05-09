@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
-import { sendImage, sendImageGallery } from '@/lib/facebook/messenger';
+import { sendImage, sendImageGallery, type IgAuthType } from '@/lib/facebook/messenger';
 import { generateCommentReply } from '@/lib/ai/comment-detector';
 import type { AIProduct } from '@/types/ai';
 import { IntentResult } from '@/lib/ai/intent-detector';
@@ -40,7 +40,8 @@ export function generateFallbackResponse(
 export async function processAIResponse(
     response: { text: string; imageAction?: { type: 'single' | 'confirm'; products: Array<{ name: string; price: number; imageUrl: string; description?: string }> } },
     senderId: string,
-    pageAccessToken: string
+    pageAccessToken: string,
+    authType?: IgAuthType
 ): Promise<void> {
     const { imageAction } = response;
 
@@ -51,6 +52,7 @@ export async function processAIResponse(
                     recipientId: senderId,
                     imageUrl: imageAction.products[0].imageUrl,
                     pageAccessToken,
+                    authType,
                 });
             } else {
                 await sendImageGallery({
@@ -58,6 +60,7 @@ export async function processAIResponse(
                     products: imageAction.products,
                     pageAccessToken,
                     confirmMode: imageAction.type === 'confirm',
+                    authType,
                 });
             }
             logger.success(`Sent ${imageAction.products.length} product image(s) in ${imageAction.type} mode`);

@@ -80,6 +80,9 @@ export interface ShopWithProducts {
     instagram_business_account_id?: string | null;
     instagram_access_token?: string | null;
     instagram_username?: string | null;
+    instagram_auth_type?: 'facebook_login' | 'instagram_login' | null;
+    instagram_token_expires_at?: string | null;
+    instagram_token_revoked_at?: string | null;
     products: AIProduct[];
     notify_on_order?: boolean | null;
     notify_on_contact?: boolean | null;
@@ -124,6 +127,9 @@ function mapShopRowToShopWithProducts(data: Record<string, unknown>): ShopWithPr
         instagram_business_account_id: get<string | null>('instagram_business_account_id'),
         instagram_access_token: get<string | null>('instagram_access_token'),
         instagram_username: get<string | null>('instagram_username'),
+        instagram_auth_type: get<'facebook_login' | 'instagram_login' | null>('instagram_auth_type'),
+        instagram_token_expires_at: get<string | null>('instagram_token_expires_at'),
+        instagram_token_revoked_at: get<string | null>('instagram_token_revoked_at'),
         products: mapShopProductsToAI(get<Parameters<typeof mapShopProductsToAI>[0]>('products')),
         notify_on_order: get<boolean | null>('notify_on_order'),
         notify_on_contact: get<boolean | null>('notify_on_contact'),

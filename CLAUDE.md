@@ -327,6 +327,10 @@ FACEBOOK_PAGE_ID=
 INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_ACCOUNT_ID=
 
+# Instagram Login API (for shops without a Facebook Page — see docs/meta-review/INSTAGRAM_LOGIN_REVIEW.md)
+INSTAGRAM_APP_ID=                # Instagram-product app ID (separate from FACEBOOK_APP_ID)
+INSTAGRAM_APP_SECRET=            # Doubles as webhook signing secret + OAuth token-exchange secret
+
 # App URL
 NEXT_PUBLIC_APP_URL=https://www.syncly.mn
 
@@ -351,4 +355,5 @@ SENTRY_AUTH_TOKEN=
 5. **Mongolian UI** — Default user-facing language is Mongolian; partial English translations live in `src/i18n/en.ts`. New UI should go through `useTranslations()` rather than hard-coding strings
 6. **Path alias** — Always use `@/` for imports (resolves to `src/`)
 7. **Vercel deployment** — Only `main` branch deploys, `sin1` region (Singapore)
-8. **CRON** — Daily midnight job at `/api/cron/process-messages`
+8. **CRON** — Daily midnight job at `/api/cron/process-messages`. Daily 03:00 UTC IG-Login token refresh at `/api/cron/refresh-instagram-tokens`
+9. **Two Instagram flows** — `shops.instagram_auth_type` discriminates: `'facebook_login'` (legacy, IG attached to FB Page) vs `'instagram_login'` (direct IG OAuth, no FB Page). Send fns in `src/lib/facebook/messenger.ts` accept an optional `authType` param that switches the Graph host between `graph.facebook.com` and `graph.instagram.com`. Webhook routes pass `igAuthType` derived from the shop. Default is `'facebook_login'` so existing callers and Messenger flows are unaffected

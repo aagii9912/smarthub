@@ -25,6 +25,9 @@ interface InstagramStepProps {
     };
     igAccounts?: InstagramAccount[];
     onConnect: () => void;
+    // Direct Instagram Login flow (no Facebook Page required). Optional so
+    // existing callers don't break, but the setup wizard wires it up.
+    onConnectIgLogin?: () => void;
     onSelectAccount: (account: InstagramAccount) => Promise<void>;
     onManualSave: (data: {
         businessAccountId: string;
@@ -39,6 +42,7 @@ export function InstagramStep({
     initialData,
     igAccounts = [],
     onConnect,
+    onConnectIgLogin,
     onSelectAccount,
     onManualSave,
     onBack,
@@ -179,7 +183,7 @@ export function InstagramStep({
 
             {!initialData.igConnected && igAccounts.length === 0 && (
                 <>
-                    {/* One-Click Connect Button */}
+                    {/* Facebook-Login Connect (existing flow — for IG attached to a Facebook Page) */}
                     <button
                         onClick={onConnect}
                         className="w-full py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-violet-500 hover:from-purple-700 hover:via-pink-700 hover:to-orange-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-3 shadow-lg shadow-purple-500/20"
@@ -187,6 +191,16 @@ export function InstagramStep({
                         <Instagram className="w-6 h-6" />
                         {t.setup.instagram.connectButton}
                     </button>
+
+                    {onConnectIgLogin && (
+                        <button
+                            onClick={onConnectIgLogin}
+                            className="mt-3 w-full py-3.5 bg-white border-2 border-purple-200 hover:border-purple-400 text-purple-700 font-semibold rounded-xl transition-all flex items-center justify-center gap-3 hover:bg-purple-50"
+                        >
+                            <Instagram className="w-5 h-5" />
+                            Facebook хуудасгүйгээр Instagram-р шууд холбох
+                        </button>
+                    )}
 
                     <div className="relative my-6">
                         <div className="absolute inset-0 flex items-center">

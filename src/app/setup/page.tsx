@@ -167,15 +167,31 @@ function SetupContent() {
     const igSuccess = searchParams.get('ig_success');
     const igError = searchParams.get('ig_error');
     const igCount = searchParams.get('ig_count');
+    const igVia = searchParams.get('via');
 
     if (igError) {
       const errorMessages: Record<string, string> = {
-        no_instagram_account: 'Instagram Business Account олдсонгүй.',
+        no_instagram_account: 'Instagram Business Account олдсонгүй. "Шууд Instagram-р" сонгоод үзнэ үү.',
         token_error: 'Access token авахад алдаа гарлаа.',
+        long_token_error: 'Урт хугацааны token авахад алдаа гарлаа.',
+        profile_error: 'Instagram профайлыг уншиж чадсангүй.',
+        personal_account_unsupported: 'Personal Instagram-ыг ашиглаж болохгүй. Business/Creator руу хувирган дахин оролдоно уу.',
+        already_connected: 'Энэ Instagram акаунт өөр дэлгүүрт холбогдсон байна.',
+        csrf_validation_failed: 'Аюулгүй байдлын шалгалт амжилтгүй.',
+        missing_shop_id: 'Дэлгүүр сонгогдоогүй байна.',
+        not_authenticated: 'Эхлээд нэвтэрнэ үү.',
+        shop_ownership: 'Энэ дэлгүүрт танд хандах эрх алга.',
         pages_error: 'Facebook Page татахад алдаа гарлаа.',
         config_missing: 'App тохиргоо дутуу байна.',
       };
       setError(errorMessages[igError] || `Instagram холболт амжилтгүй: ${igError}`);
+    } else if (igSuccess && igVia === 'instagram_login') {
+      // IG-Login flow saves the account directly in the callback. Refresh
+      // shop state so igConnected flips, then advance past the IG step.
+      refreshShop?.();
+      const igStep = stepSequence.indexOf('instagram');
+      if (igStep >= 0) setStepIndex(igStep + 1);
+      router.replace('/setup');
     } else if (igSuccess && igCount) {
       fetchInstagramAccounts();
       const igStep = stepSequence.indexOf('instagram');
@@ -685,6 +701,9 @@ function SetupContent() {
                 }}
                 igAccounts={igAccounts}
                 onConnect={() => { window.location.href = '/api/auth/instagram'; }}
+                onConnectIgLogin={shop?.id ? () => {
+                  window.location.href = `/api/auth/instagram-login?source=setup&shop_id=${encodeURIComponent(shop.id)}`;
+                } : undefined}
                 onSelectAccount={handleInstagramSelect}
                 onManualSave={handleManualInstagramSave}
                 onBack={goBack}

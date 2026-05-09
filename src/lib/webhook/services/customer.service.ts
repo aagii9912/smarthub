@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
+import type { IgAuthType } from '@/lib/facebook/messenger';
 
 async function notifyNewCustomer(
     shopId: string,
@@ -59,10 +60,18 @@ async function fetchFacebookUserName(userId: string, accessToken: string): Promi
     return null;
 }
 
-async function fetchInstagramUserName(userId: string, accessToken: string): Promise<string | null> {
+async function fetchInstagramUserName(
+    userId: string,
+    accessToken: string,
+    authType?: IgAuthType
+): Promise<string | null> {
+    // IG-Login tokens are bound to graph.instagram.com; FB-Login tokens query
+    // IG users via graph.facebook.com using the Page token. Hitting the wrong
+    // host returns OAuth error rather than HTTP 404, so the host must match.
+    const host = authType === 'instagram_login' ? 'graph.instagram.com' : 'graph.facebook.com';
     try {
         const response = await fetch(
-            `https://graph.facebook.com/v21.0/${userId}?fields=username,name&access_token=${accessToken}`
+            `https://${host}/v21.0/${userId}?fields=username,name&access_token=${accessToken}`
         );
         if (response.ok) {
             const data = await response.json();
@@ -128,7 +137,8 @@ export async function getOrCreateCustomer(
 export async function getOrCreateInstagramCustomer(
     shopId: string,
     instagramId: string,
-    accessToken: string
+    accessToken: string,
+    authType?: IgAuthType
 ): Promise<CustomerData> {
     const supabase = supabaseAdmin();
 
@@ -153,7 +163,7 @@ export async function getOrCreateInstagramCustomer(
         };
     }
 
-    const userName = await fetchInstagramUserName(instagramId, accessToken);
+    const userName = await fetchInstagramUserName(instagramId, accessToken, authType);
 
     const { data: newCustomer } = await supabase
         .from('customers')

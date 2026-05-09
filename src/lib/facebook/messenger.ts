@@ -1,7 +1,18 @@
 import { logger } from '@/lib/utils/logger';
 import { captureException } from '@/lib/monitoring/errorMonitoring';
 
-const GRAPH_API_URL = 'https://graph.facebook.com/v21.0';
+const FB_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+const IG_GRAPH_URL = 'https://graph.instagram.com/v21.0';
+
+export type IgAuthType = 'facebook_login' | 'instagram_login';
+
+// IG-Login flow uses a different host (graph.instagram.com); FB-Login flow
+// (and all Messenger sends) keep the original Facebook Graph host. Default
+// preserves the pre-IG-Login behavior so callers that don't know about the
+// flow keep working unchanged.
+function graphBaseUrl(authType?: IgAuthType): string {
+    return authType === 'instagram_login' ? IG_GRAPH_URL : FB_GRAPH_URL;
+}
 
 interface MetaApiErrorPayload {
     code?: number;
@@ -63,6 +74,7 @@ interface SendMessageOptions {
     recipientId: string;
     message: string;
     pageAccessToken: string;
+    authType?: IgAuthType;
 }
 
 interface QuickReply {
@@ -79,10 +91,17 @@ interface SendMessageWithQuickRepliesOptions extends SendMessageOptions {
 export async function sendSenderAction(
     recipientId: string,
     action: 'mark_seen' | 'typing_on' | 'typing_off',
-    pageAccessToken: string
+    pageAccessToken: string,
+    authType?: IgAuthType
 ) {
+    // Sender actions (mark_seen/typing_on/typing_off) are not supported
+    // by the IG Graph API for IG-Login shops. Webhook-side guards already
+    // skip these for Instagram, but cover the API path too in case a caller
+    // forgets — silently no-op rather than 400ing.
+    if (authType === 'instagram_login') return;
+
     try {
-        const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+        const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -99,7 +118,7 @@ export async function sendSenderAction(
     }
 }
 
-export async function sendTextMessage({ recipientId, message, pageAccessToken }: SendMessageOptions) {
+export async function sendTextMessage({ recipientId, message, pageAccessToken, authType }: SendMessageOptions) {
     // Guard against empty messages (Facebook API error #100)
     const text = message?.trim();
     if (!text) {
@@ -108,10 +127,11 @@ export async function sendTextMessage({ recipientId, message, pageAccessToken }:
             recipientId,
             message: 'Уучлаарай, хариултыг боловсруулж чадсангүй. Дахин оролдоно уу! 🙏',
             pageAccessToken,
+            authType,
         });
     }
 
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -148,17 +168,19 @@ export async function sendPrivateReplyToComment({
     commentId,
     message,
     pageAccessToken,
+    authType,
 }: {
     commentId: string;
     message: string;
     pageAccessToken: string;
+    authType?: IgAuthType;
 }) {
     const text = message?.trim();
     if (!text) {
         throw new Error('sendPrivateReplyToComment: empty message');
     }
 
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,13 +209,15 @@ export async function sendTaggedMessage({
     message,
     pageAccessToken,
     tag = 'POST_PURCHASE_UPDATE',
+    authType,
 }: {
     recipientId: string;
     message: string;
     pageAccessToken: string;
     tag?: 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE' | 'ACCOUNT_UPDATE' | 'HUMAN_AGENT';
+    authType?: IgAuthType;
 }) {
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -220,8 +244,9 @@ export async function sendMessageWithQuickReplies({
     message,
     quickReplies,
     pageAccessToken,
+    authType,
 }: SendMessageWithQuickRepliesOptions) {
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -248,12 +273,14 @@ export async function sendProductCard({
     recipientId,
     product,
     pageAccessToken,
+    authType,
 }: {
     recipientId: string;
     product: { name: string; description: string; price: number; imageUrl?: string };
     pageAccessToken: string;
+    authType?: IgAuthType;
 }) {
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -304,12 +331,14 @@ export async function sendImage({
     recipientId,
     imageUrl,
     pageAccessToken,
+    authType,
 }: {
     recipientId: string;
     imageUrl: string;
     pageAccessToken: string;
+    authType?: IgAuthType;
 }) {
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -343,6 +372,7 @@ export async function sendImageGallery({
     products,
     pageAccessToken,
     confirmMode = false,
+    authType,
 }: {
     recipientId: string;
     products: Array<{
@@ -353,6 +383,7 @@ export async function sendImageGallery({
     }>;
     pageAccessToken: string;
     confirmMode?: boolean; // If true, shows "Энэ үү?" selection mode
+    authType?: IgAuthType;
 }) {
     // Facebook allows max 10 elements in carousel
     const limitedProducts = products.slice(0, 10);
@@ -383,7 +414,7 @@ export async function sendImageGallery({
             ],
     }));
 
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -420,11 +451,13 @@ export async function sendButtonTemplate({
     text,
     buttons,
     pageAccessToken,
+    authType,
 }: {
     recipientId: string;
     text: string;
     buttons: Array<{ type: 'postback' | 'web_url' | 'phone_number'; title: string; payload?: string; url?: string }>;
     pageAccessToken: string;
+    authType?: IgAuthType;
 }) {
     // Guard: FB allows max 3 buttons
     const limitedButtons = buttons.slice(0, 3);
@@ -432,7 +465,7 @@ export async function sendButtonTemplate({
     // Button text max 640 chars
     const safeText = text.length > 640 ? text.substring(0, 637) + '...' : text;
 
-    const response = await fetch(`${GRAPH_API_URL}/me/messages?access_token=${pageAccessToken}`, {
+    const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -468,6 +501,7 @@ export async function sendActionsAsButtons({
     actions,
     pageAccessToken,
     fallbackText = 'Сонголтоо хийнэ үү:',
+    authType,
 }: {
     recipientId: string;
     actions: Array<{
@@ -483,6 +517,7 @@ export async function sendActionsAsButtons({
     }>;
     pageAccessToken: string;
     fallbackText?: string;
+    authType?: IgAuthType;
 }) {
     // Collect all buttons from all action groups
     const allButtons: Array<{ type: 'postback' | 'web_url' | 'phone_number'; title: string; payload?: string; url?: string }> = [];
@@ -533,6 +568,7 @@ export async function sendActionsAsButtons({
                 text,
                 buttons: chunk,
                 pageAccessToken,
+                authType,
             });
         } catch (error) {
             logger.warn('Failed to send action buttons chunk:', { error, chunkIndex: i });
