@@ -42,6 +42,26 @@ export async function executeAddToCart(
         p_customer_id: context.customerId
     });
 
+    // Stale-cart guard: if every existing cart item is older than 30 minutes
+    // it almost certainly belongs to a previous chat session that was
+    // abandoned. Carrying those items into a new session has been the root
+    // cause of "I asked for 1 Pro plan but the order has 3" reports — the
+    // cart silently merged old quantities with the new add. Clear them out
+    // and start fresh.
+    const STALE_CART_MS = 30 * 60 * 1000;
+    const { data: existingItems } = await supabase
+        .from('cart_items')
+        .select('id, created_at')
+        .eq('cart_id', cartId);
+    if (existingItems && existingItems.length > 0) {
+        const newest = Math.max(
+            ...existingItems.map((it) => new Date(it.created_at as string).getTime()),
+        );
+        if (Date.now() - newest > STALE_CART_MS) {
+            await supabase.from('cart_items').delete().eq('cart_id', cartId);
+        }
+    }
+
     const discountedPrice = product.discount_percent
         ? Math.round(product.price * (1 - product.discount_percent / 100))
         : product.price;
