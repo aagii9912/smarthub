@@ -77,16 +77,35 @@ export default async function middleware(req: NextRequest) {
         }
     }
 
+    // Helper: getUser without polluting logs when the cookie still has an
+    // access_token but the refresh_token is missing/expired. The SDK throws
+    // `AuthApiError: Invalid Refresh Token: Refresh Token Not Found` on every
+    // request from a stale session — we just want to treat it as "no user"
+    // and let the redirect/auth flow take over.
+    const safeGetUser = async () => {
+        try {
+            const { data } = await supabase.auth.getUser();
+            return data.user;
+        } catch (err) {
+            const code = (err as { code?: string } | undefined)?.code;
+            if (code !== 'refresh_token_not_found') {
+                // Anything else is unexpected — keep visibility.
+                console.warn('middleware getUser non-auth error', err);
+            }
+            return null;
+        }
+    };
+
     // Allow public routes
     if (matchesPath(pathname, publicPaths)) {
         // Still refresh the session even on public routes
-        await supabase.auth.getUser();
+        await safeGetUser();
         return supabaseResponse;
     }
 
     // Check auth for protected routes
     if (matchesPath(req.nextUrl.pathname, protectedPaths)) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await safeGetUser();
 
         if (!user) {
             const signInUrl = new URL('/auth/login', req.url);
@@ -147,8 +166,8 @@ export default async function middleware(req: NextRequest) {
         }
     }
 
-    // For all other routes, refresh the session
-    await supabase.auth.getUser();
+    // For all other routes, refresh the session (errors swallowed by safeGetUser)
+    await safeGetUser();
     return supabaseResponse;
 }
 

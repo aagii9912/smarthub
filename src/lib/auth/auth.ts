@@ -9,13 +9,23 @@ export { supabaseAdmin };
 // Get authenticated user from Supabase Auth
 export async function getAuthUser() {
     const supabase = await createSupabaseServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) {
+            return null;
+        }
+        return user.id;
+    } catch (err) {
+        // Stale cookie with a missing/expired refresh_token throws
+        // `AuthApiError: Refresh Token Not Found` on every request. Swallow
+        // it so we don't spam logs — caller gets `null` and renders the
+        // unauthenticated path.
+        const code = (err as { code?: string } | undefined)?.code;
+        if (code !== 'refresh_token_not_found') {
+            logger.warn('getAuthUser unexpected error', { error: err });
+        }
         return null;
     }
-
-    return user.id;
 }
 
 // Get shop for an authenticated user
