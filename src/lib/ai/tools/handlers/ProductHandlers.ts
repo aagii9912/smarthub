@@ -21,6 +21,11 @@ export function executeShowProductImage(
 ): ToolExecutionResult {
     const { product_names, mode } = args;
 
+    // Track requested products that genuinely have no image. We don't surface
+    // placehold.co in the chat anymore — it tricked the AI into claiming
+    // "энэ бол барааны зураг" when no image actually existed.
+    const missingImageNames: string[] = [];
+
     const matchedProducts = product_names
         .map(name => {
             const product = context.products.find(p =>
@@ -31,39 +36,51 @@ export function executeShowProductImage(
             if (!product) return null;
 
             // Build the gallery: prefer product.images (multi-image array),
-            // fall back to the legacy single image_url. We send the primary
-            // image as imageUrl and any additional ones as galleryUrls so
-            // messaging.service can decide whether to render a carousel.
+            // fall back to the legacy single image_url. Skip the product
+            // entirely when neither is set so the AI can tell the customer
+            // honestly that no image is available.
             const imagesArr = (product.images || []).filter(Boolean);
-            const galleryUrls = imagesArr.length > 0
-                ? imagesArr.slice(1)
-                : [];
-            const imageUrl =
-                imagesArr[0] ||
-                (product as unknown as { image_url?: string | null }).image_url ||
-                'https://placehold.co/600x400?text=No+Image';
+            const legacyUrl = (product as unknown as { image_url?: string | null }).image_url || null;
+            const primary = imagesArr[0] || legacyUrl;
+
+            if (!primary) {
+                missingImageNames.push(product.name);
+                return null;
+            }
 
             return {
                 name: product.name,
                 price: product.price,
-                imageUrl,
-                galleryUrls,
+                imageUrl: primary,
+                galleryUrls: imagesArr.length > 0 ? imagesArr.slice(1) : [],
                 description: product.description,
             };
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
 
     if (matchedProducts.length > 0) {
+        const trailingNote = missingImageNames.length > 0
+            ? ` (Without images: ${missingImageNames.join(', ')})`
+            : '';
         return {
             success: true,
-            message: `Showing ${matchedProducts.length} product image(s) in ${mode} mode.`,
+            message: `Showing ${matchedProducts.length} product image(s) in ${mode} mode.${trailingNote}`,
             imageAction: { type: mode, products: matchedProducts }
         };
     }
 
+    // Either nothing matched at all, or every match lacked an image. Be
+    // explicit so the AI tells the customer there is no image yet rather
+    // than falsely confirming one.
+    if (missingImageNames.length > 0) {
+        return {
+            success: false,
+            error: `"${missingImageNames.join('", "')}" бүтээгдэхүүний зураг одоогоор оруулагдаагүй байна. Текстээр тайлбарлана уу.`
+        };
+    }
     return {
         success: false,
-        error: 'Зурагтай бүтээгдэхүүн олдсонгүй.'
+        error: 'Тохирох бүтээгдэхүүн олдсонгүй.'
     };
 }
 
