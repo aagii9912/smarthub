@@ -64,9 +64,20 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         (product as unknown as { ai_instructions?: string })?.ai_instructions ?? ''
     );
 
-    // Image State
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(product?.images?.[0] || null);
+    // Image State — up to 3 images per product. Existing rows that already
+    // have a URL stay as `existingUrl`, newly picked files are tracked
+    // alongside via blob preview URLs that we revoke on unmount.
+    const MAX_IMAGES = 3;
+    type ImageSlot = { existingUrl: string | null; file: File | null; previewUrl: string | null };
+    const initialImageSlots: ImageSlot[] = (() => {
+        const urls = (product?.images ?? []).slice(0, MAX_IMAGES);
+        const slots: ImageSlot[] = urls.map((u) => ({ existingUrl: u, file: null, previewUrl: u }));
+        while (slots.length < MAX_IMAGES) {
+            slots.push({ existingUrl: null, file: null, previewUrl: null });
+        }
+        return slots;
+    })();
+    const [imageSlots, setImageSlots] = useState<ImageSlot[]>(initialImageSlots);
 
     // Variant State
     const [hasVariants, setHasVariants] = useState(product?.has_variants || false);
@@ -153,22 +164,56 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     useEffect(() => {
         if (product) {
             setProductType(product.type || 'physical');
-            setImagePreview(product.images?.[0] || null);
+            const urls = (product.images ?? []).slice(0, MAX_IMAGES);
+            const slots: ImageSlot[] = urls.map((u) => ({ existingUrl: u, file: null, previewUrl: u }));
+            while (slots.length < MAX_IMAGES) {
+                slots.push({ existingUrl: null, file: null, previewUrl: null });
+            }
+            setImageSlots(slots);
             setHasVariants(product.has_variants || false);
         }
         return () => {
-            if (imagePreview && imagePreview.startsWith('blob:')) {
-                URL.revokeObjectURL(imagePreview);
+            // Revoke any blob URLs we created so they don't leak between renders.
+            for (const slot of imageSlots) {
+                if (slot.previewUrl && slot.previewUrl.startsWith('blob:')) {
+                    URL.revokeObjectURL(slot.previewUrl);
+                }
             }
         };
+        // imageSlots intentionally omitted: only the cleanup needs current values.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [product]);
 
-    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
-        }
+    const handleImageSelectAt = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImageSlots((prev) => {
+            const next = [...prev];
+            const old = next[index];
+            if (old?.previewUrl && old.previewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(old.previewUrl);
+            }
+            next[index] = {
+                existingUrl: old?.existingUrl ?? null,
+                file,
+                previewUrl: URL.createObjectURL(file),
+            };
+            return next;
+        });
+        // Reset the input so picking the same file again still fires onChange.
+        e.target.value = '';
+    };
+
+    const handleImageRemoveAt = (index: number) => () => {
+        setImageSlots((prev) => {
+            const next = [...prev];
+            const old = next[index];
+            if (old?.previewUrl && old.previewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(old.previewUrl);
+            }
+            next[index] = { existingUrl: null, file: null, previewUrl: null };
+            return next;
+        });
     };
 
     const uploadImage = async (file: File) => {
@@ -187,10 +232,18 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         const formData = new FormData(e.currentTarget);
 
         try {
-            let imageUrl = product?.images?.[0] || null;
-            if (imageFile) {
-                imageUrl = await uploadImage(imageFile);
-            }
+            // Resolve every image slot in parallel: keep its existingUrl if no
+            // new file was picked, otherwise upload the file and use the
+            // returned URL. Empty slots drop out.
+            const imageUrls = (
+                await Promise.all(
+                    imageSlots.map(async (slot) => {
+                        if (slot.file) return await uploadImage(slot.file);
+                        if (slot.existingUrl) return slot.existingUrl;
+                        return null;
+                    }),
+                )
+            ).filter((u): u is string => !!u);
 
             const productData: Record<string, unknown> = {
                 name: formData.get('name') as string,
@@ -198,7 +251,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 price: Number(formData.get('price')),
                 discount_percent: Number(formData.get('discount')) || 0,
                 type: productType,
-                images: imageUrl ? [imageUrl] : [],
+                images: imageUrls,
                 has_variants: hasVariants,
                 variants: hasVariants ? variants : [],
                 // Lifecycle (#8/#9/#10). API accepts both camelCase + snake_case.
@@ -630,23 +683,81 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 {/* Right Column (Media) */}
                 <div className="space-y-6">
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-4">
-                        <h3 className="text-[13px] font-semibold text-white/90">Зураг оруулах</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[13px] font-semibold text-white/90">Зураг оруулах</h3>
+                            <span className="text-[10px] text-white/40">
+                                {imageSlots.filter((s) => s.previewUrl).length} / {MAX_IMAGES}
+                            </span>
+                        </div>
+
+                        {/* Main (first) image */}
                         <div className="w-full aspect-square relative">
                             <div className="w-full h-full border border-dashed border-white/[0.15] rounded-xl hover:border-violet-500/50 hover:bg-violet-500/[0.02] transition-colors relative overflow-hidden group bg-[#151040]/30 shadow-inner">
-                                {imagePreview ? (
-                                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                {imageSlots[0]?.previewUrl ? (
+                                    <>
+                                        <img src={imageSlots[0].previewUrl} alt="Гол зураг" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={handleImageRemoveAt(0)}
+                                            className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 hover:bg-black/80 text-white text-[11px] flex items-center justify-center transition"
+                                            aria-label="Зураг устгах"
+                                        >
+                                            ✕
+                                        </button>
+                                    </>
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center text-white/30 gap-3 group-hover:text-white/50 transition-colors">
                                         <div className="w-12 h-12 rounded-full bg-white/[0.03] shadow-sm flex items-center justify-center">
                                             <Upload className="w-5 h-5 text-white/40" strokeWidth={1.5} />
                                         </div>
-                                        <span className="text-[12px] font-medium tracking-[-0.01em]">Дарах эсвэл зураг чирнэ үү</span>
+                                        <span className="text-[12px] font-medium tracking-[-0.01em]">Гол зургийг сонгоно уу</span>
                                     </div>
                                 )}
-                                <input type="file" accept="image/*" onChange={handleImageSelect} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                {!imageSlots[0]?.previewUrl && (
+                                    <input type="file" accept="image/*" onChange={handleImageSelectAt(0)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                )}
                             </div>
                         </div>
-                        <p className="text-[10px] text-white/20 text-center uppercase tracking-[0.05em] font-medium">Санал болгох: 800x800px (1:1)</p>
+
+                        {/* Additional thumbnails (slots 1 and 2) */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {[1, 2].map((idx) => {
+                                const slot = imageSlots[idx];
+                                return (
+                                    <div key={idx} className="aspect-square relative">
+                                        <div className="w-full h-full border border-dashed border-white/[0.12] rounded-lg hover:border-violet-500/40 hover:bg-violet-500/[0.02] transition-colors relative overflow-hidden group bg-[#151040]/30">
+                                            {slot?.previewUrl ? (
+                                                <>
+                                                    <img src={slot.previewUrl} alt={`Зураг ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleImageRemoveAt(idx)}
+                                                        className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 hover:bg-black/80 text-white text-[10px] flex items-center justify-center transition"
+                                                        aria-label="Зураг устгах"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-white/25 gap-1 group-hover:text-white/45 transition-colors">
+                                                    <Upload className="w-4 h-4" strokeWidth={1.5} />
+                                                    <span className="text-[10px]">Зураг {idx + 1}</span>
+                                                </div>
+                                            )}
+                                            {!slot?.previewUrl && (
+                                                <input type="file" accept="image/*" onChange={handleImageSelectAt(idx)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <p className="text-[10px] text-white/30 text-center tracking-[-0.01em]">
+                            Дээд тал нь 3 зураг. Эхний зураг гол зураг болно.
+                            <br />
+                            Санал болгох: 800x800px (1:1)
+                        </p>
                     </div>
                 </div>
             </div>

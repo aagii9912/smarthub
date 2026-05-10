@@ -194,6 +194,12 @@ export interface ProductImageData {
     name: string;
     price: number;
     imageUrl: string;
+    /**
+     * Additional gallery images (excluding the primary `imageUrl`). When
+     * present and the carousel mode is selected, the messenger renders one
+     * carousel element per image so the customer can swipe horizontally.
+     */
+    galleryUrls?: string[];
     description?: string;
 }
 

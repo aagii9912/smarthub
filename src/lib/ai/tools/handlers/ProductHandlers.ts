@@ -28,20 +28,28 @@ export function executeShowProductImage(
                 name.toLowerCase().includes(p.name.toLowerCase())
             );
 
-            const imageUrl = (product && product.images && product.images.length > 0)
-                ? product.images[0]
-                : (product && product.image_url);
+            if (!product) return null;
 
-            if (product) {
-                const finalImageUrl = imageUrl || 'https://placehold.co/600x400?text=No+Image';
-                return {
-                    name: product.name,
-                    price: product.price,
-                    imageUrl: finalImageUrl,
-                    description: product.description,
-                };
-            }
-            return null;
+            // Build the gallery: prefer product.images (multi-image array),
+            // fall back to the legacy single image_url. We send the primary
+            // image as imageUrl and any additional ones as galleryUrls so
+            // messaging.service can decide whether to render a carousel.
+            const imagesArr = (product.images || []).filter(Boolean);
+            const galleryUrls = imagesArr.length > 0
+                ? imagesArr.slice(1)
+                : [];
+            const imageUrl =
+                imagesArr[0] ||
+                (product as unknown as { image_url?: string | null }).image_url ||
+                'https://placehold.co/600x400?text=No+Image';
+
+            return {
+                name: product.name,
+                price: product.price,
+                imageUrl,
+                galleryUrls,
+                description: product.description,
+            };
         })
         .filter((p): p is NonNullable<typeof p> => p !== null);
 

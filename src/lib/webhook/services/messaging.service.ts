@@ -38,7 +38,7 @@ export function generateFallbackResponse(
 }
 
 export async function processAIResponse(
-    response: { text: string; imageAction?: { type: 'single' | 'confirm'; products: Array<{ name: string; price: number; imageUrl: string; description?: string }> } },
+    response: { text: string; imageAction?: { type: 'single' | 'confirm'; products: Array<{ name: string; price: number; imageUrl: string; galleryUrls?: string[]; description?: string }> } },
     senderId: string,
     pageAccessToken: string,
     authType?: IgAuthType
@@ -47,11 +47,34 @@ export async function processAIResponse(
 
     if (imageAction && imageAction.products.length > 0) {
         try {
-            if (imageAction.products.length === 1 && imageAction.type === 'single') {
+            const onlyProduct = imageAction.products[0];
+            const galleryUrls = onlyProduct?.galleryUrls ?? [];
+            const isSingleProduct = imageAction.products.length === 1;
+
+            if (isSingleProduct && imageAction.type === 'single' && galleryUrls.length === 0) {
+                // One product, one image — keep using the cheaper plain-image
+                // attachment so we don't force-render a carousel for a single tile.
                 await sendImage({
                     recipientId: senderId,
-                    imageUrl: imageAction.products[0].imageUrl,
+                    imageUrl: onlyProduct.imageUrl,
                     pageAccessToken,
+                    authType,
+                });
+            } else if (isSingleProduct && imageAction.type === 'single' && galleryUrls.length > 0) {
+                // One product with multiple images → expand into a horizontal
+                // gallery so the customer can swipe through every angle.
+                const allImages = [onlyProduct.imageUrl, ...galleryUrls];
+                const galleryProducts = allImages.map((url, i) => ({
+                    name: i === 0 ? onlyProduct.name : `${onlyProduct.name} (${i + 1})`,
+                    price: onlyProduct.price,
+                    imageUrl: url,
+                    description: i === 0 ? onlyProduct.description : undefined,
+                }));
+                await sendImageGallery({
+                    recipientId: senderId,
+                    products: galleryProducts,
+                    pageAccessToken,
+                    confirmMode: false,
                     authType,
                 });
             } else {
