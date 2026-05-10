@@ -352,6 +352,41 @@ ${disabled.length > 0 ? disabled.join('\n') : '— байхгүй —'}
 ⚠️ Дансны дугаар, банкны нэр, эзэмшигчийн нэрийг ХЭЗЭЭ Ч өөрөө зохиож БҮҮ ХЭЛ. Дээрх жагсаалтад байгаа яг утгыг л ашиглана. Хэрэв "Банк шилжүүлэг" идэвхгүй бол хэрэглэгчид өөр идэвхтэй сонголтыг санал болго.\n`;
 }
 
+/**
+ * Render the shop-level delivery policy (free threshold, UB / province
+ * fees, optional province note). Skipped entirely when nothing has been
+ * configured so the AI keeps falling back to per-product fees.
+ */
+function buildDeliveryPolicySection(context: ChatContext): string {
+    const dp = context.deliveryPolicy;
+    if (!dp) return '';
+    const ubFee = Number(dp.ub_delivery_fee ?? 0);
+    const provFee = Number(dp.province_delivery_fee ?? 0);
+    const threshold = dp.free_delivery_threshold == null ? null : Number(dp.free_delivery_threshold);
+    const note = dp.province_delivery_note?.trim() || null;
+
+    if (ubFee <= 0 && provFee <= 0 && threshold == null && !note) return '';
+
+    const lines: string[] = [];
+    if (threshold != null && Number.isFinite(threshold) && threshold > 0) {
+        lines.push(`• Захиалгын нийт дүн ${threshold.toLocaleString()}₮-аас дээш бол **хүргэлт ҮНЭГҮЙ**.`);
+    }
+    if (ubFee > 0) {
+        lines.push(`• УБ хотын дотор: ${ubFee.toLocaleString()}₮`);
+    }
+    if (provFee > 0) {
+        lines.push(`• УБ-аас гадуур (аймаг / орон нутаг): ${provFee.toLocaleString()}₮`);
+    }
+    if (note) {
+        lines.push(`• Тайлбар: ${note}`);
+    }
+
+    return `\n=== ХҮРГЭЛТИЙН БОДЛОГО (МАШ ЧУХАЛ — ЗОХИОХ ХОРИОТОЙ) ===
+Энд бичсэн дүнг л хэрэглэгчид хэлнэ. Хаягийг харж УБ эсвэл орон нутаг гэдгийг ялгаж зөв төлбөрийг санал болгоно. Тоо ялгаатай бол доорхийг л дагана:
+${lines.join('\n')}
+\n`;
+}
+
 function buildSharedInfoSection(context: ChatContext): string {
     const flags = context.aiShareFlags ?? {};
     const parts: string[] = [];
@@ -383,6 +418,7 @@ export function buildSystemPrompt(context: ChatContext): string {
         : '';
     const sharedInfo = buildSharedInfoSection(context);
     const paymentMethodsInfo = buildPaymentMethodsSection(context);
+    const deliveryPolicyInfo = buildDeliveryPolicySection(context);
     const customInstructions = buildCustomInstructions(context.aiInstructions, context.products);
     const dynamicKnowledge = buildDynamicKnowledge(context.customKnowledge);
     // Policies sharing also gated on the toggle (defaults to true for parity).
@@ -609,7 +645,7 @@ ${roleGoal}
 ${emotionStyle}
 
 ${HUMAN_LIKE_PATTERNS}
-${shopInfo}${sharedInfo}${paymentMethodsInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
+${shopInfo}${sharedInfo}${paymentMethodsInfo}${deliveryPolicyInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
 
 ${rolePromptRules}
 

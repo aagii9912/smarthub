@@ -113,6 +113,17 @@ function SettingsContent() {
         qpay: true,
         bank_transfer: true,
     });
+    const [deliveryPolicy, setDeliveryPolicy] = useState<{
+        free_delivery_threshold: string;
+        ub_delivery_fee: string;
+        province_delivery_fee: string;
+        province_delivery_note: string;
+    }>({
+        free_delivery_threshold: '',
+        ub_delivery_fee: '',
+        province_delivery_fee: '',
+        province_delivery_note: '',
+    });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
     const [qpayStatus, setQpayStatus] = useState<string>('none');
@@ -154,6 +165,20 @@ function SettingsContent() {
                         cod: apm.cod !== false,
                         qpay: apm.qpay !== false,
                         bank_transfer: apm.bank_transfer !== false,
+                    });
+                }
+                if (data.shop.delivery_policy && typeof data.shop.delivery_policy === 'object') {
+                    const dp = data.shop.delivery_policy as Record<string, unknown>;
+                    setDeliveryPolicy({
+                        free_delivery_threshold:
+                            dp.free_delivery_threshold === null || dp.free_delivery_threshold === undefined
+                                ? ''
+                                : String(dp.free_delivery_threshold),
+                        ub_delivery_fee: dp.ub_delivery_fee == null ? '' : String(dp.ub_delivery_fee),
+                        province_delivery_fee:
+                            dp.province_delivery_fee == null ? '' : String(dp.province_delivery_fee),
+                        province_delivery_note:
+                            typeof dp.province_delivery_note === 'string' ? dp.province_delivery_note : '',
                     });
                 }
             }
@@ -816,6 +841,118 @@ function SettingsContent() {
                                 return;
                             }
                             saveSettings({ accepted_payment_methods: acceptedMethods });
+                        }}
+                        disabled={saving}
+                        leftIcon={
+                            saving ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Save className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            )
+                        }
+                    >
+                        Хадгалах
+                    </Button>
+                </div>
+            </div>
+
+            {/* Delivery Policy */}
+            <div className="card-outlined p-6">
+                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-2">
+                    <CreditCard className="w-4 h-4 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
+                    Хүргэлтийн бодлого
+                </h3>
+                <p className="text-[12px] text-white/45 tracking-[-0.01em] mb-5">
+                    AI checkout-д хэрэглэгчийн хаягийн дагуу автомат хэрэглэнэ. Хоосон үед перпродукт хүргэлтийн төлбөр (Бүтээгдэхүүн хэсгээс) хэрэглэгдэнэ.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className={labelCls}>Үнэгүй хүргэлтийн босго (₮)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={deliveryPolicy.free_delivery_threshold}
+                            onChange={(e) =>
+                                setDeliveryPolicy((p) => ({ ...p, free_delivery_threshold: e.target.value }))
+                            }
+                            className={inputCls}
+                            placeholder="Жишээ: 100000"
+                        />
+                        <p className="text-[10.5px] text-white/35 mt-1 tracking-[-0.01em]">
+                            Захиалгын дүн ≥ энэ → хүргэлт үнэгүй (хоосон бол идэвхгүй)
+                        </p>
+                    </div>
+                    <div>
+                        <label className={labelCls}>УБ хүргэлт (₮)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="500"
+                            value={deliveryPolicy.ub_delivery_fee}
+                            onChange={(e) =>
+                                setDeliveryPolicy((p) => ({ ...p, ub_delivery_fee: e.target.value }))
+                            }
+                            className={inputCls}
+                            placeholder="Жишээ: 5000"
+                        />
+                        <p className="text-[10.5px] text-white/35 mt-1 tracking-[-0.01em]">
+                            Улаанбаатар хотын дотор
+                        </p>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Орон нутаг (₮)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            value={deliveryPolicy.province_delivery_fee}
+                            onChange={(e) =>
+                                setDeliveryPolicy((p) => ({ ...p, province_delivery_fee: e.target.value }))
+                            }
+                            className={inputCls}
+                            placeholder="Жишээ: 15000"
+                        />
+                        <p className="text-[10.5px] text-white/35 mt-1 tracking-[-0.01em]">
+                            УБ-аас гадуур, аймаг / сум
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4">
+                    <label className={labelCls}>Орон нутгийн хүргэлтийн тэмдэглэл (заавал биш)</label>
+                    <textarea
+                        rows={2}
+                        maxLength={500}
+                        value={deliveryPolicy.province_delivery_note}
+                        onChange={(e) =>
+                            setDeliveryPolicy((p) => ({ ...p, province_delivery_note: e.target.value }))
+                        }
+                        className={inputCls}
+                        placeholder="Жишээ: 2-3 хоногт ачаа тээврийн компаниар хүргэнэ. Тээврийн төлбөр хэрэглэгчээс гарна."
+                    />
+                </div>
+
+                <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => {
+                            const num = (s: string) => (s.trim() === '' ? null : Number(s));
+                            const payload = {
+                                free_delivery_threshold: num(deliveryPolicy.free_delivery_threshold),
+                                ub_delivery_fee: num(deliveryPolicy.ub_delivery_fee) ?? 0,
+                                province_delivery_fee: num(deliveryPolicy.province_delivery_fee) ?? 0,
+                                province_delivery_note: deliveryPolicy.province_delivery_note.trim() || null,
+                            };
+                            for (const [k, v] of Object.entries(payload)) {
+                                if (typeof v === 'number' && v < 0) {
+                                    toast.error(`${k} сөрөг байж болохгүй`);
+                                    return;
+                                }
+                            }
+                            saveSettings({ delivery_policy: payload });
                         }}
                         disabled={saving}
                         leftIcon={

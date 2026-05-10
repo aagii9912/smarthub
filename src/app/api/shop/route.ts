@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data, ai_agent_role, ai_agent_capabilities, ai_agent_config, ai_agent_name, ai_setup_completed_at, accepted_payment_methods').eq('user_id', userId);
+    let query = supabase.from('shops').select('id, name, owner_name, phone, is_active, subscription_plan, setup_completed, created_at, facebook_page_id, facebook_page_name, instagram_business_account_id, instagram_username, description, bank_name, account_name, account_number, register_number, merchant_type, ai_emotion, ai_instructions, is_ai_active, custom_knowledge, policies, notify_on_order, notify_on_contact, notify_on_support, notify_on_cancel, qpay_status, business_type, business_setup_data, ai_agent_role, ai_agent_capabilities, ai_agent_config, ai_agent_name, ai_setup_completed_at, accepted_payment_methods, delivery_policy').eq('user_id', userId);
     if (shopId) {
       query = query.eq('id', shopId);
     } else {
@@ -233,6 +233,8 @@ export async function PATCH(request: NextRequest) {
       'ai_agent_name', 'ai_setup_completed_at',
       // Accepted payment methods toggle (shop-level)
       'accepted_payment_methods',
+      // Delivery policy (shop-level): free threshold, UB / province fees
+      'delivery_policy',
     ] as const;
 
     const ALLOWED_BUSINESS_TYPES = [
@@ -312,6 +314,30 @@ export async function PATCH(request: NextRequest) {
       const anyEnabled = ALLOWED_METHODS.some((m) => obj[m] === true);
       if (!anyEnabled) {
         return NextResponse.json({ error: 'Хамгийн багадаа нэг төлбөрийн хэлбэр идэвхтэй байх ёстой' }, { status: 400 });
+      }
+    }
+    // delivery_policy — must be a plain object with the expected numeric /
+    // string fields. Negative fees / thresholds are nonsensical.
+    if (sanitizedUpdate.delivery_policy !== undefined) {
+      const v = sanitizedUpdate.delivery_policy;
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+        return NextResponse.json({ error: 'delivery_policy must be an object' }, { status: 400 });
+      }
+      const obj = v as Record<string, unknown>;
+      const numericKeys = ['free_delivery_threshold', 'ub_delivery_fee', 'province_delivery_fee'];
+      for (const key of numericKeys) {
+        if (obj[key] !== undefined && obj[key] !== null) {
+          const n = Number(obj[key]);
+          if (!Number.isFinite(n) || n < 0) {
+            return NextResponse.json({ error: `delivery_policy.${key} must be a non-negative number or null` }, { status: 400 });
+          }
+          obj[key] = n;
+        }
+      }
+      if (obj.province_delivery_note !== undefined && obj.province_delivery_note !== null) {
+        if (typeof obj.province_delivery_note !== 'string' || obj.province_delivery_note.length > 500) {
+          return NextResponse.json({ error: 'delivery_policy.province_delivery_note must be a string up to 500 chars' }, { status: 400 });
+        }
       }
     }
 

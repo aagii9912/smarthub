@@ -3,6 +3,7 @@ import { logger } from '@/lib/utils/logger';
 import { sendOrderNotification } from '@/lib/notifications';
 import { getCartFromDB } from '../../../helpers/stockHelpers';
 import { createShopOrderInvoice } from '@/lib/payment/qpay';
+import { resolveDeliveryFee, type DeliveryPolicy } from '@/lib/utils/delivery';
 import type { CheckoutArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
 
@@ -96,12 +97,37 @@ export async function executeCheckout(
         delivery_address: customerData?.data?.address || null,
     }).eq('id', orderId);
 
-    // Get shop details (QPay merchant + bank info + accepted payment methods)
+    // Get shop details (QPay merchant + bank info + accepted payment methods + delivery policy)
     const { data: shop } = await supabase
         .from('shops')
-        .select('name, bank_name, account_number, account_name, qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status, address, accepted_payment_methods')
+        .select('name, bank_name, account_number, account_name, qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status, address, accepted_payment_methods, delivery_policy')
         .eq('id', context.shopId)
         .single();
+
+    // Apply shop-level delivery policy as an override on top of the
+    // per-product totalDeliveryFee already accumulated above. Policy fields
+    // take precedence when configured (non-zero/non-null) so shop owners
+    // can centralise UB vs province pricing without touching every product.
+    const shopDeliveryPolicy = (shop?.delivery_policy ?? null) as DeliveryPolicy | null;
+    const customerAddress = hasDeliveryItems
+        ? (await supabase.from('customers').select('address').eq('id', context.customerId).single()).data?.address
+        : null;
+    const policyHasShopOverride =
+        shopDeliveryPolicy != null &&
+        (
+            (shopDeliveryPolicy.ub_delivery_fee ?? 0) > 0 ||
+            (shopDeliveryPolicy.province_delivery_fee ?? 0) > 0 ||
+            shopDeliveryPolicy.free_delivery_threshold != null
+        );
+    if (policyHasShopOverride && hasDeliveryItems) {
+        const resolved = resolveDeliveryFee(shopDeliveryPolicy, customerAddress ?? null, cart.total_amount);
+        totalDeliveryFee = resolved.fee;
+        logger.info('checkout: applied shop delivery policy', {
+            region: resolved.region,
+            fee: resolved.fee,
+            free: resolved.free,
+        });
+    }
 
     // Honor shop-level payment-method toggles. If the AI/customer asked for a
     // disabled method, transparently fall back to the first enabled one in

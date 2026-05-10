@@ -7,7 +7,7 @@ import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } f
 import { getUserBilling } from '@/lib/billing/getUserBilling';
 import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import * as Sentry from '@sentry/nextjs';
-import type { ChatMessage, AIEmotion } from '@/types/ai';
+import type { ChatMessage, AIEmotion, ChatContext } from '@/types/ai';
 import {
     getShopByPageId,
     getShopByInstagramId,
@@ -382,6 +382,7 @@ export async function POST(request: NextRequest) {
                                     description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
                                 },
                                 paymentConfig: buildPaymentConfig(shop),
+                                deliveryPolicy: ((shop as unknown as { delivery_policy?: Record<string, unknown> | null }).delivery_policy ?? undefined) as ChatContext['deliveryPolicy'],
                             },
                             previousHistory
                         );
@@ -691,6 +692,7 @@ export async function POST(request: NextRequest) {
                                         description: (shop as unknown as { ai_share_description?: boolean }).ai_share_description,
                                     },
                                     paymentConfig: buildPaymentConfig(shop),
+                                    deliveryPolicy: ((shop as unknown as { delivery_policy?: Record<string, unknown> | null }).delivery_policy ?? undefined) as ChatContext['deliveryPolicy'],
                                     subscription: {
                                         plan: billing?.plan || shop.subscription_plan || undefined,
                                         status: billing?.status || shop.subscription_status || undefined,

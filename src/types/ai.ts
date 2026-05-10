@@ -167,6 +167,15 @@ export interface ChatContext {
         accountName?: string | null;
         accountNumber?: string | null;
     };
+    // Shop-level delivery policy: free threshold + UB / province fees.
+    // Surfaces in the prompt so AI quotes the actual numbers (and falls
+    // back gracefully when the shop hasn't configured anything).
+    deliveryPolicy?: {
+        free_delivery_threshold?: number | null;
+        ub_delivery_fee?: number | null;
+        province_delivery_fee?: number | null;
+        province_delivery_note?: string | null;
+    };
 }
 
 // Chat message for history
