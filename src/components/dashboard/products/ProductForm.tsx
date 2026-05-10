@@ -36,7 +36,16 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(
         product?.type ?? (isServiceBusiness ? 'service' : 'physical')
     );
-    const [deliveryType, setDeliveryType] = useState<string>(product?.delivery_type || 'included');
+    // Per-product delivery is now a binary "deliverable vs pickup only" toggle.
+    // Pricing (UB / province / free threshold) lives at the shop level under
+    // Settings → Хүргэлтийн бодлого. Old products with delivery_type='paid'
+    // are treated as 'included' here so their existing UI maps to "Хүргэгдэнэ".
+    const initialDeliveryType = (() => {
+        const t = product?.delivery_type;
+        if (t === 'pickup_only') return 'pickup_only';
+        return 'included';
+    })();
+    const [deliveryType, setDeliveryType] = useState<string>(initialDeliveryType);
 
     // Lifecycle status (#8/#9/#10): controls how the AI talks about availability.
     type ProductLifecycle = 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued';
@@ -224,11 +233,13 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             }
 
             // Delivery fields (physical products only)
+            // Pricing now comes from the shop-level delivery policy
+            // (Settings → Хүргэлтийн бодлого), so the only thing the product
+            // form decides is whether the item can be delivered at all or
+            // is pickup-only. delivery_fee is always cleared to 0 here.
             if (productType === 'physical') {
-                productData.delivery_type = deliveryType || 'included';
-                productData.delivery_fee = deliveryType === 'paid' 
-                    ? Number(formData.get('deliveryFee')) || 0 
-                    : 0;
+                productData.delivery_type = deliveryType === 'pickup_only' ? 'pickup_only' : 'included';
+                productData.delivery_fee = 0;
             }
 
             if (product) {
@@ -384,16 +395,15 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     {productType === 'physical' && (
                         <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                             <h3 className="text-[13px] font-semibold text-white/90">🚚 Хүргэлтийн тохиргоо</h3>
-                            
+
                             <div className="space-y-3">
                                 {[
-                                    { value: 'included', label: 'Хүргэлт үнэд багтсан', desc: 'Хэрэглэгч нэмэлт төлбөр төлөхгүй', icon: '✅' },
-                                    { value: 'paid', label: 'Нэмэлт хүргэлтийн төлбөртэй', desc: 'Хүргэлтийн төлбөрийг тусад нь авна', icon: '💰' },
-                                    { value: 'pickup_only', label: 'Зөвхөн очиж авна', desc: 'Хүргэлт хийгдэхгүй', icon: '📍' },
+                                    { value: 'included', label: 'Хүргэгдэнэ', desc: 'Хүргэлтийн төлбөрийг Settings → Хүргэлтийн бодлогооор тооцно', icon: '✅' },
+                                    { value: 'pickup_only', label: 'Зөвхөн очиж авна', desc: 'Хүргэлт хийгдэхгүй, дэлгүүрээс очиж авна', icon: '📍' },
                                 ].map(opt => (
                                     <label key={opt.value} className={`flex items-start gap-3 cursor-pointer p-3 rounded-lg border transition-all ${
-                                        deliveryType === opt.value 
-                                            ? 'border-violet-500/30 bg-violet-500/[0.05]' 
+                                        deliveryType === opt.value
+                                            ? 'border-violet-500/30 bg-violet-500/[0.05]'
                                             : 'border-white/[0.04] hover:border-white/[0.08]'
                                     }`}>
                                         <input
@@ -411,18 +421,9 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                     </label>
                                 ))}
                             </div>
-
-                            {deliveryType === 'paid' && (
-                                <div className="pt-1">
-                                    <Input 
-                                        name="deliveryFee" 
-                                        label="Хүргэлтийн төлбөр (₮)" 
-                                        type="number" 
-                                        defaultValue={product?.delivery_fee || ''} 
-                                        placeholder="5000" 
-                                    />
-                                </div>
-                            )}
+                            <p className="text-[11px] text-white/40 leading-relaxed">
+                                💡 Хүргэлтийн төлбөр (УБ / орон нутаг) болон үнэгүй хүргэлтийн босгыг <strong className="text-white/70">Settings → Хүргэлтийн бодлого</strong> хэсгээс нэгдсэн байдлаар тохируулна. Энэ бүтээгдэхүүн хүргэгдэхгүй бол ‘Зөвхөн очиж авна’-г сонгоно уу.
+                            </p>
                         </div>
                     )}
 
