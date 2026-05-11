@@ -336,7 +336,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                         <h3 className="text-[13px] font-semibold text-white/90">Үндсэн мэдээлэл</h3>
                         <Input name="name" label="Нэр" defaultValue={product?.name} required placeholder="Бүтээгдэхүүний нэр" />
-                        <Textarea name="description" label="Тайлбар" defaultValue={product?.description || ''} rows={4} placeholder="Бүтээгдэхүүн/Үйлчилгээний дэлгэрэнгүй..." />
+                        <Textarea name="description" label="Тайлбар" defaultValue={product?.description || ''} rows={4} maxLength={5000} placeholder="Бүтээгдэхүүн/Үйлчилгээний дэлгэрэнгүй... (хамгийн ихдээ 5000 тэмдэгт)" />
                     </div>
 
                     {/* Price and Inventory Card */}

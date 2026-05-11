@@ -44,7 +44,7 @@ export const createProductSchema = z.object({
     name: z.string()
         .min(1, 'Нэр оруулна уу')
         .max(100, 'Нэр хэт урт байна'),
-    description: z.string().max(1000).optional().nullable(),
+    description: z.string().max(5000, 'Тайлбар 5000 тэмдэгтээс хэтрэхгүй').optional().nullable(),
     price: z.number()
         .positive('Үнэ 0-ээс их байх ёстой')
         .max(999999999, 'Үнэ хэт их байна'),
