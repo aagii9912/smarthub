@@ -20,6 +20,7 @@ import {
     incrementMessageCount,
     buildNotifySettings,
     buildPaymentConfig,
+    buildCrossCuttingConfig,
     generateFallbackResponse,
     processAIResponse,
     replyToComment,
@@ -383,6 +384,10 @@ export async function POST(request: NextRequest) {
                                 },
                                 paymentConfig: buildPaymentConfig(shop),
                                 deliveryPolicy: ((shop as unknown as { delivery_policy?: Record<string, unknown> | null }).delivery_policy ?? undefined) as ChatContext['deliveryPolicy'],
+                                businessType: shop.business_type ?? undefined,
+                                businessSetupData: shop.business_setup_data ?? undefined,
+                                crossCutting: buildCrossCuttingConfig(shop),
+                                workingHoursStructured: shop.working_hours_structured ?? undefined,
                             },
                             previousHistory
                         );
@@ -693,6 +698,10 @@ export async function POST(request: NextRequest) {
                                     },
                                     paymentConfig: buildPaymentConfig(shop),
                                     deliveryPolicy: ((shop as unknown as { delivery_policy?: Record<string, unknown> | null }).delivery_policy ?? undefined) as ChatContext['deliveryPolicy'],
+                                    businessType: shop.business_type ?? undefined,
+                                    businessSetupData: shop.business_setup_data ?? undefined,
+                                    crossCutting: buildCrossCuttingConfig(shop),
+                                    workingHoursStructured: shop.working_hours_structured ?? undefined,
                                     subscription: {
                                         plan: billing?.plan || shop.subscription_plan || undefined,
                                         status: billing?.status || shop.subscription_status || undefined,

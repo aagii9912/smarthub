@@ -5,6 +5,60 @@
 // AI Emotion/Personality types
 export type AIEmotion = 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful';
 
+// Brand voice — composes with emotion. Tunes vocabulary register / pacing.
+export type BrandVoice = 'formal' | 'casual' | 'playful' | 'luxurious' | 'technical';
+
+// Languages the AI is allowed to actively converse in. Affects language
+// detection scope inside buildLocalizedSystemPrompt.
+export type AISupportedLanguage = 'mn' | 'en' | 'ko' | 'ja';
+
+// One weekday's open / close schedule. `closed: true` means "Амралт" — render
+// regardless of the open/close fields (they may still be present for the
+// "next open" calculation).
+export interface DayHours {
+    open?: string;   // "HH:mm" 24h
+    close?: string;  // "HH:mm" 24h
+    closed?: boolean;
+}
+
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export type WeeklyHours = Partial<Record<Weekday, DayHours>>;
+
+// One time-bounded promotion. Rendered only when current time is within
+// [starts_at, ends_at]. Both timestamps are ISO 8601.
+export interface SeasonalPromotion {
+    name: string;
+    starts_at?: string | null;
+    ends_at?: string | null;
+    description: string;
+}
+
+// Trigger rules for handing the conversation off to a human.
+export interface EscalationRules {
+    on_complaint?: 'log' | 'handoff';
+    handoff_phone?: string;
+    after_hours_message?: string;
+}
+
+// Fulfillment SLA the AI quotes verbatim.
+export interface FulfillmentSLA {
+    response_minutes?: number;
+    ship_within_hours?: number;
+    refund_within_days?: number;
+}
+
+// Cross-cutting AI behaviour controls. Stored under
+// shops.ai_agent_config.cross_cutting and applied to every business type.
+export interface CrossCuttingConfig {
+    brand_voice?: BrandVoice;
+    prohibited_topics?: string[];
+    escalation_rules?: EscalationRules;
+    supported_languages?: AISupportedLanguage[];
+    seasonal_promotions?: SeasonalPromotion[];
+    fulfillment_sla?: FulfillmentSLA;
+}
+
 // Product types used in AI context
 export type ProductStatus = 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued';
 
@@ -176,6 +230,18 @@ export interface ChatContext {
         province_delivery_fee?: number | null;
         province_delivery_note?: string | null;
     };
+    // Business-type-specific operations data (`shops.business_setup_data`).
+    // Schema is per-type — see `OPERATIONS_CONFIG` and `*SetupData`
+    // interfaces in `lib/constants/business-types.ts`. Render shape is
+    // dispatched by `businessType`.
+    businessType?: import('@/lib/constants/business-types').BusinessType;
+    businessSetupData?: Record<string, unknown>;
+    // Cross-cutting AI behaviour controls (brand voice, prohibited topics,
+    // fulfillment SLA, etc). Lives under `ai_agent_config.cross_cutting`.
+    crossCutting?: CrossCuttingConfig;
+    // Per-weekday open/close hours. Replaces free-text `shopBusinessHours`
+    // when present so the AI can answer scheduling questions accurately.
+    workingHoursStructured?: WeeklyHours;
 }
 
 // Chat message for history

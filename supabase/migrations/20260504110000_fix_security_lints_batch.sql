@@ -77,6 +77,13 @@ DROP POLICY IF EXISTS "Service role full access to audit logs" ON public.payment
 -- `WITH CHECK (true)` trips the linter and would also let empty/whitespace
 -- rows through. Re-create the policy with a real predicate that mirrors what
 -- the API route already enforces (name + phone non-empty).
+--
+-- Defensive guard: some environments have a stale `leads` table from before
+-- `20260428110000_drift_recovery.sql` baselined the schema. The policy below
+-- references `name` and `phone`, so make sure they exist first.
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS name  TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS phone TEXT;
+
 DROP POLICY IF EXISTS "Anyone can insert leads" ON public.leads;
 
 CREATE POLICY "Anyone can insert leads"

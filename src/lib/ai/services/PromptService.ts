@@ -9,10 +9,21 @@
  * conversation patterns, shared info) are assembled here.
  */
 
-import type { ChatContext, AIProduct } from '@/types/ai';
+import type {
+    ChatContext,
+    AIProduct,
+    WeeklyHours,
+    Weekday,
+    BrandVoice,
+    SeasonalPromotion,
+    EscalationRules,
+    FulfillmentSLA,
+    AISupportedLanguage,
+} from '@/types/ai';
 import { formatMemoryForPrompt } from '../tools/memory';
 import { buildRolePromptRules, getRoleTitle, getRoleGoalLine } from '../agents/registry';
 import type { AgentRole, AgentCapability } from '../agents/types';
+import type { BusinessType } from '@/lib/constants/business-types';
 
 /**
  * Emotion prompts for AI personality - Enhanced for natural feel
@@ -387,6 +398,459 @@ ${lines.join('\n')}
 \n`;
 }
 
+// ============================================
+// Phase 1: business-type-aware & cross-cutting builders
+// ============================================
+
+const WEEKDAY_ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const WEEKDAY_LABEL_MN: Record<Weekday, string> = {
+    mon: 'Даваа',
+    tue: 'Мягмар',
+    wed: 'Лхагва',
+    thu: 'Пүрэв',
+    fri: 'Баасан',
+    sat: 'Бямба',
+    sun: 'Ням',
+};
+
+/**
+ * Render the structured weekly hours. Skipped when the JSONB is empty.
+ * Days flagged `closed:true` render as "Амралт" so the AI doesn't try to
+ * quote opening times for a closed day.
+ */
+export function buildWorkingHoursSection(hours?: WeeklyHours): string {
+    if (!hours || Object.keys(hours).length === 0) return '';
+
+    const lines: string[] = [];
+    for (const day of WEEKDAY_ORDER) {
+        const slot = hours[day];
+        if (!slot) continue;
+        const label = WEEKDAY_LABEL_MN[day];
+        if (slot.closed) {
+            lines.push(`• ${label}: Амралт`);
+        } else if (slot.open && slot.close) {
+            lines.push(`• ${label}: ${slot.open} - ${slot.close}`);
+        }
+    }
+
+    if (lines.length === 0) return '';
+
+    return `\n=== АЖИЛЛАХ ЦАГИЙН ХУВААРЬ (БҮХ ӨДРӨӨР) ===
+Хэрэглэгч "хэдэн цагт нээдэг вэ?", "өнөөдөр нээлттэй юу?" гэж асуувал доорхийг л дагаж хариул. Зохиосон цаг бүү хэл.
+${lines.join('\n')}\n`;
+}
+
+const BRAND_VOICE_INSTRUCTIONS: Record<BrandVoice, string> = {
+    formal:
+        'БРЭНД ХООЛОЙ: Албан ёсны, эелдэг хэллэг. "Та" гэж хэрэглэ. Богино, хэмжсэн өгүүлбэр.',
+    casual:
+        'БРЭНД ХООЛОЙ: Дотно, өдөр тутмын яриа. "Чи" биш "та" гэвч халуун дулаан. Богино, хөнгөн өгүүлбэр.',
+    playful:
+        'БРЭНД ХООЛОЙ: Хөгжилтэй, хошин шогтой. Emoji хэрэглэж болно. Гэхдээ хэт хэтрүүлэхгүй.',
+    luxurious:
+        'БРЭНД ХООЛОЙ: Тансаг, дэгжин хэллэг. Эелдэг, хэмжсэн. "Эрхэм харилцагч" гэх мэт хүндэтгэлийн үг ашигла.',
+    technical:
+        'БРЭНД ХООЛОЙ: Мэргэжлийн, нарийн нэр томьёотой. Үнэн зөв, тодорхой. Шаардлагатай бол техникийн тайлбар өг.',
+};
+
+/**
+ * Adds a brand-voice suffix on top of the emotion style. Returns an empty
+ * string when no brand voice is configured — emotion alone defines tone.
+ */
+export function buildBrandVoiceSection(voice?: BrandVoice): string {
+    if (!voice) return '';
+    return `\n${BRAND_VOICE_INSTRUCTIONS[voice]}\n`;
+}
+
+/**
+ * Hard list of topics the AI must refuse to discuss. Rendered under the
+ * existing "ХОРИОТОЙ" block as a strict bullet list.
+ */
+export function buildProhibitedTopicsSection(topics?: string[]): string {
+    if (!topics || topics.length === 0) return '';
+    const cleaned = topics.map(t => t.trim()).filter(t => t.length > 0);
+    if (cleaned.length === 0) return '';
+
+    return `\n=== ХОРИГЛОСОН СЭДВҮҮД (ХЭЗЭЭ Ч ЯРИХГҮЙ) ===
+Доорх сэдвүүдийг хэрэглэгч асуусан ч хариулж бүү яри. "Тэр талаар би хариулж чадахгүй ээ, гэхдээ манай үйлчилгээтэй холбоотой бол асуугаарай" гэж эелдгээр татгалз.
+${cleaned.map(t => `• ${t}`).join('\n')}\n`;
+}
+
+/**
+ * Trigger rules for handing the conversation off to a human.
+ */
+export function buildEscalationSection(rules?: EscalationRules): string {
+    if (!rules) return '';
+    const lines: string[] = [];
+
+    if (rules.on_complaint === 'handoff') {
+        lines.push('• Хэрэглэгч гомдол илэрхийлсэн тохиолдолд → ШУУД request_human_support tool-оор хүн рүү шилжүүл.');
+    } else if (rules.on_complaint === 'log') {
+        lines.push('• Гомдол log_complaint tool-оор бүртгэ, AI үргэлжлүүлэн ярь.');
+    }
+
+    if (rules.handoff_phone) {
+        lines.push(`• Хүн рүү шилжүүлэх үед холбоо барих утас: ${rules.handoff_phone}`);
+    }
+
+    if (rules.after_hours_message?.trim()) {
+        lines.push(`• Ажлын цагаас гадуур мессеж ирвэл: "${rules.after_hours_message.trim()}"`);
+    }
+
+    if (lines.length === 0) return '';
+
+    return `\n=== ХҮН РҮҮ ШИЛЖҮҮЛЭХ ДҮРЭМ ===
+${lines.join('\n')}\n`;
+}
+
+/**
+ * Render time-bounded promotions. Only emits promotions whose [starts_at,
+ * ends_at] window contains the current moment so expired entries silently
+ * drop out without admin intervention.
+ */
+export function buildPromotionsSection(promos?: SeasonalPromotion[], now: Date = new Date()): string {
+    if (!promos || promos.length === 0) return '';
+    const active = promos.filter(p => {
+        const startOk = !p.starts_at || new Date(p.starts_at).getTime() <= now.getTime();
+        const endOk = !p.ends_at || new Date(p.ends_at).getTime() >= now.getTime();
+        return startOk && endOk;
+    });
+    if (active.length === 0) return '';
+
+    const lines = active.map(p => {
+        const range = [p.starts_at, p.ends_at].filter(Boolean);
+        const rangeNote = range.length === 2 ? ` (${p.starts_at?.slice(0, 10)} - ${p.ends_at?.slice(0, 10)})` : '';
+        return `• ${p.name}${rangeNote}: ${p.description}`;
+    });
+
+    return `\n=== ОДОО ИДЭВХТЭЙ АКЦ / ХЯМДРАЛ ===
+Хэрэв хэрэглэгчид тохирвол байгалийн байдлаар дурд (хэт түрхрүү бүү бай).
+${lines.join('\n')}\n`;
+}
+
+/**
+ * Fulfillment SLA — concrete numbers the AI quotes verbatim instead of
+ * making up response/ship/refund timelines.
+ */
+export function buildSLASection(sla?: FulfillmentSLA): string {
+    if (!sla) return '';
+    const lines: string[] = [];
+    if (sla.response_minutes && sla.response_minutes > 0) {
+        lines.push(`• Мессежэнд хариулах хугацаа: ${sla.response_minutes} минутын дотор`);
+    }
+    if (sla.ship_within_hours && sla.ship_within_hours > 0) {
+        lines.push(`• Захиалга илгээх хугацаа: ${sla.ship_within_hours} цагийн дотор`);
+    }
+    if (sla.refund_within_days && sla.refund_within_days > 0) {
+        lines.push(`• Буцаалт хийх хугацаа: ${sla.refund_within_days} хоногийн дотор`);
+    }
+    if (lines.length === 0) return '';
+
+    return `\n=== ҮЙЛЧИЛГЭЭНИЙ БАТАЛГАА (SLA) ===
+Доорх хугацааг л ам гаргаж хэл — зохиосон тоо бүү хэл.
+${lines.join('\n')}\n`;
+}
+
+// ── Per-business-type renderers ────────────────────────────────────
+// Each renderer pulls only the keys it understands and skips silently
+// when the value is missing. Keys mirror BUSINESS_SETUP_DATA shape in
+// `lib/constants/business-types.ts`.
+
+type Setup = Record<string, unknown>;
+
+function pickString(data: Setup, key: string): string | null {
+    const v = data[key];
+    if (typeof v !== 'string') return null;
+    const trimmed = v.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
+function pickNumber(data: Setup, key: string): number | null {
+    const v = data[key];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v.trim().length > 0) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
+function pickBoolean(data: Setup, key: string): boolean | null {
+    const v = data[key];
+    if (typeof v === 'boolean') return v;
+    return null;
+}
+
+function pickArray(data: Setup, key: string): string[] {
+    const v = data[key];
+    if (Array.isArray(v)) {
+        return v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+    }
+    if (typeof v === 'string' && v.trim().length > 0) {
+        return v.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    return [];
+}
+
+function renderRetail(data: Setup): string[] {
+    const lines: string[] = [];
+    const inv = pickString(data, 'inventory_method');
+    if (inv === 'manual') lines.push('• Бараа бүртгэлийг гараар хийдэг');
+    else if (inv === 'barcode') lines.push('• Бараа бүртгэлд баркод/POS систем ашигладаг');
+    const warehouse = pickString(data, 'warehouse_address');
+    if (warehouse) lines.push(`• Агуулахын хаяг: ${warehouse}`);
+    const tax = pickBoolean(data, 'tax_registered');
+    if (tax === true) lines.push('• НӨАТ-д бүртгэлтэй (баримт өгөх боломжтой)');
+    else if (tax === false) lines.push('• НӨАТ-д бүртгэлгүй');
+    const categories = pickArray(data, 'product_categories');
+    if (categories.length > 0) lines.push(`• Барааны ангилал: ${categories.join(', ')}`);
+    const origin = pickString(data, 'brand_origin');
+    if (origin === 'local') lines.push('• Үндсэн бараа: дотоодын');
+    else if (origin === 'imported') lines.push('• Үндсэн бараа: импортын');
+    const warranty = pickString(data, 'warranty_policy');
+    if (warranty) lines.push(`• Баталгаат хугацааны бодлого: ${warranty}`);
+    const loyalty = pickString(data, 'loyalty_program');
+    if (loyalty) lines.push(`• Урамшууллын систем: ${loyalty}`);
+    return lines;
+}
+
+function renderRestaurant(data: Setup): string[] {
+    const lines: string[] = [];
+    const tables = pickNumber(data, 'table_count');
+    if (tables !== null && tables > 0) lines.push(`• Нийт ширээний тоо: ${tables}`);
+    const delivery = pickBoolean(data, 'delivery_enabled');
+    if (delivery === true) lines.push('• Хүргэлтийн үйлчилгээтэй');
+    else if (delivery === false) lines.push('• Хүргэлтгүй (зөвхөн дотроо үйлчилнэ)');
+    const zones = pickArray(data, 'delivery_zones');
+    if (zones.length > 0) lines.push(`• Хүргэлтийн бүс: ${zones.join(', ')}`);
+    const prep = pickNumber(data, 'avg_prep_minutes');
+    if (prep !== null && prep > 0) lines.push(`• Хоол бэлдэх дундаж хугацаа: ${prep} минут`);
+    const categories = pickArray(data, 'menu_categories');
+    if (categories.length > 0) lines.push(`• Цэсний ангилал: ${categories.join(', ')}`);
+    const dietary = pickArray(data, 'dietary_options');
+    if (dietary.length > 0) lines.push(`• Тусгай хоолны сонголт: ${dietary.join(', ')}`);
+    const peak = pickString(data, 'peak_hours');
+    if (peak) lines.push(`• Ачаалал ихтэй цаг: ${peak}`);
+    const reservation = pickString(data, 'reservation_policy');
+    if (reservation) lines.push(`• Ширээ захиалгын бодлого: ${reservation}`);
+    const minOrder = pickNumber(data, 'min_order_value');
+    if (minOrder !== null && minOrder > 0) lines.push(`• Хүргэлтийн доод дүн: ${minOrder.toLocaleString()}₮`);
+    const fee = pickNumber(data, 'service_fee_percent');
+    if (fee !== null && fee > 0) lines.push(`• Үйлчилгээний хураамж: ${fee}%`);
+    return lines;
+}
+
+function renderService(data: Setup): string[] {
+    const lines: string[] = [];
+    const staff = pickNumber(data, 'staff_count');
+    if (staff !== null && staff > 0) lines.push(`• Ажилтны тоо: ${staff}`);
+    const duration = pickNumber(data, 'default_duration_minutes');
+    if (duration !== null && duration > 0) lines.push(`• Үйлчилгээний дундаж үргэлжлэх хугацаа: ${duration} минут`);
+    const booking = pickString(data, 'booking_method');
+    if (booking === 'manual') lines.push('• Захиалгыг мессежээр гараар авдаг');
+    else if (booking === 'calendar') lines.push('• Захиалгыг календар системээр авдаг');
+    const hours = pickString(data, 'business_hours');
+    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
+    const catalog = data['service_catalog'];
+    if (Array.isArray(catalog) && catalog.length > 0) {
+        const items = catalog
+            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+            .map(s => {
+                const name = typeof s.name === 'string' ? s.name : '';
+                const dur = typeof s.duration === 'number' ? `${s.duration}мин` : '';
+                const price = typeof s.price === 'number' ? `${s.price.toLocaleString()}₮` : '';
+                return `${name} (${[dur, price].filter(Boolean).join(', ')})`;
+            })
+            .filter(Boolean);
+        if (items.length > 0) lines.push(`• Үйлчилгээний жагсаалт: ${items.join('; ')}`);
+    }
+    const cancel = pickString(data, 'cancellation_policy');
+    if (cancel) lines.push(`• Захиалга цуцлах бодлого: ${cancel}`);
+    const advance = pickNumber(data, 'advance_booking_days');
+    if (advance !== null && advance > 0) lines.push(`• Урьдчилан захиалах боломжтой: ${advance} хоног`);
+    const deposit = pickBoolean(data, 'requires_deposit');
+    if (deposit === true) lines.push('• Захиалга баталгаажуулахад урьдчилгаа төлбөр шаардлагатай');
+    const home = pickBoolean(data, 'home_visit_enabled');
+    if (home === true) lines.push('• Гэрт нь очиж үйлчилдэг');
+    return lines;
+}
+
+function renderEcommerce(data: Setup): string[] {
+    const lines: string[] = [];
+    const zones = pickArray(data, 'shipping_zones');
+    if (zones.length > 0) lines.push(`• Хүргэлтийн бүс: ${zones.join(', ')}`);
+    const methods = pickArray(data, 'payment_methods');
+    if (methods.length > 0) lines.push(`• Төлбөрийн арга: ${methods.join(', ')}`);
+    const tracking = pickBoolean(data, 'inventory_tracking');
+    if (tracking === true) lines.push('• Үлдэгдэл автоматаар хянагдана');
+    const dispatch = pickNumber(data, 'dispatch_sla_hours');
+    if (dispatch !== null && dispatch > 0) lines.push(`• Захиалгыг ${dispatch} цагийн дотор боловсруулна`);
+    const returnWindow = pickNumber(data, 'return_window_days');
+    if (returnWindow !== null && returnWindow > 0) lines.push(`• Буцаах хугацаа: ${returnWindow} хоног`);
+    const sizeChart = pickString(data, 'size_chart_url');
+    if (sizeChart) lines.push(`• Размерийн хүснэгт: ${sizeChart}`);
+    const story = pickString(data, 'brand_story');
+    if (story) lines.push(`• Брэндийн түүх: ${story}`);
+    const preOrder = pickString(data, 'pre_order_policy');
+    if (preOrder) lines.push(`• Урьдчилсан захиалгын бодлого: ${preOrder}`);
+    return lines;
+}
+
+function renderBeauty(data: Setup): string[] {
+    const lines: string[] = [];
+    const staff = pickNumber(data, 'staff_count');
+    if (staff !== null && staff > 0) lines.push(`• Мэргэжилтний тоо: ${staff}`);
+    const address = pickString(data, 'salon_address');
+    if (address) lines.push(`• Салоны хаяг: ${address}`);
+    const home = pickBoolean(data, 'services_at_home');
+    if (home === true) lines.push('• Гэрт нь очиж үйлчилдэг');
+    const duration = pickNumber(data, 'default_duration_minutes');
+    if (duration !== null && duration > 0) lines.push(`• Үйлчилгээний дундаж үргэлжлэх хугацаа: ${duration} минут`);
+    const menu = data['service_menu'];
+    if (Array.isArray(menu) && menu.length > 0) {
+        const items = menu
+            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+            .map(s => {
+                const name = typeof s.name === 'string' ? s.name : '';
+                const dur = typeof s.duration === 'number' ? `${s.duration}мин` : '';
+                const price = typeof s.price === 'number' ? `${s.price.toLocaleString()}₮` : '';
+                return `${name} (${[dur, price].filter(Boolean).join(', ')})`;
+            })
+            .filter(Boolean);
+        if (items.length > 0) lines.push(`• Үйлчилгээний жагсаалт: ${items.join('; ')}`);
+    }
+    const specialists = data['specialist_list'];
+    if (Array.isArray(specialists) && specialists.length > 0) {
+        const items = specialists
+            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+            .map(s => {
+                const name = typeof s.name === 'string' ? s.name : '';
+                const specialty = typeof s.specialty === 'string' ? s.specialty : '';
+                return name && specialty ? `${name} - ${specialty}` : name;
+            })
+            .filter(Boolean);
+        if (items.length > 0) lines.push(`• Мэргэжилтнүүд: ${items.join(', ')}`);
+    }
+    const walkIn = pickBoolean(data, 'walk_in_accepted');
+    if (walkIn === true) lines.push('• Урьдчилсан захиалгагүй ирж болно');
+    else if (walkIn === false) lines.push('• Зөвхөн урьдчилсан захиалгаар үйлчилнэ');
+    const aftercare = pickString(data, 'aftercare_instructions');
+    if (aftercare) lines.push(`• Үйлчилгээний дараах зөвлөгөө: ${aftercare}`);
+    return lines;
+}
+
+function renderHealthcare(data: Setup): string[] {
+    const lines: string[] = [];
+    const doctors = pickNumber(data, 'doctor_count');
+    if (doctors !== null && doctors > 0) lines.push(`• Эмчийн тоо: ${doctors}`);
+    const specialties = pickArray(data, 'specialties');
+    if (specialties.length > 0) lines.push(`• Чиглэлүүд: ${specialties.join(', ')}`);
+    const hours = pickString(data, 'business_hours');
+    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
+    const insurance = pickArray(data, 'insurance_accepted');
+    if (insurance.length > 0) lines.push(`• Хүлээн авдаг даатгал: ${insurance.join(', ')}`);
+    const appointmentReq = pickBoolean(data, 'appointment_required');
+    if (appointmentReq === true) lines.push('• Зөвхөн урьдчилсан цаг авсан үед үйлчилнэ');
+    const emergency = pickString(data, 'emergency_handling');
+    if (emergency) lines.push(`• Яаралтай тохиолдол: ${emergency}`);
+    const disclaimer = pickString(data, 'triage_disclaimer');
+    if (disclaimer) {
+        lines.push(`• ⚠️ ЗААВАЛ ХЭЛЭХ МЭДЭГДЭЛ: ${disclaimer}`);
+    }
+    return lines;
+}
+
+function renderEducation(data: Setup): string[] {
+    const lines: string[] = [];
+    const types = pickArray(data, 'course_types');
+    if (types.length > 0) lines.push(`• Сургалтын төрлүүд: ${types.join(', ')}`);
+    const capacity = pickNumber(data, 'student_capacity');
+    if (capacity !== null && capacity > 0) lines.push(`• Ангийн дээд хязгаар: ${capacity} суралцагч`);
+    const hours = pickString(data, 'business_hours');
+    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
+    const levels = pickArray(data, 'levels_offered');
+    if (levels.length > 0) lines.push(`• Түвшнүүд: ${levels.join(', ')}`);
+    const formats = pickArray(data, 'class_format');
+    if (formats.length > 0) lines.push(`• Хичээллэх хэлбэр: ${formats.join(', ')}`);
+    const intake = pickString(data, 'intake_dates');
+    if (intake) lines.push(`• Элсэлтийн огноо: ${intake}`);
+    const cert = pickBoolean(data, 'certification_offered');
+    if (cert === true) lines.push('• Сертификат олгодог');
+    const trial = pickBoolean(data, 'trial_class_available');
+    if (trial === true) lines.push('• Туршилтын хичээл боломжтой');
+    return lines;
+}
+
+function renderRealestateAuto(data: Setup): string[] {
+    const lines: string[] = [];
+    const category = pickString(data, 'category');
+    if (category === 'realestate') lines.push('• Чиглэл: Үл хөдлөх хөрөнгө');
+    else if (category === 'auto') lines.push('• Чиглэл: Автомашин');
+    else if (category === 'both') lines.push('• Чиглэл: Үл хөдлөх + Автомашин');
+    const agents = pickNumber(data, 'agent_count');
+    if (agents !== null && agents > 0) lines.push(`• Менежерийн тоо: ${agents}`);
+    const areas = pickArray(data, 'service_areas');
+    if (areas.length > 0) lines.push(`• Үйлчилгээний бүс: ${areas.join(', ')}`);
+    const types = pickArray(data, 'listing_types');
+    if (types.length > 0) lines.push(`• Зарын төрлүүд: ${types.join(', ')}`);
+    const financing = pickString(data, 'financing_partners');
+    if (financing) lines.push(`• Санхүүгийн түнш: ${financing}`);
+    const inspection = pickString(data, 'inspection_policy');
+    if (inspection) lines.push(`• Үзлэгийн бодлого: ${inspection}`);
+    const questions = pickArray(data, 'lead_qualification_questions');
+    if (questions.length > 0) {
+        lines.push('• Lead шалгах асуултууд (хэрэглэгчээс заавал асуу):');
+        for (const q of questions) {
+            lines.push(`  - ${q}`);
+        }
+    }
+    return lines;
+}
+
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+    retail: 'ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ',
+    restaurant: 'РЕСТОРАН/КАФЕНЫ МЭДЭЭЛЭЛ',
+    service: 'ҮЙЛЧИЛГЭЭНИЙ МЭДЭЭЛЭЛ',
+    ecommerce: 'ОНЛАЙН ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ',
+    beauty: 'САЛОНЫ МЭДЭЭЛЭЛ',
+    healthcare: 'ЭМНЭЛГИЙН МЭДЭЭЛЭЛ',
+    education: 'СУРГАЛТЫН ТӨВИЙН МЭДЭЭЛЭЛ',
+    realestate_auto: 'ҮЛ ХӨДЛӨХ / АВТО МЭДЭЭЛЭЛ',
+    other: 'БИЗНЕСИЙН МЭДЭЭЛЭЛ',
+};
+
+const BUSINESS_RENDERERS: Partial<Record<BusinessType, (data: Setup) => string[]>> = {
+    retail: renderRetail,
+    restaurant: renderRestaurant,
+    service: renderService,
+    ecommerce: renderEcommerce,
+    beauty: renderBeauty,
+    healthcare: renderHealthcare,
+    education: renderEducation,
+    realestate_auto: renderRealestateAuto,
+};
+
+/**
+ * Render the business-type-specific section of the system prompt. Each
+ * business type has its own field set under `shops.business_setup_data`;
+ * the renderer pulls only what is present and skips silently otherwise.
+ */
+export function buildBusinessTypeSection(
+    businessType?: BusinessType,
+    data?: Setup,
+): string {
+    if (!businessType || !data || Object.keys(data).length === 0) return '';
+    const renderer = BUSINESS_RENDERERS[businessType];
+    if (!renderer) return '';
+    const lines = renderer(data);
+    if (lines.length === 0) return '';
+
+    const label = BUSINESS_TYPE_LABELS[businessType];
+    return `\n=== ${label} ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+${lines.join('\n')}\n`;
+}
+
 function buildSharedInfoSection(context: ChatContext): string {
     const flags = context.aiShareFlags ?? {};
     const parts: string[] = [];
@@ -417,8 +881,14 @@ export function buildSystemPrompt(context: ChatContext): string {
         ? `\nДЭЛГҮҮРИЙН ТУХАЙ: ${context.shopDescription}`
         : '';
     const sharedInfo = buildSharedInfoSection(context);
+    // Cross-cutting controls injected after the per-shop info block.
+    const cc = context.crossCutting;
+    const brandVoiceSection = buildBrandVoiceSection(cc?.brand_voice);
+    const workingHoursSection = buildWorkingHoursSection(context.workingHoursStructured);
+    const businessTypeSection = buildBusinessTypeSection(context.businessType, context.businessSetupData);
     const paymentMethodsInfo = buildPaymentMethodsSection(context);
     const deliveryPolicyInfo = buildDeliveryPolicySection(context);
+    const slaSection = buildSLASection(cc?.fulfillment_sla);
     const customInstructions = buildCustomInstructions(context.aiInstructions, context.products);
     const dynamicKnowledge = buildDynamicKnowledge(context.customKnowledge);
     // Policies sharing also gated on the toggle (defaults to true for parity).
@@ -430,6 +900,9 @@ export function buildSystemPrompt(context: ChatContext): string {
     );
     const faqSection = buildFAQSection(context.faqs);
     const sloganSection = buildSloganSection(context.slogans);
+    const promotionsSection = buildPromotionsSection(cc?.seasonal_promotions);
+    const escalationSection = buildEscalationSection(cc?.escalation_rules);
+    const prohibitedTopicsSection = buildProhibitedTopicsSection(cc?.prohibited_topics);
 
     // Only include customer memory if plan allows
     const customerMemory = context.planFeatures?.ai_memory !== false
@@ -642,10 +1115,10 @@ ${roleGoal}
 ХАМГИЙН ЧУХАЛ: ЧИ БОЛ РОБОТ БИШ, ЖИНХЭНЭ ХҮН. Байгалийн, дотно ярь!
 
 ЗАН БАЙДАЛ:
-${emotionStyle}
+${emotionStyle}${brandVoiceSection}
 
 ${HUMAN_LIKE_PATTERNS}
-${shopInfo}${sharedInfo}${paymentMethodsInfo}${deliveryPolicyInfo}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${customerGreeting}
+${shopInfo}${sharedInfo}${workingHoursSection}${businessTypeSection}${paymentMethodsInfo}${deliveryPolicyInfo}${slaSection}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${promotionsSection}${escalationSection}${customerGreeting}
 
 ${rolePromptRules}
 
@@ -663,7 +1136,7 @@ AI IDENTITY (Брэнд дүр):
 - Дэлгүүрээс өөр сэдвийн талаар дэлгэрэнгүй ярих
 - Хэт урт, нуршуу хариулт (гол зүйлээ эхэнд нь хэл)
 - "OpenAI", "GPT", "ChatGPT", "Claude" гэх мэт model нэр дурдах
-- Робот шиг формал хэл хэрэглэх`;
+- Робот шиг формал хэл хэрэглэх${prohibitedTopicsSection}`;
 }
 
 // ==============================
@@ -720,13 +1193,25 @@ LANGUAGE: お客様は日本語で書いています。
 };
 
 /**
- * Detect the language of a message
+ * Detect the language of a message.
+ *
+ * When `allowed` is provided, only those languages are candidates — Mongolian
+ * is always implicitly allowed as the default fallback. This lets shops
+ * opt in to multi-language replies through `supported_languages`.
  */
-export function detectLanguage(message: string): SupportedLanguage {
+export function detectLanguage(
+    message: string,
+    allowed?: readonly AISupportedLanguage[],
+): SupportedLanguage {
     if (!message) return 'mn';
 
+    const candidates: SupportedLanguage[] = ['ko', 'ja', 'en'];
+    const effective = allowed && allowed.length > 0
+        ? candidates.filter(l => allowed.includes(l as AISupportedLanguage))
+        : candidates;
+
     // Check non-default languages first (in priority order)
-    for (const lang of ['ko', 'ja', 'en'] as SupportedLanguage[]) {
+    for (const lang of effective) {
         const patterns = LANGUAGE_PATTERNS[lang];
         for (const pattern of patterns) {
             if (pattern.test(message)) {
@@ -753,7 +1238,8 @@ export function buildLocalizedSystemPrompt(
     customerMessage?: string
 ): string {
     const basePrompt = buildSystemPrompt(context);
-    const lang = customerMessage ? detectLanguage(customerMessage) : 'mn';
+    const allowed = context.crossCutting?.supported_languages;
+    const lang = customerMessage ? detectLanguage(customerMessage, allowed) : 'mn';
     const langInstruction = getLanguageInstruction(lang);
 
     if (!langInstruction) return basePrompt;

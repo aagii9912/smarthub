@@ -1,6 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabase';
-import type { AIProduct, AIFAQ, AIQuickReply, AISlogan, NotifySettings } from '@/types/ai';
+import type {
+    AIProduct,
+    AIFAQ,
+    AIQuickReply,
+    AISlogan,
+    NotifySettings,
+    CrossCuttingConfig,
+    WeeklyHours,
+} from '@/types/ai';
 import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
+import type { BusinessType } from '@/lib/constants/business-types';
 
 interface ShopProductRow {
     id: string;
@@ -103,7 +112,10 @@ export interface ShopWithProducts {
     ai_agent_config?: Record<string, unknown> | null;
     ai_agent_name?: string | null;
     ai_setup_completed_at?: string | null;
-    business_type?: string | null;
+    ai_settings_completed_at?: string | null;
+    business_type?: BusinessType | null;
+    business_setup_data?: Record<string, unknown> | null;
+    working_hours_structured?: WeeklyHours | null;
 }
 
 export interface AIFeatures {
@@ -148,8 +160,26 @@ function mapShopRowToShopWithProducts(data: Record<string, unknown>): ShopWithPr
         ai_agent_config: get<Record<string, unknown> | null>('ai_agent_config'),
         ai_agent_name: get<string | null>('ai_agent_name'),
         ai_setup_completed_at: get<string | null>('ai_setup_completed_at'),
-        business_type: get<string | null>('business_type'),
+        ai_settings_completed_at: get<string | null>('ai_settings_completed_at'),
+        business_type: get<BusinessType | null>('business_type'),
+        business_setup_data: get<Record<string, unknown> | null>('business_setup_data'),
+        working_hours_structured: get<WeeklyHours | null>('working_hours_structured'),
     };
+}
+
+/**
+ * Extract the cross-cutting AI behaviour controls from `ai_agent_config`.
+ *
+ * The blob may not have the `cross_cutting` key yet (older shops) — we
+ * gracefully return `undefined` so `PromptService` skips the relevant
+ * sections instead of injecting empty noise.
+ */
+export function buildCrossCuttingConfig(shop: ShopWithProducts): CrossCuttingConfig | undefined {
+    const cfg = shop.ai_agent_config;
+    if (!cfg || typeof cfg !== 'object') return undefined;
+    const raw = (cfg as Record<string, unknown>).cross_cutting;
+    if (!raw || typeof raw !== 'object') return undefined;
+    return raw as CrossCuttingConfig;
 }
 
 export async function getShopByPageId(pageId: string): Promise<ShopWithProducts | null> {

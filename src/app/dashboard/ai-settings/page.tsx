@@ -15,6 +15,9 @@ import {
     Hash,
     Cpu,
     Sparkles,
+    Briefcase,
+    Palette,
+    FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EMOTIONS } from '@/lib/constants/ai-setup';
@@ -24,12 +27,27 @@ import { PageHero } from '@/components/ui/PageHero';
 import { cn } from '@/lib/utils';
 import { AgentWizard } from './components/AgentWizard';
 import { AgentOverview } from './components/AgentOverview';
+import { BrandSection } from './components/sections/BrandSection';
+import { PoliciesSection } from './components/sections/PoliciesSection';
+import { OperationsPanel } from './components/operations/OperationsPanel';
 import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
 import type { BusinessType } from '@/lib/constants/business-types';
+import type {
+    BrandVoice,
+    AISupportedLanguage,
+    EscalationRules,
+    FulfillmentSLA,
+    SeasonalPromotion,
+    WeeklyHours,
+    CrossCuttingConfig,
+} from '@/types/ai';
 
 const TABS = [
     { id: 'persona', label: 'AI Persona', icon: Settings },
+    { id: 'brand', label: 'Брэнд', icon: Palette },
+    { id: 'business', label: 'Бизнес', icon: Briefcase },
     { id: 'knowledge', label: 'Мэдлэг', icon: BookOpen },
+    { id: 'policies', label: 'Бодлого', icon: FileText },
     { id: 'automation', label: 'Автоматжуулалт', icon: Zap },
     { id: 'notifications', label: 'Мэдэгдэл', icon: Bell },
 ] as const;
@@ -93,7 +111,7 @@ function ToggleRow({
 }
 
 interface AdvancedSettingsProps {
-    initialTab?: 'persona' | 'knowledge' | 'automation' | 'notifications';
+    initialTab?: (typeof TABS)[number]['id'];
     onBack?: () => void;
 }
 
@@ -165,6 +183,16 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
     const [aiPreview, setAiPreview] = useState('');
     const [shopName, setShopName] = useState('');
 
+    // ── Phase 2: cross-cutting + business-type state ──
+    const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+    const [crossCutting, setCrossCutting] = useState<CrossCuttingConfig>({});
+    const [workingHoursStructured, setWorkingHoursStructured] = useState<WeeklyHours>({});
+    const [savingBrand, setSavingBrand] = useState(false);
+    const [savingPolicies, setSavingPolicies] = useState(false);
+    // ── Phase 3: business-type operations state ──
+    const [businessSetupData, setBusinessSetupData] = useState<Record<string, unknown>>({});
+    const [savingOperations, setSavingOperations] = useState(false);
+
     const shopId =
         typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') || '' : '';
 
@@ -176,9 +204,10 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
     async function fetchAll() {
         try {
             setLoading(true);
-            const [shopRes, aiRes] = await Promise.all([
+            const [shopRes, aiRes, configRes] = await Promise.all([
                 fetch('/api/shop', { headers: { 'x-shop-id': shopId } }),
                 fetch('/api/ai-settings', { headers: { 'x-shop-id': shopId } }).catch(() => null),
+                fetch('/api/ai-settings/config', { headers: { 'x-shop-id': shopId } }).catch(() => null),
             ]);
             const shopData = await shopRes.json();
             if (shopData.shop) {
@@ -251,10 +280,111 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                     }))
                 );
             }
+
+            if (configRes?.ok) {
+                const c = (await configRes.json()) as {
+                    business_type: BusinessType | null;
+                    business_setup_data: Record<string, unknown> | null;
+                    cross_cutting: CrossCuttingConfig | null;
+                    working_hours_structured: WeeklyHours | null;
+                };
+                setBusinessType(c.business_type);
+                setCrossCutting(c.cross_cutting ?? {});
+                setWorkingHoursStructured(c.working_hours_structured ?? {});
+                setBusinessSetupData(c.business_setup_data ?? {});
+            }
         } catch (e) {
             logger.error('Алдаа гарлаа', { error: e });
         } finally {
             setLoading(false);
+        }
+    }
+
+    // ── Phase 2: cross-cutting save helpers ──
+    function applyCrossCuttingPatch(patch: Partial<CrossCuttingConfig>) {
+        setCrossCutting((prev) => ({ ...prev, ...patch }));
+    }
+
+    async function saveCrossCutting(message: string, setBusy: (b: boolean) => void) {
+        setBusy(true);
+        try {
+            const res = await fetch('/api/ai-settings/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({ cross_cutting: crossCutting }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || `PATCH failed (${res.status})`);
+            }
+            toast.success(message);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function saveBrand() {
+        await saveCrossCutting('Брэнд тохиргоо хадгалагдлаа', setSavingBrand);
+    }
+
+    async function savePoliciesTab() {
+        setSavingPolicies(true);
+        try {
+            const res = await fetch('/api/ai-settings/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    cross_cutting: crossCutting,
+                    working_hours_structured: workingHoursStructured,
+                }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || `PATCH failed (${res.status})`);
+            }
+            toast.success('Бодлогын тохиргоо хадгалагдлаа');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
+        } finally {
+            setSavingPolicies(false);
+        }
+    }
+
+    // ── Phase 3: business-type operations setter + save ──
+    function setOperationsField(key: string, value: unknown) {
+        setBusinessSetupData((prev) => {
+            const next = { ...prev };
+            if (value === undefined || value === null || value === '') {
+                delete next[key];
+            } else {
+                next[key] = value;
+            }
+            return next;
+        });
+    }
+
+    async function saveOperations() {
+        if (!businessType || businessType === 'other') return;
+        setSavingOperations(true);
+        try {
+            const res = await fetch('/api/ai-settings/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                body: JSON.stringify({
+                    operations: { business_type: businessType, ...businessSetupData },
+                }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || `PATCH failed (${res.status})`);
+            }
+            toast.success('Бизнесийн мэдээлэл хадгалагдлаа');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Алдаа гарлаа');
+        } finally {
+            setSavingOperations(false);
         }
     }
 
@@ -835,6 +965,30 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                 </div>
             )}
 
+            {/* ═══ TAB: Brand & Voice ═══ */}
+            {activeTab === 'brand' && (
+                <BrandSection
+                    brandVoice={crossCutting.brand_voice}
+                    prohibitedTopics={crossCutting.prohibited_topics ?? []}
+                    supportedLanguages={crossCutting.supported_languages ?? ['mn']}
+                    escalationRules={crossCutting.escalation_rules ?? {}}
+                    onChange={applyCrossCuttingPatch}
+                    onSave={saveBrand}
+                    saving={savingBrand}
+                />
+            )}
+
+            {/* ═══ TAB: Business (dynamic per-type) ═══ */}
+            {activeTab === 'business' && (
+                <OperationsPanel
+                    businessType={businessType}
+                    data={businessSetupData}
+                    setField={setOperationsField}
+                    onSave={saveOperations}
+                    saving={savingOperations}
+                />
+            )}
+
             {/* ═══ TAB: Knowledge ═══ */}
             {activeTab === 'knowledge' && (
                 <div className="space-y-5">
@@ -1222,6 +1376,19 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ═══ TAB: Policies & Fulfillment ═══ */}
+            {activeTab === 'policies' && (
+                <PoliciesSection
+                    workingHoursStructured={workingHoursStructured}
+                    fulfillmentSla={crossCutting.fulfillment_sla ?? {}}
+                    seasonalPromotions={crossCutting.seasonal_promotions ?? []}
+                    onChangeHours={setWorkingHoursStructured}
+                    onChangeCrossCutting={applyCrossCuttingPatch}
+                    onSave={savePoliciesTab}
+                    saving={savingPolicies}
+                />
             )}
 
             {/* ═══ TAB: Automation ═══ */}
