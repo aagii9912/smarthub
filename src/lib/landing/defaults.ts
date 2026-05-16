@@ -148,8 +148,8 @@ export const defaultLandingContent: LandingContent = {
                 lines: ["1 Facebook/Instagram хуудас", "Зураг таних (Vision) + QPay холболт"],
             },
             price: {
-                monthly: { value: "₮149,000", per: "/сар" },
-                annual: { value: "₮1,788,000", per: "/жил" },
+                monthly: { value: "₮179,000", per: "/сар" },
+                annual: { value: "₮1,790,000", per: "/жил" },
             },
             cta: { text: "Эхлэх", href: "/auth/register?plan=starter" },
             features: [

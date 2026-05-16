@@ -4,20 +4,12 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoice } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 
-// Subscription plan prices (MNT)
-const PLAN_PRICES: Record<string, { price: number; name: string }> = {
-    lite: { price: 89_000, name: 'Lite' },
-    starter: { price: 149_000, name: 'Starter' },
-    pro: { price: 349_000, name: 'Pro' },
-    ultimate: { price: 999_000, name: 'Ultimate' },
-};
-
 /**
  * POST /api/subscription/pay
  * Create QPay invoice for subscription payment
- * 
+ *
  * Body: {
- *   plan_slug: "lite" | "starter" | "pro" | "ultimate"
+ *   plan_slug: string
  * }
  */
 export async function POST(request: NextRequest) {
@@ -30,16 +22,21 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { plan_slug } = body;
 
-        // Validate plan
-        const plan = PLAN_PRICES[plan_slug];
-        if (!plan) {
+        const supabase = supabaseAdmin();
+
+        // Fetch plan price from database (single source of truth)
+        const { data: planData, error: planErr } = await supabase
+            .from('plans')
+            .select('price_monthly, name')
+            .eq('slug', plan_slug)
+            .eq('is_active', true)
+            .single();
+
+        if (planErr || !planData) {
             return NextResponse.json({
                 error: 'Буруу план сонгосон байна',
-                available_plans: Object.keys(PLAN_PRICES),
             }, { status: 400 });
         }
-
-        const supabase = supabaseAdmin();
 
         // Check for existing pending subscription payment
         const { data: existingPayment } = await supabase
@@ -67,9 +64,9 @@ export async function POST(request: NextRequest) {
 
         const invoice = await createSubscriptionInvoice({
             planSlug: plan_slug,
-            amount: plan.price,
+            amount: planData.price_monthly,
             userId,
-            description: `Syncly ${plan.name} план - сарын эрх`,
+            description: `Syncly ${planData.name} план - сарын эрх`,
             callbackUrl,
         });
 
@@ -86,7 +83,7 @@ export async function POST(request: NextRequest) {
             .insert({
                 payment_type: 'subscription',
                 payment_method: 'qpay',
-                amount: plan.price,
+                amount: planData.price_monthly,
                 status: 'pending',
                 subscription_user_id: userId,
                 subscription_plan_slug: plan_slug,
@@ -95,8 +92,8 @@ export async function POST(request: NextRequest) {
                 qpay_qr_image: invoice.qr_image,
                 metadata: {
                     urls: invoice.urls,
-                    plan_name: plan.name,
-                    plan_price: plan.price,
+                    plan_name: planData.name,
+                    plan_price: planData.price_monthly,
                 },
                 expires_at: invoice.expiry_date || new Date(Date.now() + 15 * 60 * 1000).toISOString(),
             })
@@ -111,7 +108,7 @@ export async function POST(request: NextRequest) {
         logger.success('Subscription QPay invoice created:', {
             user_id: userId,
             plan: plan_slug,
-            amount: plan.price,
+            amount: planData.price_monthly,
             invoice_id: invoice.invoice_id,
         });
 
@@ -120,8 +117,8 @@ export async function POST(request: NextRequest) {
             payment: {
                 id: payment.id,
                 plan: plan_slug,
-                plan_name: plan.name,
-                amount: plan.price,
+                plan_name: planData.name,
+                amount: planData.price_monthly,
                 qr_text: invoice.qr_text,
                 qr_image: invoice.qr_image,
                 urls: invoice.urls,

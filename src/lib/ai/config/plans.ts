@@ -124,8 +124,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         maxShops: 1,
         maxProducts: 50,
         price: {
-            monthly: { mnt: 149000, usd: 44 },
-            yearly: { mnt: 1788000, usd: 526 },
+            monthly: { mnt: 179000, usd: 52 },
+            yearly: { mnt: 1790000, usd: 526 },
         },
         features: {
             // AI Core
