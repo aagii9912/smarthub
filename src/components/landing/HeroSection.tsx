@@ -10,7 +10,7 @@ export function HeroSection({ content: c }: HeroSectionProps) {
   return (
     <section className="relative pt-36 pb-20 sm:pt-44 sm:pb-28 px-6 overflow-hidden">
       {/* Floating chat bubbles */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="hidden sm:block absolute inset-0 pointer-events-none overflow-hidden">
         <div className="chat-bubble absolute top-[18%] left-[5%] sm:left-[8%] bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/10 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-[11px] text-indigo-300/60 max-w-[160px]" style={{ animationDelay: '0s' }}>
           Энэ хувцас хэдээр вэ?
         </div>
