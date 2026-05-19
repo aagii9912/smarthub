@@ -345,15 +345,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    // Clear unique fields from OTHER SHOPS OF THE SAME USER. The .eq('user_id')
-    // guard prevents a malicious or buggy request from silently NULLing another
-    // user's connection just because they share an FB Page or IG account ID.
+    // Clear unique fields from ANY shop that already holds this FB page / IG account.
+    // A Facebook page or Instagram account can only be connected to one shop at a time
+    // across all users, so we must release it globally before claiming it here.
     if (sanitizedUpdate.facebook_page_id) {
       await supabase
         .from('shops')
         .update({ facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null })
         .eq('facebook_page_id', sanitizedUpdate.facebook_page_id as string)
-        .eq('user_id', userId)
         .neq('id', shop.id);
     }
     if (sanitizedUpdate.instagram_business_account_id) {
@@ -361,7 +360,6 @@ export async function PATCH(request: NextRequest) {
         .from('shops')
         .update({ instagram_business_account_id: null, instagram_access_token: null, instagram_username: null })
         .eq('instagram_business_account_id', sanitizedUpdate.instagram_business_account_id as string)
-        .eq('user_id', userId)
         .neq('id', shop.id);
     }
 
