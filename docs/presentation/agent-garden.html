@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Syncly → Agent Garden — Дотоод стратеги deck</title>
+<style>
+  :root {
+    --bg: #0d0d14;
+    --bg-soft: #15151f;
+    --bg-card: #1b1b27;
+    --border: #2a2a3a;
+    --ink: #f3f3f8;
+    --ink-soft: #b9b9cc;
+    --ink-dim: #7a7a90;
+    --brand: #4A7CE7;
+    --brand2: #8B5CF6;
+    --accent: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --grad: linear-gradient(120deg, #4A7CE7 0%, #8B5CF6 100%);
+    --grad-soft: linear-gradient(120deg, rgba(74,124,231,.16), rgba(139,92,246,.16));
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Deck shell ---------- */
+  .deck { position: fixed; inset: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4.2vh 6vw 8vh;
+    animation: fade .45s ease;
+    overflow-y: auto;
+  }
+  .slide.active { display: flex; }
+  @keyframes fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Typography ---------- */
+  .eyebrow {
+    font-size: .8rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--brand2); font-weight: 700; margin-bottom: 1rem;
+  }
+  h1 { font-size: clamp(2.4rem, 6vw, 5rem); line-height: 1.02; font-weight: 800; letter-spacing: -.02em; }
+  h2 { font-size: clamp(1.7rem, 3.6vw, 2.9rem); line-height: 1.08; font-weight: 800; letter-spacing: -.015em; margin-bottom: .4rem; }
+  h3 { font-size: 1.05rem; font-weight: 700; }
+  .lead { font-size: clamp(1.05rem, 1.8vw, 1.45rem); color: var(--ink-soft); max-width: 60ch; line-height: 1.5; }
+  .sub { color: var(--ink-dim); font-size: .95rem; margin-top: .3rem; }
+  .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .muted { color: var(--ink-dim); }
+  strong { color: var(--ink); }
+
+  /* ---------- Layout helpers ---------- */
+  .grid { display: grid; gap: 1rem; width: 100%; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .mt { margin-top: 1.6rem; }
+  .mt2 { margin-top: 2.4rem; }
+  .center { align-items: center; text-align: center; }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.3rem 1.4rem;
+    position: relative;
+  }
+  .card.glow { background: var(--grad-soft); border-color: rgba(139,92,246,.35); }
+  .card .ico {
+    width: 42px; height: 42px; border-radius: 11px;
+    display: grid; place-items: center; font-size: 1.3rem;
+    background: var(--grad); margin-bottom: .8rem;
+  }
+  .card p { color: var(--ink-soft); font-size: .92rem; line-height: 1.5; margin-top: .35rem; }
+  .pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    padding: .22rem .6rem; border-radius: 999px;
+    background: rgba(139,92,246,.16); color: #c9b6ff; border: 1px solid rgba(139,92,246,.3);
+  }
+  .pill.green { background: rgba(52,211,153,.13); color: #6ee7b7; border-color: rgba(52,211,153,.3); }
+  .pill.warn { background: rgba(251,191,36,.13); color: #fcd34d; border-color: rgba(251,191,36,.3); }
+  .pill.gray { background: #20202c; color: var(--ink-dim); border-color: var(--border); }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--border); }
+  thead th { color: var(--ink-dim); font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  td.yes { color: var(--accent); font-weight: 700; }
+  td.no { color: var(--danger); }
+  td.partial { color: var(--warn); }
+  .tablewrap { width: 100%; overflow: auto; border: 1px solid var(--border); border-radius: 14px; }
+  .tablewrap thead th { background: var(--bg-soft); }
+
+  /* ---------- Bars / charts ---------- */
+  .bars { display: flex; align-items: flex-end; gap: 1.6rem; height: 230px; padding: 1rem 0 0; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+  .bar { width: 64%; border-radius: 10px 10px 0 0; background: var(--grad); position: relative; transition: height .6s ease; }
+  .bar.alt { background: linear-gradient(180deg, #3a3a52, #25253400); border: 1px solid var(--border); }
+  .bar .val { position: absolute; top: -1.5rem; left: 0; right: 0; text-align: center; font-weight: 700; font-size: .85rem; }
+  .bar-col .lbl { margin-top: .6rem; color: var(--ink-dim); font-size: .82rem; text-align: center; }
+
+  .funnel { display: flex; flex-direction: column; gap: .55rem; }
+  .funnel .seg { padding: .8rem 1.1rem; border-radius: 10px; background: var(--grad-soft); border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .funnel .seg b { font-size: 1.1rem; }
+
+  /* ---------- Roadmap ---------- */
+  .timeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: .7rem; }
+  .phase { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 1rem .9rem; position: relative; }
+  .phase .num { font-size: .72rem; font-weight: 800; color: var(--brand2); letter-spacing: .08em; }
+  .phase h3 { font-size: .95rem; margin: .3rem 0; }
+  .phase p { font-size: .78rem; color: var(--ink-dim); line-height: 1.45; }
+  .phase.done { border-color: rgba(52,211,153,.35); }
+
+  /* ---------- Diagram ---------- */
+  .diagram { display: flex; flex-direction: column; gap: .9rem; align-items: center; width: 100%; }
+  .node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: .75rem 1.1rem; font-weight: 600; font-size: .92rem; text-align: center; }
+  .node.brand { background: var(--grad); border: none; }
+  .node.row-wrap { display: flex; gap: .7rem; flex-wrap: wrap; justify-content: center; background: none; border: none; padding: 0; }
+  .arrow { color: var(--ink-dim); font-size: 1.3rem; line-height: 1; }
+  .chip { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .85rem; font-size: .84rem; }
+
+  ul.clean { list-style: none; display: flex; flex-direction: column; gap: .7rem; }
+  ul.clean li { padding-left: 1.6rem; position: relative; color: var(--ink-soft); line-height: 1.5; }
+  ul.clean li::before { content: "→"; position: absolute; left: 0; color: var(--brand2); font-weight: 800; }
+  ul.check li::before { content: "✓"; color: var(--accent); }
+  ul.warn li::before { content: "!"; color: var(--warn); font-weight: 800; }
+
+  .kpis { display: flex; gap: 2.5rem; flex-wrap: wrap; }
+  .kpi .n { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 800; }
+  .kpi .c { color: var(--ink-dim); font-size: .9rem; margin-top: .2rem; }
+
+  .note { font-size: .8rem; color: var(--ink-dim); font-style: italic; margin-top: 1rem; }
+
+  /* ---------- Chrome (nav) ---------- */
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--grad); z-index: 50; transition: width .3s ease; }
+  .topbar { position: fixed; top: 1.2rem; left: 6vw; right: 6vw; display: flex; justify-content: space-between; align-items: center; z-index: 40; pointer-events: none; }
+  .brandmark { display: flex; align-items: center; gap: .5rem; font-weight: 800; letter-spacing: -.01em; }
+  .brandmark .dot { width: 22px; height: 22px; border-radius: 7px; background: var(--grad); }
+  .counter { font-variant-numeric: tabular-nums; color: var(--ink-dim); font-size: .85rem; }
+
+  .nav { position: fixed; bottom: 1.4rem; right: 6vw; display: flex; gap: .5rem; z-index: 40; }
+  .nav button {
+    background: var(--bg-card); border: 1px solid var(--border); color: var(--ink);
+    width: 42px; height: 42px; border-radius: 11px; cursor: pointer; font-size: 1.1rem;
+    transition: .15s; display: grid; place-items: center;
+  }
+  .nav button:hover { background: var(--grad); border-color: transparent; }
+  .nav button:disabled { opacity: .35; cursor: default; }
+  .nav button:disabled:hover { background: var(--bg-card); border-color: var(--border); }
+
+  .dots { position: fixed; bottom: 1.7rem; left: 6vw; display: flex; gap: .4rem; z-index: 40; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer; transition: .2s; }
+  .dots i.on { background: var(--grad); width: 22px; border-radius: 5px; }
+
+  .hint { position: fixed; bottom: 1.7rem; left: 50%; transform: translateX(-50%); color: var(--ink-dim); font-size: .75rem; z-index: 40; }
+
+  @media (max-width: 760px) {
+    .g2, .g3, .g4 { grid-template-columns: 1fr; }
+    .timeline { grid-template-columns: 1fr 1fr; }
+    .dots, .hint { display: none; }
+    .slide { padding: 8vh 6vw 10vh; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<div class="topbar">
+  <div class="brandmark"><span class="dot"></span> Syncly</div>
+  <div class="counter"><span id="cur">1</span> / <span id="total">16</span></div>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. TITLE -->
+  <section class="slide active">
+    <div class="eyebrow">Дотоод стратеги · 2026</div>
+    <h1>Syncly → <span class="grad-text">Agent Garden</span></h1>
+    <p class="lead mt">Нэг борлуулалтын chatbot-оос → бизнес өөрөө угсардаг <strong>олон agent-тай super-app</strong> руу. Энэ deck нь баг/хөгжүүлэгчдэд зориулсан: алсын хараа, архитектур, бизнес загвар, замын зураг.</p>
+    <div class="kpis mt2">
+      <div class="kpi"><div class="n grad-text">7</div><div class="c">Agent (одоо 2 → 7)</div></div>
+      <div class="kpi"><div class="n grad-text">3</div><div class="c">Шинэ DB хүснэгт</div></div>
+      <div class="kpi"><div class="n grad-text">6</div><div class="c">Phase замын зураг</div></div>
+      <div class="kpi"><div class="n grad-text">Credit</div><div class="c">Шинэ орлогын загвар</div></div>
+    </div>
+  </section>
+
+  <!-- 2. PROBLEM -->
+  <section class="slide">
+    <div class="eyebrow">Асуудал · Яагаад одоо</div>
+    <h2>Нэг chatbot өсөлтийн <span class="grad-text">тааз</span>-тай</h2>
+    <p class="lead">Syncly өнөөдөр голдуу Messenger/IG DM дээрх нэг AI борлуулалтын агент + тогтсон layout-той dashboard. Энэ нь сайн ажиллаж буй ч өргөжих орон зай хязгаарлагдмал.</p>
+    <div class="grid g3 mt2">
+      <div class="card"><div class="ico">🤖</div><h3>Цорын ганц гол үнэ цэн</h3><p>Бүх үнэ цэн "chat хариулдаг" дээр төвлөрсөн. Санхүү, агуулах, маркетинг, контент автоматжуулалт алга.</p></div>
+      <div class="card"><div class="ico">🧱</div><h3>Тогтсон dashboard</h3><p>Хэрэглэгч нүүр самбараа өөрчилж, хэрэгцээгээрээ угсарч чадахгүй — бүгдэд ижил харагдана.</p></div>
+      <div class="card"><div class="ico">💸</div><h3>Тэгш бус flat үнэ</h3><p>Бага хэрэглэгч их хэрэглэгчтэй адил төлдөг. Хэрэглээ ↔ орлого холбоогүй; ARPU-г өсгөх хөшүүрэг сул.</p></div>
+    </div>
+    <p class="note">Дүгнэлт: бүтээгдэхүүн нэг feature дээр тогтсон тул шинэ үнэ цэн нэмэх, premium-д шилжүүлэх боломж хязгаарлагдсан.</p>
+  </section>
+
+  <!-- 3. VISION -->
+  <section class="slide">
+    <div class="eyebrow">Алсын хараа</div>
+    <h2>Бизнес өөрөө угсардаг <span class="grad-text">Agent Garden</span></h2>
+    <p class="lead">Монголын жижиг бизнес Syncly-г өөрийн хэрэгцээгээр <strong>угсарч</strong> ашигладаг нэгдсэн платформ — борлуулалт, санхүү, агуулах, маркетинг, контент бүгд автоматжсан.</p>
+    <div class="grid g3 mt2">
+      <div class="card glow"><div class="ico">🗂️</div><h3>Agent каталог</h3><p>App-store маягийн каталог. Agent бүрийг shop тус бүрд асаах/унтраах, тохируулах, plan-аар gate хийх.</p></div>
+      <div class="card glow"><div class="ico">🧩</div><h3>Widget super-app</h3><p>Drag-and-drop нүүр самбар. Agent бүр өөрийн widget-ээ каталогт нэмдэг.</p></div>
+      <div class="card glow"><div class="ico">⚡</div><h3>Multi-agent runtime</h3><p>Agent бүр event/schedule/manual trigger-ээр бие даан ажилладаг бодит хөдөлгүүр.</p></div>
+    </div>
+  </section>
+
+  <!-- 4. SOLUTION -->
+  <section class="slide">
+    <div class="eyebrow">Шийдэл · 3 багана</div>
+    <h2>Платформын <span class="grad-text">3 тулгуур</span></h2>
+    <div class="grid g3 mt">
+      <div class="card">
+        <span class="pill">Pillar 1</span>
+        <h3 class="mt">Agent каталог</h3>
+        <p><code>/dashboard/agents</code> — grid + agent тус бүрийн тохиргоо/метрик/run history + "Run now/Test". Plan-аар түгжигдэнэ.</p>
+      </div>
+      <div class="card">
+        <span class="pill">Pillar 2</span>
+        <h3 class="mt">Widget самбар</h3>
+        <p>Тогтсон нүүрийг <code>@dnd-kit</code>-ээр угсардаг 12-багана grid болгоно. Edit mode → нэмэх/зөөх/устгах/span солих.</p>
+      </div>
+      <div class="card">
+        <span class="pill">Pillar 3</span>
+        <h3 class="mt">Runtime</h3>
+        <p><code>src/lib/agents-product/</code> — registry + dispatcher + handler. Event/schedule/manual trigger-ийн цорын ганц орц.</p>
+      </div>
+    </div>
+    <p class="note">Тулгуур бүр additive: live webhook → <code>routeToAI</code> халуун зам өөрчлөгдөхгүй, runtime түүний хажуугаар нэмэгдэнэ.</p>
+  </section>
+
+  <!-- 5. AGENTS -->
+  <section class="slide">
+    <div class="eyebrow">Бүтээгдэхүүн · 7 agent</div>
+    <h2>Цэцэрлэгт ургах <span class="grad-text">agent-ууд</span></h2>
+    <div class="grid g4 mt">
+      <div class="card"><div class="ico">💬</div><h3>Chatbot</h3><p>Messenger/IG борлуулалтын агент. <span class="pill gray">reframe</span></p></div>
+      <div class="card"><div class="ico">💭</div><h3>Comment</h3><p>FB/IG comment автомат хариу. <span class="pill gray">reframe</span></p></div>
+      <div class="card"><div class="ico">💰</div><h3>Finance/QPay</h3><p>Төлбөр тулгалт, нэхэмжлэх. <span class="pill green">шинэ · 0 token</span></p></div>
+      <div class="card"><div class="ico">👥</div><h3>Lead/CRM</h3><p>VIP таних, сегмент, tag. <span class="pill">шинэ</span></p></div>
+      <div class="card"><div class="ico">📦</div><h3>Inventory</h3><p>Нөөц сэрэмж, борлуулалт таамаг. <span class="pill green">шинэ · 0 token</span></p></div>
+      <div class="card"><div class="ico">📣</div><h3>Marketing</h3><p>Сагс сэргээх, re-engage broadcast. <span class="pill">шинэ</span></p></div>
+      <div class="card"><div class="ico">🎨</div><h3>Studio UGC</h3><p>Бүтээгдэхүүний зураг үүсгэлт. <span class="pill warn">шинэ · generative</span></p></div>
+      <div class="card glow center" style="justify-content:center;"><h3>+ Цаашид</h3><p>Каталог нь бүртгэлээр өргөждөг — шинэ agent нэмэх нь registry оруулга.</p></div>
+    </div>
+  </section>
+
+  <!-- 6. ARCHITECTURE -->
+  <section class="slide">
+    <div class="eyebrow">Архитектур · Хоёр давхарга</div>
+    <h2>Reuse-д суурилсан <span class="grad-text">two-layer</span></h2>
+    <div class="grid g2 mt" style="align-items:start;">
+      <div>
+        <div class="diagram">
+          <div class="node brand">Trigger: event · schedule · manual</div>
+          <div class="arrow">↓</div>
+          <div class="node"><b>dispatcher.ts</b> — цорын ганц орц</div>
+          <div class="sub">registry → shop_agents (enabled + plan gate дахин шалга) → agent_runs лог</div>
+          <div class="arrow">↓</div>
+          <div class="node row-wrap">
+            <span class="chip">LLM handler<br><small class="muted">→ AIRouter / routeToAI</small></span>
+            <span class="chip">Deterministic<br><small class="muted">→ SQL + push, 0 token</small></span>
+            <span class="chip">Hybrid<br><small class="muted">→ select + optional LLM</small></span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <span class="pill gray">Дотоод давхарга — хэвээр</span>
+          <p class="mt"><code>AgentRole</code> + tool whitelist (<code>src/lib/ai/agents/</code>). Зөвхөн "chatbot яаж ярих вэ"-г шийднэ. Зөвхөн <strong>Chatbot</strong>-ийн хөдөлгүүр.</p>
+        </div>
+        <div class="card mt">
+          <span class="pill">Бүтээгдэхүүний давхарга — шинэ</span>
+          <p class="mt"><code>ProductAgent</code> — каталогийн нэгж (slug, category, triggers, plan-gate, configSchema, widgets, handler). Дотоод <code>AgentRole</code>-ийг <strong>заана</strong> (Chatbot), эсвэл бүрэн <strong>deterministic</strong> (Finance, Inventory).</p>
+        </div>
+        <ul class="clean check mt">
+          <li>Давхардлаас сэргийлж reuse-ийг дээд зэргээр хангана</li>
+          <li>Webhook халуун зам өөрчлөгдөхгүй</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. DATA MODEL -->
+  <section class="slide">
+    <div class="eyebrow">Өгөгдлийн загвар</div>
+    <h2>3 шинэ <span class="grad-text">хүснэгт</span></h2>
+    <div class="grid g3 mt">
+      <div class="card">
+        <h3>shop_agents</h3>
+        <p>Per-shop асаалт + config + метрик.</p>
+        <ul class="clean mt" style="font-size:.82rem;">
+          <li>enabled, status, config JSONB</li>
+          <li>metrics, last_run_at, last_error</li>
+          <li>UNIQUE(shop_id, agent_slug)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>agent_runs</h3>
+        <p>Ажиллагааны лог.</p>
+        <ul class="clean mt" style="font-size:.82rem;">
+          <li>trigger_kind, status, summary</li>
+          <li>tokens_used, metrics, error</li>
+          <li>owner read-only RLS</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>shop_dashboard_layouts</h3>
+        <p>Widget самбарын байрлал.</p>
+        <ul class="clean mt" style="font-size:.82rem;">
+          <li>layout JSONB (widget array)</li>
+          <li>UNIQUE(shop_id, user_id)</li>
+          <li>байхгүй бол default layout</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">RLS: owner зөвхөн өөрийн shop-ийн мөрийг. Dispatcher service role-оор ажиллаж scoping-ийг handler өөрөө хийнэ. Backfill: идэвхтэй shop бүрд <code>chatbot</code> (+whitelist-аар <code>comment</code>) мөр → одоогийн зан төлөв хадгална.</p>
+  </section>
+
+  <!-- 8. WIDGET SUPER-APP -->
+  <section class="slide">
+    <div class="eyebrow">Pillar 2 · Super-app нүүр</div>
+    <h2>Тохируулдаг <span class="grad-text">widget самбар</span></h2>
+    <div class="grid g2 mt" style="align-items:start;">
+      <div>
+        <p class="lead">Тогтсон dashboard → хэрэглэгч өөрөө угсардаг 12-багана grid. Agent бүр өөрийн widget-ээ авчирна.</p>
+        <ul class="clean mt2">
+          <li><strong>@dnd-kit</strong> — React 19/Next 16-д тохирно (react-grid-layout биш)</li>
+          <li>Core widget-ийг <strong>одоогийн компонентод</strong> map хийнэ — шинэ компонент бичихгүй</li>
+          <li>Agent widget зөвхөн тухайн agent enabled үед харагдана</li>
+          <li>Layout байхгүй/алдаа → одоогийн layout руу fallback</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">EDIT MODE — WIDGET DRAWER</h3>
+        <div class="grid g2 mt" style="gap:.6rem;">
+          <span class="chip">📊 KPI</span>
+          <span class="chip">🧾 Live orders</span>
+          <span class="chip">💰 Finance: revenue</span>
+          <span class="chip">📦 Inventory: low stock</span>
+          <span class="chip">👥 CRM: VIP leads</span>
+          <span class="chip">📣 Marketing: campaigns</span>
+          <span class="chip">🎨 Studio: gallery</span>
+          <span class="chip">📈 Sales chart</span>
+        </div>
+        <p class="note" style="margin-top:1.2rem;">Drag → зөөх · span 1/2/3 → хэмжээ · drawer → нэмэх/устгах → PUT /api/dashboard/layout</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. BUSINESS MODEL: CREDITS -->
+  <section class="slide">
+    <div class="eyebrow">Бизнес загвар · Гол шилжилт</div>
+    <h2>Flat subscription → <span class="grad-text">Хэрэглээний кредит</span></h2>
+    <p class="lead">Хэрэглэгч сар бүр <strong>кредит сан</strong> авна. Agent ажиллах бүрд кредит зарцуулагдана. Хэрэглээ ↔ орлого шууд холбогдоно.</p>
+    <div class="grid g2 mt2" style="align-items:start;">
+      <div>
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">КРЕДИТ ХЭРХЭН ЗАРЦУУЛАГДАХ ВЭ</h3>
+        <div class="tablewrap mt">
+          <table>
+            <thead><tr><th>Үйлдэл</th><th>Кредит</th></tr></thead>
+            <tbody>
+              <tr><td>Chatbot хариу (LLM)</td><td>1 / мессеж</td></tr>
+              <tr><td>Comment автомат хариу</td><td>1 / comment</td></tr>
+              <tr><td>Finance тулгалт</td><td class="yes">0 (deterministic)</td></tr>
+              <tr><td>Inventory сэрэмж</td><td class="yes">0 (deterministic)</td></tr>
+              <tr><td>Marketing broadcast</td><td>1 / хүлээн авагч</td></tr>
+              <tr><td>Studio зураг үүсгэлт</td><td>10 / зураг</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Deterministic agent token зарцуулдаггүй тул "үнэгүй үнэ цэн" болж adoption-ийг түргэсгэнэ.</p>
+      </div>
+      <div>
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">TIER БҮРИЙН САРЫН КРЕДИТ <span class="pill warn">төсөөлөл</span></h3>
+        <div class="grid mt" style="gap:.6rem;">
+          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Lite</strong><div class="sub">Эхлэгч</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">1,000</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Starter</strong><div class="sub">+ Finance, Comment</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">5,000</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card glow" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Pro</strong> <span class="pill">түгээмэл</span><div class="sub">+ CRM, Inventory, Marketing</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">25,000</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Enterprise</strong><div class="sub">+ Studio UGC</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">100,000+</b><div class="sub">кредит/сар</div></div></div>
+        </div>
+        <p class="note">Сан дуусвал нэмэлт кредит багцаар авна (top-up). Дугаарууд жишээ — баг бодит зардлаар тохируулна.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. BEFORE / AFTER -->
+  <section class="slide">
+    <div class="eyebrow">Харьцуулалт · Өмнө vs Дараа</div>
+    <h2>Юу <span class="grad-text">өөрчлөгдөх</span> вэ</h2>
+    <div class="tablewrap mt">
+      <table>
+        <thead><tr><th>Хэмжүүр</th><th>Өмнө (өнөөдөр)</th><th>Дараа (Agent Garden)</th></tr></thead>
+        <tbody>
+          <tr><td>Бүтээгдэхүүний цар хүрээ</td><td class="no">1 chatbot</td><td class="yes">7+ agent каталог</td></tr>
+          <tr><td>Нүүр dashboard</td><td class="no">Тогтсон, бүгдэд ижил</td><td class="yes">Угсардаг widget super-app</td></tr>
+          <tr><td>Автоматжуулалт</td><td class="partial">Зөвхөн чат</td><td class="yes">Санхүү, агуулах, маркетинг, контент</td></tr>
+          <tr><td>Орлогын загвар</td><td class="no">Flat subscription</td><td class="yes">Хэрэглээний кредит + tier</td></tr>
+          <tr><td>Хэрэглээ ↔ орлого</td><td class="no">Холбоогүй</td><td class="yes">Шууд (credit metering)</td></tr>
+          <tr><td>Шинэ feature нэмэх зардал</td><td class="partial">Hardcode</td><td class="yes">Registry оруулга + handler</td></tr>
+          <tr><td>Upsell хөшүүрэг</td><td class="no">Сул</td><td class="yes">Agent unlock + кредит top-up</td></tr>
+          <tr><td>Token зардлын хяналт</td><td class="partial">Хэсэгчилсэн</td><td class="yes">Per-run metering + cap</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 11. COMPETITOR MATRIX -->
+  <section class="slide">
+    <div class="eyebrow">Харьцуулалт · Өрсөлдөгч</div>
+    <h2>Зах зээл дэх <span class="grad-text">байр суурь</span></h2>
+    <div class="tablewrap mt">
+      <table>
+        <thead><tr><th>Чадавх</th><th>ManyChat</th><th>Chatfuel</th><th>Дотоодын chatbot</th><th>Syncly Agent Garden</th></tr></thead>
+        <tbody>
+          <tr><td>FB/IG DM автоматжуулалт</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Монгол хэл native + QPay</td><td class="no">✕</td><td class="no">✕</td><td class="partial">хэсэгчлэн</td><td class="yes">✓</td></tr>
+          <tr><td>AI борлуулалтын агент (LLM tool)</td><td class="partial">нэмэлт</td><td class="partial">нэмэлт</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>Санхүү/агуулах автоматжуулалт</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>Угсардаг widget dashboard</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>UGC зураг үүсгэлт</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>Хэрэглээний кредит загвар</td><td class="partial">хэсэгчлэн</td><td class="partial">хэсэгчлэн</td><td class="no">✕</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Гол ялгаа: глобал тоглогчид нэг сувгийн (chat) automation; Syncly нь Монголд тохирсон, олон чиглэлийн бизнес автоматжуулалтын super-app.</p>
+  </section>
+
+  <!-- 12. REVENUE METRICS -->
+  <section class="slide">
+    <div class="eyebrow">Харьцуулалт · Орлогын метрик <span class="pill warn">төсөөлөл</span></div>
+    <h2>ARPU / MRR / LTV <span class="grad-text">төсөөлөл</span></h2>
+    <div class="grid g2 mt" style="align-items:end;">
+      <div>
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">ARPU (₮/сар, нэг shop)</h3>
+        <div class="bars mt">
+          <div class="bar-col"><div class="bar alt" style="height:32%;"><span class="val muted">~45k</span></div><div class="lbl">Өмнө<br>flat</div></div>
+          <div class="bar-col"><div class="bar" style="height:72%;"><span class="val">~110k</span></div><div class="lbl">Дараа<br>credit + agent</div></div>
+        </div>
+      </div>
+      <div>
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">Орлогын бүтэц өөрчлөлт</h3>
+        <div class="funnel mt">
+          <div class="seg"><span>Subscription (tier)</span><b class="grad-text">60%</b></div>
+          <div class="seg"><span>Кредит top-up</span><b class="grad-text">25%</b></div>
+          <div class="seg"><span>Premium agent (Studio, Marketing)</span><b class="grad-text">15%</b></div>
+        </div>
+        <div class="kpis mt2">
+          <div class="kpi"><div class="n grad-text">~2.4×</div><div class="c">LTV өсөлт (төсөөлөл)</div></div>
+          <div class="kpi"><div class="n grad-text">↓ churn</div><div class="c">Олон agent = наалдац</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Бүх дугаар нь жишээ/таамаг — баг бодит cohort өгөгдлөөр солино. Зорилго: ARPU-г agent unlock + хэрэглээний кредитээр өсгөх.</p>
+  </section>
+
+  <!-- 13. MARKET -->
+  <section class="slide">
+    <div class="eyebrow">Зах зээл · Өсөлт <span class="pill warn">төсөөлөл</span></div>
+    <h2>Монголын social commerce <span class="grad-text">боломж</span></h2>
+    <div class="grid g2 mt" style="align-items:center;">
+      <div>
+        <div class="funnel">
+          <div class="seg" style="background:linear-gradient(120deg, rgba(74,124,231,.28), rgba(139,92,246,.28));"><span><strong>TAM</strong> · Нийт онлайн худалдаа эрхлэгч</span><b class="grad-text">~80k+</b></div>
+          <div class="seg" style="margin:0 6%;"><span><strong>SAM</strong> · FB/IG-ээр идэвхтэй зарагч</span><b class="grad-text">~30k</b></div>
+          <div class="seg" style="margin:0 14%;"><span><strong>SOM</strong> · 3 жилийн бодит зорилт</span><b class="grad-text">~4k</b></div>
+        </div>
+        <p class="note">TAM/SAM/SOM нь дотоод тооцоо — нягтлах шаардлагатай.</p>
+      </div>
+      <div>
+        <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">ИДЭВХТЭЙ SHOP (төсөөлөл өсөлт)</h3>
+        <div class="bars mt">
+          <div class="bar-col"><div class="bar" style="height:22%;"><span class="val">~0.4k</span></div><div class="lbl">Y1</div></div>
+          <div class="bar-col"><div class="bar" style="height:48%;"><span class="val">~1.5k</span></div><div class="lbl">Y2</div></div>
+          <div class="bar-col"><div class="bar" style="height:90%;"><span class="val">~4k</span></div><div class="lbl">Y3</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14. ROADMAP -->
+  <section class="slide">
+    <div class="eyebrow">Замын зураг · 6 phase</div>
+    <h2>Хоёр тулгуурыг <span class="grad-text">сүлжих</span></h2>
+    <div class="timeline mt">
+      <div class="phase"><div class="num">PHASE 0</div><h3>Foundation</h3><p>3 migration + RLS, registry/dispatcher scaffold, features түлхүүр. Webhook хөндөхгүй.</p></div>
+      <div class="phase"><div class="num">PHASE 1</div><h3>Каталог</h3><p>/dashboard/agents + CRUD + Sidebar. Chatbot/Comment-ийг каталогт холбоно.</p></div>
+      <div class="phase"><div class="num">PHASE 2</div><h3>Widget самбар</h3><p>@dnd-kit, widget registry, layout API, edit mode, default layout.</p></div>
+      <div class="phase"><div class="num">PHASE 3</div><h3>Deterministic agent</h3><p>Finance, Inventory, CRM — 0 token, бага эрсдэл. Handler + config + widget.</p></div>
+      <div class="phase"><div class="num">PHASE 4</div><h3>Generative agent</h3><p>Marketing (hybrid), Studio (GeminiImageProvider). Token-cost хяналт.</p></div>
+      <div class="phase"><div class="num">PHASE 5</div><h3>Runtime hardening</h3><p>Scheduler cron, agent_runs cleanup, observability, ачаалал/зардал тест.</p></div>
+    </div>
+    <p class="note">Phase 0–4 туршид webhook → routeToAI болон process-messages cron өөрчлөгдөхгүй — бүх ажил additive.</p>
+  </section>
+
+  <!-- 15. RISKS -->
+  <section class="slide">
+    <div class="eyebrow">Эрсдэл ба хяналт</div>
+    <h2>Юуг <span class="grad-text">хамгаалах</span> вэ</h2>
+    <div class="grid g2 mt">
+      <div class="card">
+        <h3>💸 Token / зардал</h3>
+        <ul class="clean warn mt" style="font-size:.88rem;">
+          <li>Scheduled LLM/image ажил token pool чимээгүй шавхах</li>
+          <li>→ Finance/Inventory deterministic (0 кредит)</li>
+          <li>→ Generative бүр persistTokenUsage tag; шавхвал run = skipped</li>
+          <li>→ Frequency cap + Marketing хүлээн авагч hard cap</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🔒 RLS / аюулгүй байдал</h3>
+        <ul class="clean warn mt" style="font-size:.88rem;">
+          <li>Dispatcher service role RLS bypass</li>
+          <li>→ Query бүрд shop_id scoping + plan дахин шалга</li>
+          <li>→ Cron endpoint CRON_SECRET Bearer</li>
+          <li>→ Owner-facing reads RLS-ээр</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⏱️ Vercel cron хязгаар</h3>
+        <ul class="clean warn mt" style="font-size:.88rem;">
+          <li>Аль хэдийн 7 cron бий — agent тус бүрт нэмэхгүй</li>
+          <li>→ Ганц /api/cron/agent-scheduler fan-out</li>
+          <li>→ Урт ажил Upstash Redis queue/lock + worker drain</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>♻️ Backward compat</h3>
+        <ul class="clean warn mt" style="font-size:.88rem;">
+          <li>Webhook + process-messages хэвээр (Phase 0–4)</li>
+          <li>Backfill: идэвхтэй shop бүрд chatbot/comment мөр</li>
+          <li>Dashboard layout байхгүй → одоогийн layout fallback</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16. NEXT STEPS -->
+  <section class="slide center" style="align-items:center; text-align:center;">
+    <div class="eyebrow">Дараагийн алхам</div>
+    <h1>Эхлэх <span class="grad-text">бэлэн үү?</span></h1>
+    <p class="lead mt" style="margin-left:auto; margin-right:auto;">Phase 0 (Foundation) нь хэрэглэгчид үл харагдах, эрсдэл багатай. Үүнийг эхлүүлэхэд бэлэн — migration + registry/dispatcher scaffold.</p>
+    <div class="grid g3 mt2" style="max-width:900px; margin-left:auto; margin-right:auto;">
+      <div class="card"><h3>1 · Батлах</h3><p>Agent жагсаалт, кредит дугаар, tier mapping-ийг баг батлах.</p></div>
+      <div class="card"><h3>2 · Phase 0</h3><p>3 хүснэгт + RLS + registry/dispatcher scaffold (branch дээр).</p></div>
+      <div class="card"><h3>3 · Phase 1</h3><p>Каталог UI + Chatbot/Comment reframe — эхний харагдах үнэ цэн.</p></div>
+    </div>
+    <p class="note" style="margin-top:2rem;">Branch: <code>claude/multi-agent-chatbot-system-uyMwQ</code> · Эх сурвалж: дотоод архитектур plan</p>
+  </section>
+
+</div>
+
+<!-- chrome -->
+<div class="dots" id="dots"></div>
+<div class="hint">← → эсвэл Space · дугаар дарж шилжих</div>
+<div class="nav">
+  <button id="prev" aria-label="Өмнөх">‹</button>
+  <button id="next" aria-label="Дараах">›</button>
+</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  const progress = document.getElementById('progress');
+  const curEl = document.getElementById('cur');
+  const totalEl = document.getElementById('total');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  let i = 0;
+
+  totalEl.textContent = slides.length;
+  slides.forEach((_, idx) => {
+    const d = document.createElement('i');
+    d.addEventListener('click', () => go(idx));
+    dotsWrap.appendChild(d);
+  });
+  const dots = Array.from(dotsWrap.children);
+
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    dots.forEach((d, idx) => d.classList.toggle('on', idx === i));
+    curEl.textContent = i + 1;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+    prevBtn.disabled = i === 0;
+    nextBtn.disabled = i === slides.length - 1;
+    slides[i].scrollTop = 0;
+  }
+
+  prevBtn.addEventListener('click', () => go(i - 1));
+  nextBtn.addEventListener('click', () => go(i + 1));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(i - 1); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+
+  // swipe (mobile)
+  let x0 = null;
+  document.addEventListener('touchstart', e => x0 = e.touches[0].clientX, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) go(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  }, { passive: true });
+
+  go(0);
+</script>
+</body>
+</html>
