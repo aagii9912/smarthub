@@ -94,6 +94,23 @@
   .pill.warn { background: rgba(251,191,36,.13); color: #fcd34d; border-color: rgba(251,191,36,.3); }
   .pill.gray { background: #20202c; color: var(--ink-dim); border-color: var(--border); }
 
+  /* ---------- Agents slide (compact, 2 groups) ---------- */
+  .ghead { font-size: .85rem; font-weight: 800; color: var(--ink-soft); margin: .8rem 0 .5rem; display: flex; align-items: center; gap: .5rem; letter-spacing: .01em; }
+  .ghead .tag { font-size: .72rem; font-weight: 600; color: var(--ink-dim); letter-spacing: 0; }
+  .acard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: .85rem .95rem; }
+  .acard.glow { background: var(--grad-soft); border-color: rgba(139,92,246,.35); }
+  .acard .top { display: flex; align-items: center; gap: .55rem; }
+  .acard .ico2 { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 1rem; background: var(--grad); flex-shrink: 0; }
+  .acard h3 { font-size: .92rem; }
+  .acard p { color: var(--ink-soft); font-size: .77rem; line-height: 1.4; margin-top: .45rem; }
+  .acard .pill { margin-top: .55rem; font-size: .66rem; padding: .16rem .5rem; }
+
+  /* ---------- Ticketing slide (compact cards) ---------- */
+  .tickets .card { padding: 1rem 1.05rem; }
+  .tickets .ico { width: 36px; height: 36px; font-size: 1.15rem; margin-bottom: .55rem; }
+  .tickets .card h3 { font-size: .98rem; }
+  .tickets .card p { font-size: .84rem; margin-top: .3rem; }
+
   /* ---------- Tables ---------- */
   table { width: 100%; border-collapse: collapse; font-size: .9rem; }
   th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--border); }
@@ -192,7 +209,7 @@
     <h1>Syncly → <span class="grad-text">Agent Garden</span></h1>
     <p class="lead mt">Нэг борлуулалтын chatbot-оос → бизнес өөрөө угсардаг <strong>олон agent-тай super-app</strong> руу. Энэ deck нь баг/хөгжүүлэгчдэд зориулсан: алсын хараа, архитектур, бизнес загвар, замын зураг.</p>
     <div class="kpis mt2">
-      <div class="kpi"><div class="n grad-text">7</div><div class="c">Agent (одоо 2 → 7)</div></div>
+      <div class="kpi"><div class="n grad-text">8</div><div class="c">Agent + вертикал багц</div></div>
       <div class="kpi"><div class="n grad-text">3</div><div class="c">Шинэ DB хүснэгт</div></div>
       <div class="kpi"><div class="n grad-text">6</div><div class="c">Phase замын зураг</div></div>
       <div class="kpi"><div class="n grad-text">Credit</div><div class="c">Шинэ орлогын загвар</div></div>
@@ -250,18 +267,73 @@
 
   <!-- 5. AGENTS -->
   <section class="slide">
-    <div class="eyebrow">Бүтээгдэхүүн · 7 agent</div>
-    <h2>Цэцэрлэгт ургах <span class="grad-text">agent-ууд</span></h2>
-    <div class="grid g4 mt">
-      <div class="card"><div class="ico">💬</div><h3>Chatbot</h3><p>Messenger/IG борлуулалтын агент. <span class="pill gray">reframe</span></p></div>
-      <div class="card"><div class="ico">💭</div><h3>Comment</h3><p>FB/IG comment автомат хариу. <span class="pill gray">reframe</span></p></div>
-      <div class="card"><div class="ico">💰</div><h3>Finance/QPay</h3><p>Төлбөр тулгалт, нэхэмжлэх. <span class="pill green">шинэ · 0 token</span></p></div>
-      <div class="card"><div class="ico">👥</div><h3>Lead/CRM</h3><p>VIP таних, сегмент, tag. <span class="pill">шинэ</span></p></div>
-      <div class="card"><div class="ico">📦</div><h3>Inventory</h3><p>Нөөц сэрэмж, борлуулалт таамаг. <span class="pill green">шинэ · 0 token</span></p></div>
-      <div class="card"><div class="ico">📣</div><h3>Marketing</h3><p>Сагс сэргээх, re-engage broadcast. <span class="pill">шинэ</span></p></div>
-      <div class="card"><div class="ico">🎨</div><h3>Studio UGC</h3><p>Бүтээгдэхүүний зураг үүсгэлт. <span class="pill warn">шинэ · generative</span></p></div>
-      <div class="card glow center" style="justify-content:center;"><h3>+ Цаашид</h3><p>Каталог нь бүртгэлээр өргөждөг — шинэ agent нэмэх нь registry оруулга.</p></div>
+    <div class="eyebrow">Бүтээгдэхүүн · 8 agent · Монгол-төвтэй</div>
+    <h2>Хүний <span class="grad-text">ажлыг автоматжуулдаг</span> super tool-ууд</h2>
+
+    <div class="ghead">🏆 Ажил хөнгөлөгч <span class="tag">— back-office гар ажлыг автоматжуулна</span></div>
+    <div class="grid g4">
+      <div class="acard">
+        <div class="top"><span class="ico2">🧮</span><h3>AI Нягтлан бодогч</h3></div>
+        <p>Орлого/зарлага авто ангилал, өдөр/сар P&L, ашгийн маржин, НӨАТ/татварт бэлэн тайлан.</p>
+        <span class="pill green">~40% бэлэн</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">📦</span><h3>Ухаалаг агуулах</h3></div>
+        <p>Зураг→бараа авто бүртгэл, нөөц тоо зөрүү илрүүлэх, дахин захиалгын таамаг.</p>
+        <span class="pill green">~60% бэлэн · AI vision</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">🚀</span><h3>Boost оновчлогч</h3></div>
+        <p>Зар/boost зардлыг AI-аар: ROAS, шаардлагатай төсөв тооцоо, зар бичвэр.</p>
+        <span class="pill warn">шинэ · Meta Ads API</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">📊</span><h3>Бизнес аналист</h3></div>
+        <p>Эзэмшигчид авто өдрийн тайлан, insight, дараагийн алхмын зөвлөмж.</p>
+        <span class="pill green">~70% бэлэн</span>
+      </div>
     </div>
+
+    <div class="ghead">💰 Орлого нэмэгдүүлэгч <span class="tag">— борлуулалт ба харилцагч</span></div>
+    <div class="grid g4">
+      <div class="acard">
+        <div class="top"><span class="ico2">💬</span><h3>Борлуулагч AI</h3></div>
+        <p>Messenger/IG DM борлуулалт, бараа санал, захиалга авах.</p>
+        <span class="pill gray">reframe</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">📣</span><h3>Comment & Live</h3></div>
+        <p>Сэтгэгдэл авто хариу + Live/пост "+1", размер/өнгө захиалга барих.</p>
+        <span class="pill gray">reframe+</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">💳</span><h3>Төлбөр & Хүргэлт</h3></div>
+        <p>Гүйлгээний баримт/QPay авто баталгаа + хаяг, хүргэлтийн төлбөр зохицуулалт.</p>
+        <span class="pill">шинэ</span>
+      </div>
+      <div class="acard">
+        <div class="top"><span class="ico2">👥</span><h3>Харилцагч (CRM)</h3></div>
+        <p>VIP таних, давтан худалдан авалт өдөөх, идэвхгүйг буцааж татах.</p>
+        <span class="pill green">~60% бэлэн</span>
+      </div>
+    </div>
+    <p class="note" style="margin-top:.7rem;">"% бэлэн" = одоо байгаа дата/сервист түшиглэнэ · Boost = шинэ Meta Ads интеграц · + <strong>Вертикал багц: Тасалбар & Эвент</strong> → дараах слайд</p>
+  </section>
+
+  <!-- 5b. TICKETING VERTICAL -->
+  <section class="slide">
+    <div class="eyebrow">Вертикал super-tool · Эвент</div>
+    <h2>🎟️ Тасалбар & <span class="grad-text">Эвент</span> худалдаа</h2>
+    <p class="lead">Концерт, тоглолт, арга хэмжээ зохион байгуулагчид FB/IG-ээ орхилгүйгээр онлайн тасалбараа зарж, QR-аар хянана — <strong>салбар тус бүрийн вертикал багцын</strong> эхнийх.</p>
+    <div class="grid g3 mt tickets">
+      <div class="card"><div class="ico">🎫</div><h3>Онлайн тасалбар борлуулалт</h3><p>Суудал/ангилал/үнэ тохируулж DM болон веб дээр шууд зарна. QPay/гүйлгээгээр төлбөр.</p></div>
+      <div class="card"><div class="ico">🔳</div><h3>QR код генератор</h3><p>Тасалбар бүрд давтагдашгүй QR — хуурамчаас хамгаална.</p></div>
+      <div class="card"><div class="ico">🎨</div><h3>Custom тасалбар дизайн</h3><p>Брэндийн загвар, лого, өнгөөр тасалбараа өөрчилнө.</p></div>
+      <div class="card"><div class="ico">🌐</div><h3>Эвентийн custom веб</h3><p>Арга хэмжээ бүрд тусдаа хуудас (custom нэр) — танилцуулга + худалдан авалт.</p></div>
+      <div class="card"><div class="ico">📲</div><h3>QR check-in / хяналт</h3><p>Үүдэнд QR уншуулж, давхар орохоос сэргийлэн бодит цагийн хяналт.</p></div>
+      <div class="card"><div class="ico">📈</div><h3>Борлуулалтын самбар</h3><p>Хэдэн тасалбар зарагдсан, орлого, үлдэгдэл суудал — бодит цагт.</p></div>
+    </div>
+    <p class="note">Бэлэн байдал: QPay/payments + customers reuse; QR/check-in/custom веб = шинэ. Цаашид өөр вертикал багц (ресторан/цаг захиалга…) нэмэгдэнэ.</p>
   </section>
 
   <!-- 6. ARCHITECTURE -->
@@ -379,24 +451,25 @@
           <table>
             <thead><tr><th>Үйлдэл</th><th>Кредит</th></tr></thead>
             <tbody>
-              <tr><td>Chatbot хариу (LLM)</td><td>1 / мессеж</td></tr>
-              <tr><td>Comment автомат хариу</td><td>1 / comment</td></tr>
-              <tr><td>Finance тулгалт</td><td class="yes">0 (deterministic)</td></tr>
-              <tr><td>Inventory сэрэмж</td><td class="yes">0 (deterministic)</td></tr>
-              <tr><td>Marketing broadcast</td><td>1 / хүлээн авагч</td></tr>
-              <tr><td>Studio зураг үүсгэлт</td><td>10 / зураг</td></tr>
+              <tr><td>Chatbot / Comment&Live хариу (LLM)</td><td>1 / мессеж</td></tr>
+              <tr><td>Бараа зураг → бүртгэл (AI vision)</td><td>2 / зураг</td></tr>
+              <tr><td>Төлбөрийн баримт уншилт (AI vision)</td><td>1 / баримт</td></tr>
+              <tr><td>Нягтлан бодох / аналист тайлан</td><td class="yes">0 (deterministic)</td></tr>
+              <tr><td>Тасалбар QR үүсгэлт / check-in</td><td class="yes">0 (deterministic)</td></tr>
+              <tr><td>Boost оновчлол зөвлөмж</td><td>5 / шинжилгээ</td></tr>
+              <tr><td>CRM win-back broadcast</td><td>1 / хүлээн авагч</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="note">Deterministic agent token зарцуулдаггүй тул "үнэгүй үнэ цэн" болж adoption-ийг түргэсгэнэ.</p>
+        <p class="note">Deterministic agent (нягтлан/аналист/тасалбар) token зарцуулдаггүй → "үнэгүй үнэ цэн".</p>
       </div>
       <div>
         <h3 class="muted" style="font-size:.78rem; letter-spacing:.08em;">TIER БҮРИЙН САРЫН КРЕДИТ <span class="pill warn">төсөөлөл</span></h3>
         <div class="grid mt" style="gap:.6rem;">
           <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Lite</strong><div class="sub">Эхлэгч</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">1,000</b><div class="sub">кредит/сар</div></div></div>
-          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Starter</strong><div class="sub">+ Finance, Comment</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">5,000</b><div class="sub">кредит/сар</div></div></div>
-          <div class="card glow" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Pro</strong> <span class="pill">түгээмэл</span><div class="sub">+ CRM, Inventory, Marketing</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">25,000</b><div class="sub">кредит/сар</div></div></div>
-          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Enterprise</strong><div class="sub">+ Studio UGC</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">100,000+</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Starter</strong><div class="sub">+ Comment&Live, Төлбөр</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">5,000</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card glow" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Pro</strong> <span class="pill">түгээмэл</span><div class="sub">+ Нягтлан, Агуулах, CRM, Аналист</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">25,000</b><div class="sub">кредит/сар</div></div></div>
+          <div class="card" style="padding:.9rem 1.1rem; display:flex; justify-content:space-between; align-items:center;"><div><strong>Enterprise</strong><div class="sub">+ Boost, Тасалбар & Эвент</div></div><div style="text-align:right;"><b class="grad-text" style="font-size:1.2rem;">100,000+</b><div class="sub">кредит/сар</div></div></div>
         </div>
         <p class="note">Сан дуусвал нэмэлт кредит багцаар авна (top-up). Дугаарууд жишээ — баг бодит зардлаар тохируулна.</p>
       </div>
@@ -435,9 +508,10 @@
           <tr><td>FB/IG DM автоматжуулалт</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
           <tr><td>Монгол хэл native + QPay</td><td class="no">✕</td><td class="no">✕</td><td class="partial">хэсэгчлэн</td><td class="yes">✓</td></tr>
           <tr><td>AI борлуулалтын агент (LLM tool)</td><td class="partial">нэмэлт</td><td class="partial">нэмэлт</td><td class="no">✕</td><td class="yes">✓</td></tr>
-          <tr><td>Санхүү/агуулах автоматжуулалт</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>AI нягтлан бодох / санхүү тайлан</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>Boost / зар зардал AI оновчлол</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+          <tr><td>Эвент / тасалбар + QR худалдаа</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
           <tr><td>Угсардаг widget dashboard</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
-          <tr><td>UGC зураг үүсгэлт</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
           <tr><td>Хэрэглээний кредит загвар</td><td class="partial">хэсэгчлэн</td><td class="partial">хэсэгчлэн</td><td class="no">✕</td><td class="yes">✓</td></tr>
         </tbody>
       </table>
@@ -505,9 +579,9 @@
       <div class="phase"><div class="num">PHASE 0</div><h3>Foundation</h3><p>3 migration + RLS, registry/dispatcher scaffold, features түлхүүр. Webhook хөндөхгүй.</p></div>
       <div class="phase"><div class="num">PHASE 1</div><h3>Каталог</h3><p>/dashboard/agents + CRUD + Sidebar. Chatbot/Comment-ийг каталогт холбоно.</p></div>
       <div class="phase"><div class="num">PHASE 2</div><h3>Widget самбар</h3><p>@dnd-kit, widget registry, layout API, edit mode, default layout.</p></div>
-      <div class="phase"><div class="num">PHASE 3</div><h3>Deterministic agent</h3><p>Finance, Inventory, CRM — 0 token, бага эрсдэл. Handler + config + widget.</p></div>
-      <div class="phase"><div class="num">PHASE 4</div><h3>Generative agent</h3><p>Marketing (hybrid), Studio (GeminiImageProvider). Token-cost хяналт.</p></div>
-      <div class="phase"><div class="num">PHASE 5</div><h3>Runtime hardening</h3><p>Scheduler cron, agent_runs cleanup, observability, ачаалал/зардал тест.</p></div>
+      <div class="phase"><div class="num">PHASE 3</div><h3>Өндөр-reuse agent</h3><p>Нягтлан бодогч, Ухаалаг агуулах (vision), Бизнес аналист — 0/бага token, бага эрсдэл.</p></div>
+      <div class="phase"><div class="num">PHASE 4</div><h3>Орлого & вертикал</h3><p>Төлбөр&Хүргэлт, CRM win-back, Тасалбар&Эвент багц (QR, custom веб).</p></div>
+      <div class="phase"><div class="num">PHASE 5</div><h3>Boost & hardening</h3><p>Boost оновчлогч (Meta Ads API — шинэ интеграц), scheduler cron, observability, зардал тест.</p></div>
     </div>
     <p class="note">Phase 0–4 туршид webhook → routeToAI болон process-messages cron өөрчлөгдөхгүй — бүх ажил additive.</p>
   </section>
