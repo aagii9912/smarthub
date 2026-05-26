@@ -31,7 +31,7 @@ VALUES (
         ),
         'ai', jsonb_build_object(
             'default_provider', 'gemini',
-            'default_model', 'gemini-3.1-flash-lite-preview',
+            'default_model', 'gemini-3.1-flash-lite',
             'max_tokens', 4096,
             'temperature', 0.7
         )

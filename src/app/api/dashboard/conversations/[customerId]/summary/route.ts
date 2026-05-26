@@ -7,7 +7,7 @@ import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 import { logger } from '@/lib/utils/logger';
 import { headers } from 'next/headers';
 
-const SUMMARY_MODEL = 'gemini-3.1-flash-lite-preview';
+const SUMMARY_MODEL = 'gemini-3.1-flash-lite';
 const HISTORY_LIMIT = 30;
 const COMPLAINT_LIMIT = 5;
 const RATE_LIMIT_SECONDS = 30;

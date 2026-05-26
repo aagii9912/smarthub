@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
     },
     ai: {
         default_provider: 'gemini',
-        default_model: 'gemini-3.1-flash-lite-preview',
+        default_model: 'gemini-3.1-flash-lite',
         max_tokens: 4096,
         temperature: 0.7,
     },

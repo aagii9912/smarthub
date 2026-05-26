@@ -34,7 +34,7 @@ export class GeminiProvider implements AIProviderInterface {
     readonly name = 'gemini';
     readonly model: string;
 
-    constructor(model: string = 'gemini-3.1-flash-lite-preview') {
+    constructor(model: string = 'gemini-3.1-flash-lite') {
         this.model = model;
     }
 

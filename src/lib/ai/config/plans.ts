@@ -29,7 +29,7 @@ export function creditsToTokens(credits: number): number {
 
 export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
 export type AIProvider = 'gemini';
-export type AIModel = 'gemini-3.1-flash-lite-preview';
+export type AIModel = 'gemini-3.1-flash-lite';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -79,7 +79,7 @@ export interface PlanAIConfig {
 export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     lite: {
         provider: 'gemini',
-        model: 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-3.1-flash-lite',
         maxTokens: 300,
         tokensPerMonth: 5_000_000,    // ~5M tokens/month ≈ 5,000 credits
         maxShops: 1,
@@ -118,7 +118,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     starter: {
         provider: 'gemini',
-        model: 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-3.1-flash-lite',
         maxTokens: 500,
         tokensPerMonth: 8_500_000,    // ~8.5M tokens/month ≈ 8,500 credits
         maxShops: 1,
@@ -163,7 +163,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     pro: {
         provider: 'gemini',
-        model: 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-3.1-flash-lite',
         maxTokens: 800,
         tokensPerMonth: 21_000_000,   // ~21M tokens/month ≈ 21,000 credits
         maxShops: 3,
@@ -213,7 +213,7 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
 
     enterprise: {
         provider: 'gemini',
-        model: 'gemini-3.1-flash-lite-preview',
+        model: 'gemini-3.1-flash-lite',
         maxTokens: 1500,
         tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited) ≈ 100,000 credits
         maxShops: 1000,           // Effectively unlimited
@@ -405,7 +405,7 @@ export function checkShopLimit(
  * Model display names for UI
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
-    'gemini-3.1-flash-lite-preview': 'Gemini 3.1 Flash Lite',
+    'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
 };
 
 /**

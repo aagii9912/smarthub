@@ -46,7 +46,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
  * Model mapping - Gemini models
  */
 const MODEL_MAPPING: Record<AIModel, string> = {
-    'gemini-3.1-flash-lite-preview': 'gemini-3.1-flash-lite-preview',
+    'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
 };
 
 /**
@@ -390,7 +390,7 @@ export async function routeToAI(
     try {
         // Get actual model
         const modelName = planConfig.model;
-        const backendModel = MODEL_MAPPING[modelName] || 'gemini-3.1-flash-lite-preview';
+        const backendModel = MODEL_MAPPING[modelName] || 'gemini-3.1-flash-lite';
 
         logger.info(`AIRouter: Routing to Gemini [${modelName}] (Backend: ${backendModel})`);
 
@@ -723,7 +723,7 @@ export async function analyzeProductImageWithPlan(
     try {
         // Use GeminiProvider for vision
         const { GeminiProvider } = await import('./providers/GeminiProvider');
-        const visionModel = 'gemini-3.1-flash-lite-preview';
+        const visionModel = 'gemini-3.1-flash-lite';
         const geminiVision = new GeminiProvider(visionModel);
 
         if (!geminiVision.isAvailable()) {

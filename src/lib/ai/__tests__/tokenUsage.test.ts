@@ -101,7 +101,7 @@ describe('persistTokenUsage — happy path (3-arg RPC)', () => {
     it('logs at debug level on success (no warn/error noise)', async () => {
         rpcMock.mockResolvedValue({ data: 1, error: null });
 
-        await persistTokenUsage('shop-1', 100, 'ai_memo', { model: 'gemini-3.1-flash-lite-preview' });
+        await persistTokenUsage('shop-1', 100, 'ai_memo', { model: 'gemini-3.1-flash-lite' });
 
         expect(loggerMock.debug).toHaveBeenCalled();
         expect(loggerMock.warn).not.toHaveBeenCalled();

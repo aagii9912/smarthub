@@ -3,7 +3,7 @@ import { logger } from '@/lib/utils/logger';
 import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const PROMPT_GEN_MODEL = 'gemini-3.1-flash-lite-preview';
+const PROMPT_GEN_MODEL = 'gemini-3.1-flash-lite';
 
 /**
  * POST /api/dashboard/ai-generate-instructions

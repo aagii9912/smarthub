@@ -355,7 +355,7 @@ export default function AdminSettingsPage() {
                                     >
                                         {settings.ai.default_provider === 'gemini' ? (
                                             <>
-                                                <option value="gemini-3.1-flash-lite-preview">⚡ Gemini 3.1 Flash Lite (Шинэ, Хурдан)</option>
+                                                <option value="gemini-3.1-flash-lite">⚡ Gemini 3.1 Flash Lite (Шинэ, Хурдан)</option>
                                             </>
                                         ) : (
                                             <>
@@ -367,7 +367,7 @@ export default function AdminSettingsPage() {
                                     {settings.ai.default_provider === 'gemini' && (
                                         <div className="mt-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
                                             <p className="text-[11px] font-medium text-gray-600">
-                                                {settings.ai.default_model === 'gemini-3.1-flash-lite-preview'
+                                                {settings.ai.default_model === 'gemini-3.1-flash-lite'
                                                     ? '⚡ Хамгийн шинэ, хэмнэлттэй үнэтэй загвар'
                                                     : '🔥 Тогтвортой, батлагдсан загвар'}
                                             </p>

@@ -22,7 +22,7 @@ export function getProvider(
         throw new Error('GEMINI_API_KEY is required');
     }
 
-    const modelName = model || 'gemini-3.1-flash-lite-preview';
+    const modelName = model || 'gemini-3.1-flash-lite';
 
     if (!geminiProvider || geminiProvider.model !== modelName) {
         geminiProvider = new GeminiProvider(modelName);
