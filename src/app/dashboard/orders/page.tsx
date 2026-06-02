@@ -33,6 +33,8 @@ import { OrderStatusModal } from '@/components/dashboard/OrderStatusModal';
 
 export default function OrdersPage() {
   const [filter, setFilter] = useState<string>('all');
+  // Төлбөрийн аргаар шүүх — төлөвийн филтертэй хослон (AND) ажиллана
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
   const { t } = useLanguage();
 
   const statusOptions = [
@@ -42,6 +44,12 @@ export default function OrdersPage() {
     { value: 'shipped', label: t.orders.statusShipped, icon: Truck, color: 'bg-indigo-500' },
     { value: 'delivered', label: t.orders.statusDelivered, icon: Check, color: 'bg-green-500' },
     { value: 'cancelled', label: t.orders.statusCancelled, icon: X, color: 'bg-red-500' },
+  ];
+  const paymentOptions = [
+    { value: 'cod', label: `📦 ${t.orders.methodCod}` },
+    { value: 'qpay', label: '💳 QPay' },
+    { value: 'bank_transfer', label: '🏦 Банк' },
+    { value: 'cash', label: '💵 Бэлэн' },
   ];
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const { data: orders = [], isLoading, refetch, isRefetching } = useOrders(dateRange);
@@ -59,9 +67,11 @@ export default function OrdersPage() {
 
   const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
-  const filteredOrders = filter === 'all'
-    ? orders
-    : orders.filter(o => o.status === filter);
+  // payment_method хоосон (null) бол COD гэж үзнэ — useUpdateOrder доторх логиктой нийцүүлэв
+  const matchesStatus = (o: OrderWithDetails) => filter === 'all' || o.status === filter;
+  const matchesPayment = (o: OrderWithDetails) => paymentFilter === 'all' || (o.payment_method ?? 'cod') === paymentFilter;
+
+  const filteredOrders = orders.filter((o) => matchesStatus(o) && matchesPayment(o));
 
   const columns: ColumnDef<OrderWithDetails, unknown>[] = [
     createSelectColumn<OrderWithDetails>(),
@@ -282,14 +292,14 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Filter Tabs */}
+      {/* Төлөвийн филтер */}
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList variant="underline" className="overflow-x-auto no-scrollbar">
-          <TabsTrigger variant="underline" value="all" count={orders.length}>
+          <TabsTrigger variant="underline" value="all" count={orders.filter(matchesPayment).length}>
             {t.orders.all}
           </TabsTrigger>
           {statusOptions.map((status) => {
-            const count = orders.filter((o) => o.status === status.value).length;
+            const count = orders.filter((o) => o.status === status.value && matchesPayment(o)).length;
             return (
               <TabsTrigger key={status.value} variant="underline" value={status.value} count={count}>
                 {status.label}
@@ -298,6 +308,42 @@ export default function OrdersPage() {
           })}
         </TabsList>
       </Tabs>
+
+      {/* Төлбөрийн аргаар шүүх */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[11px] font-medium text-white/40 uppercase tracking-[0.05em] mr-0.5">
+          {t.orders.payment}:
+        </span>
+        {[{ value: 'all', label: t.orders.all }, ...paymentOptions].map((p) => {
+          const isActive = paymentFilter === p.value;
+          const count =
+            p.value === 'all'
+              ? orders.filter(matchesStatus).length
+              : orders.filter((o) => (o.payment_method ?? 'cod') === p.value && matchesStatus(o)).length;
+          return (
+            <button
+              key={p.value}
+              onClick={() => setPaymentFilter(p.value)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors tracking-[-0.01em] ${
+                isActive
+                  ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_16%,transparent)] border-[var(--brand-indigo)]/50 text-[var(--brand-indigo)]'
+                  : 'bg-card border-border text-white/55 hover:text-foreground hover:border-white/20'
+              }`}
+            >
+              {p.label}
+              {count > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full text-[10px] font-semibold tabular-nums ${
+                    isActive ? 'bg-[var(--brand-indigo)]/20 text-[var(--brand-indigo)]' : 'bg-white/[0.08] text-white/40'
+                  }`}
+                >
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Orders DataTable - Desktop */}
