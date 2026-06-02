@@ -16,6 +16,7 @@ import {
     MessageSquareMore,
     Inbox,
     Shield,
+    LayoutTemplate,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -55,6 +56,7 @@ const primaryItems: RailItem[] = [
     },
     { nameKey: 'customers', href: '/dashboard/customers', icon: Users },
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot },
+    { nameKey: 'businessTemplates', href: '/dashboard/business-templates', icon: LayoutTemplate },
     { nameKey: 'reports', href: '/dashboard/reports', icon: BarChart3, feature: 'crm_analytics' },
 ];
 
