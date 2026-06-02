@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="mn"><head><meta charset="UTF-8"><title>Agent Garden — Agent Brief-үүд</title>
+<style>
+  :root{
+    --brand:#4A7CE7; --brand2:#8B5CF6; --ink:#1a1a24; --soft:#4a4a5a; --dim:#7a7a8c;
+    --line:#e4e4ee; --bg:#ffffff; --bg-soft:#f7f7fb; --grad:linear-gradient(120deg,#4A7CE7,#8B5CF6);
+    --green:#0f9d6b; --warn:#b7791f; --danger:#d64545;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);
+    line-height:1.6;font-size:13.5px;background:var(--bg);}
+  .page{max-width:840px;margin:0 auto;padding:0 56px;}
+
+  /* Cover */
+  .cover{background:#0d0d14;color:#fff;padding:90px 56px 70px;}
+  .cover .page{max-width:740px;}
+  .cover .badge{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#b9a8ff;font-weight:700;}
+  .cover h1{font-size:54px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:14px 0 0;}
+  .cover h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .cover p{color:#c7c7d6;font-size:16px;max-width:54ch;margin-top:18px;}
+  .cover .meta{margin-top:34px;display:flex;gap:34px;flex-wrap:wrap;}
+  .cover .meta div b{display:block;font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .cover .meta div span{color:#8a8a9c;font-size:12px;}
+
+  /* TOC */
+  .toc{background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;padding:24px 30px;margin:38px 0;}
+  .toc h2{margin:0 0 14px;font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);}
+  .toc ol{margin:0;padding-left:22px;}
+  .toc li{margin:6px 0;}
+  .toc li.toc-readme{list-style:none;margin-left:-22px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px;}
+  .toc a{color:var(--ink);text-decoration:none;}
+  .toc a:hover{color:var(--brand);}
+
+  /* Sections */
+  .section{padding:30px 0 10px;border-top:1px solid var(--line);}
+  .section:first-of-type{border-top:none;}
+  .cover-section{}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.01em;margin:18px 0 4px;line-height:1.15;
+     padding-bottom:10px;border-bottom:3px solid transparent;border-image:var(--grad) 1;}
+  h2{font-size:18px;font-weight:700;margin:26px 0 8px;color:var(--ink);}
+  h3{font-size:14.5px;font-weight:700;margin:16px 0 4px;}
+  p{margin:8px 0;}
+  blockquote{margin:12px 0;padding:12px 18px;background:var(--bg-soft);border-left:4px solid var(--brand2);
+     border-radius:0 8px 8px 0;color:var(--soft);font-size:13px;}
+  ul,ol{margin:8px 0;padding-left:24px;}
+  li{margin:4px 0;}
+  strong{color:var(--ink);font-weight:700;}
+  code{background:var(--bg-soft);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+     font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;color:#6b3fc0;}
+  a{color:var(--brand);}
+  hr{border:none;border-top:1px solid var(--line);margin:24px 0;}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px;}
+  th,td{text-align:left;padding:8px 11px;border:1px solid var(--line);vertical-align:top;}
+  thead th{background:var(--bg-soft);font-weight:700;color:var(--soft);font-size:11px;
+     text-transform:uppercase;letter-spacing:.04em;}
+  tbody tr:nth-child(even){background:#fafafd;}
+
+  /* Print */
+  @page{size:A4;margin:18mm 0;}
+  @media print{
+    .section{page-break-before:always;}
+    .cover-section{page-break-before:avoid;}
+    .cover{page-break-after:always;}
+    h1,h2,h3{page-break-after:avoid;}
+    table,blockquote,pre{page-break-inside:avoid;}
+  }
+</style></head>
+<body>
+  <div class="cover">
+    <div class="page">
+      <div class="badge">Syncly · Дотоод баримт · 2026</div>
+      <h1>Agent Garden<br><span class="g">Agent Brief-үүд</span></h1>
+      <p>8 agent + 1 вертикалын бизнес чиглэлийн баримт. Agent бүрийг хариуцсан хүн логик, үйлдэл, сайжруулалтыг өөрөө дизайн хийхэд зориулав.</p>
+      <div class="meta">
+        <div><b>8</b><span>Agent</span></div>
+        <div><b>+1</b><span>Вертикал (тасалбар)</span></div>
+        <div><b>14</b><span>Хэсэг / brief</span></div>
+        <div><b>2</b><span>Бүлэг (back-office / орлого)</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="page">
+    <div class="toc"><h2>Гарчиг</h2><ol><li class="toc-readme"><a href="#sec-0">🌱 Agent Garden — Agent Brief-үүд</a></li>
+<li class=""><a href="#sec-1">💬 Борлуулагч AI — chatbot</a></li>
+<li class=""><a href="#sec-2">📣 Comment &amp; Live оператор — comment</a></li>
+<li class=""><a href="#sec-3">💳 Төлбөр &amp; Хүргэлт — payment</a></li>
+<li class=""><a href="#sec-4">🧮 AI Нягтлан бодогч — accounting</a></li>
+<li class=""><a href="#sec-5">📦 Ухаалаг агуулах — inventory</a></li>
+<li class=""><a href="#sec-6">📊 Бизнес аналист — analyst</a></li>
+<li class=""><a href="#sec-7">🚀 Boost оновчлогч — boost</a></li>
+<li class=""><a href="#sec-8">👥 Харилцагч — crm</a></li>
+<li class=""><a href="#sec-9">🎟️ Тасалбар &amp; Эвент — ticketing (вертикал)</a></li></ol></div>
+    <section class="section cover-section" id="sec-0"><h1 id="agent-garden-agent-brief-">🌱 Agent Garden — Agent Brief-үүд</h1>
+<blockquote>
+<p><strong>Зорилго:</strong> Agent бүрийг хариуцсан хүн (хөгжүүлэгч/PM) уг agent-ийн <strong>бүх логик, үйлдэл, бизнес чиглэлийг өөрөө бодож олох, сайжруулах, хөгжүүлэх</strong>-д хангалттай контекст энд бий. Эдгээр нь "юу хийхийг зааварчилсан жор" биш — <strong>юуны төлөө, хэний төлөө, ямар шийдвэр гаргах ёстойг</strong> тайлбарласан бизнес brief юм. Кодын нарийн хэрэгжүүлэлтийг хариуцсан хүн өөрөө гаргана.</p>
+</blockquote>
+<hr />
+<h2 id="agent">📚 Agent жагсаалт</h2>
+<h3 id="a-back-office">🏆 Бүлэг A — Ажил хөнгөлөгч (back-office; бизнес эзний гар ажлыг автоматжуулна)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Agent</th>
+<th>slug</th>
+<th>Файл</th>
+<th>Бэлэн байдал</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>04</td>
+<td>AI Нягтлан бодогч</td>
+<td><code>accounting</code></td>
+<td><a href="./04-accounting.md">04-accounting.md</a></td>
+<td>~40% (шинэ P&amp;L/НӨАТ)</td>
+</tr>
+<tr>
+<td>05</td>
+<td>Ухаалаг агуулах</td>
+<td><code>inventory</code></td>
+<td><a href="./05-inventory.md">05-inventory.md</a></td>
+<td>~60% (vision reuse)</td>
+</tr>
+<tr>
+<td>06</td>
+<td>Бизнес аналист</td>
+<td><code>analyst</code></td>
+<td><a href="./06-analyst.md">06-analyst.md</a></td>
+<td>~70% (SmartInsights)</td>
+</tr>
+<tr>
+<td>07</td>
+<td>Boost оновчлогч</td>
+<td><code>boost</code></td>
+<td><a href="./07-boost.md">07-boost.md</a></td>
+<td>0% — БҮРЭН ШИНЭ (Meta Ads)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-revenue">💰 Бүлэг B — Орлого нэмэгдүүлэгч (revenue; үйлчлүүлэгчтэй харьцана)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Agent</th>
+<th>slug</th>
+<th>Файл</th>
+<th>Бэлэн байдал</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>Борлуулагч AI</td>
+<td><code>chatbot</code></td>
+<td><a href="./01-chatbot.md">01-chatbot.md</a></td>
+<td>reframe (production)</td>
+</tr>
+<tr>
+<td>02</td>
+<td>Comment &amp; Live</td>
+<td><code>comment</code></td>
+<td><a href="./02-comment-live.md">02-comment-live.md</a></td>
+<td>reframe+</td>
+</tr>
+<tr>
+<td>03</td>
+<td>Төлбөр &amp; Хүргэлт</td>
+<td><code>payment</code></td>
+<td><a href="./03-payment-delivery.md">03-payment-delivery.md</a></td>
+<td>partial (vision OCR)</td>
+</tr>
+<tr>
+<td>08</td>
+<td>Харилцагч</td>
+<td><code>crm</code></td>
+<td><a href="./08-crm.md">08-crm.md</a></td>
+<td>~60% (customers fields)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">🎟️ Вертикал — салбар тус бүрийн багц</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Agent</th>
+<th>slug</th>
+<th>Файл</th>
+<th>Бэлэн байдал</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>09</td>
+<td>Тасалбар &amp; Эвент</td>
+<td><code>ticketing</code></td>
+<td><a href="./09-ticketing.md">09-ticketing.md</a></td>
+<td>шинэ вертикал</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="brief">🧭 Brief бүрийн бүтэц (нийтлэг загвар)</h2>
+<p>Brief бүр доорх 14 хэсэгтэй. Хариуцсан хүн эдгээрийг уншаад agent-ийн логикийг <strong>өөрөө дизайн хийнэ</strong>:</p>
+<ol>
+<li><strong>Яагаад (бизнес өвдөлт)</strong> — Монголын бизнес эзний бодит асуудал</li>
+<li><strong>Хэн ашиглах вэ</strong> — эзэн? борлуулагч? нягтлан?</li>
+<li><strong>Jobs-to-be-done</strong> — хэрэглэгч юуг гүйцэлдүүлэхийг хүсэж байна вэ</li>
+<li><strong>Trigger ба горим</strong> — event / schedule / manual</li>
+<li><strong>Гол логик урсгал</strong> — алхам алхмаар</li>
+<li><strong>Шийдвэрийн цэг ба edge case</strong> — хүн өөрөө бодох ёстой газрууд</li>
+<li><strong>Codebase reuse</strong> — юун дээр түшиглэх (бэлэн код)</li>
+<li><strong>Шинээр барих</strong> — net-new хэсэг</li>
+<li><strong>Config</strong> — shop тус бүр тохируулах зүйл</li>
+<li><strong>Widget</strong> — dashboard дээр юу харуулах</li>
+<li><strong>Кредит / зардал</strong> — token/credit загвар</li>
+<li><strong>Амжилтын хэмжүүр (KPI)</strong> — ажиллаж буйг хэрхэн мэдэх</li>
+<li><strong>Сайжруулах санаанууд</strong> — v2+, өөрийн бодлоо хөгжүүлэх түлхэц</li>
+<li><strong>Эрсдэл / Монгол-онцлог анхаарал</strong></li>
+</ol>
+<hr />
+<h2 id="agent-">🔑 Нийтлэг архитектур (бүх agent-д хамаарна)</h2>
+<ul>
+<li><strong>Хоёр давхарга:</strong> <code>ProductAgent</code> (каталогийн нэгж — энэ brief-үүд) нь дотоод <code>AgentRole</code> (<code>src/lib/ai/agents/</code>, зөвхөн "chatbot яаж ярих вэ")-ийг <strong>заадаг</strong> эсвэл бүрэн <strong>deterministic handler</strong>-тай.</li>
+<li><strong>Цорын ганц орц:</strong> бүх trigger <code>src/lib/agents-product/dispatcher.ts</code>-ээр дамжина → <code>shop_agents</code> (enabled + plan дахин шалга) → <code>agent_runs</code> лог → <code>handler.run()</code>.</li>
+<li><strong>Handler төрөл:</strong></li>
+<li><code>llm</code> — <code>routeToAI</code>/<code>AIRouter</code> reuse (token зарцуулна)</li>
+<li><code>deterministic</code> — зөвхөн SQL + push, <strong>0 token</strong> (хямд, бат бөх)</li>
+<li><code>hybrid</code> — deterministic-ээр сонгож, заавал биш LLM-ээр өнгөлнө</li>
+<li><strong>RLS:</strong> dispatcher service role-оор RLS bypass хийдэг тул handler <strong>query бүрд <code>shop_id</code> scoping</strong> хийнэ.</li>
+<li><strong>i18n:</strong> бүх UI текст <code>mn</code> (+<code>en</code>), <code>LocalizedString {mn,en}</code> reuse.</li>
+<li><strong>Plan gate:</strong> <code>requiredFeature</code> (<code>agent_*</code> түлхүүр) + <code>minPlan</code> — server талд дахин шалгана.</li>
+</ul>
+<blockquote>
+<p>Ерөнхий архитектур, фазчлал, бизнес загвар (хэрэглээний кредит) → стратеги deck: <code>docs/presentation/agent-garden.html</code></p>
+</blockquote>
+<hr />
+<h2 id="brief-">✍️ Brief-ийг хэрхэн ашиглах вэ (хариуцсан хүнд)</h2>
+<ol>
+<li>Эхлээд §1–§3 уншиж <strong>яагаад, хэнд</strong> хэрэгтэйг ойлго.</li>
+<li>§5 урсгалыг <strong>анхны таамаг</strong> гэж үз — §6 edge case-уудыг өөрөө нэмж бодож, бодит хэрэглэгчээс асууж баталгаажуул.</li>
+<li>§7 reuse-ийг кодоос олж уншиж, дугуйг дахин зохиохгүй байх.</li>
+<li>§13 санаануудаас цааш бод — энэ нь зөвхөн эхлэл; чи өөрөө шинэ үйлдэл/логик нэмэх ёстой.</li>
+<li>§12 KPI-аар амжилтаа хэмж; §14 эрсдэлийг урьдчилан шийд.</li>
+</ol></section>
+<section class="section" id="sec-1"><h1 id="ai-chatbot">💬 Борлуулагч AI — <code>chatbot</code></h1>
+<blockquote>
+<p>Messenger/IG DM дээр 24/7 ажилладаг AI борлуулагч. Асуултанд хариулж, бараа санал болгож, сагсанд нэмж, захиалга авч, шаардлагатай үед хүн рүү шилжүүлнэ.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 💰 Орлого нэмэгдүүлэгч · <strong>Handler:</strong> <code>llm</code> (adapter→<code>routeToAI</code>) · <strong>Plan:</strong> <code>lite</code> · <strong>Бэлэн байдал:</strong> production-д ажиллаж буй гол feature — каталогт <strong>reframe</strong> хийнэ.</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Үйлчлүүлэгч <strong>шөнө дунд, ажлын бус цагт</strong> мессеж бичдэг — эзэн амжиж хариулдаггүй → үйлчлүүлэгч өрсөлдөгч рүү явдаг.</li>
+<li><strong>Давтагдсан асуулт</strong> (үнэ хэд вэ? размер байгаа юу? хүргэдэг үү?) өдөрт зуу зуун удаа — эзний цагийг иддэг.</li>
+<li>Хүн ядрах, эвгүй хариулах, удаашрах — AI тогтвортой, эелдэг, хурдан.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> үйлчлүүлэгч (мэдэхгүй — AI-тай ярьж байгаагаа).</li>
+<li><strong>Хяналт:</strong> эзэн/борлуулагч — AI-ийн хариуг хянаж, шаардлагатай үед гар авна (handoff).</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done (үйлчлүүлэгчийн талаас)</h2>
+<ul>
+<li>"Энэ бараа <strong>байгаа юу</strong>, <strong>үнэ хэд</strong> вэ?"</li>
+<li>"Надад тохирох <strong>санал болгооч</strong>."</li>
+<li>"<strong>Захиалъя</strong> / сагсанд хийе."</li>
+<li>"<strong>Хүнтэй</strong> ярья (нарийн асуудал)."</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>event:</strong> ирсэн мессеж (Messenger/IG DM webhook).</li>
+<li><strong>manual:</strong> каталогийн "Test" — эзэн өөрөө туршина.</li>
+</ul>
+<h2 id="5-reframe">5. Гол логик урсгал (бэлэн — reframe)</h2>
+<ol>
+<li>Webhook → гарын үсэг шалгах → мессеж хадгалах → shop config ачаалах.</li>
+<li><strong>Контекст цуглуулах:</strong> бараа, сагс, үйлчлүүлэгчийн санах ой (<code>ai_memory</code>), AgentRole (sales/support г.м.).</li>
+<li><strong>Gemini function calling:</strong> бараа хайх, сагсанд нэмэх, захиалга үүсгэх, нөөц шалгах tool-уудаар хариу үүсгэнэ.</li>
+<li>Хариуг Meta Graph API-аар буцаах.</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Хүн рүү хэзээ шилжүүлэх (handoff):</strong> гомдол, уур, нарийн тохиролцоо, AI эргэлзсэн үед — босго хэрхэн тодорхойлох?</li>
+<li><strong>Sentiment:</strong> үйлчлүүлэгч ууртай бол өнгө аясыг өөрчлөх, хүн дуудах.</li>
+<li><strong>Үнийн хэлэлцээ:</strong> "хямдруулж болох уу?" — AI хэр эрх мэдэлтэй (тогтсон бодлого хэрэгтэй)?</li>
+<li><strong>Бэлэн бус бараа:</strong> "дууссан" гэхээсээ өмнө орлуулах санал, эсвэл "ирэхэд мэдэгдье".</li>
+<li><strong>Олон хэл/слэнг:</strong> монгол слэнг, латинаар бичсэн монгол — таних.</li>
+<li><strong>Буруу мэдээлэл (hallucination):</strong> байхгүй барааг "байна" гэхгүй байх — tool үр дүнд л тулгуурлах.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/ai/AIRouter.ts</code> → <code>routeToAI</code> — гол урсгал.</li>
+<li><code>src/lib/ai/ToolExecutor.ts</code>, <code>src/lib/ai/tools/</code> — function calling.</li>
+<li><code>src/lib/ai/agents/</code> → <code>AgentRole</code>/<code>AgentRoleDefinition</code> (дотоод давхарга).</li>
+<li>AI Settings (<code>/dashboard/ai-settings</code>) — өнгө аяс, дүрэм.</li>
+<li><code>src/app/api/webhook/route.ts</code> — webhook урсгал.</li>
+</ul>
+<h2 id="8-reframe">8. Шинээр барих (reframe тул бага)</h2>
+<ul>
+<li>Каталогийн card + run history + "Test".</li>
+<li>Adapter: chatbot handler → <code>routeToAI</code> нимгэн дуудлага (dispatcher-тэй холбох).</li>
+<li>Handoff/sentiment-ийн илүү тодорхой логик (хүсвэл).</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>AgentRole (борлуулалт/мэдээлэл/дэмжлэг/lead).</li>
+<li>Өнгө аяс, мэндлэх үг, ажлын цаг.</li>
+<li>Handoff босго, хориглосон сэдэв.</li>
+<li>Үнийн хэлэлцээний эрх.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>aiProgress</code> — AI-ийн өнөөдрийн хариу/хөрвүүлэлт.</li>
+<li><code>tokenBreakdown</code> — token хэрэглээ.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li><strong>1 кредит / LLM хариу</strong> (мессеж). Энэ нь хэрэглээний кредит загварын гол хэрэглэгч.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Хариу өгөх хурд, хариулсан мессежийн хувь.</li>
+<li>Чатаас захиалга болсон хувь (conversion).</li>
+<li>Handoff хувь (хэт өндөр бол AI муу, хэт бага бол эрсдэлтэй).</li>
+<li>Үйлчлүүлэгчийн сэтгэл ханамж.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Бусад agent-тай гүн холбоо: чатаас шууд төлбөр (payment), VIP таних (CRM).</li>
+<li>Дуу хоолой/voice мессеж таних.</li>
+<li>Проактив follow-up ("өчигдөр асуусан бараа тань ирлээ").</li>
+<li>Олон хэл (англи жуулчин).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Hallucination = алдагдсан итгэл/буруу захиалга</strong> → зөвхөн tool үр дүнд тулгуурла.</li>
+<li>Монгол хэл, слэнг, латин бичлэг таних чанар.</li>
+<li>Webhook халуун зам — <strong>reframe хийхдээ энэ урсгалыг хөндөхгүй</strong> (backward compat чухал).</li>
+</ul></section>
+<section class="section" id="sec-2"><h1 id="comment-live-comment">📣 Comment &amp; Live оператор — <code>comment</code></h1>
+<blockquote>
+<p>FB/IG пост, тусгайлан <strong>Live худалдаа</strong>-ны доорх сэтгэгдэлд авто хариулж, "+1"/размер/өнгө зэрэг захиалгын дохиог барьж DM руу хөрвүүлдэг agent.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 💰 Орлого нэмэгдүүлэгч · <strong>Handler:</strong> <code>deterministic</code>/<code>hybrid</code> · <strong>Plan:</strong> <code>starter</code> · <strong>Бэлэн байдал:</strong> comment automation бий — Live capture-аар <strong>reframe+enhance</strong>.</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li><strong>Live худалдаа</strong> Монголд асар түгээмэл. Live үед зуу зуун коммент ("+1", "M размер", "хар өнгө", "үнэ?") — эзэн <strong>гараар бариад огт амждаггүй</strong>, захиалга алдагдана.</li>
+<li>Пост бүрийн доор "үнэ хэд?", "inbox-доо хар" гэсэн давтагдсан коммент — гараар хариулах ажилгүй цаг.</li>
+<li>Хариу удаан → үйлчлүүлэгч хүйтэрнэ. Бусдын өмнө үнэ асуусан комментод хариулахгүй бол борлуулалт алдана.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> үйлчлүүлэгч (коммент бичигч).</li>
+<li><strong>Хяналт:</strong> эзэн/борлуулагч — Live үеэр захиалгын урсгалыг хянана.</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>Үйлчлүүлэгч: "Коммент бичээд <strong>хурдан хариу</strong> авах", "<strong>+1 гээд захиалга өгөх</strong>".</li>
+<li>Эзэн: "Live дээрх <strong>бүх захиалгыг алдалгүй барих</strong>", "Давтагдсан асуултад <strong>автоматаар</strong> хариулах".</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>event:</strong> шинэ коммент (FB/IG webhook).</li>
+<li>Live горим: тухайн Live/пост идэвхтэй үед эрчимтэй capture.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li>Коммент webhook → текстийг intent/keyword-оор ангилах (үнэ асуусан / захиалга / асуулт / spam).</li>
+<li><strong>Нийтэд хариу</strong> (template, "inbox-доо хараарай") эсвэл <strong>DM trigger</strong> (хувийн хариу/каталог).</li>
+<li><strong>Live "+1" capture:</strong> "+1", тоо, размер (S/M/L/XL), өнгө зэргийг таньж → тухайн барааны захиалга үүсгэх дохио → DM рүү хөтөлж төлбөр/хаяг авах.</li>
+<li>Захиалгыг хүн рүү (борлуулагч) эсвэл chatbot руу дамжуулж баталгаажуулна.</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Аль постод идэвхтэй:</strong> бүх постод уу, зөвхөн идэвхжүүлсэн/Live-д уу?</li>
+<li><strong>Нийтэд vs хувийн:</strong> үнийг нийтэд хэлэх үү (өрсөлдөгч хардаг), DM-д л хэлэх үү?</li>
+<li><strong>Live "+1" тайлал:</strong> "+1" аль барааг хэлж байна (Live-ийн тухайн агшны бараатай холбох — цаг хугацааны контекст)? Энэ хамгийн төвөгтэй.</li>
+<li><strong>Размер/өнгө parse:</strong> "М-ийг хараар 2ш" гэх мэт нийлмэл захиалга.</li>
+<li><strong>Spam/муухай үг</strong> шүүх, давхар коммент нэг хүнээс.</li>
+<li><strong>Хэл:</strong> латинаар бичсэн монгол ("une hed ve").</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>CommentAutomationService</code> (comment automation бэлэн логик).</li>
+<li><code>src/app/api/webhook/route.ts</code> доторх comment салбар.</li>
+<li><code>src/lib/facebook/messenger.ts</code> — нийтэд хариу / DM илгээх.</li>
+<li><code>supabase/migrations/20260301_comment_automations.sql</code> — <code>comment_automations</code>.</li>
+<li><code>COMMENT_AUTOMATION_ENABLED_SHOPS</code> whitelist → <code>shop_agents</code> руу migrate.</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li><strong>Live "+1"/тоо/размер/өнгө capture</strong> логик (гол шинэ үнэ цэн).</li>
+<li>Live агшин ↔ бараа холбох контекст.</li>
+<li>whitelist-ийг <code>shop_agents</code>-д шилжүүлэх.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>Идэвхтэй постын хамрах хүрээ.</li>
+<li>Keyword → хариу template-ууд.</li>
+<li>Үнийг нийтэд хэлэх эсэх.</li>
+<li>Live горим тохиргоо (идэвхжүүлэх бараа).</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>automation</code> метрик — хариулсан коммент, DM хөрвүүлэлт, Live захиалга.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li><strong>1 кредит / LLM хариу</strong> (intent/хувийн хариу LLM шаардвал). Template-д суурилсан энгийн хариу = 0.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Хариулсан комментын хувь, дундаж хурд.</li>
+<li>Live дээр баригдсан "+1" захиалгын тоо (алдагдсан биш).</li>
+<li>Коммент → DM → захиалга хөрвүүлэлт.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Live дээр бодит цагт нөөц шинэчлэх (inventory-тэй холбоо) — "дууссан" гэж шуурхай мэдэгдэх.</li>
+<li>Live-ийн дараа авто нэгтгэл: хэн юу захиалсан жагсаалт → багц боловсруулалт.</li>
+<li>Видео/зураг коммент таних.</li>
+<li>Хүлээлгийн жагсаалт (дууссан бараанд "+1" хийсэн хүн рүү ирэхэд мэдэгдэх).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Live "+1" контекст</strong> — Монголын Live худалдааны хамгийн өвөрмөц, төвөгтэй хэсэг. Тухайн агшинд аль бараа гарч байсныг зөв холбохгүй бол буруу захиалга.</li>
+<li>Олон зуун коммент богино хугацаанд → rate/ачаалал.</li>
+<li>Латин монгол, слэнг, эмодзи taclil.</li>
+<li>Худал захиалга (зүгээр "+1" гээд аваагүй) — баталгаажуулалт хэрэгтэй.</li>
+</ul></section>
+<section class="section" id="sec-3"><h1 id="payment">💳 Төлбөр &amp; Хүргэлт — <code>payment</code></h1>
+<blockquote>
+<p>Дансаар шилжүүлсэн <strong>гүйлгээний баримтын зургийг AI-аар уншиж</strong> дүн/огноог захиалгатай тулгаж төлбөр баталгаажуулдаг; QPay; хаяг цуглуулж хүргэлт зохицуулдаг agent.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 💰 Орлого нэмэгдүүлэгч · <strong>Handler:</strong> <code>hybrid</code> (vision OCR) · <strong>Plan:</strong> <code>starter</code> · <strong>Бэлэн байдал:</strong> payments/QPay partial — баримт OCR + хүргэлт <strong>шинэ</strong>.</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Монголд картын онлайн төлбөр ховор — ихэнх нь <strong>дансаар шилжүүлээд скрийншот</strong> (Хаан, ХХБ, Голомт, Хас, Төрийн банк) явуулдаг. Эзэн <strong>гараар банкны апп нээж</strong>, дүн/огноо тулгаж, "орсон уу?" гэж шалгадаг — удаан, алдаатай, ажилгүй цаг.</li>
+<li><strong>Хаяг чалга:</strong> "Хан-Уул, 19-р хороо, 45-р байр, 12 тоот" гэх мэт хаяг эмх замбараагүй, дутуу ирдэг → хүргэлт төөрдөг.</li>
+<li>Хүргэлтийн төлбөрийг бүсээр гараар бодох — алдаа гардаг.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> эзэн/борлуулагч (төлбөр баталгаажуулах, хүргэлт зохион байгуулах).</li>
+<li><strong>Хоёрдогч:</strong> үйлчлүүлэгч (баримт/хаяг өгөх).</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>Эзэн: "Үйлчлүүлэгчийн явуулсан <strong>баримт жинхэнэ үү, дүн таарч байна уу</strong> — автоматаар шалга."</li>
+<li>Эзэн: "Хаягийг <strong>цэгцэлж</strong>, хүргэлтийн төлбөрийг <strong>бодож</strong> өг."</li>
+<li>Үйлчлүүлэгч: "<strong>Хялбар төлж</strong>, хаягаа өгөөд хүргүүлэх."</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>event:</strong> <code>payment.succeeded</code> (QPay callback); DM-д төлбөрийн баримт зураг ирэх.</li>
+<li><strong>manual:</strong> эзэн баримт оруулж шалгуулах, хүргэлт хуваарилах.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>QPay:</strong> invoice үүсгэх → callback → <code>orders.payment_status='paid'</code> (бэлэн зам).</li>
+<li><strong>Баримт OCR:</strong> баримтын зураг → Gemini vision → дүн, огноо, гүйлгээний утга, данс уншина.</li>
+<li><strong>Тулгах:</strong> уншсан дүн ↔ захиалгын дүн; огноо саяхан уу; данс манай данс уу.</li>
+<li><strong>Баталгаажуулах:</strong> таарвал <code>paid</code> → <code>stock</code> хорогдол trigger асна; зөрвөл эзэнд анхааруулах.</li>
+<li><strong>Хаяг боловсруулах:</strong> ирсэн хаягийг дүүрэг/хороо/байр болгон бүтэцжүүлэх.</li>
+<li><strong>Хүргэлт:</strong> бүсээр хүргэлтийн төлбөр бодох; хүргэлтийн партнёрт/жолоочид дамжуулах; төлөв мэдэгдэх.</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Дүн зөрвөл:</strong> дутуу төлсөн (урьдчилгаа?), илүү төлсөн (буцаах?), огт өөр дүн.</li>
+<li><strong>Давхар баримт:</strong> нэг баримтыг 2 захиалгад ашиглах оролдлого → давхардал илрүүлэх (гүйлгээний утга/огноо).</li>
+<li><strong>Хуурамч баримт:</strong> хуурамчаар засаж зурсан скрийншот → хэр итгэх, хүн шалгах босго.</li>
+<li><strong>OCR алдаа:</strong> банк бүрийн баримт өөр формат, гар утасны муу зураг → итгэлийн оноо доогуур бол эзэн гар баталгаажуулна.</li>
+<li><strong>Хаяг бүрэн бус:</strong> дутуу хаяг → дахин асуух урсгал.</li>
+<li><strong>Хэсэгчилсэн/урьдчилгаа</strong> төлбөр — хэрхэн тооцох.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/payment/qpay.ts</code>, <code>src/app/api/payment/webhook/</code> — QPay урсгал.</li>
+<li><code>supabase/migrations/006_add_payments.sql</code> — <code>payments</code> (method, status, QPay талбар).</li>
+<li><code>src/lib/ai/AIRouter.ts</code> Gemini vision — баримт уншихад өргөтгөх.</li>
+<li><code>supabase/migrations/20260130100000_stock_management_triggers.sql</code> — paid үед нөөц хорогдол.</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li><strong>Баримт OCR prompt</strong> (банк бүрийн формат таних) + тулгах логик.</li>
+<li>Давхар/хуурамч баримт илрүүлэх.</li>
+<li><strong>Хаяг parse</strong> (дүүрэг/хороо/байр) + хүргэлтийн <strong>бүс/төлбөр</strong> тооцоо.</li>
+<li>Хүргэлтийн партнёр интеграц / жолоочийн дамжуулга, төлөв мэдэгдэл.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>Хүлээн авах данс(ууд), банкууд.</li>
+<li>Хүргэлтийн бүс ↔ төлбөрийн хүснэгт.</li>
+<li>OCR итгэлийн босго (хэзээ авто-paid, хэзээ гар хяналт).</li>
+<li>Хүргэлтийн партнёр сонголт.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.payment.reconciliation</code> — баталгаажуулах хүлээгдэж буй төлбөр, зөрүүтэй гүйлгээ, хүргэлтийн төлөв.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li>Баримт OCR (vision) = <strong>1 кредит / баримт</strong>.</li>
+<li>QPay баталгаажуулалт, хаяг/хүргэлт тооцоо = <strong>0 кредит</strong> (deterministic).</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Төлбөр баталгаажуулах хугацаа (гараар vs авто).</li>
+<li>OCR нарийвчлал (зөв уншсан хувь).</li>
+<li>Буруу/хуурамч баримтаас хамгаалсан тохиолдол.</li>
+<li>Хүргэлтийн алдаа (төөрсөн хаяг) буурсан эсэх.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Банкны statement API (боломжтой бол) → баримтгүйгээр авто тулгах.</li>
+<li>Газрын зураг дээр хаяг pin + хүргэлтийн маршрут оновчлол.</li>
+<li>COD (хүргэлтээр төлөх) урсгал.</li>
+<li>Хүргэлтийн бодит цагийн tracking үйлчлүүлэгчид.</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Хуурамч баримт</strong> — Монголд бодит асуудал. Авто-paid-ийг хэт итгэвэл алдагдал; итгэлийн босго + хүн хяналт чухал.</li>
+<li>Банк бүрийн баримт формат, апп шинэчлэлтээр өөрчлөгдөнө → OCR-ийг уян хатан.</li>
+<li>Хаягийн стандарт байхгүй (Монголын онцлог) → parse хэцүү, газрын зураг туслана.</li>
+<li>Санхүүгийн өгөгдөл → нууцлал/аюулгүй байдал өндөр.</li>
+</ul></section>
+<section class="section" id="sec-4"><h1 id="ai-accounting">🧮 AI Нягтлан бодогч — <code>accounting</code></h1>
+<blockquote>
+<p>Бизнес эзэн нягтлан хөлслөхгүйгээр орлого/зарлагаа авто ангилуулж, ашгаа ойлгож, татвар/НӨАТ-д бэлэн тайлантай болох agent.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 🏆 Ажил хөнгөлөгч (back-office) · <strong>Handler:</strong> <code>deterministic</code> (0 token) · <strong>Plan:</strong> <code>pro</code></p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<p>Монголын жижиг онлайн бизнес эзний 90%+ нь санхүүгээ <strong>огт хөтөлдөггүй</strong> — Excel ч биш. Үр дүнд нь:
+- "Энэ сар ашигтай юу, алдагдалтай юу?" гэдгээ <strong>мэддэггүй</strong>. Эргэлт (орлого) их боловч бараа өртөг (COGS), сурталчилгаа, хүргэлт хассан цэвэр ашиг сөрөг байж болзошгүй.
+- Татварын улирлын тайлан, НӨАТ-ын мэдүүлэгт бэлдэх нь стресс — баримтаа сүүлийн мөчид түүж эхэлдэг.
+- Зарлагаа (бараа авсан, шуудан, сурталчилгаа, түрээс) хаана ч бүртгэдэггүй тул жинхэнэ зургийг хэзээ ч хардаггүй.</p>
+<p>Энэ agent нь "тоо мэддэггүй" эзэнд <strong>ойлгомжтой монгол хэлээр</strong> санхүүгийн дүр зургийг авто гаргаж өгнө.</p>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> бизнес эзэн өөрөө (нягтлангүй жижиг бизнес).</li>
+<li><strong>Хоёрдогч:</strong> хагас цагийн нягтлан / туслах — экспортолсон тайланг татвар, мэдүүлэгт ашиглана.</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>"Энэ сар хэдэн төгрөг <strong>цэвэр ашигтай</strong> байсныг хэлж өг."</li>
+<li>"Орлогоо бараа өртөг, зардлаар нь <strong>ангилж</strong> үзүүл."</li>
+<li>"НӨАТ-д төлөх дүнг <strong>бэлэн</strong> болго."</li>
+<li>"Хамгийн ашигтай / алдагдалтай бараагаа харуул."</li>
+<li>"Сарын тайланг <strong>экспортолж</strong> нягтландаа өгье."</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>schedule:</strong> өдөр бүр (өдрийн нэгтгэл), сар бүрийн эхэнд (өмнөх сарын P&amp;L хаалт).</li>
+<li><strong>event:</strong> <code>payment.succeeded</code> / <code>order.paid</code> (орлого бодит цагт нэмэгдэнэ).</li>
+<li><strong>manual:</strong> эзэн "Сарын тайлан гаргах", "НӨАТ тооцох" товч дарна.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Орлого цуглуулах:</strong> <code>orders</code> + <code>payments</code>-аас <code>payment_status='paid'</code> бичлэгүүдийг хугацааны мужаар нэгтгэнэ.</li>
+<li><strong>COGS тооцох:</strong> <code>order_items</code> × <code>products.cost</code> (← шинэ багана) → борлуулсан барааны өртөг.</li>
+<li><strong>Зарлага оруулах:</strong> <code>expenses</code> (шинэ хүснэгт)-ээс ангиллаар (бараа авалт, сурталчилгаа, хүргэлт, түрээс, цалин, бусад) нийлбэр.</li>
+<li><strong>P&amp;L бодох:</strong> Цэвэр ашиг = Орлого − COGS − Зарлага. Ангилал бүрийн хувь, чиг хандлага.</li>
+<li><strong>НӨАТ:</strong> НӨАТ суутгагч бол борлуулалтын НӨАТ − худалдан авалтын НӨАТ → төлбөл зохих дүн (тохиргооноос НӨАТ-тэй эсэхийг авна).</li>
+<li><strong>Гаргах:</strong> widget шинэчлэх + сарын хаалтад push ("6-р сар: 2.4 сая орлого, 780мянга цэвэр ашиг"); экспорт (CSV/Excel).</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Зарлагыг хэн оруулах вэ?</strong> Эзэн гараар оруулна уу, эсвэл QPay/банкны гарсан гүйлгээнээс авто таних уу? (Эхлээд гар оруулга, дараа нь авто.)</li>
+<li><strong>Буцаалт/цуцлалт</strong> P&amp;L-д хэрхэн тусгах вэ (сөрөг орлого уу, тусдаа мөр үү)?</li>
+<li><strong>Бараа өртөг (<code>cost</code>) байхгүй бол</strong> COGS-ийг хэрхэн тооцох (анхааруулга өгөх үү, дунджаар тооцох уу)?</li>
+<li><strong>Хэсэгчилсэн төлбөр / урьдчилгаа</strong> — хэзээ орлого гэж тооцох (орсон үед үү, баталгаажсан үед үү)?</li>
+<li><strong>НӨАТ-тэй эсэх</strong>, татварын горим (энгийн/хялбаршуулсан) бизнес бүрд өөр — буруу тооцвол хууль зөрчинө. → tax disclaimer заавал.</li>
+<li><strong>Валют</strong> — бараа авалт ам.доллар, борлуулалт төгрөг бол ханшийг хэрхэн?</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>supabase/migrations/006_add_payments.sql</code> — <code>payments</code> (захиалгын төлбөр).</li>
+<li><code>supabase/migrations/009_add_subscription_system.sql</code> — <code>invoices</code> (загвар).</li>
+<li><code>orders</code> / <code>order_items</code> — орлого, борлуулсан бараа.</li>
+<li><code>src/app/api/dashboard/stats/route.ts</code> — орлого нэгтгэх бэлэн логик.</li>
+<li><code>src/app/api/dashboard/export/route.ts</code> — CSV экспортын загвар.</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li><strong><code>expenses</code> хүснэгт</strong> (shop_id, category, amount, date, note, receipt_url?).</li>
+<li><strong><code>products.cost</code> багана</strong> (бараа өртөг) — COGS-д шаардлагатай.</li>
+<li>P&amp;L тооцооллын deterministic engine (LLM-гүй).</li>
+<li>НӨАТ/татвар логик + disclaimer.</li>
+<li>Excel/PDF санхүүгийн тайлан экспорт (<code>@react-pdf/renderer</code> бэлэн dep).</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>НӨАТ суутгагч эсэх, НӨАТ хувь.</li>
+<li>Татварын горим, санхүүгийн жилийн эхлэл.</li>
+<li>Зардлын анхдагч ангиллууд.</li>
+<li>Сарын тайлангийн push авах эсэх + хэзээ.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.accounting.pnl</code> — энэ сарын Орлого / COGS / Зардал / <strong>Цэвэр ашиг</strong> карт + чиг хандлага.</li>
+<li><code>agent.accounting.expenses</code> — зардлын ангилал bar chart + хурдан оруулах товч.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li><strong>0 кредит</strong> — бүрэн deterministic (зөвхөн SQL). Энэ нь "үнэгүй үнэ цэн" болж adoption-ийг түргэсгэнэ; натурал-хэлээр өнгөлөх шаардлагатай бол л бага LLM.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Идэвхтэй shop-ийн хэдэн % нь сар бүр зардлаа оруулдаг.</li>
+<li>Сарын P&amp;L тайлан үзсэн/экспортолсон давтамж.</li>
+<li>"Ашгаа мэддэг болсон" feedback (NPS).</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Банкны statement (Хаан/ХХБ) import → зарлага авто ангилал (Gemini-ээр).</li>
+<li>Мөнгөн урсгалын таамаг ("дараа сард X төгрөг хүрэлцэхгүй байж магадгүй").</li>
+<li>Татварын мэргэжилтэн рүү экспорт хийх стандарт формат.</li>
+<li>Олон валют + ханшийн автомат.</li>
+<li>Бараа бүрийн жинхэнэ маржин ranking → үнэ тогтоох зөвлөмж.</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Татварын зөвлөгөө хариуцлага:</strong> тооцоо буруу бол эзэн торгууль авна. → "Энэ нь хууль ёсны нягтлан бодох тооцоо биш, лавлагаа" гэсэн <strong>disclaimer заавал</strong>.</li>
+<li>COGS өгөгдөл дутуу (<code>cost</code> хоосон) бол ашиг буруу гарна → эзнийг бараа өртгөө оруулахыг зөөлөн шахах UX.</li>
+<li>Бэлэн мөнгөний (cash) борлуулалт системд орохгүй бол зураг бүрэн бус — гар оруулга боломж.</li>
+</ul></section>
+<section class="section" id="sec-5"><h1 id="inventory">📦 Ухаалаг агуулах — <code>inventory</code></h1>
+<blockquote>
+<p>Бараагаа зургаар авто бүртгэж, нөөцийн тоо зөрүүг илрүүлж, дуусаж буй барааг сэрэмжлүүлдэг agent. "Байгаа гэж зараад дараа нь байхгүй гарах" ичгүүрийг арилгана.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 🏆 Ажил хөнгөлөгч (back-office) · <strong>Handler:</strong> <code>hybrid</code> (vision) · <strong>Plan:</strong> <code>pro</code></p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li><strong>Бараа бүртгэх гар ажил их:</strong> нэр, үнэ, размер, өнгө, тайлбар бүгдийг гараар бичих — шинэ бараа орох бүрд цаг иддэг.</li>
+<li><strong>Тоо зөрдөг:</strong> Live/чат дээр зарсан бараа агуулахын тоонд цаг алдалгүй тусдаггүй → систем "10 байна" гэхэд бодит нөөц 3. Эзэн "байгаа" гэж зараад дараа нь "уучлаарай дууссан" гэж <strong>ичиж шалздаг</strong>, үйлчлүүлэгч сэтгэл дундуур.</li>
+<li><strong>Дахин захиалгын мэдрэмжгүй:</strong> аль бараа дуусч байгаа, хэзээ дахин захиалахаа мэддэггүй → борлуулалт алддаг эсвэл хэт их нөөц барьдаг.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> эзэн / агуулахын ажилтан.</li>
+<li><strong>Хоёрдогч:</strong> борлуулагч (бодит нөөцийг чат дээр итгэлтэй хэлэх).</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>"Шинэ барааныхаа <strong>зургийг л оруулъя</strong>, үлдсэнийг чи бөглө."</li>
+<li>"Аль бараа <strong>дуусч байна</strong>, надад хэлж бай."</li>
+<li>"Системийн тоо бодит нөөцтэй <strong>таарч байна уу</strong> шалга."</li>
+<li>"Энэ долоо хоногт юу хэр зарагдах вэ — <strong>дахин захиалах</strong> уу?"</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>manual:</strong> эзэн бараа зураг(ууд) оруулна → draft бараа.</li>
+<li><strong>schedule:</strong> өдөр/цаг тутам нөөц шалгаж бага нөөц/дахин захиалга alert.</li>
+<li><strong>event:</strong> <code>order.paid</code> → нөөц хорогдол (бэлэн trigger); зарагдсаны дараа velocity дахин тооцох.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Зураг → бараа draft:</strong> эзэн зураг оруулна → <code>analyzeProductImageWithPlan</code> (Gemini vision)-ээр нэр/ангилал/өнгө/размер/тайлбар таамаглаж <strong>урьдчилан бөглөсөн draft</strong> үүсгэнэ → эзэн засаад баталгаажуулна.</li>
+<li><strong>Batch:</strong> олон зураг → олон draft зэрэг (Live-ийн дараа шинэ бараа цувралаар оруулах).</li>
+<li><strong>Нөөц хяналт:</strong> <code>products.stock</code> − <code>reserved_stock</code> бодит боломжит нөөц. Order paid үед <code>stockHelpers</code>/trigger хорогдуулна.</li>
+<li><strong>Зөрүү илрүүлэх:</strong> эзэн бодит тоог оруулахад (тооллого) системийн тоотой зөрвөл <strong>зөрүүгийн тайлан</strong> ("Цамц-M: систем 10, бодит 7, зөрүү −3").</li>
+<li><strong>Бага нөөц alert:</strong> <code>stock &lt; threshold</code> → push ("Цамц-M: 2 ширхэг үлдсэн").</li>
+<li><strong>Дахин захиалгын санал:</strong> sales velocity (сүүлийн N хоногийн борлуулалт) → дуусах хугацаа таамаг → "X хоногт дуусна, одоо захиал".</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Davхар бараа таних:</strong> оруулсан зураг аль хэдийн бүртгэлтэй барааных мөн үү (шинэ үү, нөөц нэмэх үү)?</li>
+<li><strong>Variant matching:</strong> нэг загварын олон өнгө/размер — vision хэр зөв ялгах вэ? Эзэн засах боломж заавал.</li>
+<li><strong>Threshold</strong> бараа бүрд өөр (хурдан зарагддаг бараа өндөр threshold).</li>
+<li><strong>Reserved stock-ийн хугацаа:</strong> сагсанд хийгээд төлөөгүй бол хэдэн цагийн дараа суллах вэ (одоо hardcode эсэх шалга)?</li>
+<li><strong>Тооллогын зөрүү шалтгаан:</strong> хулгай, эвдрэл, буцаалт, бүртгэлийн алдаа — ангилах уу?</li>
+<li><strong>Багц/иж бүрдэл бараа</strong> (1 захиалга = олон бараа хорогдох) логик.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/ai/AIRouter.ts</code> → <code>analyzeProductImageWithPlan()</code> — <strong>production-д ажиллаж буй</strong> Gemini vision бараа таних.</li>
+<li><code>src/lib/ai/helpers/stockHelpers.ts</code> — <code>checkProductStock</code>, <code>reserveStock</code>, <code>restoreStock</code> (DB lock-тэй, зөрүүгээс хамгаалдаг).</li>
+<li><code>supabase/migrations/20260130100000_stock_management_triggers.sql</code> — paid үед авто хорогдол, цуцлалтад сэргээх.</li>
+<li><code>products</code> / <code>product_variants</code> — <code>stock</code>, <code>reserved_stock</code>.</li>
+<li><code>src/components/setup/ProductStep.tsx</code> — бараа бүртгэх формын загвар.</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li><strong>Batch image import</strong> flow (одоо ганц зураг → захиалга matching; шинэ нь олон зураг → бараа draft).</li>
+<li><strong>Зөрүүгийн тайлан / тооллого</strong> UI ба логик.</li>
+<li><strong>Reorder forecast</strong> (velocity → дуусах хугацаа).</li>
+<li>Бага нөөц push автомат.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>Бараа тус бүр / ангилал бүрийн бага нөөцийн босго.</li>
+<li>Reserved stock-ийн хүчинтэй хугацаа.</li>
+<li>Дахин захиалгын lead time (нийлүүлэгч хэдэн хоногт авчирдаг).</li>
+<li>Alert авах суваг/давтамж.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.inventory.lowStock</code> — дуусч буй бараанууд (улаан → шар → ногоон).</li>
+<li><code>agent.inventory.discrepancy</code> — сүүлийн тооллогын зөрүү + "тооллого хийх" товч.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li>Нөөц хяналт/alert/дахин захиалга = <strong>0 кредит</strong> (deterministic SQL).</li>
+<li>Зураг → бараа таних (vision) = <strong>2 кредит / зураг</strong> (Gemini vision дуудлага).</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>"Дууссан бараа зарсан" тохиолдол буурсан хувь (oversell rate ↓).</li>
+<li>Бараа бүртгэх дундаж хугацаа (зургаар хэдэн дахин хурдан).</li>
+<li>Бага нөөц alert-аас дахин захиалга хийсэн хувь.</li>
+<li>Тооллогын зөрүү (нарийвчлал) сайжирсан эсэх.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Баркод/QR скан → нөөц авто шинэчлэл.</li>
+<li>Олон агуулах/салбар хооронд нөөц шилжүүлэг.</li>
+<li>Улирлын эрэлт таамаг (баяр, цаг агаар) → ухаалаг дахин захиалга.</li>
+<li>Нийлүүлэгч рүү шууд захиалга илгээх (PO үүсгэх).</li>
+<li>Зогссон бараа (dead stock) илрүүлж хямдрал санал болгох.</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Vision нарийвчлал:</strong> монгол барааны нэр/брэндийг буруу таних → эзэн <strong>заавал баталгаажуулна</strong> (auto-save хийхгүй).</li>
+<li>Олон суваг (Live, чат, дэлгүүр, бусад app) дээр зэрэг зарагддаг тул нөөц зөрөх эх үндэс олон → бодит цагийн lock чухал.</li>
+<li>Жижиг эзэн тооллого хийдэггүй тул зөрүү илрүүлэх нь зөвхөн эзэн оролцвол ажиллана — UX-ээр хөнгөн болгох.</li>
+</ul></section>
+<section class="section" id="sec-6"><h1 id="analyst">📊 Бизнес аналист — <code>analyst</code></h1>
+<blockquote>
+<p>Дата шинжээч биш эзэнд "юу болж байна, яагаад, дараа нь юу хийх вэ"-г ойлгомжтой монгол хэлээр өдөр бүр хэлж өгдөг agent. Тоо биш — <strong>үйлдэл санал болгоно</strong>.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 🏆 Ажил хөнгөлөгч (back-office) · <strong>Handler:</strong> <code>deterministic</code> (0 token, заавал биш LLM өнгөлгөө) · <strong>Plan:</strong> <code>pro</code></p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Дашбоард дээр тоо бий ч <strong>"тэгээд яахав?"</strong> гэдэг нь тодорхойгүй. Эзэн график хараад дүгнэлт гаргаж чаддаггүй.</li>
+<li>Борлуулалт <strong>яагаад буурсныг</strong> мэддэггүй (улирал? бараа дууссан? сурталчилгаа зогссон?).</li>
+<li>Аль бараа ашигтай, аль цаг/гараг идэвхтэй, аль үйлчлүүлэгч үнэ цэнтэйг <strong>анзаардаггүй</strong>.</li>
+<li>Эзэн өдөр бүр өөрөө анализ хийх цаг, чадвар байхгүй.</li>
+</ul>
+<p>Энэ agent нь "хувийн бизнес зөвлөх" шиг — өдөр бүр товч, ойлгомжтой, <strong>үйлдэлд хөтөлсөн</strong> дүгнэлт өгнө.</p>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> бизнес эзэн (өдөр бүр 1 минутад дүр зургаа харах).</li>
+<li><strong>Хоёрдогч:</strong> менежер — багийн KPI хянах.</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>"Өнөөдөр <strong>юу болсныг</strong> товч хэлж өг."</li>
+<li>"Борлуулалт яагаад <strong>буурав</strong>?"</li>
+<li>"<strong>Юунд анхаарах</strong> ёстой вэ — дараагийн алхам?"</li>
+<li>"Аль бараа/цаг/үйлчлүүлэгч хамгийн <strong>ашигтай</strong> вэ?"</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>schedule:</strong> өдөр бүр өглөө (өчигдрийн нэгтгэл + insight), 7 хоног/сар бүр (томоохон тойм).</li>
+<li><strong>manual:</strong> эзэн "Одоогийн байдлаар тайлан" дарна.</li>
+<li><strong>event (заавал биш):</strong> онцгой үйл явдал (рекорд борлуулалт, огцом уналт) → шуурхай мэдэгдэл.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Нэгтгэх:</strong> өдрийн борлуулалт, захиалгын тоо, дундаж захиалга (AOV), шинэ vs давтан үйлчлүүлэгч, хөрвүүлэлтийн юүлүүр (<code>conversion_funnel</code>).</li>
+<li><strong>Чиг хандлага:</strong> өмнөх өдөр/долоо хоног/сартай харьцуулах (өсөлт/уналт %).</li>
+<li><strong>Аномали илрүүлэх:</strong> хэвийн хэлбэлзлээс гажсан зүйл ("Лхагва гарагт 30% буурсан", "X бараа гэнэт огцом зарагдсан").</li>
+<li><strong>Insight үүсгэх:</strong> <code>SmartInsights</code> логикийг өргөтгөж — top sellers, бараа төрлийн төвлөрөл, AOV сэрэмж г.м.</li>
+<li><strong>Үйлдэл санал:</strong> insight бүрд "юу хийх" зөвлөмж ("X бараа дуусч байна → дахин захиал", "Y цагт идэвхтэй → тэр үед пост тавь").</li>
+<li><strong>Хүргэх:</strong> натурал монгол хэлээр товч (заавал биш Gemini-ээр өнгөлсөн) push + widget.</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Аль хэмжүүр чухал вэ?</strong> Бизнес төрлөөр өөр (хувцас vs хоол vs үйлчилгээ). Тэргүүлэх KPI-г хэрхэн сонгох?</li>
+<li><strong>Аномали босго:</strong> хэдэн % хазайхад "анхаарах" гэж тооцох (хуурамч сэрэмжээс зайлсхийх)?</li>
+<li><strong>Жижиг дата:</strong> өдөрт 2-3 захиалгатай shop-д статистик утгагүй → хэзээ "дата хүрэлцэхгүй" гэж хэлэх вэ?</li>
+<li><strong>Зөвлөмжийн тэргүүлэл:</strong> олон insight гарвал хамгийн чухал 3-ыг л харуулах (мэдээллийн ачаалал бууруулах).</li>
+<li><strong>Шалтгаан тайлбар:</strong> уналтын шалтгааныг таамаглах нь эрсдэлтэй — баттай дата байхгүй бол "магадгүй" гэж зөөлрүүлэх.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/components/dashboard/SmartInsights.tsx</code> — <strong>бэлэн</strong> монгол insight (орлогын чиг, top sellers, бараа төрөл, AOV сэрэмж).</li>
+<li><code>supabase/migrations/20260120100000_ai_analytics_tables.sql</code> — <code>ai_analytics</code>, <code>conversion_funnel</code>, <code>get_ai_metrics_summary()</code>.</li>
+<li><code>src/app/api/dashboard/stats/route.ts</code> — өдөр/долоо хоног/сар bucket нэгтгэл.</li>
+<li><code>src/app/api/dashboard/ai-stats/route.ts</code> — AI хэрэглээний breakdown.</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li>Бизнес-түвшний KPI: LTV (customer lifetime value), cohort, retention.</li>
+<li>Аномали илрүүлэх engine (баримжаа статистик).</li>
+<li>Үйлдэлд хөтөлсөн зөвлөмж генератор (insight → action).</li>
+<li>Өдрийн авто push тайлан.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>Өдрийн тайлан авах эсэх + цаг.</li>
+<li>Тэргүүлэх KPI сонголт (борлуулалт / ашиг / шинэ үйлчлүүлэгч).</li>
+<li>Аномали мэдэгдэл авах эсэх + мэдрэг байдал.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.analyst.dailyReport</code> — өчигдрийн нэгтгэл + чиг сум + гол insight.</li>
+<li><code>agent.analyst.insights</code> — тэргүүлэх 3 зөвлөмж картууд.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li><strong>0 кредит</strong> — deterministic тооцоо + бэлэн <code>SmartInsights</code>. Натурал хэлээр өнгөлөх (LLM) сонголттой бол бага кредит — гэхдээ template-ээр ихэнхийг шийднэ.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Өдрийн тайлан нээх/уншсан хувь (daily active).</li>
+<li>Зөвлөмжөөс үйлдэл хийсэн хувь (зөвлөмж дарж → бараа захиалсан г.м.).</li>
+<li>Эзний "бизнесээ илүү ойлгодог болсон" feedback.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Бусад agent-тай холбох: insight → шууд үйлдэл (Boost-д "энэ барааг сурталч", CRM-д "эдгээр VIP-д хандах").</li>
+<li>Таамаглал: дараа сарын борлуулалт, мөнгөн урсгал.</li>
+<li>Бенчмарк: ижил салбарын дундажтай харьцуулах (анонимаар).</li>
+<li>"Асуу" горим: эзэн чөлөөт асуулт асууж дата дээр хариу авах (LLM + SQL).</li>
+<li>Зорилго тавих + явц хянах ("энэ сар 5 саяын борлуулалт", явцыг хэлж байх).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Буруу дүгнэлт итгэл алдагдуулна:</strong> баримтгүй шалтгаан таамаглавал эзэн итгэхээ болино → магадлалт хэллэг.</li>
+<li>Жижиг дата дээр статистик хий хоосон → "дата хүрэлцэхгүй" гэж шударгаар хэлэх.</li>
+<li>Мэдээллийн ачаалал: хэт олон тоо/зөвлөмж → эзэн уншихаа болино. Энгийн, цөөн, тодорхой байх.</li>
+</ul></section>
+<section class="section" id="sec-7"><h1 id="boost-boost">🚀 Boost оновчлогч — <code>boost</code></h1>
+<blockquote>
+<p>"Boost" товч дарж мөнгө шатаахаа болиод, аль бараа сурталчлахаа AI-аар тооцож, төсөв/ROAS таамаглаж, зар бичвэр+зураг хүртэл гаргаж өгдөг agent.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 🏆 Ажил хөнгөлөгч (back-office) · <strong>Handler:</strong> <code>hybrid</code> (Meta Ads + креатив) · <strong>Plan:</strong> <code>enterprise</code>
+<strong>⚠️ Бэлэн байдал: 0% — БҮРЭН ШИНЭ.</strong> Meta Marketing API интеграц одоо огт алга (зөвхөн organic messaging). Хамгийн том gap → roadmap-ийн <strong>хамгийн сүүлд</strong> (Phase 5).</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Эзэн "Boost post" товч дараад <strong>санамсаргүй</strong> мөнгө зарцуулдаг, үр дүнг (ROAS) <strong>хэмждэггүй</strong> — ашигтай юу, дэмий юу мэдэхгүй.</li>
+<li><strong>Аль бараа/постыг</strong> сурталчлахаа мэдэхгүй — аль хэдийн органикаар сайн хөрвүүлж буй "winner"-ийг хайдаггүй.</li>
+<li>Зар бичвэр, креатив зураг бэлдэхэд <strong>цаг, ур чадвар</strong> дутдаг → муухай зар → үр дүн муу.</li>
+<li>Audience (хэнд харуулах) тохиргоог ойлгодоггүй.</li>
+</ul>
+<p>Энэ agent нь "хямд диджитал маркетер" шиг — өгөгдөл дээр тулгуурлан <strong>юуг, хэнд, хэдэн төгрөгөөр</strong> сурталчлахыг хэлж, креативыг нь хүртэл бэлдэнэ.</p>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> эзэн / маркетинг хариуцсан ажилтан.</li>
+<li>Ихэвчлэн томоохон (enterprise) бизнес — сурталчилгааны бодит төсөвтэй.</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>"Аль барааг сурталчилбал <strong>ашигтай</strong> вэ?"</li>
+<li>"Хэдэн төгрөгийн <strong>төсөв</strong> тавих вэ, ямар <strong>үр дүн</strong> хүлээх вэ?"</li>
+<li>"Зар бичвэр, зургийг <strong>надад зориулж гаргаж өг</strong>."</li>
+<li>"Сүүлийн boost-ууд <strong>ашигтай байсан уу</strong> (ROAS)?"</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>schedule:</strong> долоо хоног бүр органик winner шинжилж boost зөвлөмж бэлдэх; идэвхтэй кампанит ажлын ROAS хянах.</li>
+<li><strong>manual:</strong> эзэн "Сурталчлах бараа санал болго", "Зар гаргаж өг" дарна.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Winner илрүүлэх:</strong> органик гүйцэтгэлээс (<code>conversion_funnel</code>, view→cart→order) хамгийн сайн хөрвүүлж буй бараа/постыг олно.</li>
+<li><strong>Boost зөвлөмж:</strong> "Энэ барааг сурталч → санал төсөв X төгрөг → таамаг хүрэх хүн / захиалга / ROAS".</li>
+<li><strong>Audience санал:</strong> одоо байгаа үйлчлүүлэгчийн профайл (<code>customers.ai_memory</code>, бүс) дээр суурилж target.</li>
+<li><strong>Креатив үүсгэх:</strong> зар бичвэр (LLM) + бүтээгдэхүүний зар зураг (<code>GeminiImageProvider</code>) — брэндийн өнгө/логотой.</li>
+<li><strong>(v2) Шууд хүргэх:</strong> Meta Marketing API-аар кампанит ажил үүсгэх/удирдах.</li>
+<li><strong>ROAS хянах:</strong> Meta-аас зарцуулалт/үр дүн татаж, орлоготой тулгаж ROAS бодох → "энэ кампанит ажил ашигтай/алдагдалтай".</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Boost-д тэнцэх босго:</strong> ямар бараа "winner" — хамгийн их зарагдсан уу, хамгийн өндөр маржинтай юу, эсвэл хослол уу?</li>
+<li><strong>Төсвийн дээд хязгаар:</strong> AI хэт их төсөв санал болговол эзэн мөнгөө шатаана → hard cap + эзэн баталгаажуулна.</li>
+<li><strong>ROAS таамаг найдвартай юу?</strong> Органик гүйцэтгэл → төлбөртэйд шилжих нь шууд биш → "таамаг" гэж тэмдэглэ.</li>
+<li><strong>Meta API эрх/токен:</strong> ad account холболт, эрхийн хүрээ, billing — нарийн OAuth урсгал.</li>
+<li><strong>Креативын чанар/брэнд:</strong> AI зураг буруу/чанаргүй гаргаж болзошгүй → эзэн заавал хянаж баталгаажуулна.</li>
+<li><strong>Бодлогын зөрчил:</strong> Meta зар бодлого (хориотой бараа, текстийн хэмжээ) — татгалзвал яах.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/ai/providers/AIProvider.ts</code> → шинэ <strong>сонголтот</strong> <code>ImageGenProviderInterface</code> (зураг үүсгэх).</li>
+<li><code>supabase/migrations/20260120100000_ai_analytics_tables.sql</code> → <code>conversion_funnel</code> (winner илрүүлэхэд).</li>
+<li><code>src/lib/facebook/messenger.ts</code> → Graph API хандах загвар (Marketing API өргөтгөхөд лавлах).</li>
+<li><code>persistTokenUsage</code> → креатив зардлыг <code>'boost_creative'</code> tag-аар бүртгэх.</li>
+</ul>
+<h2 id="8">8. Шинээр барих (ихэнх нь шинэ)</h2>
+<ul>
+<li><strong>Meta Marketing API интеграц</strong> (ad account OAuth, кампанит ажил CRUD, insights/ROAS татах) — <strong>бүрэн шинэ, том ажил</strong>.</li>
+<li><code>src/lib/ai/providers/GeminiImageProvider.ts</code> (Gemini image model).</li>
+<li>Winner илрүүлэх + ROAS таамаглах logic.</li>
+<li>Зар бичвэр + креатив үүсгэгч.</li>
+<li>(магадгүй) ad-метрик cache хүснэгт.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>Meta ad account холболт + billing.</li>
+<li>Сарын/кампанит ажлын төсвийн дээд хязгаар.</li>
+<li>Брэндийн өнгө/лого/өнгө аяс (креативт).</li>
+<li>Target бүс/насны хүрээ.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.boost.roas</code> — идэвхтэй кампанит ажил, зарцуулалт vs орлого, ROAS.</li>
+<li><code>agent.boost.creatives</code> — үүсгэсэн зар зураг/бичвэрийн галерей.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li>Boost оновчлол <strong>зөвлөмж</strong> = <strong>5 кредит / шинжилгээ</strong> (winner анализ + таамаг).</li>
+<li>Креатив зураг = <code>boost_creative</code> tag, зураг тутамд кредит (хамгийн өндөр зардал).</li>
+<li>⚠️ Meta-д төлөх <strong>зар төсөв нь Syncly кредитээс тусдаа</strong> — эзэн өөрийн Meta billing-ээр төлнө. Үүнийг тодорхой ялгах.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Дундаж ROAS (сурталчилгааны 1₮ → хэдэн ₮ орлого).</li>
+<li>Зар бэлдэх хугацаа (AI-аар хэдэн дахин хурдан).</li>
+<li>Boost зөвлөмжөөс хийсэн кампанит ажлын хувь ба амжилт.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>A/B тест авто (<code>ab_experiments</code> хүснэгт бэлэн) — олон креатив тулгах.</li>
+<li>Retargeting: сагс орхисон/үзсэн хүн рүү авто зар (CRM-тэй холбоо).</li>
+<li>Олон суваг (FB/IG/мессенжер) бюджет авто хуваарилалт.</li>
+<li>Улирал/баярын автомат кампанит ажил.</li>
+<li>Lookalike audience (одоогийн худалдан авагч дээр суурилсан).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Том техникийн ажил:</strong> Meta Marketing API нь OAuth, billing, бодлогын review — энэ agent-ийг сүүлд (Phase 5) хийх гол шалтгаан.</li>
+<li><strong>Мөнгөн эрсдэл:</strong> буруу тохиргоо эзний мөнгийг шатаана → төсвийн hard cap + заавал баталгаажуулалт.</li>
+<li>Монгол зах зээлд Meta зарын CPM хямд ч, target нарийвчлал хязгаарлагдмал → таамаг болгоомжтой.</li>
+<li>Зар төсөв vs кредит хоёрыг <strong>тодорхой ялгахгүй</strong> бол эзэн будлиулна.</li>
+</ul></section>
+<section class="section" id="sec-8"><h1 id="crm">👥 Харилцагч — <code>crm</code></h1>
+<blockquote>
+<p>VIP-ээ таниж, давтан худалдан авагчийг өдөөж, идэвхгүй болсон үйлчлүүлэгчийг буцааж татдаг agent. Шинэ үйлчлүүлэгч хайхаас илүү <strong>байгаа харилцагчийн үнэ цэнийг өсгөнө</strong>.</p>
+</blockquote>
+<p><strong>Бүлэг:</strong> 💰 Орлого нэмэгдүүлэгч · <strong>Handler:</strong> <code>hybrid</code> · <strong>Plan:</strong> <code>pro</code> · <strong>Бэлэн байдал:</strong> ~60% (<code>customers</code> талбарууд бэлэн).</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Эзэн <strong>шинэ үйлчлүүлэгч</strong> татахад мөнгө/цаг зарцуулдаг ч <strong>байгаа харилцагчаа мартдаг</strong> — давтан худалдаа хийлгэх нь 5 дахин хямд.</li>
+<li><strong>VIP-ээ ялгадаггүй</strong> — хамгийн их үрэлгэн үйлчлүүлэгчид онцгой үйлчилгээ үзүүлдэггүй → тэд өрсөлдөгч рүү.</li>
+<li>1-2 сар идэвхгүй болсон үйлчлүүлэгч <strong>чимээгүй алдагддаг</strong> — буцааж татах оролдлого хийдэггүй.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> эзэн / маркетинг хариуцагч.</li>
+<li>Үр дүн нь үйлчлүүлэгчид (персонал санал, win-back мессеж) хүрнэ.</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>"Хамгийн <strong>үнэ цэнтэй (VIP)</strong> үйлчлүүлэгчдээ харуул, онцгой хандъя."</li>
+<li>"Удаан идэвхгүй болсон хүмүүсийг <strong>буцааж татах</strong> мессеж явуул."</li>
+<li>"Худалдан авсны дараа <strong>дахин санал</strong> болгож давталт өдөөе."</li>
+<li>"Үйлчлүүлэгчдээ <strong>сегментлэж</strong> ойлгоё."</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>event:</strong> шинэ харилцагч, захиалга дууссан (cross-sell trigger).</li>
+<li><strong>schedule:</strong> өдөр/долоо хоног — идэвхгүй segment илрүүлж win-back; VIP статус шинэчлэх.</li>
+<li><strong>manual:</strong> эзэн segment рүү гар broadcast.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Сегментчлэл:</strong> <code>customers</code>-ыг <code>total_spent</code>, <code>total_orders</code>, <code>last_contact_at</code>-аар ангилах — VIP / давтан / шинэ / <strong>идэвхгүй (30/60+ хоног)</strong>.</li>
+<li><strong>VIP таних:</strong> босго давсан → <code>is_vip</code> тэмдэглэх → эзэнд мэдэгдэх, онцгой үйлчилгээ.</li>
+<li><strong>Win-back:</strong> N хоног идэвхгүй segment → персонал мессеж (хямдрал/шинэ бараа) <code>sendTaggedMessage</code>-аар.</li>
+<li><strong>Давталт өдөөх:</strong> худалдсаны дараа холбоотой бараа cross-sell, эсвэл дахин худалдах цаг ("сараа болсон, шинээр авах уу?").</li>
+<li><strong>Персонал контент:</strong> LLM-ээр <code>ai_memory</code> (дуртай размер/өнгө/сонирхол) дээр суурилсан мессеж зурах (hybrid).</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>VIP босго:</strong> дүнгээр (total_spent), давтамжаар (orders), эсвэл сүүлийн идэвхээр (RFM)? Бизнес бүрд өөр.</li>
+<li><strong>Win-back цаг:</strong> хэдэн хоног идэвхгүйд "алдагдсан" гэх — бараа төрлөөс хамаарна (хоол долоо хоног, тавилга жил).</li>
+<li><strong>Spam/давтамж хязгаар:</strong> хэт олон мессеж → залхаах, Meta 24-цагийн дүрэм зөрчих. → frequency cap.</li>
+<li><strong>Opt-out:</strong> мессеж хүсэхгүй гэсэн хүнийг хүндэтгэх (заавал).</li>
+<li><strong>Meta messaging policy:</strong> 24 цагийн цонхноос гадуур зөвхөн зөвшөөрөгдсөн tag (<code>sendTaggedMessage</code>) ашиглах.</li>
+<li><strong>Персоналчлал хэт их = эвгүй:</strong> "чи сүүлд X авсан" хэт нягт бол үйлчлүүлэгч айна.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/services/CustomerService.ts</code> — харилцагч lookup.</li>
+<li><code>supabase/migrations/20260113130003_add_crm_columns.sql</code> — <code>is_vip</code>, <code>total_spent</code>, <code>total_orders</code>, <code>last_contact_at</code>, <code>ai_memory</code>, <code>tags</code>, <code>notes</code> + авто шинэчлэх trigger.</li>
+<li><code>src/components/dashboard/CustomerList.tsx</code> — харилцагч жагсаалт UI.</li>
+<li><code>src/lib/facebook/messenger.ts</code> → <code>sendTaggedMessage</code> (24-цагийн гадуурх мессеж).</li>
+</ul>
+<h2 id="8">8. Шинээр барих</h2>
+<ul>
+<li><strong>Сегментчлэл engine</strong> (RFM/босго логик).</li>
+<li><strong>Win-back automation</strong> (schedule → segment → мессеж).</li>
+<li>Шинэ <code>tag_customer</code> LLM tool.</li>
+<li>Cross-sell/давталт өдөөх логик.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр)</h2>
+<ul>
+<li>VIP босго (дүн/тоо).</li>
+<li>Win-back хугацаа + мессеж template.</li>
+<li>Давтамжийн дээд хязгаар (spam хамгаалалт).</li>
+<li>Opt-out удирдлага.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.crm.vipLeads</code> — VIP жагсаалт, идэвхгүй болж буй хүмүүс, win-back боломж.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li>Сегментчлэл/таних = <strong>0 кредит</strong> (deterministic).</li>
+<li>Win-back broadcast = <strong>1 кредит / хүлээн авагч</strong> (персонал LLM мессеж бол).</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Давтан худалдааны хувь (repeat purchase rate) ↑.</li>
+<li>Win-back-аас буцаж ирсэн үйлчлүүлэгчийн хувь.</li>
+<li>VIP-ийн LTV vs энгийн.</li>
+<li>Орхих хувь (churn) ↓.</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Loyalty оноо/түвшний систем (worth-based урамшуулал).</li>
+<li>Төрсөн өдөр/баярын авто мэндчилгээ + урамшуулал.</li>
+<li>Churn таамаг (идэвхгүй болохоос өмнө сэрэмжлэх).</li>
+<li>Analyst/Boost-тэй холбоо: VIP lookalike audience, insight-аас сегмент.</li>
+<li>Referral хөтөлбөр (VIP найзаа урих).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Meta messaging policy:</strong> 24-цагийн цонх, tagged message-ийн зөвшөөрөгдсөн төрөл — зөрчвөл хуудас хязгаарлагдана. Маш чухал.</li>
+<li><strong>Spam = брэндэд хор:</strong> хэт олон мессеж залхаана, блок хийгдэнэ. Frequency cap + opt-out хатуу.</li>
+<li>Персонал мэдээлэл (<code>ai_memory</code>) → нууцлал, хэт нягт ашиглавал эвгүй.</li>
+<li>Жижиг суурьтай shop-д сегмент жижиг → статистик утга бага.</li>
+</ul></section>
+<section class="section" id="sec-9"><h1 id="ticketing">🎟️ Тасалбар &amp; Эвент — <code>ticketing</code> (вертикал)</h1>
+<blockquote>
+<p>Концерт, тоглолт, арга хэмжээ зохион байгуулагчид FB/IG-ээ орхилгүй онлайн тасалбар зарж, QR-аар хяналт тавих бүрэн вертикал багц. Horizontal agent-уудаас гадна <strong>салбар тус бүрийн вертикал</strong>-ын эхнийх.</p>
+</blockquote>
+<p><strong>Төрөл:</strong> 🎟️ Вертикал · <strong>Handler:</strong> <code>deterministic</code> + custom веб · <strong>Plan:</strong> <code>enterprise</code> · <strong>Бэлэн байдал:</strong> шинэ вертикал (QPay/customers reuse).</p>
+<hr />
+<h2 id="1">1. Яагаад (бизнес өвдөлт)</h2>
+<ul>
+<li>Монголд эвентийн тасалбар голдуу <strong>гараар/мессежээр</strong> зарагддаг — захиалга, төлбөр, нэрсийн жагсаалт бүгд эмх замбараагүй.</li>
+<li><strong>QR хяналтгүй</strong> → хуурамч тасалбар, давхар орох, нэрсийн жагсаалт цаасаар шалгах эмх замбараа.</li>
+<li>Тусдаа тасалбарын платформ (Ticket.mn г.м.) <strong>үнэтэй, шимтгэлтэй</strong>, FB/IG зарын урсгалтай холбогддоггүй.</li>
+<li>Зохион байгуулагч өөрийн брэндтэй, өөрийн нэр бүхий хуудас хүсдэг.</li>
+</ul>
+<h2 id="2">2. Хэн ашиглах вэ</h2>
+<ul>
+<li><strong>Үндсэн:</strong> эвент зохион байгуулагч (концерт, семинар, party, тоглолт).</li>
+<li><strong>Хоёрдогч:</strong> үүдний хяналтын ажилтан (QR check-in), үйлчлүүлэгч (тасалбар авагч).</li>
+</ul>
+<h2 id="3-jobs-to-be-done">3. Jobs-to-be-done</h2>
+<ul>
+<li>Зохион байгуулагч: "Эвентээ үүсгээд, <strong>онлайн тасалбараа зараад</strong>, борлуулалтаа хянъя."</li>
+<li>"Тасалбар бүрд <strong>QR</strong> өгч, үүдэнд <strong>уншуулж</strong> хянъя."</li>
+<li>"Тасалбараа <strong>өөрийн брэндээр</strong> дизайнлая."</li>
+<li>"Эвентдээ <strong>тусдаа веб хуудас</strong> (өөрийн нэртэй) гаргая."</li>
+<li>Үйлчлүүлэгч: "<strong>Хялбар тасалбар авч</strong>, QR-аа гар утсандаа хадгалъя."</li>
+</ul>
+<h2 id="4-trigger">4. Trigger ба горим</h2>
+<ul>
+<li><strong>manual:</strong> зохион байгуулагч эвент үүсгэх, тасалбар тохируулах.</li>
+<li><strong>event:</strong> төлбөр амжилттай → QR тасалбар авто илгээх; QR check-in scan.</li>
+<li><strong>schedule (заавал биш):</strong> эвентийн өмнө сануулга, дууссаны дараа тайлан.</li>
+</ul>
+<h2 id="5">5. Гол логик урсгал (анхны таамаг)</h2>
+<ol>
+<li><strong>Эвент үүсгэх:</strong> нэр, огноо, байршил, суудал/ангилал (VIP/энгийн), үнэ, тоо хязгаар.</li>
+<li><strong>Зарах:</strong> DM (chatbot/comment-тэй холбоо) + <strong>custom веб хуудас</strong> дээр шууд. Төлбөр QPay/гүйлгээ (payment agent reuse).</li>
+<li><strong>QR тасалбар:</strong> төлбөр баталгаажмагц <strong>давтагдашгүй token</strong> бүхий QR үүсгэж үйлчлүүлэгчид илгээх (DM/имэйл).</li>
+<li><strong>Дизайн:</strong> зохион байгуулагч тасалбарын загвар (лого, өнгө, зураг) тохируулна.</li>
+<li><strong>Check-in:</strong> үүдэнд QR уншуулна → хүчинтэй эсэх + <strong>нэг удаа</strong> (давхар орохоос сэргийлэх) → "орсон" гэж тэмдэглэх.</li>
+<li><strong>Самбар:</strong> хэдэн тасалбар зарагдсан, орлого, үлдэгдэл суудал, check-in хийсэн тоо — бодит цагт.</li>
+</ol>
+<h2 id="6-edge-case">6. Шийдвэрийн цэг ба edge case (өөрөө бодох)</h2>
+<ul>
+<li><strong>Суудлын зураглал:</strong> зөвхөн ангилал (free seating) уу, тодорхой суудал (reserved) уу? Сүүлийнх нь нарийн.</li>
+<li><strong>Давхар check-in:</strong> нэг QR хоёр дахин уншуулбал татгалзах — гол аюулгүй байдал.</li>
+<li><strong>QR хуурамчлал:</strong> token таамаглах боломжгүй (cryptographic) байх; offline scan дэмжих үү?</li>
+<li><strong>Capacity:</strong> хэт зарж overbook болохоос сэргийлэх (нөөц лог шиг).</li>
+<li><strong>Буцаалт/шилжүүлэг:</strong> тасалбар буцаах, өөр хүнд шилжүүлэх логик.</li>
+<li><strong>Custom веб:</strong> subdomain/path, кэш, SEO, ачаалал.</li>
+<li><strong>Offline check-in:</strong> үүдэнд интернэт муу бол QR scan хэрхэн ажиллах.</li>
+</ul>
+<h2 id="7-codebase-reuse">7. Codebase reuse</h2>
+<ul>
+<li><code>src/lib/payment/qpay.ts</code>, <code>payments</code> — төлбөрийн урсгал.</li>
+<li><code>customers</code> — тасалбар авагчийг харилцагчтай холбох.</li>
+<li><code>payment</code> agent — баримт/төлбөр баталгаажуулалт.</li>
+<li><code>chatbot</code>/<code>comment</code> — DM/коммент дээр тасалбар зарах урсгал.</li>
+<li>Supabase Storage — тасалбар дизайн/зураг.</li>
+</ul>
+<h2 id="8">8. Шинээр барих (ихэнх нь шинэ)</h2>
+<ul>
+<li>Эвент/тасалбар/check-in <strong>DB загвар</strong> (events, tickets, check_ins).</li>
+<li><strong>QR генератор</strong> (давтагдашгүй token) + scan/check-in flow.</li>
+<li><strong>Тасалбар дизайн</strong> редактор.</li>
+<li><strong>Эвентийн custom веб</strong> хуудас (public route).</li>
+<li>Борлуулалтын бодит цагийн самбар.</li>
+</ul>
+<h2 id="9-config-shop">9. Config (shop тус бүр / эвент тус бүр)</h2>
+<ul>
+<li>Эвентийн дэлгэрэнгүй, суудал/ангилал/үнэ, capacity.</li>
+<li>Тасалбар дизайн (лого, өнгө).</li>
+<li>Custom веб нэр (subdomain/slug).</li>
+<li>Check-in ажилтны эрх.</li>
+<li>Буцаалтын бодлого.</li>
+</ul>
+<h2 id="10-widget">10. Widget</h2>
+<ul>
+<li><code>agent.ticketing.salesBoard</code> — зарагдсан тоо, орлого, үлдэгдэл суудал, check-in явц.</li>
+</ul>
+<h2 id="11">11. Кредит / зардал</h2>
+<ul>
+<li>Тасалбар QR үүсгэлт / check-in = <strong>0 кредит</strong> (deterministic).</li>
+<li>Платформ түвшний нэмэлт орлогын суваг (enterprise) — тасалбарын шимтгэл/багц боломж.</li>
+</ul>
+<h2 id="12-kpi">12. Амжилтын хэмжүүр (KPI)</h2>
+<ul>
+<li>Зарагдсан тасалбар / эвент.</li>
+<li>Check-in хурд (үүдэнд дараалал багасах).</li>
+<li>Хуурамч/давхар check-in таслан зогсоосон тоо.</li>
+<li>Зохион байгуулагчийн дахин ашиглалт (дараагийн эвентэд).</li>
+</ul>
+<h2 id="13-v2">13. Сайжруулах санаанууд (v2+)</h2>
+<ul>
+<li>Суудлын интерактив зураглал (suudал сонгох).</li>
+<li>Early-bird/promo код, ангиллын динамик үнэ.</li>
+<li>Эвентийн дараах follow-up (зураг, дараагийн эвент урих) — CRM холбоо.</li>
+<li>Бусад вертикал руу өргөтгөх загвар: <strong>ресторан захиалга, цаг авалт, фитнес гишүүнчлэл</strong> — ижил "вертикал багц" зарчмаар.</li>
+<li>NFT/collectible тасалбар (ирээдүй).</li>
+</ul>
+<h2 id="14-">14. Эрсдэл / Монгол-онцлог анхаарал</h2>
+<ul>
+<li><strong>Давхар check-in / хуурамч QR</strong> — энэ вертикалын гол аюулгүй байдлын цэг. Cryptographic token + нэг удаагийн scan заавал.</li>
+<li>Үүдэнд <strong>интернэт муу</strong> байж болзошгүй (концерт талбай) → offline/кэштэй scan бодолцох.</li>
+<li>Эвентийн өдөр <strong>огцом ачаалал</strong> (нэг дор олон check-in) → гүйцэтгэл.</li>
+<li>Энэ нь <strong>вертикал загварын прототип</strong> — амжилттай бол бусад салбарт хувилж өргөжүүлэх суурь болно.</li>
+</ul></section>
+  </div>
+</body></html>
