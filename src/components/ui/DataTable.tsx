@@ -23,6 +23,8 @@ interface DataTableProps<TData, TValue> {
     enableRowSelection?: boolean;
     onBulkAction?: (selectedRows: TData[], action: string) => void;
     bulkActions?: { label: string; value: string; icon?: React.ReactNode }[];
+    // Row click (e.g. open detail panel)
+    onRowClick?: (row: TData) => void;
     // Pagination
     pageSize?: number;
 }
@@ -33,6 +35,7 @@ export function DataTable<TData, TValue>({
     enableRowSelection = false,
     onBulkAction,
     bulkActions = [],
+    onRowClick,
     pageSize = 10,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
@@ -147,7 +150,8 @@ export function DataTable<TData, TValue>({
                                 <tr
                                     key={row.id}
                                     data-state={row.getIsSelected() && 'selected'}
-                                    className="hover:bg-secondary/30 transition-colors data-[state=selected]:bg-violet-50"
+                                    onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                                    className={`hover:bg-secondary/30 transition-colors data-[state=selected]:bg-violet-50 ${onRowClick ? 'cursor-pointer' : ''}`}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <td key={cell.id} className="px-4 py-3">
@@ -215,6 +219,7 @@ export function createSelectColumn<T>(): ColumnDef<T, unknown> {
             <input
                 type="checkbox"
                 checked={row.getIsSelected()}
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => row.toggleSelected(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
             />

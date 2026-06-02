@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable, createSelectColumn } from '@/components/ui/DataTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -26,8 +26,10 @@ import {
   FileSpreadsheet,
   ChevronUp,
   ChevronDown,
+  Wallet,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { OrderStatusModal } from '@/components/dashboard/OrderStatusModal';
 
 export default function OrdersPage() {
   const [filter, setFilter] = useState<string>('all');
@@ -50,6 +52,8 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
+  // Нэг захиалгын төлвийг түргэн солих popup (1 товшилт)
+  const [statusModalOrder, setStatusModalOrder] = useState<OrderWithDetails | null>(null);
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
 
@@ -59,7 +63,7 @@ export default function OrdersPage() {
     ? orders
     : orders.filter(o => o.status === filter);
 
-  const columns: ColumnDef<OrderWithDetails, unknown>[] = useMemo(() => [
+  const columns: ColumnDef<OrderWithDetails, unknown>[] = [
     createSelectColumn<OrderWithDetails>(),
     {
       accessorKey: 'id',
@@ -73,18 +77,53 @@ export default function OrdersPage() {
     {
       accessorKey: 'status',
       header: t.orders.status,
+      enableSorting: false,
       cell: ({ row }) => (
-        <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setStatusModalOrder(row.original);
+          }}
+          title={t.orders.changeStatusAction}
+          className="group inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded-md hover:bg-white/[0.06] transition-colors"
+        >
           <OrderStatusBadge status={row.original.status} />
-          <PaymentStatusBadge
-            status={row.original.payment_status}
-            method={row.original.payment_method}
-          />
-        </div>
+          <ChevronDown className="w-3 h-3 text-white/30 group-hover:text-white/60 transition-colors" strokeWidth={2} />
+        </button>
       ),
       filterFn: (row, _columnId, filterValue) => {
         if (filterValue === 'all') return true;
         return row.original.status === filterValue;
+      },
+    },
+    {
+      id: 'payment',
+      header: t.orders.payment,
+      cell: ({ row }) => {
+        const method = row.original.payment_method;
+        const isCod = (method ?? 'cod') === 'cod';
+        const isPaid = row.original.payment_status === 'paid';
+        const methodLabel =
+          method === 'qpay' ? '💳 QPay'
+            : method === 'bank_transfer' ? '🏦 Банк'
+              : method === 'cash' ? '💵 Бэлэн'
+                : `📦 ${t.orders.methodCod}`;
+        return (
+          <div className="flex flex-col gap-1 items-start">
+            <span className="text-[12px] text-foreground tracking-[-0.01em] whitespace-nowrap">
+              {methodLabel}
+            </span>
+            {isCod && !isPaid ? (
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[11px] font-semibold text-amber-300 whitespace-nowrap">
+                <Wallet className="w-3 h-3" strokeWidth={1.75} />
+                {t.orders.collect}: ₮{Number(row.original.total_amount).toLocaleString()}
+              </span>
+            ) : (
+              <PaymentStatusBadge status={row.original.payment_status} />
+            )}
+          </div>
+        );
       },
     },
     {
@@ -147,7 +186,7 @@ export default function OrdersPage() {
         <span className="text-[13px] text-white/40 tracking-[-0.01em]">{formatDate(row.original.created_at)}</span>
       ),
     },
-  ], []);
+  ];
 
   const handleBulkAction = (selectedRows: OrderWithDetails[], action: string) => {
     if (action === 'status') {
@@ -269,6 +308,7 @@ export default function OrdersPage() {
             data={filteredOrders}
             enableRowSelection
             onBulkAction={handleBulkAction}
+            onRowClick={(order) => setSelectedOrderId(order.id)}
             bulkActions={[
               { label: t.orders.changeStatusAction, value: 'status', icon: <Truck className="w-4 h-4 mr-1" /> },
             ]}
@@ -297,7 +337,18 @@ export default function OrdersPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <OrderStatusBadge status={order.status} />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStatusModalOrder(order);
+                          }}
+                          title={t.orders.changeStatusAction}
+                          className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded-md active:bg-white/[0.08] transition-colors"
+                        >
+                          <OrderStatusBadge status={order.status} />
+                          <ChevronDown className="w-3 h-3 text-white/40" strokeWidth={2} />
+                        </button>
                         <span className="text-[11px] text-white/30 font-mono">
                           #{order.id.slice(0, 8)}
                         </span>
@@ -500,37 +551,31 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Bulk Status Update Modal */}
-      {showBulkStatusModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-card rounded-lg border border-white/[0.08] w-full max-w-md p-6 m-4">
-            <h2 className="text-base font-semibold text-foreground mb-4 tracking-[-0.02em]">
-              {bulkSelectedOrders.length} {t.orders.bulkChangeStatus}
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              {statusOptions.map((status) => {
-                const Icon = status.icon;
-                return (
-                  <button
-                    key={status.value}
-                    onClick={() => handleBulkStatusUpdate(status.value)}
-                    className="flex items-center gap-2 px-4 py-3 rounded-md bg-[var(--panel-bg,#0F0B2E)] text-foreground hover:bg-white/[0.06] transition-colors font-medium text-[13px] tracking-[-0.01em]"
-                  >
-                    <Icon className="w-4 h-4 text-white/30" strokeWidth={1.5} />
-                    {status.label}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setShowBulkStatusModal(false)}
-              className="mt-4 w-full py-2 text-[13px] text-white/40 hover:text-foreground transition-colors tracking-[-0.01em]"
-            >
-              {t.orders.cancel}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Нэг захиалгын төлөв солих popup (мөр эсвэл badge дээр 1 товшилт) */}
+      <OrderStatusModal
+        open={statusModalOrder !== null}
+        title={t.orders.changeStatusAction}
+        currentStatus={statusModalOrder?.status}
+        statusOptions={statusOptions}
+        cancelLabel={t.orders.cancel}
+        onSelect={(status) => {
+          if (statusModalOrder) {
+            updateStatus({ orderId: statusModalOrder.id, status });
+          }
+          setStatusModalOrder(null);
+        }}
+        onClose={() => setStatusModalOrder(null)}
+      />
+
+      {/* Бөөнөөр төлөв солих popup */}
+      <OrderStatusModal
+        open={showBulkStatusModal}
+        title={`${bulkSelectedOrders.length} ${t.orders.bulkChangeStatus}`}
+        statusOptions={statusOptions}
+        cancelLabel={t.orders.cancel}
+        onSelect={handleBulkStatusUpdate}
+        onClose={() => setShowBulkStatusModal(false)}
+      />
     </div>
   );
 }
