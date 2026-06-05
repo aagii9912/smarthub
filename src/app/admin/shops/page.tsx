@@ -5,10 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import { logger } from '@/lib/utils/logger';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getOnboarding } from '@/lib/admin/onboarding';
 import { toast } from 'sonner';
 import {
     Search, Users, ToggleLeft, ToggleRight,
-    Loader2, Edit, X, Save, Clock, Crown
+    Loader2, Edit, X, Save, Clock, Crown,
+    Phone, Mail, Zap
 } from 'lucide-react';
 
 interface PlanSyncResult {
@@ -46,10 +48,15 @@ interface Shop {
     id: string;
     name: string;
     owner_name: string | null;
+    owner_email: string | null;
     phone: string | null;
     description: string | null;
     facebook_page_id: string | null;
     is_active: boolean;
+    setup_completed: boolean | null;
+    ai_setup_completed_at: string | null;
+    token_usage_total: number | null;
+    product_count: number;
     created_at: string;
     plan_id: string | null;
     subscription_plan: string | null;
@@ -453,6 +460,7 @@ export default function ShopsPage() {
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Shop Details</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Subscription Plan</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Onboarding / Tokens</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined Date</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
@@ -465,11 +473,21 @@ export default function ShopsPage() {
                                                 <div className="w-10 h-10 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center font-medium text-gray-600 shadow-sm">
                                                     {shop.name.charAt(0).toUpperCase()}
                                                 </div>
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="font-semibold text-gray-900 text-sm">{shop.name}</p>
                                                     <p className="text-xs text-gray-500 mt-0.5">
                                                         {shop.owner_name || (shop.facebook_page_id ? 'FB Connected' : 'No owner')}
                                                     </p>
+                                                    {shop.phone && (
+                                                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                                            <Phone className="w-3 h-3 text-gray-400" /> {shop.phone}
+                                                        </p>
+                                                    )}
+                                                    {shop.owner_email && (
+                                                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 truncate" title={shop.owner_email}>
+                                                            <Mail className="w-3 h-3 text-gray-400 shrink-0" /> <span className="truncate">{shop.owner_email}</span>
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -518,6 +536,28 @@ export default function ShopsPage() {
                                                 )}
                                                 {shop.is_active ? 'Active' : 'Inactive'}
                                             </button>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {(() => {
+                                                const ob = getOnboarding(shop);
+                                                return (
+                                                    <div className="space-y-1.5 min-w-[150px]">
+                                                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                                                            <span className="font-medium text-gray-700 truncate">{ob.label}</span>
+                                                            <span className="text-gray-400 tabular-nums shrink-0">{ob.completed}/{ob.total}</span>
+                                                        </div>
+                                                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full ${ob.percent >= 100 ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                                                                style={{ width: `${ob.percent}%` }}
+                                                            />
+                                                        </div>
+                                                        <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                                                            <Zap className="w-3 h-3 text-amber-500" /> {Number(shop.token_usage_total || 0).toLocaleString()} token
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-1.5 text-sm text-gray-600">

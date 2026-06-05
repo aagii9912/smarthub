@@ -45,11 +45,11 @@ export default function OrdersPage() {
     { value: 'delivered', label: t.orders.statusDelivered, icon: Check, color: 'bg-green-500' },
     { value: 'cancelled', label: t.orders.statusCancelled, icon: X, color: 'bg-red-500' },
   ];
+  // Захиалгын төлбөрийн шүүлтүүр: зөвхөн COD ба QPay. Банк/Бэлэн сонголтыг
+  // цэснээс хассан ч хуучин захиалгууд эдгээр аргатай бол баганад зөв харагдана.
   const paymentOptions = [
     { value: 'cod', label: `📦 ${t.orders.methodCod}` },
     { value: 'qpay', label: '💳 QPay' },
-    { value: 'bank_transfer', label: '🏦 Банк' },
-    { value: 'cash', label: '💵 Бэлэн' },
   ];
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const { data: orders = [], isLoading, refetch, isRefetching } = useOrders(dateRange);

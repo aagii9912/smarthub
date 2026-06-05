@@ -19,9 +19,10 @@ export async function GET() {
     // pre_order_eta, ai_instructions) come back when the migration is applied
     // and silently disappear when it isn't — letting the API stay green
     // through a staged rollout.
+    // Embed variant rows (#6) so the dashboard list + edit form can show them.
     const { data: products, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, variants:product_variants(*)')
       .eq('shop_id', shopId)
       .order('created_at', { ascending: false });
 
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       max_bookings_per_day: validData.maxBookingsPerDay,
       delivery_type: validData.deliveryType,
       delivery_fee: validData.deliveryFee,
+      has_variants: validData.has_variants ?? false,
     };
 
     const lifecycleExtras: Record<string, unknown> = {};
@@ -113,6 +115,27 @@ export async function POST(request: Request) {
     }
 
     if (error) throw error;
+
+    // Persist variants to product_variants (#6). If the insert fails, roll back
+    // the product we just created so the client can retry cleanly rather than be
+    // left with a variant-less product.
+    if (data?.id && validData.has_variants && validData.variants && validData.variants.length > 0) {
+      const variantRows = validData.variants.map((v) => ({
+        product_id: data!.id,
+        name: v.name,
+        options: v.options ?? {},
+        price: v.price ?? null,
+        stock: v.stock ?? 0,
+        is_active: v.is_active ?? true,
+      }));
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .insert(variantRows);
+      if (variantError) {
+        await supabase.from('products').delete().eq('id', data.id);
+        throw variantError;
+      }
+    }
 
     return NextResponse.json({ product: data });
   } catch (error: unknown) {
@@ -177,6 +200,7 @@ export async function PATCH(request: Request) {
     // Delivery configuration
     if (validData.deliveryType !== undefined) dbUpdates.delivery_type = validData.deliveryType;
     if (validData.deliveryFee !== undefined) dbUpdates.delivery_fee = validData.deliveryFee;
+    if (validData.has_variants !== undefined) dbUpdates.has_variants = validData.has_variants;
 
     // Lifecycle (#8/#9/#10) + AI training (#2). Kept in a side-bag so we can
     // retry without them if the migration hasn't been applied yet.
@@ -208,6 +232,32 @@ export async function PATCH(request: Request) {
     }
 
     if (error) throw error;
+
+    // Sync variants (#6). Only when the client explicitly sends `variants`
+    // (undefined → leave them untouched). We replace the full set: clear the
+    // existing rows, then re-insert when the product still has variants.
+    if (validData.variants !== undefined) {
+      const { error: delError } = await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', id);
+      if (delError) throw delError;
+
+      if (validData.has_variants && validData.variants.length > 0) {
+        const variantRows = validData.variants.map((v) => ({
+          product_id: id,
+          name: v.name,
+          options: v.options ?? {},
+          price: v.price ?? null,
+          stock: v.stock ?? 0,
+          is_active: v.is_active ?? true,
+        }));
+        const { error: insError } = await supabase
+          .from('product_variants')
+          .insert(variantRows);
+        if (insError) throw insError;
+      }
+    }
 
     return NextResponse.json({ product: data });
   } catch (error: unknown) {

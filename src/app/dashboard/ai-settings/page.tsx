@@ -1001,6 +1001,9 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                             />
                             Түгээмэл асуулт хариулт (FAQ)
                         </h3>
+                        <p className="text-[12px] text-white/45 -mt-2 mb-4 leading-relaxed">
+                            AI үйлчлүүлэгчийн асуултад энд бичсэн мэдээллийг ашиглан <strong className="text-white/65">өөрөө, өөрийн үгээр хариулна</strong>. Жишээ нь: “Хүргэлт хэдэн цаг вэ?” гэх мэт түгээмэл асуултууд.
+                        </p>
                         <div className="flex flex-col md:flex-row gap-2 mb-4">
                             <input
                                 value={newFaqQ}
@@ -1401,14 +1404,17 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                                 className="w-4 h-4 text-[var(--brand-indigo-400)]"
                                 strokeWidth={1.5}
                             />
-                            Хурдан хариултууд
+                            Хурдан хариултууд (Trigger)
                         </h3>
+                        <p className="text-[12px] text-white/45 -mt-2 mb-4 leading-relaxed">
+                            Үйлчлүүлэгчийн мессеж дотор <strong className="text-white/65">түлхүүр үг</strong> таарвал AI-г оролцуулалгүйгээр <strong className="text-white/65">яг энэ бэлэн хариултыг</strong> шууд илгээнэ — хурдан бөгөөд токен зарцуулахгүй. (FAQ-ээс ялгаатай нь AI үгийг өөрчлөхгүй.)
+                        </p>
                         <div className="flex flex-col md:flex-row gap-2 mb-4">
                             <input
                                 value={newTrigger}
                                 onChange={(e) => setNewTrigger(e.target.value)}
                                 className={cn(inputCls, 'flex-1')}
-                                placeholder="Гаралт (trigger үг)"
+                                placeholder="Түлхүүр үг (таслалаар: сайн уу, байна уу)"
                             />
                             <input
                                 value={newResponse}

@@ -19,6 +19,7 @@ import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
+import { matchQuickReply } from './quickReplies';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
 import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
 import { persistTokenUsage } from './tokenUsage';
@@ -300,6 +301,28 @@ export async function routeToAI(
                 tokenUsagePercent: 0,
                 creditsUsed: 0,
                 creditsRemaining: 0,
+                creditsLimit: getCreditsPerMonth(planType),
+            },
+        };
+    }
+
+    // Deterministic quick-reply / trigger matching (#7). If the customer's
+    // message matches a configured trigger keyword, return that canned response
+    // directly — no LLM call, so it's instant and consumes no tokens. FAQ stays
+    // AI-driven knowledge; quick replies are exact/keyword canned responses.
+    const quickReplyMatch = matchQuickReply(message, context.quickReplies);
+    if (quickReplyMatch) {
+        logger.info('Quick-reply trigger matched — skipping LLM', {
+            shopId: context.shopId,
+            exact: !!quickReplyMatch.is_exact_match,
+        });
+        return {
+            text: quickReplyMatch.response,
+            usage: {
+                plan: planType,
+                model: 'quick-reply',
+                messagesUsed: context.messageCount || 0,
+                tokensUsed: context.tokenUsageTotal || 0,
                 creditsLimit: getCreditsPerMonth(planType),
             },
         };

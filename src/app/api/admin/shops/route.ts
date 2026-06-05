@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
                 facebook_page_name,
                 is_active,
                 setup_completed,
+                ai_setup_completed_at,
+                token_usage_total,
                 created_at,
                 user_id,
                 plan_id,
@@ -62,7 +64,8 @@ export async function GET(request: NextRequest) {
                         name,
                         price_monthly
                     )
-                )
+                ),
+                products (count)
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range((page - 1) * limit, page * limit - 1);
@@ -87,8 +90,43 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
+        const shopsList = shops || [];
+
+        // Resolve owner emails from user_profiles. shops.user_id is a legacy
+        // TEXT column (may hold an invalid/empty value), so we validate it as a
+        // UUID before the lookup rather than relying on a PostgREST FK embed.
+        const ownerIds = Array.from(
+            new Set(
+                shopsList
+                    .map((s) => s.user_id as string | null)
+                    .filter((id): id is string => !!id && UUID_RE.test(id)),
+            ),
+        );
+
+        const emailById = new Map<string, string | null>();
+        if (ownerIds.length > 0) {
+            const { data: profiles } = await supabase
+                .from('user_profiles')
+                .select('id, email')
+                .in('id', ownerIds);
+            for (const p of profiles || []) emailById.set(p.id, p.email ?? null);
+        }
+
+        // Normalize: attach owner_email + a flat product_count, and drop the raw
+        // embedded products(count) shape so the client stays simple.
+        const enrichedShops = shopsList.map((s) => {
+            const productsEmbed = s.products as { count: number }[] | null | undefined;
+            const { products: _products, ...rest } = s as typeof s & { products?: unknown };
+            void _products;
+            return {
+                ...rest,
+                owner_email: s.user_id ? emailById.get(s.user_id as string) ?? null : null,
+                product_count: Array.isArray(productsEmbed) ? productsEmbed[0]?.count ?? 0 : 0,
+            };
+        });
+
         return NextResponse.json({
-            shops: shops || [],
+            shops: enrichedShops,
             pagination: {
                 page,
                 limit,

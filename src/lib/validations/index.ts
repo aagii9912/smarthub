@@ -40,6 +40,16 @@ export const productTypeSchema = z.enum(['physical', 'service', 'appointment']);
 
 export const deliveryTypeSchema = z.enum(['included', 'paid', 'pickup_only']);
 
+// Variant rows sent by the product form (FormVariant). Persisted to the
+// product_variants table by the products API route (#6).
+export const productVariantInputSchema = z.object({
+    name: z.string().min(1, 'Хувилбарын нэр оруулна уу').max(200),
+    options: z.record(z.string(), z.string()).optional().default({}),
+    price: z.number().min(0).max(999999999).optional().nullable(),
+    stock: z.number().int().min(0).optional().default(0),
+    is_active: z.boolean().optional().default(true),
+});
+
 export const createProductSchema = z.object({
     name: z.string()
         .min(1, 'Нэр оруулна уу')
@@ -78,6 +88,12 @@ export const createProductSchema = z.object({
     startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
     endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
     maxBookingsPerDay: z.number().int().min(1).max(100).optional().nullable(),
+    // Variant support (#6). Sent by ProductForm in snake_case; persisted to the
+    // product_variants table by the route. No `.default()` so the route can tell
+    // "not provided" (undefined → leave variants untouched on PATCH) apart from
+    // "explicitly cleared" (empty array → remove all variants).
+    has_variants: z.boolean().optional(),
+    variants: z.array(productVariantInputSchema).optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial().extend({
