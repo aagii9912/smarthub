@@ -249,7 +249,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 name: formData.get('name') as string,
                 description: formData.get('description') as string,
                 price: Number(formData.get('price')),
-                discount_percent: Number(formData.get('discount')) || 0,
+                discountPercent: Number(formData.get('discount')) || 0,
                 type: productType,
                 images: imageUrls,
                 has_variants: hasVariants,
@@ -278,11 +278,14 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
             // Appointment fields
             if (productType === 'appointment') {
-                productData.duration_minutes = Number(formData.get('duration'));
-                productData.available_days = formData.getAll('availableDays') as string[];
-                productData.start_time = formData.get('startTime') as string;
-                productData.end_time = formData.get('endTime') as string;
-                productData.max_bookings_per_day = Number(formData.get('maxBookings'));
+                const maxBookings = Number(formData.get('maxBookings'));
+                productData.durationMinutes = Number(formData.get('duration'));
+                productData.availableDays = formData.getAll('availableDays') as string[];
+                productData.startTime = (formData.get('startTime') as string) || null;
+                productData.endTime = (formData.get('endTime') as string) || null;
+                // Blank = "unlimited" (per the placeholder); the schema requires
+                // min(1), so send null instead of 0 when the field is left empty.
+                productData.maxBookingsPerDay = maxBookings > 0 ? maxBookings : null;
             }
 
             // Delivery fields (physical products only)
@@ -291,8 +294,8 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             // form decides is whether the item can be delivered at all or
             // is pickup-only. delivery_fee is always cleared to 0 here.
             if (productType === 'physical') {
-                productData.delivery_type = deliveryType === 'pickup_only' ? 'pickup_only' : 'included';
-                productData.delivery_fee = 0;
+                productData.deliveryType = deliveryType === 'pickup_only' ? 'pickup_only' : 'included';
+                productData.deliveryFee = 0;
             }
 
             if (product) {

@@ -84,7 +84,10 @@ export const createProductSchema = z.object({
     deliveryFee: z.number().min(0).optional().default(0),
     // Appointment-specific fields
     durationMinutes: z.number().int().min(15).max(480).optional().nullable(),
-    availableDays: z.array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])).optional().default([]),
+    // Mongolian short weekday labels — the values ProductForm's checkboxes submit
+    // and that the booking handler (bookAppointment.ts WEEKDAYS_MN) matches against.
+    // Stored as-is in products.available_days.
+    availableDays: z.array(z.enum(['Дав', 'Мяг', 'Лха', 'Пүр', 'Баа', 'Бям', 'Ням'])).optional().default([]),
     startTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
     endTime: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).optional().nullable(),
     maxBookingsPerDay: z.number().int().min(1).max(100).optional().nullable(),
