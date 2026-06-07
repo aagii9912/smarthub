@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  rewrites: async () => [
+    // Internal team pitch landing — clean URL → static file in public/
+    { source: '/shinesanaa', destination: '/shinesanaa/index.html' },
+  ],
   headers: async () => [
     // ── Payment pages: relaxed headers for Messenger WebView ──
     {

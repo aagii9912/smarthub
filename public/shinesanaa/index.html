@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syncly — Шинэ санаа</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --bg:#0d0d14; --card:#1a1a2b;
+    --ink:#f5f5fa; --muted:#a0a0c0; --dim:#6e6e90;
+    --grad:linear-gradient(120deg,#4A7CE7 0%,#8B5CF6 100%);
+    --grad-soft:linear-gradient(120deg,rgba(74,124,231,.16),rgba(139,92,246,.16));
+    --indigo:#4A7CE7; --violet:#8B5CF6; --line:#2a2a40;
+    --green:#34d399;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.55;}
+  .wrap{max-width:1000px; margin:0 auto; padding:7vh 24px 12vh}
+  .top{height:4px; background:var(--grad); position:fixed; top:0; left:0; right:0; z-index:5}
+  .eyebrow{font-size:13px; letter-spacing:.18em; text-transform:uppercase; color:var(--violet); font-weight:700; margin-bottom:18px}
+  h1{font-size:clamp(30px,5.5vw,58px); line-height:1.06; letter-spacing:-.02em; font-weight:800}
+  h2{font-size:clamp(20px,3vw,30px); font-weight:800; letter-spacing:-.01em; margin:0 0 16px}
+  .grad{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lead{font-size:clamp(16px,2vw,21px); color:var(--ink); max-width:64ch; margin-top:22px}
+  p{color:var(--muted)}
+  .pill-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:22px}
+  .chip{display:inline-block; padding:5px 13px; border-radius:999px; font-size:12.5px; font-weight:700; background:var(--grad-soft); border:1px solid var(--line); color:var(--ink)}
+  .section{margin-top:64px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:8px}
+  .mini{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px}
+  .mini .ic{font-size:24px; display:block; margin-bottom:10px}
+  .mini h3{font-size:16px; margin-bottom:6px}
+  .mini p{font-size:14px}
+
+  .decks{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px}
+  a.deck{display:block; text-decoration:none; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:28px; transition:.18s; position:relative; overflow:hidden}
+  a.deck:hover{border-color:var(--violet); transform:translateY(-3px)}
+  a.deck .tag{font-size:12px; font-weight:700; color:var(--violet); letter-spacing:.04em; text-transform:uppercase}
+  a.deck h3{color:var(--ink); font-size:clamp(19px,2.4vw,26px); font-weight:800; margin:10px 0 10px; letter-spacing:-.01em}
+  a.deck p{font-size:14.5px; color:var(--muted)}
+  a.deck .go{margin-top:18px; font-weight:700; color:var(--ink); font-size:14px; display:inline-flex; align-items:center; gap:8px}
+  a.deck .go .arrow{width:26px; height:26px; border-radius:50%; background:var(--grad); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:14px}
+  a.deck .num{position:absolute; top:18px; right:24px; font-size:54px; font-weight:800; color:#ffffff09; line-height:1}
+
+  ul.clean{list-style:none; margin-top:8px}
+  ul.clean li{position:relative; padding-left:26px; margin:11px 0; color:var(--muted); font-size:clamp(14px,1.6vw,17px)}
+  ul.clean li:before{content:"›"; position:absolute; left:5px; top:-1px; color:var(--violet); font-weight:800; font-size:18px}
+  .mn{color:var(--ink); font-weight:600}
+  .foot{margin-top:64px; padding-top:24px; border-top:1px solid var(--line); font-size:13px; color:var(--dim)}
+  .brand{font-weight:800; font-size:15px}
+  .brand .d{color:var(--dim); font-weight:600}
+  @media(max-width:720px){ .grid3,.decks{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="top"></div>
+<div class="wrap">
+
+  <div class="brand">Syncly <span class="d">· дотоод танилцуулга</span></div>
+
+  <div class="section" style="margin-top:34px">
+    <div class="eyebrow">Шинэ санаа — багийн pitch</div>
+    <h1>FB/IG чатботоос →<br><span class="grad">Бизнесийн AI Оффис рүү</span></h1>
+    <p class="lead">Syncly-ийн дараагийн бүлэг. Энэ хуудас нь хол байгаа багийн хамтрагчдад зориулсан — доорх 2 танилцуулга бидний дараагийн чиглэлийг бүрэн тайлбарлана. <span class="mn">15–20 минут</span> зарцуулж үзээрэй.</p>
+    <div class="pill-row">
+      <span class="chip">AI ажилтан / оффис</span>
+      <span class="chip">FB/IG-ээс гадуур</span>
+      <span class="chip">Gemini · Claude · GPT</span>
+      <span class="chip">Token / нэгж загвар</span>
+    </div>
+  </div>
+
+  <!-- WHAT'S CHANGING -->
+  <div class="section">
+    <h2>Юу <span class="grad">өөрчлөгдөж байна</span></h2>
+    <div class="grid3">
+      <div class="mini"><span class="ic">🗣️</span><h3>Ганц чат</h3><p>Олон товч/форм биш — эзэн ганц чаттай ярилцаад AI ажилтнууд цаана нь ажиллана.</p></div>
+      <div class="mini"><span class="ic">🔌</span><h3>FB/IG-ээс гадуур</h3><p>Банк, ebarimt, QPay, Google, Telegram, вэб — бизнесийн бүх үйл ажиллагаа.</p></div>
+      <div class="mini"><span class="ic">🎟️</span><h3>Хэрэглээний нэгж</h3><p>Тогтмол tier биш — AI хийсэн ажлаар нь нэгж тооцдог, олон загвартай загвар.</p></div>
+    </div>
+  </div>
+
+  <!-- THE TWO DECKS -->
+  <div class="section">
+    <h2>2 <span class="grad">танилцуулга</span></h2>
+    <div class="decks">
+      <a class="deck" href="/shinesanaa/higgsfield-for-business.html">
+        <span class="num">1</span>
+        <span class="tag">Алсын хараа · стратеги</span>
+        <h3>Бизнесийн Higgsfield — AI Оффис</h3>
+        <p>Алсын хараа, feasibility нотолгоо, 7-давхар архитектур, 10 AI ажилтан, Connectors (FB/IG-ээс гарах), Skills, Memory, roadmap.</p>
+        <span class="go"><span class="arrow">→</span> Танилцуулга үзэх (16 слайд)</span>
+      </a>
+      <a class="deck" href="/shinesanaa/agent-garden-business.html">
+        <span class="num">2</span>
+        <span class="tag">Бизнес загвар</span>
+        <h3>Бизнес загвар ба AI Agent-ууд</h3>
+        <p>Token/нэгж (usage-based) загвар, олон загвар автомат сонголт, agent тус бүрийн монетизаци, Монгол нөхцөлийн нарийвчлал.</p>
+        <span class="go"><span class="arrow">→</span> Танилцуулга үзэх (15 слайд)</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- WHY IT MATTERS -->
+  <div class="section">
+    <h2>Энэ юу <span class="grad">гэсэн үг вэ</span></h2>
+    <ul class="clean">
+      <li><span class="mn">Discoverability шийдэгдэнэ</span> — Syncly-ийн олон чадварыг эзэн олж мэддэггүй байсныг ганц чат шийднэ.</li>
+      <li><span class="mn">Гар утсанд төгс</span> — жижиг бизнес эрхлэгч ажлынхаа 80%-ийг утсаар хийдэг; чат бол хамгийн mobile-friendly.</li>
+      <li><span class="mn">Шинэ feature = шинэ tool</span> — UI хийхгүйгээр чадвар нэмж, хөгжүүлэлт хурдасна.</li>
+      <li><span class="mn">Moat = локалчлал</span> — ebarimt/НӨАТ, локал банк, QPay, FB Live, дүүрэг хүргэлт — Higgsfield/Lindy/Agentforce-д байхгүй.</li>
+      <li><span class="mn">Орлого ↔ хэрэглээ</span> — нэгж загвар нь engagement-ийг шууд орлого болгоно.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <p>Дотоод draft · 2026-06 · Танилцуулга дахь тоонууд (ROI / нэгж / ARPU) нь салбарын дундаж/төсөөлөл — бодит дугаараар солино. Асуулт/санал → багийн чат.</p>
+  </div>
+
+</div>
+</body>
+</html>

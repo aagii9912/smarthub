@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syncly — Бизнесийн Higgsfield</title>
+<style>
+  :root{
+    --bg:#0d0d14; --bg2:#13131f; --card:#1a1a2b;
+    --ink:#f5f5fa; --muted:#a0a0c0; --dim:#6e6e90;
+    --grad:linear-gradient(120deg,#4A7CE7 0%,#8B5CF6 100%);
+    --grad-soft:linear-gradient(120deg,rgba(74,124,231,.16),rgba(139,92,246,.16));
+    --indigo:#4A7CE7; --violet:#8B5CF6; --line:#2a2a40;
+    --green:#34d399; --amber:#fbbf24; --pink:#f472b6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden; -webkit-font-smoothing:antialiased;}
+  .deck{position:relative; height:100vh; width:100vw}
+  .slide{position:absolute; inset:0; display:none; padding:6vh 7vw 9vh;
+    flex-direction:column; justify-content:center; animation:fade .45s ease; overflow:auto;}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  h1{font-size:clamp(28px,5vw,60px); line-height:1.05; letter-spacing:-.02em; font-weight:800}
+  h2{font-size:clamp(22px,3.4vw,40px); line-height:1.12; letter-spacing:-.015em; font-weight:800; margin-bottom:.5em}
+  h3{font-size:clamp(15px,1.5vw,20px); font-weight:700}
+  p,li{color:var(--muted); font-size:clamp(14px,1.5vw,19px); line-height:1.55}
+  .grad{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .eyebrow{font-size:13px; letter-spacing:.18em; text-transform:uppercase; color:var(--violet); font-weight:700; margin-bottom:18px}
+  .lead{font-size:clamp(16px,2vw,24px); color:var(--ink); max-width:62ch; line-height:1.5}
+  .note{font-size:12px; color:var(--dim); margin-top:18px; font-style:italic}
+  .chip{display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700; background:var(--grad-soft); border:1px solid var(--line); color:var(--ink)}
+  .badge{display:inline-block; padding:2px 9px; border-radius:6px; font-size:11px; font-weight:800}
+  .b0{background:rgba(52,211,153,.16); color:var(--green); border:1px solid rgba(52,211,153,.3)}
+  .blo{background:rgba(74,124,231,.16); color:#86b0ff; border:1px solid rgba(74,124,231,.3)}
+  .bmid{background:rgba(251,191,36,.14); color:var(--amber); border:1px solid rgba(251,191,36,.3)}
+  .bhi{background:rgba(244,114,182,.14); color:var(--pink); border:1px solid rgba(244,114,182,.3)}
+
+  .cols{display:grid; gap:20px; margin-top:8px}
+  .c2{grid-template-columns:1fr 1fr}
+  .c3{grid-template-columns:repeat(3,1fr)}
+  .c4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px 22px}
+  .card h3{margin-bottom:8px}
+  .card .ic{font-size:26px; margin-bottom:10px; display:block}
+  .pill-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px}
+  .stat{font-size:clamp(26px,4vw,46px); font-weight:800; line-height:1}
+  .stat small{display:block; font-size:13px; font-weight:600; color:var(--muted); margin-top:8px; letter-spacing:0}
+
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:clamp(12px,1.35vw,16px)}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line)}
+  th{color:var(--violet); font-size:12px; letter-spacing:.06em; text-transform:uppercase}
+  td{color:var(--muted)} td strong{color:var(--ink)}
+  tr:last-child td{border-bottom:none}
+
+  ul.clean{list-style:none; margin-top:6px}
+  ul.clean li{position:relative; padding-left:24px; margin:9px 0}
+  ul.clean li:before{content:"›"; position:absolute; left:4px; top:-1px; color:var(--violet); font-weight:800; font-size:18px}
+  .mn{color:var(--ink); font-weight:600}
+
+  /* layer stack diagram */
+  .stack{display:flex; flex-direction:column; gap:9px; margin-top:14px; max-width:880px}
+  .layer{display:grid; grid-template-columns:46px 1fr; align-items:center; gap:14px;
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 16px}
+  .layer .n{width:32px; height:32px; border-radius:8px; background:var(--grad); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:15px}
+  .layer .t{font-weight:700; color:var(--ink); font-size:15px}
+  .layer .d{color:var(--dim); font-size:12.5px}
+
+  /* ranked connectors */
+  .rank{display:flex; flex-direction:column; gap:12px; margin-top:14px}
+  .rk{display:grid; grid-template-columns:64px 1fr; gap:16px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px}
+  .rk .num{font-size:30px; font-weight:800; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; text-align:center}
+  .rk .t{font-weight:800; color:var(--ink); margin-bottom:3px}
+
+  /* agent grid */
+  .agrid{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-top:14px}
+  .ag{background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px}
+  .ag .ic{font-size:22px}
+  .ag .nm{font-weight:700; color:var(--ink); font-size:14px; margin:6px 0 8px}
+  .ag .ds{font-size:11.5px; color:var(--dim); line-height:1.4; margin-bottom:8px}
+
+  /* flow */
+  .flow{display:flex; align-items:stretch; gap:12px; margin-top:18px; flex-wrap:wrap}
+  .flow .box{flex:1; min-width:180px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px}
+  .flow .box .t{font-weight:800; color:var(--ink); margin-bottom:6px}
+  .flow .plus{display:flex; align-items:center; font-size:24px; color:var(--violet); font-weight:800}
+
+  /* nav */
+  .nav{position:fixed; bottom:20px; right:26px; display:flex; align-items:center; gap:10px; z-index:30}
+  .nav button{width:42px; height:42px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:18px; cursor:pointer; transition:.2s}
+  .nav button:hover{background:var(--grad); border-color:transparent}
+  .counter{font-size:13px; color:var(--muted); min-width:54px; text-align:center; font-variant-numeric:tabular-nums}
+  .dots{position:fixed; bottom:26px; left:26px; display:flex; gap:7px; z-index:30; flex-wrap:wrap; max-width:60vw}
+  .dot{width:8px; height:8px; border-radius:50%; background:#2e2e48; cursor:pointer; transition:.2s}
+  .dot.on{background:var(--grad); width:22px; border-radius:4px}
+  .progress{position:fixed; top:0; left:0; height:3px; background:var(--grad); z-index:40; transition:width .35s ease}
+  .brand{position:fixed; top:20px; left:28px; font-weight:800; font-size:15px; letter-spacing:-.01em; z-index:30}
+  .brand .d{color:var(--dim); font-weight:600}
+  .pagehint{position:fixed; top:22px; right:28px; font-size:12px; color:var(--dim); z-index:30}
+  @media(max-width:760px){
+    .c2,.c3,.c4{grid-template-columns:1fr}
+    .agrid{grid-template-columns:repeat(2,1fr)}
+    .slide{padding:11vh 6vw 13vh; justify-content:flex-start}
+    .brand{background:rgba(13,13,20,.85); padding:6px 10px; border-radius:8px; backdrop-filter:blur(6px); max-width:78vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .pagehint{display:none}
+    h1{font-size:34px}
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="brand">Syncly <span class="d">· Бизнесийн Higgsfield</span></div>
+<div class="pagehint">← → шилжих</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="eyebrow">Стратеги — AI Оффис</div>
+    <h1>Higgsfield бол креатив.<br><span class="grad">Syncly бол бизнес.</span></h1>
+    <p class="lead" style="margin-top:24px">Монголын жижиг бизнесийн <span class="mn">AI оффис</span> — нэг чатнаас удирддаг, AI ажилтнуудтай, Facebook/Instagram-аас ангид жинхэнэ business super-app.</p>
+    <div class="pill-row">
+      <span class="chip">AI ажилтан/оффис</span>
+      <span class="chip">FB/IG-ээс гадуур</span>
+      <span class="chip">Gemini · Claude · GPT</span>
+      <span class="chip">Монгол-төвтэй</span>
+    </div>
+  </section>
+
+  <!-- 2 VISION -->
+  <section class="slide">
+    <div class="eyebrow">Алсын хараа</div>
+    <h2>Эзэн <span class="grad">ганц чаттай</span> ярина — цаана нь баг ажиллана</h2>
+    <p class="lead">Бизнес эрхлэгч энгийн хэлээр бичнэ. AI ажилтнууд (Нягтлан, Борлуулагч, Агуулах, Аналист…) өдөр тутмын ажлыг хийнэ. Хамгийн тохирох загвар автоматаар ажиллаж, хийсэн ажлаар нь <span class="mn">нэгж</span> тооцно.</p>
+    <div class="cols c3" style="margin-top:28px">
+      <div class="card"><span class="ic">🗣️</span><h3>Нэг чат</h3><p>Бүх ажлын цорын ганц орц. Ажилтнууд цаана нь үл харагдан ажиллана.</p></div>
+      <div class="card"><span class="ic">🔌</span><h3>FB/IG-ээс гадуур</h3><p>Банк, ebarimt, QPay, Google, Telegram, вэб — бүх үйл ажиллагаа.</p></div>
+      <div class="card"><span class="ic">🇲🇳</span><h3>Монголд зориулсан</h3><p>Локал санхүү, хэл, хүргэлт — хэн ч давтаж чадахгүй давуу тал.</p></div>
+    </div>
+  </section>
+
+  <!-- 3 HIGGSFIELD MAPPING -->
+  <section class="slide">
+    <div class="eyebrow">Mental model</div>
+    <h2>Higgsfield-ийн загвар → <span class="grad">Syncly-д буулгасан нь</span></h2>
+    <table>
+      <tr><th>Higgsfield (креатив)</th><th>Syncly (бизнес)</th></tr>
+      <tr><td>Supercomputer chat</td><td><strong>Нэг чат</strong> — бүх ажлын орц</td></tr>
+      <tr><td>Orchestrator (загвар сонгох)</td><td><strong>AI Туслах</strong> + олон загварын router</td></tr>
+      <tr><td>My Office</td><td><strong>Минийн оффис</strong></td></tr>
+      <tr><td>Employees</td><td><strong>AI ажилтнууд</strong> (10 specialist)</td></tr>
+      <tr><td>Skills (install workflow)</td><td><strong>Чадвар</strong> — slash command workflow</td></tr>
+      <tr><td>Connectors (40+ tool)</td><td><strong>Холболтууд</strong> — FB/IG-ээс гадуур</td></tr>
+      <tr><td>3-layer Memory · Tasks · Marketplace</td><td>Санах ой · <strong>Даалгаврууд</strong> · <strong>Зах</strong></td></tr>
+    </table>
+  </section>
+
+  <!-- 4 FEASIBILITY -->
+  <section class="slide">
+    <div class="eyebrow">Хийгдэх боломжтой юу?</div>
+    <h2>«AI ажилтан» бол <span class="grad">батлагдсан 2026 категори</span></h2>
+    <div class="cols c4" style="margin-top:8px">
+      <div class="card"><h3>Lindy</h3><p>AI employee — имэйл, цаг, CRM, support</p></div>
+      <div class="card"><h3>Agentforce</h3><p>Salesforce — CRM дээр автономо agent</p></div>
+      <div class="card"><h3>Manus</h3><p>Гүн судалгаа/синтез agent</p></div>
+      <div class="card"><h3>Higgsfield</h3><p>Hermes — recursive tool-use orchestrator</p></div>
+    </div>
+    <div class="cols c3" style="margin-top:18px">
+      <div class="card"><div class="stat">$200–500<small>сар / 2–3 ажилтны орон</small></div></div>
+      <div class="card"><div class="stat">12+ цаг<small>7 хоног бүр хэмнэлт</small></div></div>
+      <div class="card"><div class="stat">300+<small>загвар нэг API-аар (routing шийдсэн)</small></div></div>
+    </div>
+    <p class="note">Эх сурвалж: Lindy, Salesforce Agentforce, Higgsfield (explainx), OpenRouter/Vercel AI Gateway, Composio, Claude for Small Business — салбарын тоо.</p>
+  </section>
+
+  <!-- 5 ARCHITECTURE -->
+  <section class="slide">
+    <div class="eyebrow">Архитектур</div>
+    <h2>7 давхарга</h2>
+    <div class="stack">
+      <div class="layer"><div class="n">1</div><div><div class="t">Orchestrator — AI Туслах</div><div class="d">intent → ажилтан сонгох → multi-step tool-use → батлуулах → нэгж</div></div></div>
+      <div class="layer"><div class="n">2</div><div><div class="t">Employees + Models</div><div class="d">10 AI ажилтан · Gemini/Claude/GPT auto-route эсвэл сонгох</div></div></div>
+      <div class="layer"><div class="n">3</div><div><div class="t">Skills — Чадвар</div><div class="d">багцалсан workflow + slash command (/сарын-хаалт, /live-дараа)</div></div></div>
+      <div class="layer"><div class="n">4</div><div><div class="t">Tools (~99) + Connectors</div><div class="d">банк/ebarimt/QPay/Google/Telegram/SMS/вэб/Excel</div></div></div>
+      <div class="layer"><div class="n">5</div><div><div class="t">Memory (3-давхар) · Tasks (async) · Marketplace</div><div class="d">одоо/бренд/туршлага · queue · бэлэн багц суулгах</div></div></div>
+      <div class="layer"><div class="n">6</div><div><div class="t">Supabase</div><div class="d">RLS · multi-tenant · audit ledger</div></div></div>
+    </div>
+  </section>
+
+  <!-- 6 EMPLOYEES OVERVIEW -->
+  <section class="slide">
+    <div class="eyebrow">Минийн оффис</div>
+    <h2>10 AI <span class="grad">ажилтан</span></h2>
+    <div class="agrid">
+      <div class="ag"><span class="ic">🛍️</span><div class="nm">AI Борлуулагч</div><div class="ds">Messenger/IG/Telegram/вэб худалдаа</div><span class="badge blo">бага</span></div>
+      <div class="ag"><span class="ic">💬</span><div class="nm">Сэтгэгдэл & Live</div><div class="ds">Коммент + Live «+1» захиалга</div><span class="badge blo">бага</span></div>
+      <div class="ag"><span class="ic">💳</span><div class="nm">Төлбөр & Хүргэлт</div><div class="ds">Баримт OCR, дүүрэг хүргэлт</div><span class="badge bmid">дунд</span></div>
+      <div class="ag"><span class="ic">👥</span><div class="nm">Харилцагч CRM</div><div class="ds">VIP, win-back, SMS/Viber</div><span class="badge bmid">дунд</span></div>
+      <div class="ag"><span class="ic">🧾</span><div class="nm">Нягтлан бодогч</div><div class="ds">НӨАТ, ebarimt, P&L</div><span class="badge b0">0</span></div>
+      <div class="ag"><span class="ic">📦</span><div class="nm">Агуулах</div><div class="ds">Зураг→бараа, нөөц, reorder</div><span class="badge bmid">дунд</span></div>
+      <div class="ag"><span class="ic">📊</span><div class="nm">Бизнес аналист</div><div class="ds">Insight, улирлын тайлан</div><span class="badge blo">бага</span></div>
+      <div class="ag"><span class="ic">🚀</span><div class="nm">Boost оновчлогч</div><div class="ds">FB зар, ROAS, creative</div><span class="badge bhi">өндөр</span></div>
+      <div class="ag"><span class="ic">🎟️</span><div class="nm">Тасалбар & Эвент</div><div class="ds">QR, check-in</div><span class="badge b0">0</span></div>
+      <div class="ag"><span class="ic">📅</span><div class="nm">Цаг товлогч <span class="badge blo">шинэ</span></div><div class="ds">Calendar — үйлчилгээ</div><span class="badge bmid">дунд</span></div>
+    </div>
+  </section>
+
+  <!-- 7 REVENUE TEAM -->
+  <section class="slide">
+    <div class="eyebrow">Орлого үүсгэгч баг</div>
+    <h2>Худалдаа, төлбөр, <span class="grad">харилцагч</span></h2>
+    <div class="cols c2" style="margin-top:6px">
+      <div class="card"><span class="ic">🛍️</span><h3>AI Борлуулагч</h3><p>Messenger/IG/Telegram/вэб дээр захиалга, бараа санал, upsell. «+1/авлаа/размер» ойлгоно.</p></div>
+      <div class="card"><span class="ic">💬</span><h3>Сэтгэгдэл & Live</h3><p>FB/IG коммент авто-хариу + Live «+1»-ийг бодит цагт захиалга болгоно.</p></div>
+      <div class="card"><span class="ic">💳</span><h3>Төлбөр & Хүргэлт</h3><p>Банкны баримт OCR, QPay, бэлэн мөнгө, дүүрэг/хороо хүргэлтийн тооцоо.</p></div>
+      <div class="card"><span class="ic">👥</span><h3>Харилцагч CRM</h3><p>VIP, win-back, broadcast (SMS/Viber/имэйл), утасны дугаараар таних.</p></div>
+    </div>
+  </section>
+
+  <!-- 8 BACKOFFICE TEAM -->
+  <section class="slide">
+    <div class="eyebrow">Ажил хөнгөлөгч баг · 0 нэгж</div>
+    <h2>Санхүү, агуулах, <span class="grad">шинжилгээ</span></h2>
+    <div class="cols c2" style="margin-top:6px">
+      <div class="card"><span class="ic">🧾</span><h3>AI Нягтлан бодогч <span class="badge b0">0 нэгж</span></h3><p>P&L, зарлага, НӨАТ/ebarimt, НДШ, цалин бэлтгэл, нягтланд export packet.</p></div>
+      <div class="card"><span class="ic">📦</span><h3>AI Агуулах</h3><p>Зураг→бараа, variant, бага-нөөц таамаг, reorder, зөрүү илрүүлэх.</p></div>
+      <div class="card"><span class="ic">📊</span><h3>AI Бизнес аналист</h3><p>Өдөр/7-хоног тайлан, «яагаад буурав», Цагаан сар/цалингийн улирал.</p></div>
+      <div class="card"><span class="ic">🚀</span><h3>AI Boost оновчлогч</h3><p>FB/IG зарын winner, ROAS, ₮ төсөв, монгол creative.</p></div>
+    </div>
+    <p class="note">Нягтлан/аналист = deterministic (загваргүй) → 0 нэгж → хамгийн хүчтэй наалдац үүсгэгч.</p>
+  </section>
+
+  <!-- 9 CONNECTORS -->
+  <section class="slide">
+    <div class="eyebrow">FB/IG-ээс гарах гол ажил</div>
+    <h2>Connectors — <span class="grad">4 багц эрэмбэтэй</span></h2>
+    <div class="rank">
+      <div class="rk"><div class="num">1</div><div><div class="t">🇲🇳 Монгол санхүү — <span style="color:var(--green)">moat (native)</span></div><p>ebarimt (НӨАТ), банкны хуулга + баримт OCR, QPay. Composio-д БАЙХГҮЙ → хэн ч давтаж чадахгүй.</p></div></div>
+      <div class="rk"><div class="num">2</div><div><div class="t">Google</div><p>Sheets (бараа/захиалга sync), Calendar (цаг товлолт), Gmail. Composio/OAuth-аар хурдан.</p></div></div>
+      <div class="rk"><div class="num">3</div><div><div class="t">Мессеж</div><p>Telegram (эзэн өөрийн оффистой утсаараа), SMS/Viber (харилцагчид).</p></div></div>
+      <div class="rk"><div class="num">4</div><div><div class="t">Веб/дэлгүүр + Excel</div><p>Өөрийн storefront/чат widget, Excel/CSV bulk import (FB/IG-гүй суваг).</p></div></div>
+    </div>
+  </section>
+
+  <!-- 10 MOAT FINANCE -->
+  <section class="slide">
+    <div class="eyebrow">Хамгийн том давуу тал</div>
+    <h2>🇲🇳 Монгол санхүүгийн холболт = <span class="grad">бат бэх хана</span></h2>
+    <div class="cols c3" style="margin-top:10px">
+      <div class="card"><span class="ic">🧾</span><h3>ebarimt / НӨАТ</h3><p>И-баримтын систем, НӨАТ 10% — гадны платформд огт байхгүй.</p></div>
+      <div class="card"><span class="ic">🏦</span><h3>Банкны баримт OCR</h3><p>Хаан/ХХБ/Голомт/Хас… screenshot+хуулга унших.</p></div>
+      <div class="card"><span class="ic">📲</span><h3>QPay</h3><p>Локал төлбөрийн гүнзгий баталгаажуулалт.</p></div>
+    </div>
+    <div class="card" style="margin-top:18px; background:var(--grad-soft)">
+      <p class="lead" style="font-size:18px">⚠️ <span class="mn">Эрсдэл:</span> ebarimt/банкны public API хязгаарлагдмал байж болзошгүй → эхлээд <span class="mn">OCR + хуулга upload (CSV/PDF)</span>-аар, дараа нь API/түншлэлээр гүнзгийрүүлнэ. Эрх зүй/түншлэлийг эрт тодруулах.</p>
+    </div>
+  </section>
+
+  <!-- 11 SKILLS -->
+  <section class="slide">
+    <div class="eyebrow">Чадвар (Skills)</div>
+    <h2>Багцалсан workflow — <span class="grad">slash command</span></h2>
+    <table>
+      <tr><th>Команд</th><th>Юу хийх (дараалал)</th></tr>
+      <tr><td><strong>/сарын-хаалт</strong></td><td>төлбөр reconcile → P&L → НӨАТ → нягтланд export</td></tr>
+      <tr><td><strong>/live-дараа</strong></td><td>«+1» цуглуулах → захиалга → төлбөр хүсэх → нөөц шинэчлэх</td></tr>
+      <tr><td><strong>/буцаах-кампанит</strong></td><td>идэвхгүй сегмент → мессеж зурах → broadcast → хянах</td></tr>
+      <tr><td><strong>/шинэ-бараа</strong></td><td>зураг→бараа → үнэ → FB пост draft → boost санал</td></tr>
+      <tr><td><strong>/өдрийн-тайлан</strong></td><td>өдрийн KPI + insight + push</td></tr>
+    </table>
+    <p class="note">«Нэг удаа заа» загвар — бизнес өөрийн workflow-оо AI-д зааж, дахин дуудна.</p>
+  </section>
+
+  <!-- 12 MEMORY -->
+  <section class="slide">
+    <div class="eyebrow">Санах ой</div>
+    <h2>3 давхар <span class="grad">санах ой</span></h2>
+    <div class="cols c3" style="margin-top:12px">
+      <div class="card"><span class="ic">⚡</span><h3>Working (одоо)</h3><p>Идэвхтэй ажлын түр scratchpad — одоогийн thread/task.</p></div>
+      <div class="card"><span class="ic">📚</span><h3>Library (бренд)</h3><p>Эзний нэр, банк, өнгө/tone, оргил цаг, бренд хоолой.</p></div>
+      <div class="card"><span class="ic">🏆</span><h3>Episodic (юу болсон)</h3><p>Амжилттай workflow → ялсан параметр дахин ашиглах (boost төсөв, win-back мессеж).</p></div>
+    </div>
+    <p class="lead" style="margin-top:24px">Episodic давхарга = <span class="mn">чанар + наалдац</span>: AI өмнө юу амжилттай болсныг санаж, дараагийн удаа эхний оролдлогоор зөв хийнэ.</p>
+  </section>
+
+  <!-- 13 TASKS + MARKETPLACE -->
+  <section class="slide">
+    <div class="eyebrow">Даалгаврууд · Суваг · Зах</div>
+    <h2>Background ажил, <span class="grad">олон суваг, бэлэн багц</span></h2>
+    <div class="flow">
+      <div class="box"><div class="t">📋 Даалгаврууд (async)</div><p>Урт ажил (broadcast, bulk import, сарын хаалт) Upstash queue-ээр — Vercel 60s timeout тойрно.</p></div>
+      <div class="plus">·</div>
+      <div class="box"><div class="t">📱 Олон суваг</div><p>Browser + Telegram/Messenger-ээр эзэн өөрийн оффистой гар утсаараа ярина.</p></div>
+      <div class="plus">·</div>
+      <div class="box"><div class="t">🏪 Зах (Marketplace)</div><p>«Дэлгүүрийн багц», «Үйлчилгээ», «Ресторан», «Эвент» — бэлэн ажилтан/чадвар суулгах.</p></div>
+    </div>
+  </section>
+
+  <!-- 14 ROADMAP -->
+  <section class="slide">
+    <div class="eyebrow">Зам</div>
+    <h2>Roadmap <span class="grad">P0 → P7</span></h2>
+    <table>
+      <tr><th>Фаз</th><th>Агуулга</th></tr>
+      <tr><td><strong>P0–1</strong></td><td>chat-first + model layer + read employees</td></tr>
+      <tr><td><strong>P2</strong></td><td>write + confirm + undo + widget board</td></tr>
+      <tr><td><strong>P3</strong></td><td>Employees specialization + <strong>Office UI</strong> + <strong>Skills v1</strong> + 3-давхар memory</td></tr>
+      <tr><td><strong>P4</strong></td><td><strong>Connectors framework</strong> + Google + Excel + accounting/ticketing</td></tr>
+      <tr><td><strong>P5</strong></td><td><strong>Монгол санхүү connectors</strong> + Tasks/queue + Boost (Meta Ads)</td></tr>
+      <tr><td><strong>P6</strong></td><td><strong>Marketplace</strong> + Telegram/Messenger + voice</td></tr>
+      <tr><td><strong>P7+</strong></td><td>polish + шинэ ажилтан (Цаг товлогч/HR) + нэмэлт connector</td></tr>
+    </table>
+  </section>
+
+  <!-- 15 MOAT + RISK -->
+  <section class="slide">
+    <div class="eyebrow">Давуу тал & Эрсдэл</div>
+    <h2>Яагаад <span class="grad">давтагдашгүй</span> вэ</h2>
+    <div class="cols c2" style="margin-top:8px">
+      <div class="card"><h3>🛡️ Moat</h3><ul class="clean" style="margin-top:4px"><li>ebarimt/НӨАТ, локал банк, QPay</li><li>FB Live худалдаа, дүүрэг хүргэлт</li><li>Монгол хэл/галиг, бэлэн мөнгө</li><li>нэгж prepaid economics</li></ul><p style="margin-top:8px">Higgsfield/Lindy/Agentforce-д <span class="mn">байхгүй</span>.</p></div>
+      <div class="card"><h3>⚠️ Эрсдэл & шийдэл</h3><ul class="clean" style="margin-top:4px"><li>ebarimt/банк API → OCR+upload fallback</li><li>Urt task → Upstash queue/worker</li><li>Нэгж зардал → router + 0-нэгж agent</li><li>OpenRouter markup → direct @ai-sdk/*</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 16 CONCLUSION -->
+  <section class="slide">
+    <div class="eyebrow">Дүгнэлт</div>
+    <h2>Бизнесийн <span class="grad">Higgsfield</span> — категори үүсгэнэ</h2>
+    <ul class="clean" style="margin-top:8px">
+      <li><span class="mn">Vision хийгдэх боломжтой</span> — Lindy/Agentforce/Manus/Higgsfield нотолж байна.</li>
+      <li><span class="mn">Ялгарал = локалчлал</span> — Монгол SME-ийн бодит ажлыг хийдэг AI оффис.</li>
+      <li><span class="mn">«FB/IG-ээс гарах» = Connectors</span> — хамгийн том шинэ ажил, хамгийн том moat.</li>
+      <li><span class="mn">80% бэлэн</span> — Unified Architecture + business model дээр суурилна.</li>
+    </ul>
+    <div class="card" style="margin-top:28px; background:var(--grad-soft)">
+      <h3>Нэг чат. Олон AI ажилтан. Монголын бизнест зориулсан.</h3>
+      <p style="margin-top:6px">Syncly — Монголын жижиг бизнесийн AI оффис.</p>
+    </div>
+    <p class="note">Тоонууд (ROI/нэгж) нь салбарын дундаж/төсөөлөл — бодит дугаараар солино.</p>
+  </section>
+
+</div>
+
+<div class="dots" id="dots"></div>
+<div class="nav">
+  <button id="prev" aria-label="Өмнөх">‹</button>
+  <span class="counter" id="counter">1 / 16</span>
+  <button id="next" aria-label="Дараах">›</button>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsWrap=document.getElementById('dots');
+  const prog=document.getElementById('prog');
+  const counter=document.getElementById('counter');
+  let i=0;
+  slides.forEach((_,n)=>{const d=document.createElement('div'); d.className='dot'+(n===0?' on':''); d.onclick=()=>go(n); dotsWrap.appendChild(d);});
+  const dots=[...document.querySelectorAll('.dot')];
+  function go(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,x)=>s.classList.toggle('active',x===i));
+    dots.forEach((d,x)=>d.classList.toggle('on',x===i));
+    prog.style.width=((i+1)/slides.length*100)+'%';
+    counter.textContent=(i+1)+' / '+slides.length;
+  }
+  document.getElementById('next').onclick=()=>go(i+1);
+  document.getElementById('prev').onclick=()=>go(i-1);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ')go(i+1);
+    if(e.key==='ArrowLeft'||e.key==='PageUp')go(i-1);
+    if(e.key==='Home')go(0); if(e.key==='End')go(slides.length-1);
+  });
+  let sx=0;
+  addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+  addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx; if(Math.abs(dx)>50)go(i+(dx<0?1:-1));},{passive:true});
+  go(0);
+</script>
+</body>
+</html>
