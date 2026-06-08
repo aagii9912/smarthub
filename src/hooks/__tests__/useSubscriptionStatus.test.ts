@@ -22,6 +22,21 @@ describe('deriveSubscriptionStatus (#1/#2)', () => {
         expect(s.remainingText).toBe('2 хоног 5 цаг');
         expect(s.tokensUsed).toBe(1200);
         expect(s.tokensMax).toBe(10000);
+        // Credits = tokens / 1000: used = ceil(1.2) = 2, max = 10, left = 8.
+        expect(s.creditsUsed).toBe(2);
+        expect(s.creditsMax).toBe(10);
+        expect(s.creditsLeft).toBe(8);
+    });
+
+    it('reports 0 credits left for a free plan with no token cap', () => {
+        const s = deriveSubscriptionStatus(
+            { shop_status: { subscription_status: 'unpaid' }, usage: { tokens: 0 }, plan: { limits: {} } },
+            NOW,
+        );
+        expect(s.creditsMax).toBe(0);
+        expect(s.creditsLeft).toBe(0);
+        expect(s.trialActive).toBe(false);
+        expect(s.trialExpired).toBe(false);
     });
 
     it('also accepts the "trialing" spelling as active', () => {

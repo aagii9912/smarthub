@@ -4,12 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { LogOut, Settings, ChevronDown, ChevronRight, Search } from 'lucide-react';
+import { LogOut, Settings, ChevronDown, ChevronRight, Search, Crown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { NotificationButton } from '@/components/NotificationButton';
 import { ShopSwitcher } from '@/components/dashboard/ShopSwitcher';
 import { useFeatures } from '@/hooks/useFeatures';
+import { useSubscriptionStatus } from '@/hooks/useSubscriptionStatus';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/utils/logger';
@@ -22,6 +23,7 @@ export function Header() {
     const { user, shops } = useAuth();
     const { t } = useLanguage();
     const { limits } = useFeatures();
+    const { data: sub } = useSubscriptionStatus();
     const [showDropdown, setShowDropdown] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -159,6 +161,74 @@ export function Header() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Credits + plan — always visible (#1/#2) */}
+                                <div className="px-4 py-3.5 border-b border-white/[0.06]">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-white/40">
+                                            {sub?.planName || 'Үнэгүй багц'}
+                                        </span>
+                                        {sub?.trialActive ? (
+                                            <span className="text-[11px] font-medium text-violet-300">
+                                                Туршилт: {sub.remainingText}
+                                            </span>
+                                        ) : sub?.trialExpired ? (
+                                            <span className="text-[11px] font-medium text-red-400">Туршилт дууссан</span>
+                                        ) : null}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowDropdown(false);
+                                            router.push('/dashboard/subscription');
+                                        }}
+                                        className="w-full text-left group"
+                                        aria-label="Кредит дэлгэрэнгүй"
+                                    >
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[13px] font-medium text-foreground">Кредит</span>
+                                            <span className="flex items-center gap-0.5 text-[12px] text-white/50 group-hover:text-white/80 transition-colors tabular-nums">
+                                                {(sub?.creditsLeft ?? 0).toLocaleString()} үлдсэн
+                                                <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${sub && sub.creditsMax > 0 ? Math.min((sub.creditsUsed / sub.creditsMax) * 100, 100) : 100}%`,
+                                                    background:
+                                                        !sub || sub.creditsLeft === 0
+                                                            ? 'var(--destructive)'
+                                                            : sub.creditsMax > 0 && sub.creditsUsed / sub.creditsMax > 0.85
+                                                              ? 'var(--warning)'
+                                                              : 'var(--brand-indigo-400)',
+                                                }}
+                                            />
+                                        </div>
+                                    </button>
+
+                                    {!sub?.isActivePaid && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowDropdown(false);
+                                                router.push('/dashboard/subscription');
+                                            }}
+                                            className="mt-3 w-full flex items-center justify-between rounded-xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] px-3 py-2 transition-colors"
+                                        >
+                                            <span className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                                                <Crown className="h-4 w-4 text-[var(--gold)]" strokeWidth={1.5} />
+                                                Премиум болох
+                                            </span>
+                                            <span className="rounded-full bg-violet-500 text-white text-[11px] font-semibold px-2.5 py-1">
+                                                Шинэчлэх
+                                            </span>
+                                        </button>
+                                    )}
+                                </div>
+
                                 <div className="p-1.5">
                                     <button
                                         onClick={() => {

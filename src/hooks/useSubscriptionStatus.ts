@@ -22,9 +22,15 @@ export interface SubscriptionStatus {
     tokensUsed: number;
     /** 0 when the plan has no known token cap. */
     tokensMax: number;
+    /** Credits = tokens / 1000 (matches the subscription page wording). */
+    creditsUsed: number;
+    creditsMax: number;
+    creditsLeft: number;
     planName: string | null;
     isActivePaid: boolean;
 }
+
+const TOKENS_PER_CREDIT = 1000;
 
 export interface CurrentSubscriptionResponse {
     plan?: { name?: string; limits?: { max_tokens?: number; tokens?: number } | null } | null;
@@ -71,6 +77,10 @@ export function deriveSubscriptionStatus(
     const rawLimits = d.plan?.limits ?? {};
     const tokensMax = Number(rawLimits.max_tokens ?? rawLimits.tokens ?? 0);
 
+    const creditsUsed = Math.ceil(tokensUsed / TOKENS_PER_CREDIT);
+    const creditsMax = Math.floor(tokensMax / TOKENS_PER_CREDIT);
+    const creditsLeft = Math.max(creditsMax - creditsUsed, 0);
+
     return {
         subStatus,
         trialEndsAt: trialEndsRaw,
@@ -81,6 +91,9 @@ export function deriveSubscriptionStatus(
         remainingText,
         tokensUsed,
         tokensMax,
+        creditsUsed,
+        creditsMax,
+        creditsLeft,
         planName: d.plan?.name ?? null,
         isActivePaid: subStatus === 'active',
     };
