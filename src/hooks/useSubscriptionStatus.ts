@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { getPlanConfig, type PlanType } from '@/lib/ai/config/plans';
 
 /**
  * Derived trial + token-usage status for the current shop, sourced from
@@ -33,7 +34,7 @@ export interface SubscriptionStatus {
 const TOKENS_PER_CREDIT = 1000;
 
 export interface CurrentSubscriptionResponse {
-    plan?: { name?: string; limits?: { max_tokens?: number; tokens?: number } | null } | null;
+    plan?: { name?: string; slug?: string; limits?: { max_tokens?: number; tokens?: number } | null } | null;
     usage?: { tokens?: number } | null;
     shop_status?: {
         subscription_status?: string | null;
@@ -75,7 +76,17 @@ export function deriveSubscriptionStatus(
 
     const tokensUsed = Number(d.usage?.tokens ?? 0);
     const rawLimits = d.plan?.limits ?? {};
-    const tokensMax = Number(rawLimits.max_tokens ?? rawLimits.tokens ?? 0);
+    const rawMax = Number(rawLimits.max_tokens ?? rawLimits.tokens ?? 0);
+
+    // Match /dashboard/subscription exactly: when the DB plan has no explicit
+    // max_tokens, fall back to the plan-config allowance keyed by slug (note the
+    // page casts slug → PlanType, so an unknown slug like 'professional' resolves
+    // to getPlanConfig's starter default). No plan at all → 0 credits.
+    const tokensMax = rawMax > 0
+        ? rawMax
+        : d.plan
+            ? getPlanConfig((d.plan.slug || 'lite') as PlanType).tokensPerMonth
+            : 0;
 
     const creditsUsed = Math.ceil(tokensUsed / TOKENS_PER_CREDIT);
     const creditsMax = Math.floor(tokensMax / TOKENS_PER_CREDIT);
