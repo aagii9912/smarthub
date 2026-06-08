@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Ban, CreditCard, Loader2, Send } from 'lucide-react';
+import { AlertTriangle, Ban, CreditCard, Loader2, Send, ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AIModeControls } from './AIModeControls';
 import { QPayInvoiceModal } from './QPayInvoiceModal';
@@ -33,9 +34,37 @@ export function MessageInput({
     const { t } = useLanguage();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [qpayOpen, setQpayOpen] = useState(false);
+    const [checkoutBusy, setCheckoutBusy] = useState(false);
 
     const expired = windowState === 'expired';
     const stale = windowState === 'within_7d';
+
+    const handleSendCheckoutLink = async () => {
+        if (!customerId) return;
+        setCheckoutBusy(true);
+        try {
+            const res = await fetch(`/api/dashboard/conversations/${customerId}/checkout-link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sendToCustomer: true }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || 'Алдаа гарлаа');
+                return;
+            }
+            if (data.sentToCustomer) {
+                toast.success('Захиалга засах линк хэрэглэгч рүү илгээгдлээ');
+            } else {
+                try { await navigator.clipboard.writeText(data.link); } catch { /* clipboard blocked */ }
+                toast.success('Линк хуулагдлаа (хэрэглэгч рүү автоматаар илгээгдсэнгүй)');
+            }
+        } catch {
+            toast.error('Сүлжээний алдаа');
+        } finally {
+            setCheckoutBusy(false);
+        }
+    };
 
     useEffect(() => {
         if (autoFocus && !expired) {
@@ -62,16 +91,32 @@ export function MessageInput({
             <div className="mb-2 flex items-center justify-between gap-2">
                 <AIModeControls value={aiPauseMode} onChange={onAiPauseModeChange} />
                 {customerId && (
-                    <button
-                        type="button"
-                        onClick={() => setQpayOpen(true)}
-                        disabled={expired}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-[12px] text-white/85 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                        title="QPay invoice үүсгэх"
-                    >
-                        <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />
-                        QPay
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleSendCheckoutLink}
+                            disabled={expired || checkoutBusy}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-[12px] text-white/85 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                            title="Засварлах захиалгын линк илгээх"
+                        >
+                            {checkoutBusy ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <ShoppingCart className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            )}
+                            Захиалга
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setQpayOpen(true)}
+                            disabled={expired}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-[12px] text-white/85 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                            title="QPay invoice үүсгэх"
+                        >
+                            <CreditCard className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            QPay
+                        </button>
+                    </div>
                 )}
             </div>
 

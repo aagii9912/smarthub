@@ -25,6 +25,8 @@ export const CheckoutSchema = z.object({
 });
 export type CheckoutArgs = z.infer<typeof CheckoutSchema>;
 
+export const SendCheckoutLinkSchema = z.object({});
+
 export const CART_TOOLS: ToolDefinition[] = [
     {
         name: 'add_to_cart',
@@ -48,6 +50,12 @@ export const CART_TOOLS: ToolDefinition[] = [
         name: 'checkout',
         description: 'Finalize cart and create order. Call this IMMEDIATELY when customer says "захиалъя", "checkout", "төлбөр төлөх", "хүргэлтээр авна", or clicks any checkout/COD button. Default payment_type=cod (Mongolian customers pay when goods are delivered). Set payment_type=qpay only when customer explicitly says "QPay-ээр төлнө" / "одоо төлнө" / "card", or payment_type=bank when they say "дансаар шилжүүлнэ". Do NOT ask for reconfirmation — execute directly.',
         parameters: { type: 'object', properties: { notes: { type: 'string', description: 'Any special notes for the order' }, payment_type: { type: 'string', enum: ['cod', 'qpay', 'bank'], description: 'How the customer will pay. cod (default) = pay on delivery, qpay = pay now via QPay, bank = manual bank transfer.', default: 'cod' } }, required: [] },
+        capabilities: ['sales']
+    },
+    {
+        name: 'send_checkout_link',
+        description: 'Send the customer an EDITABLE checkout link where they can review their cart, add/remove items, change quantities, enter delivery info, and pay themselves — no order is created until they confirm on the page. Use when the customer wants to see/review/edit their order before paying ("захиалгаа харъя", "өөрчилмөөр байна", "бараагаа нэмэх/хасах", "линкээ явуул"), or when they have several items and self-service editing is easier than going back and forth in chat. For a direct one-shot order without editing, use checkout instead.',
+        parameters: { type: 'object', properties: {}, required: [] },
         capabilities: ['sales']
     }
 ];

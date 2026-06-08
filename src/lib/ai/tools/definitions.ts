@@ -31,6 +31,7 @@ export type ToolName =
     | 'view_cart'
     | 'remove_from_cart'
     | 'checkout'
+    | 'send_checkout_link'
     | 'collect_contact_info'
     | 'request_human_support'
     | 'remember_preference'

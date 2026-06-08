@@ -29,6 +29,8 @@ interface PaymentData {
     paymentType: string;
     planSlug: string | null;
     orderItems: OrderItem[];
+    deliveryFee: number;
+    deliveryMethod: 'delivery' | 'pickup' | null;
     banks: BankInfo[];
     qrImage: string | null;
     expiresAt: string | null;
@@ -292,9 +294,25 @@ export default function PaymentPage() {
                                 </div>
                             ))}
                         </div>
-                        <div className="pay-cart-total">
-                            <span>Нийт дүн</span>
-                            <span>₮{formatAmount(payment.amount)}</span>
+                        <div className="pay-cart-breakdown">
+                            <div className="pay-cart-row">
+                                <span>Барааны дүн</span>
+                                <span>₮{formatAmount(payment.orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0))}</span>
+                            </div>
+                            <div className="pay-cart-row">
+                                <span>Хүргэлт</span>
+                                <span>
+                                    {payment.deliveryMethod === 'pickup'
+                                        ? 'Очиж авах'
+                                        : payment.deliveryFee > 0
+                                            ? `₮${formatAmount(payment.deliveryFee)}`
+                                            : 'Үнэгүй'}
+                                </span>
+                            </div>
+                            <div className="pay-cart-total">
+                                <span>Нийт дүн</span>
+                                <span>₮{formatAmount(payment.amount)}</span>
+                            </div>
                         </div>
                     </details>
                 )}

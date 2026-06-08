@@ -11,6 +11,8 @@ import type {
 } from '../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../services/ToolExecutor';
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn';
+
 function stableVariantKey(specs: Record<string, string>): string {
     const keys = Object.keys(specs).sort();
     return keys.map((k) => `${k}=${specs[k]}`).join('&');
@@ -220,4 +222,35 @@ export async function executeRemoveFromCart(
     }
 
     return { success: true, message: `${item.name} сагснаас хасагдлаа` };
+}
+
+/**
+ * Send the customer an editable checkout-review link. On that page they can
+ * add/remove items, change quantities, enter delivery info, and then pay — the
+ * order + payment invoice are only created when they confirm.
+ */
+export async function executeSendCheckoutLink(
+    context: ToolExecutionContext
+): Promise<ToolExecutionResult> {
+    if (!context.customerId) {
+        return { success: false, error: 'No customer context' };
+    }
+
+    const cart = await getCartFromDB(context.shopId, context.customerId);
+
+    if (!cart || cart.items.length === 0) {
+        return {
+            success: true,
+            message: 'Таны сагс хоосон байна. Эхлээд авах барааг сонгоё.',
+            data: { items: [], total: 0 },
+        };
+    }
+
+    const link = `${SITE_URL}/checkout/${cart.id}`;
+
+    return {
+        success: true,
+        message: `🛒 Захиалгаа доорх линкээр шалгана уу — бараа нэмэх/хасах, тоо ширхэг өөрчлөх, дараа нь шууд төлбөрөө төлнө:\n${link}`,
+        data: { checkout_link: link, cart_id: cart.id, total: cart.total_amount },
+    };
 }

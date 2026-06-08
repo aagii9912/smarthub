@@ -28,6 +28,8 @@ const publicPaths = [
     '/api/payment/webhook',
     '/api/pay',
     '/pay',
+    '/api/checkout',
+    '/checkout',
     '/privacy',
     '/terms',
 ];
@@ -50,7 +52,12 @@ export default async function middleware(req: NextRequest) {
     // Messenger in-app browser doesn't support cookies/auth
     // These routes need ZERO middleware processing
     const pathname = req.nextUrl.pathname;
-    if (pathname.startsWith('/pay') || pathname.startsWith('/api/pay/')) {
+    if (
+        pathname.startsWith('/pay') ||
+        pathname.startsWith('/api/pay/') ||
+        pathname.startsWith('/checkout') ||
+        pathname.startsWith('/api/checkout/')
+    ) {
         return NextResponse.next();
     }
 

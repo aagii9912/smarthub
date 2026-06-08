@@ -5,6 +5,7 @@ const ALLOWED_TOOLS = [
     'view_cart',
     'remove_from_cart',
     'checkout',
+    'send_checkout_link',
     'create_order',
     'cancel_order',
     'check_order_status',

@@ -200,6 +200,22 @@ export async function GET(
         }
     }
 
+    // ── Fetch delivery info from the order (for fee breakdown) ──
+    // delivery_fee is already baked into payment.amount; we surface it here so
+    // the UI can show "Барааны дүн + Хүргэлт = Нийт дүн" instead of a confusing total.
+    let deliveryFee = 0;
+    let deliveryMethod: 'delivery' | 'pickup' | null = null;
+
+    if (payment.order_id) {
+        const { data: order } = await supabase
+            .from('orders')
+            .select('delivery_fee, delivery_method')
+            .eq('id', payment.order_id)
+            .single();
+        deliveryFee = Number(order?.delivery_fee || 0);
+        deliveryMethod = (order?.delivery_method as 'delivery' | 'pickup' | null) ?? null;
+    }
+
     // Extract bank deeplinks from metadata
     const urls = (payment.metadata as Record<string, unknown>)?.urls as Array<{
         name: string;
@@ -217,6 +233,8 @@ export async function GET(
         paymentType: payment.payment_type,
         planSlug: payment.subscription_plan_slug,
         orderItems,
+        deliveryFee,
+        deliveryMethod,
         banks: urls.map(u => ({
             name: u.name,
             description: u.description,
