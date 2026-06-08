@@ -295,24 +295,36 @@ export default function PaymentPage() {
                             ))}
                         </div>
                         <div className="pay-cart-breakdown">
-                            <div className="pay-cart-row">
-                                <span>Барааны дүн</span>
-                                <span>₮{formatAmount(payment.orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0))}</span>
-                            </div>
-                            <div className="pay-cart-row">
-                                <span>Хүргэлт</span>
-                                <span>
-                                    {payment.deliveryMethod === 'pickup'
-                                        ? 'Очиж авах'
-                                        : payment.deliveryFee > 0
-                                            ? `₮${formatAmount(payment.deliveryFee)}`
-                                            : 'Үнэгүй'}
-                                </span>
-                            </div>
-                            <div className="pay-cart-total">
-                                <span>Нийт дүн</span>
-                                <span>₮{formatAmount(payment.amount)}</span>
-                            </div>
+                            {(() => {
+                                // Derive delivery from the charged total so the breakdown always
+                                // reconciles (subtotal + delivery = total), even for orders where
+                                // a shop delivery-policy fee was applied but not persisted to
+                                // orders.delivery_fee.
+                                const subtotal = payment.orderItems.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+                                const delivery = Math.max(0, payment.amount - subtotal);
+                                return (
+                                    <>
+                                        <div className="pay-cart-row">
+                                            <span>Барааны дүн</span>
+                                            <span>₮{formatAmount(subtotal)}</span>
+                                        </div>
+                                        <div className="pay-cart-row">
+                                            <span>Хүргэлт</span>
+                                            <span>
+                                                {payment.deliveryMethod === 'pickup' && delivery === 0
+                                                    ? 'Очиж авах'
+                                                    : delivery > 0
+                                                        ? `₮${formatAmount(delivery)}`
+                                                        : 'Үнэгүй'}
+                                            </span>
+                                        </div>
+                                        <div className="pay-cart-total">
+                                            <span>Нийт дүн</span>
+                                            <span>₮{formatAmount(payment.amount)}</span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </details>
                 )}

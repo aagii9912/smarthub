@@ -1,14 +1,13 @@
 /**
- * CheckoutService — shared core for the customer-facing checkout-review link.
+ * CheckoutService — canonical cart→order→payment core.
  *
- * `calculateCartDelivery` and `performCheckout` mirror the logic in the AI
- * checkout tool (`src/lib/ai/tools/handlers/order/checkout.ts`) but return
- * structured data instead of chat messages, so the `/checkout/[token]` review
- * page (live total preview + confirm) and any other caller can reuse them.
- *
- * NOTE: the AI tool (`executeCheckout`) is intentionally left untouched for now
- * to avoid changing the live revenue path without E2E coverage. Unifying it to
- * call `performCheckout` is a recommended follow-up.
+ * `calculateCartDelivery` and `performCheckout` own the COD/QPay/bank-fallback
+ * logic and return structured data instead of chat messages. Both checkout
+ * surfaces call this:
+ *   - the `/checkout/[token]` review page (live total preview + confirm), and
+ *   - the AI chat checkout tool (`src/lib/ai/tools/handlers/order/checkout.ts`,
+ *     `executeCheckout`), which maps the result's `messageFlow` discriminator
+ *     to its Mongolian chat messages and passes `metadataSource: 'ai_checkout'`.
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
@@ -113,6 +112,11 @@ export interface PerformCheckoutParams {
     customerName?: string | null;
     /** Send the shop owner a "new order" push (default true). */
     notifyOrder?: boolean;
+    /**
+     * Value written to `payments.metadata.source`. Defaults to `'checkout'`
+     * (the review-link flow); the AI chat tool passes `'ai_checkout'`.
+     */
+    metadataSource?: string;
 }
 
 export interface CheckoutShopInfo {
@@ -162,6 +166,7 @@ export async function performCheckout(
         customerName,
         paymentType = 'cod',
         notifyOrder = true,
+        metadataSource = 'checkout',
     } = params;
     const supabase = supabaseAdmin();
 
@@ -293,7 +298,7 @@ export async function performCheckout(
                 payment_method: 'cod',
                 amount: totalWithDelivery,
                 status: 'pending',
-                metadata: { source: 'checkout', delivery_fee: totalDeliveryFee, delivery_method: deliveryMethod },
+                metadata: { source: metadataSource, delivery_fee: totalDeliveryFee, delivery_method: deliveryMethod },
             })
             .select('id')
             .single();
@@ -353,7 +358,7 @@ export async function performCheckout(
                         qpay_qr_image: qpayInvoice.qr_image,
                         metadata: {
                             urls: qpayInvoice.urls,
-                            source: 'checkout',
+                            source: metadataSource,
                             shop_merchant_id: shop.qpay_merchant_id,
                             delivery_fee: totalDeliveryFee,
                             delivery_method: deliveryMethod,

@@ -27,8 +27,9 @@ describe('AI Tool Definitions', () => {
         });
 
         it('has correct count of tools', () => {
-            // 5 order + 4 cart + 3 customer + 4 product + 3 appointment = 19
-            expect(AI_TOOLS.length).toBe(19);
+            // 5 order + 5 cart + 3 customer + 4 product + 3 appointment = 20
+            // (cart: add_to_cart, view_cart, remove_from_cart, checkout, send_checkout_link)
+            expect(AI_TOOLS.length).toBe(20);
         });
 
         it('all tools have name and description', () => {
