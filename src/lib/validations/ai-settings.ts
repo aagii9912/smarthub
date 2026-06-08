@@ -78,6 +78,10 @@ export const fulfillmentSlaSchema = z
 // Cross-cutting (Brand & Policies tabs)
 // ────────────────────────────────────────────────────────────────────
 
+export const salesAssertivenessSchema = z.enum(['soft', 'balanced', 'assertive']);
+export const responseLengthSchema = z.enum(['short', 'medium', 'long']);
+export const emojiUsageSchema = z.enum(['none', 'minimal', 'frequent']);
+
 export const crossCuttingSchema = z
     .object({
         brand_voice: brandVoiceSchema.optional(),
@@ -86,6 +90,10 @@ export const crossCuttingSchema = z
         supported_languages: z.array(supportedLanguageSchema).max(4).optional(),
         seasonal_promotions: z.array(seasonalPromotionSchema).max(20).optional(),
         fulfillment_sla: fulfillmentSlaSchema.optional(),
+        // Owner-tunable reply style (assertiveness / length / emoji).
+        sales_assertiveness: salesAssertivenessSchema.optional(),
+        response_length: responseLengthSchema.optional(),
+        emoji_usage: emojiUsageSchema.optional(),
     })
     .strict();
 

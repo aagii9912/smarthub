@@ -47,9 +47,62 @@ Emoji маш бага (эсвэл огт үгүй). Мэргэжлийн нэр 
 Хурдан шийдвэр гаргуулахгүй - хэрэглэгчид цаг өг.`,
 
     playful: `Чи хөгжилтэй, заримдаа хошин шог хэлдэг хүн.
-Бага зэргийн тоглоом, emoji хэрэглэ. 
+Бага зэргийн тоглоом, emoji хэрэглэ.
 Гэхдээ худалдаа хийхдээ мэргэжлийн хэвээр байгаарай.`
 };
+
+/**
+ * Owner-tunable reply-style prompts. These let the shop owner counteract the
+ * "AI хэт дөлгөөн, борлуулалт хийдэггүй" complaint by dialling assertiveness,
+ * length and emoji directly. Each map is keyed by the `cross_cutting` enum
+ * value; an unset value renders nothing (current behaviour preserved).
+ */
+const ASSERTIVENESS_PROMPTS: Record<string, string> = {
+    soft: `• Шулуун зан: ЗӨӨЛӨН. Эелдэг бай, бүү тулга. Хэрэглэгчид бодох цаг өг, шийдвэрийг яаравчлуулахгүй.`,
+    balanced: `• Шулуун зан: ТЭНЦВЭРТЭЙ. Тус болохын зэрэгцээ зохистой санал болго. Хэрэглэгч сонирхвол дараагийн алхам руу зөөлөн хөтөл.`,
+    assertive: `• Шулуун зан: ШУЛУУХАН (борлуулалтад чиглэсэн). Битгий хэт зөөлөн/дөлгөөн бай. Барааны давуу талыг тод хэлж, ИДЭВХТЭЙ санал болго. Захиалга руу ТОДОРХОЙ урь ("Захиалъя гэвэл шууд хэлээрэй", "Аль өнгийг нь авах вэ?"). Хэрэглэгч эргэлзвэл асуудлыг нь шийдэж худалдан авалт руу хөтөл — гэхдээ түрэмгий, шахалт болохгүй.`,
+};
+
+const LENGTH_PROMPTS: Record<string, string> = {
+    short: `• Урт: БОГИНО. 1–2 өгүүлбэрээр гол санааг шууд хэл. Нуршуу оршил, давталт хэрэггүй.`,
+    medium: `• Урт: ДУНД. Хэрэгцээт хэмжээгээр тайлбарла — хэт богино ч биш, хэт урт ч биш.`,
+    long: `• Урт: ДЭЛГЭРЭНГҮЙ. Давуу тал, нөхцөл, жишээг дэлгэрэнгүй тайлбарла. Гэхдээ гол зүйлээ эхэнд нь хэл.`,
+};
+
+const EMOJI_PROMPTS: Record<string, string> = {
+    none: `• Emoji: ОГТ ҮГҮЙ. Emoji огт бүү хэрэглэ, цэвэр текстээр бич.`,
+    minimal: `• Emoji: БАГА. Хааяа, зохистой үед нэгийг хэрэглэ.`,
+    frequent: `• Emoji: ИХ. Emoji чөлөөтэй, хөгжилтэй өнгөтэй хэрэгл — гэхдээ өгүүлбэр бүрд биш.`,
+};
+
+/**
+ * Build the owner-controlled response-style block. Authoritative over the
+ * generic HUMAN_LIKE_PATTERNS defaults (e.g. it can force long, assertive
+ * replies even though the base patterns prefer short, soft ones). Returns an
+ * empty string when nothing is configured so older shops are unaffected.
+ */
+export function buildResponseStyleSection(cc?: {
+    sales_assertiveness?: string;
+    response_length?: string;
+    emoji_usage?: string;
+}): string {
+    if (!cc) return '';
+    const lines: string[] = [];
+    if (cc.response_length && LENGTH_PROMPTS[cc.response_length]) {
+        lines.push(LENGTH_PROMPTS[cc.response_length]);
+    }
+    if (cc.sales_assertiveness && ASSERTIVENESS_PROMPTS[cc.sales_assertiveness]) {
+        lines.push(ASSERTIVENESS_PROMPTS[cc.sales_assertiveness]);
+    }
+    if (cc.emoji_usage && EMOJI_PROMPTS[cc.emoji_usage]) {
+        lines.push(EMOJI_PROMPTS[cc.emoji_usage]);
+    }
+    if (lines.length === 0) return '';
+
+    return `\n=== ХАРИУЛТЫН ХЭВ МАЯГ (ДЭЛГҮҮРИЙН ЭЗНИЙ ТОХИРГОО — ЭНЭ НЬ ДЭЭД ТЭРГҮҮН) ===
+Доорх хэв маяг нь бусад ерөнхий зөвлөмжөөс ДАВАМГАЙЛНА. Зөрчилдвөл доорхийг дага:
+${lines.join('\n')}\n`;
+}
 
 /**
  * Natural conversation patterns - Makes AI feel human
@@ -884,6 +937,9 @@ export function buildSystemPrompt(context: ChatContext): string {
     // Cross-cutting controls injected after the per-shop info block.
     const cc = context.crossCutting;
     const brandVoiceSection = buildBrandVoiceSection(cc?.brand_voice);
+    // Owner-controlled reply style (assertiveness / length / emoji). Authoritative
+    // over HUMAN_LIKE_PATTERNS — see buildResponseStyleSection.
+    const responseStyleSection = buildResponseStyleSection(cc);
     const workingHoursSection = buildWorkingHoursSection(context.workingHoursStructured);
     const businessTypeSection = buildBusinessTypeSection(context.businessType, context.businessSetupData);
     const paymentMethodsInfo = buildPaymentMethodsSection(context);
@@ -1118,7 +1174,7 @@ ${roleGoal}
 ${emotionStyle}${brandVoiceSection}
 
 ${HUMAN_LIKE_PATTERNS}
-${shopInfo}${sharedInfo}${workingHoursSection}${businessTypeSection}${paymentMethodsInfo}${deliveryPolicyInfo}${slaSection}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${promotionsSection}${escalationSection}${customerGreeting}
+${responseStyleSection}${shopInfo}${sharedInfo}${workingHoursSection}${businessTypeSection}${paymentMethodsInfo}${deliveryPolicyInfo}${slaSection}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${promotionsSection}${escalationSection}${customerGreeting}
 
 ${rolePromptRules}
 

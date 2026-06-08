@@ -48,6 +48,13 @@ export interface FulfillmentSLA {
     refund_within_days?: number;
 }
 
+// Response-style tuning the shop owner controls directly. These counteract
+// the "too soft / can't close a sale" complaint by letting the owner dial in
+// how assertive, how long, and how emoji-heavy the AI's replies are.
+export type SalesAssertiveness = 'soft' | 'balanced' | 'assertive';
+export type ResponseLength = 'short' | 'medium' | 'long';
+export type EmojiUsage = 'none' | 'minimal' | 'frequent';
+
 // Cross-cutting AI behaviour controls. Stored under
 // shops.ai_agent_config.cross_cutting and applied to every business type.
 export interface CrossCuttingConfig {
@@ -57,6 +64,10 @@ export interface CrossCuttingConfig {
     supported_languages?: AISupportedLanguage[];
     seasonal_promotions?: SeasonalPromotion[];
     fulfillment_sla?: FulfillmentSLA;
+    // Owner-tunable reply style (see PromptService.buildResponseStyleSection).
+    sales_assertiveness?: SalesAssertiveness;
+    response_length?: ResponseLength;
+    emoji_usage?: EmojiUsage;
 }
 
 // Product types used in AI context

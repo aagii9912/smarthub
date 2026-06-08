@@ -20,7 +20,13 @@ import {
     FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { EMOTIONS } from '@/lib/constants/ai-setup';
+import {
+    EMOTIONS,
+    ASSERTIVENESS_OPTIONS,
+    RESPONSE_LENGTH_OPTIONS,
+    EMOJI_OPTIONS,
+    PERSONA_STYLE_DEFAULTS,
+} from '@/lib/constants/ai-setup';
 import { logger } from '@/lib/utils/logger';
 import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
@@ -40,6 +46,9 @@ import type {
     SeasonalPromotion,
     WeeklyHours,
     CrossCuttingConfig,
+    SalesAssertiveness,
+    ResponseLength,
+    EmojiUsage,
 } from '@/types/ai';
 
 const TABS = [
@@ -110,6 +119,66 @@ function ToggleRow({
     );
 }
 
+/**
+ * Segmented single-choice control used for the persona reply-style knobs
+ * (assertiveness / length / emoji). Each option shows an icon, label and a
+ * short helper line so the owner understands what the setting changes.
+ */
+function StyleSegment<T extends string>({
+    label,
+    options,
+    value,
+    onChange,
+}: {
+    label: string;
+    options: { value: T; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[];
+    value: T;
+    onChange: (v: T) => void;
+}) {
+    return (
+        <div>
+            <label className={labelCls}>{label}</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {options.map((opt) => {
+                    const selected = value === opt.value;
+                    const Icon = opt.icon;
+                    return (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onChange(opt.value)}
+                            className={cn(
+                                'relative flex flex-col items-start gap-1.5 rounded-xl border p-3.5 text-left transition-all',
+                                selected
+                                    ? 'border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)]'
+                                    : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.04]'
+                            )}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Icon
+                                    className={cn(
+                                        'w-4 h-4',
+                                        selected ? 'text-[var(--brand-indigo-400)]' : 'text-white/45'
+                                    )}
+                                />
+                                <span className="text-[12.5px] font-semibold text-foreground tracking-[-0.01em]">
+                                    {opt.label}
+                                </span>
+                                {selected && (
+                                    <Check className="w-3.5 h-3.5 ml-auto text-[var(--brand-indigo-400)]" strokeWidth={2} />
+                                )}
+                            </div>
+                            <span className="text-[11px] text-white/45 leading-snug">
+                                {opt.description}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 interface AdvancedSettingsProps {
     initialTab?: (typeof TABS)[number]['id'];
     onBack?: () => void;
@@ -122,6 +191,14 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
     // General
     const [aiEnabled, setAiEnabled] = useState(true);
     const [emotion, setEmotion] = useState('friendly');
+    // Owner-tunable reply style — persisted in cross_cutting (not a shop column).
+    const [salesAssertiveness, setSalesAssertiveness] = useState<SalesAssertiveness>(
+        PERSONA_STYLE_DEFAULTS.sales_assertiveness,
+    );
+    const [responseLength, setResponseLength] = useState<ResponseLength>(
+        PERSONA_STYLE_DEFAULTS.response_length,
+    );
+    const [emojiUsage, setEmojiUsage] = useState<EmojiUsage>(PERSONA_STYLE_DEFAULTS.emoji_usage);
     const [description, setDescription] = useState('');
     const [aiInstructions, setAiInstructions] = useState('');
     const [aiModel, setAiModel] = useState('flash-lite');
@@ -289,7 +366,16 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                     working_hours_structured: WeeklyHours | null;
                 };
                 setBusinessType(c.business_type);
-                setCrossCutting(c.cross_cutting ?? {});
+                const ccLoaded = c.cross_cutting ?? {};
+                setCrossCutting(ccLoaded);
+                // Hydrate the persona reply-style knobs from cross_cutting,
+                // falling back to sensible defaults for shops set up before
+                // these controls existed.
+                setSalesAssertiveness(
+                    ccLoaded.sales_assertiveness ?? PERSONA_STYLE_DEFAULTS.sales_assertiveness,
+                );
+                setResponseLength(ccLoaded.response_length ?? PERSONA_STYLE_DEFAULTS.response_length);
+                setEmojiUsage(ccLoaded.emoji_usage ?? PERSONA_STYLE_DEFAULTS.emoji_usage);
                 setWorkingHoursStructured(c.working_hours_structured ?? {});
                 setBusinessSetupData(c.business_setup_data ?? {});
             }
@@ -509,31 +595,51 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
     async function saveGeneral() {
         setSaving(true);
         try {
-            await fetch('/api/shop', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
-                body: JSON.stringify({
-                    is_ai_active: aiEnabled,
-                    ai_emotion: emotion,
-                    description,
-                    ai_instructions: aiInstructions,
-                    notify_on_order: notifyOnOrder,
-                    notify_on_contact: notifyOnContact,
-                    notify_on_support: notifyOnSupport,
-                    notify_on_cancel: notifyOnCancel,
-                    notify_on_complaints: notifyOnComplaints,
-                    notify_on_payment_received: notifyOnPaymentReceived,
-                    notify_on_payment_failed: notifyOnPaymentFailed,
-                    notify_on_refund: notifyOnRefund,
-                    notify_on_new_customer: notifyOnNewCustomer,
-                    notify_on_subscription: notifyOnSubscription,
-                    notify_on_automation: notifyOnAutomation,
-                    notify_on_plan_limit: notifyOnPlanLimit,
-                    notify_on_low_stock: notifyOnLowStock,
-                    notify_on_import: notifyOnImport,
+            // The persona reply-style knobs live in cross_cutting (JSONB), so we
+            // persist them via /api/ai-settings/config alongside the shop-column
+            // fields. Both PATCHes run in parallel; either failing is an error.
+            const stylePatch = {
+                sales_assertiveness: salesAssertiveness,
+                response_length: responseLength,
+                emoji_usage: emojiUsage,
+            };
+            const [shopRes, configRes] = await Promise.all([
+                fetch('/api/shop', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                    body: JSON.stringify({
+                        is_ai_active: aiEnabled,
+                        ai_emotion: emotion,
+                        description,
+                        ai_instructions: aiInstructions,
+                        notify_on_order: notifyOnOrder,
+                        notify_on_contact: notifyOnContact,
+                        notify_on_support: notifyOnSupport,
+                        notify_on_cancel: notifyOnCancel,
+                        notify_on_complaints: notifyOnComplaints,
+                        notify_on_payment_received: notifyOnPaymentReceived,
+                        notify_on_payment_failed: notifyOnPaymentFailed,
+                        notify_on_refund: notifyOnRefund,
+                        notify_on_new_customer: notifyOnNewCustomer,
+                        notify_on_subscription: notifyOnSubscription,
+                        notify_on_automation: notifyOnAutomation,
+                        notify_on_plan_limit: notifyOnPlanLimit,
+                        notify_on_low_stock: notifyOnLowStock,
+                        notify_on_import: notifyOnImport,
+                    }),
                 }),
-            });
-            toast.success('Ерөнхий тохиргоо хадгалагдлаа');
+                fetch('/api/ai-settings/config', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'x-shop-id': shopId },
+                    body: JSON.stringify({ cross_cutting: stylePatch }),
+                }),
+            ]);
+            if (!shopRes.ok || !configRes.ok) {
+                throw new Error('PATCH failed');
+            }
+            // Keep the local cross_cutting copy in sync so other tabs see the change.
+            setCrossCutting((prev) => ({ ...prev, ...stylePatch }));
+            toast.success('Тохиргоо хадгалагдлаа');
         } catch {
             toast.error('Алдаа гарлаа');
         } finally {
@@ -814,39 +920,74 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                         </div>
                     </div>
 
-                    {/* Emotion */}
-                    <div>
-                        <label className={labelCls}>AI зан төлөв</label>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            {EMOTIONS.map((e) => {
-                                const selected = emotion === e.value;
-                                return (
-                                    <button
-                                        key={e.value}
-                                        onClick={() => setEmotion(e.value)}
-                                        className={cn(
-                                            'p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all',
-                                            selected
-                                                ? 'border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)]'
-                                                : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.04]'
-                                        )}
-                                    >
-                                        <e.icon
-                                            className={cn(
-                                                'w-6 h-6 mb-2',
-                                                selected
-                                                    ? 'text-[var(--brand-indigo-400)]'
-                                                    : 'text-white/45'
-                                            )}
-                                            strokeWidth={1.5}
-                                        />
-                                        <span className="text-[11px] font-medium text-foreground text-center leading-tight tracking-[-0.01em]">
-                                            {e.label}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                    {/* ── Хэв маяг (Reply style) ── */}
+                    <div className="space-y-5 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-5">
+                        <div>
+                            <h4 className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
+                                Хариултын хэв маяг
+                            </h4>
+                            <p className="text-[12px] text-white/45 mt-1 leading-relaxed">
+                                AI хэрхэн ярихыг та өөрөө тохируулна. Хэрэв AI{' '}
+                                <strong className="text-white/65">хэт зөөлөн</strong> санагдаж байвал
+                                «Борлуулалтын зан»-г <strong className="text-white/65">Шулуухан</strong> болгож,
+                                захиалга руу илүү идэвхтэй хөтлүүлээрэй.
+                            </p>
                         </div>
+
+                        {/* Өнгө аяс (emotion) */}
+                        <div>
+                            <label className={labelCls}>Өнгө аяс</label>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                {EMOTIONS.map((e) => {
+                                    const selected = emotion === e.value;
+                                    return (
+                                        <button
+                                            key={e.value}
+                                            type="button"
+                                            onClick={() => setEmotion(e.value)}
+                                            className={cn(
+                                                'p-4 rounded-xl border text-center flex flex-col items-center justify-center transition-all',
+                                                selected
+                                                    ? 'border-[var(--border-accent)] bg-[color-mix(in_oklab,var(--brand-indigo)_10%,transparent)]'
+                                                    : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.04]'
+                                            )}
+                                        >
+                                            <e.icon
+                                                className={cn(
+                                                    'w-6 h-6 mb-2',
+                                                    selected
+                                                        ? 'text-[var(--brand-indigo-400)]'
+                                                        : 'text-white/45'
+                                                )}
+                                                strokeWidth={1.5}
+                                            />
+                                            <span className="text-[11px] font-medium text-foreground text-center leading-tight tracking-[-0.01em]">
+                                                {e.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <StyleSegment
+                            label="Борлуулалтын зан"
+                            options={ASSERTIVENESS_OPTIONS}
+                            value={salesAssertiveness}
+                            onChange={setSalesAssertiveness}
+                        />
+                        <StyleSegment
+                            label="Хариултын урт"
+                            options={RESPONSE_LENGTH_OPTIONS}
+                            value={responseLength}
+                            onChange={setResponseLength}
+                        />
+                        <StyleSegment
+                            label="Emoji хэрэглээ"
+                            options={EMOJI_OPTIONS}
+                            value={emojiUsage}
+                            onChange={setEmojiUsage}
+                        />
                     </div>
 
                     <div>
@@ -861,7 +1002,7 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
 
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
-                            <label className={labelCls} style={{ marginBottom: 0 }}>Нарийвчилсан заавар (System Prompt)</label>
+                            <label className={labelCls} style={{ marginBottom: 0 }}>Өөрийн заавар / Промпт</label>
                             <div className="flex items-center gap-1.5">
                                 {aiInstructions.trim() ? (
                                     <button
@@ -934,11 +1075,17 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
                             </div>
                         )}
 
+                        <p className="text-[12px] text-white/45 mb-2 leading-relaxed">
+                            AI-д өгөх өөрийн дүрэм, хэллэгийг энд шууд бичнэ. Дээрх хэв маягийн тохиргоонд
+                            нэмэлтээр үйлчилнэ. Жишээ нь:{' '}
+                            <span className="text-white/60">«Үнэ асуувал эхлээд хямдралаа онцол», «Захиалга
+                            өгөхөөс өмнө утасны дугаар заавал ав», «Маркетингийн уриа: Чанар №1»</span>.
+                        </p>
                         <textarea
                             value={aiInstructions}
                             onChange={(e) => setAiInstructions(e.target.value)}
                             className={cn(inputCls, 'resize-none min-h-[120px] font-mono text-[12px]')}
-                            placeholder="Зөвхөн тусгай шаардлага байгаа үед л бичнэ үү (Optional)"
+                            placeholder="Жишээ: Хэрэглэгч эргэлзвэл 2 өөр сонголт санал болго. Захиалга баталгаажуулахдаа нийт дүн, хүргэлтийн хугацааг давтаж хэл."
                         />
                         <p className="text-[11px] text-white/30 mt-1.5">
                             AI-аар автоматаар бичүүлэх эсвэл одоогийн зааврыг сайжруулах боломжтой
@@ -1703,6 +1850,7 @@ interface AgentShopState {
     ai_setup_completed_at?: string | null;
     business_type?: BusinessType | null;
     description?: string | null;
+    ai_agent_config?: { cross_cutting?: CrossCuttingConfig | null } | null;
 }
 
 export default function AISettingsPage() {
@@ -1774,6 +1922,9 @@ export default function AISettingsPage() {
                     emotion: (shopState?.ai_emotion as 'friendly' | 'professional' | 'enthusiastic' | 'calm' | 'playful' | null) ?? null,
                     instructions: shopState?.ai_instructions ?? null,
                     description: shopState?.description ?? null,
+                    salesAssertiveness: shopState?.ai_agent_config?.cross_cutting?.sales_assertiveness ?? null,
+                    responseLength: shopState?.ai_agent_config?.cross_cutting?.response_length ?? null,
+                    emojiUsage: shopState?.ai_agent_config?.cross_cutting?.emoji_usage ?? null,
                 }}
                 onClose={shopState?.ai_setup_completed_at ? () => setView('overview') : undefined}
                 onComplete={() => {

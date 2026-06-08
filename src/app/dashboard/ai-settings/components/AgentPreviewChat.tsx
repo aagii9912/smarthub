@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { AGENT_ROLES } from '@/lib/ai/agents';
 import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
-import type { AIEmotion } from '@/types/ai';
+import type { AIEmotion, SalesAssertiveness, ResponseLength, EmojiUsage } from '@/types/ai';
 
 export interface AgentDraftConfig {
     agentRole: AgentRole;
@@ -14,6 +14,9 @@ export interface AgentDraftConfig {
     agentName?: string;
     emotion?: AIEmotion;
     instructions?: string;
+    salesAssertiveness?: SalesAssertiveness;
+    responseLength?: ResponseLength;
+    emojiUsage?: EmojiUsage;
 }
 
 interface PreviewMessage {

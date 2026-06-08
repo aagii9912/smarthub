@@ -31,7 +31,13 @@ import { routeToAI } from '@/lib/ai/AIRouter';
 import { getAIFeatures, mapShopProductsToAI } from '@/lib/webhook/services/shop.service';
 import { logger } from '@/lib/utils/logger';
 import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
-import type { AIEmotion } from '@/types/ai';
+import type {
+    AIEmotion,
+    SalesAssertiveness,
+    ResponseLength,
+    EmojiUsage,
+    CrossCuttingConfig,
+} from '@/types/ai';
 
 export async function POST(request: NextRequest) {
     try {
@@ -49,6 +55,9 @@ export async function POST(request: NextRequest) {
                 agentName?: string;
                 emotion?: AIEmotion;
                 instructions?: string;
+                salesAssertiveness?: SalesAssertiveness;
+                responseLength?: ResponseLength;
+                emojiUsage?: EmojiUsage;
             };
         };
 
@@ -77,6 +86,18 @@ export async function POST(request: NextRequest) {
             (shopRow as unknown as { products?: Parameters<typeof mapShopProductsToAI>[0] }).products,
         );
 
+        // Merge the saved cross_cutting config with the draft's reply-style
+        // overrides so the live preview reflects the unsaved knobs.
+        const savedCrossCutting =
+            ((shopRow as unknown as { ai_agent_config?: { cross_cutting?: CrossCuttingConfig | null } | null })
+                .ai_agent_config?.cross_cutting ?? {}) as CrossCuttingConfig;
+        const previewCrossCutting: CrossCuttingConfig = {
+            ...savedCrossCutting,
+            ...(draft.salesAssertiveness ? { sales_assertiveness: draft.salesAssertiveness } : {}),
+            ...(draft.responseLength ? { response_length: draft.responseLength } : {}),
+            ...(draft.emojiUsage ? { emoji_usage: draft.emojiUsage } : {}),
+        };
+
         const response = await routeToAI(
             body.message,
             {
@@ -92,6 +113,7 @@ export async function POST(request: NextRequest) {
                     draft.capabilities ??
                     (shopRow as unknown as { ai_agent_capabilities?: AgentCapability[] }).ai_agent_capabilities ?? ['sales'],
                 aiAgentName: draft.agentName ?? (shopRow as unknown as { ai_agent_name?: string | null }).ai_agent_name ?? undefined,
+                crossCutting: previewCrossCutting,
                 products,
                 customerName: 'Хэрэглэгч',
                 orderHistory: 0,

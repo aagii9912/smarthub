@@ -1,4 +1,31 @@
-import { Smile, Briefcase, Zap, Cloud, PartyPopper } from 'lucide-react';
+import {
+    Smile,
+    Briefcase,
+    Zap,
+    Cloud,
+    PartyPopper,
+    Feather,
+    Scale,
+    Target,
+    AlignLeft,
+    AlignCenter,
+    AlignJustify,
+    Ban,
+    Laugh,
+} from 'lucide-react';
+import type { ComponentType } from 'react';
+import type {
+    SalesAssertiveness,
+    ResponseLength,
+    EmojiUsage,
+} from '@/types/ai';
+
+type StyleOption<T> = {
+    value: T;
+    label: string;
+    description: string;
+    icon: ComponentType<{ className?: string }>;
+};
 
 export const TEMPLATES = {
     general: {
@@ -45,6 +72,40 @@ export const EMOTIONS = [
     { value: 'calm', label: 'Тайван 🧘', icon: Cloud },
     { value: 'playful', label: 'Тоглоомтой 🎮', icon: PartyPopper },
 ];
+
+/**
+ * Reply-style tuning shown to the shop owner. Shared by the dashboard
+ * persona tab and the onboarding wizard so labels stay in sync. The `value`
+ * is persisted to `cross_cutting` and mapped to prompt text in
+ * `PromptService.buildResponseStyleSection`.
+ */
+export const ASSERTIVENESS_OPTIONS: StyleOption<SalesAssertiveness>[] = [
+    { value: 'soft', label: 'Зөөлөн', description: 'Эелдэг, тулгахгүй. Хэрэглэгчид цаг өгнө', icon: Feather },
+    { value: 'balanced', label: 'Тэнцвэртэй', description: 'Тус болж, зохистой санал болгоно', icon: Scale },
+    { value: 'assertive', label: 'Шулуухан', description: 'Идэвхтэй санал болгож захиалга руу хөтөлнө', icon: Target },
+];
+
+export const RESPONSE_LENGTH_OPTIONS: StyleOption<ResponseLength>[] = [
+    { value: 'short', label: 'Богино', description: '1–2 өгүүлбэр, шууд гол санаа', icon: AlignLeft },
+    { value: 'medium', label: 'Дунд', description: 'Хэрэгцээт хэмжээгээр тайлбарлана', icon: AlignCenter },
+    { value: 'long', label: 'Дэлгэрэнгүй', description: 'Давуу тал, жишээтэй бүрэн тайлбар', icon: AlignJustify },
+];
+
+export const EMOJI_OPTIONS: StyleOption<EmojiUsage>[] = [
+    { value: 'none', label: 'Огт үгүй', description: 'Emoji ашиглахгүй, цэвэр текст', icon: Ban },
+    { value: 'minimal', label: 'Бага', description: 'Хааяа, зохистой хэмжээнд', icon: Smile },
+    { value: 'frequent', label: 'Их', description: 'Чөлөөтэй, хөгжилтэй өнгөтэй', icon: Laugh },
+];
+
+export const PERSONA_STYLE_DEFAULTS: {
+    sales_assertiveness: SalesAssertiveness;
+    response_length: ResponseLength;
+    emoji_usage: EmojiUsage;
+} = {
+    sales_assertiveness: 'balanced',
+    response_length: 'medium',
+    emoji_usage: 'minimal',
+};
 
 export const STEPS = [
     { id: 'identity', title: 'Бизнесийн төрөл' },

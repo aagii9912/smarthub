@@ -15,8 +15,9 @@ import {
     getDefaultTemplateForBusinessType,
 } from '@/lib/ai/agents';
 import { type BusinessType } from '@/lib/constants/business-types';
+import { PERSONA_STYLE_DEFAULTS } from '@/lib/constants/ai-setup';
 import type { AgentRole, AgentCapability } from '@/lib/ai/agents/types';
-import type { AIEmotion } from '@/types/ai';
+import type { AIEmotion, SalesAssertiveness, ResponseLength, EmojiUsage } from '@/types/ai';
 import type { ToolName } from '@/lib/ai/tools/definitions';
 
 const WIZARD_STEPS: WizardStep[] = [
@@ -36,6 +37,9 @@ interface AgentWizardProps {
         emotion?: AIEmotion | null;
         instructions?: string | null;
         description?: string | null;
+        salesAssertiveness?: SalesAssertiveness | null;
+        responseLength?: ResponseLength | null;
+        emojiUsage?: EmojiUsage | null;
         faqs?: FAQEntry[];
         enabledTools?: ToolName[] | null;
     };
@@ -64,6 +68,16 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
         initial.instructions || initTemplate.defaultInstructions,
     );
     const [description, setDescription] = useState(initial.description || '');
+    // Reply-style knobs — seeded from existing cross_cutting, else sensible defaults.
+    const [salesAssertiveness, setSalesAssertiveness] = useState<SalesAssertiveness>(
+        initial.salesAssertiveness || PERSONA_STYLE_DEFAULTS.sales_assertiveness,
+    );
+    const [responseLength, setResponseLength] = useState<ResponseLength>(
+        initial.responseLength || PERSONA_STYLE_DEFAULTS.response_length,
+    );
+    const [emojiUsage, setEmojiUsage] = useState<EmojiUsage>(
+        initial.emojiUsage || PERSONA_STYLE_DEFAULTS.emoji_usage,
+    );
     const [faqs, setFaqs] = useState<FAQEntry[]>(initial.faqs || []);
     const [enabledTools, setEnabledTools] = useState<ToolName[]>(initial.enabledTools || []);
     const [saving, setSaving] = useState(false);
@@ -87,8 +101,11 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
             agentName,
             emotion,
             instructions,
+            salesAssertiveness,
+            responseLength,
+            emojiUsage,
         }),
-        [role, capabilities, agentName, emotion, instructions],
+        [role, capabilities, agentName, emotion, instructions, salesAssertiveness, responseLength, emojiUsage],
     );
 
     const suggestedFaqs = useMemo(
@@ -123,7 +140,17 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
                     ai_instructions: instructions,
                     description,
                     ai_setup_completed_at: new Date().toISOString(),
-                    ai_agent_config: { enabled_tools: enabledTools },
+                    // Persist enabled tools + reply-style knobs together. /api/shop
+                    // replaces the ai_agent_config column wholesale, so both must
+                    // be written in this single payload.
+                    ai_agent_config: {
+                        enabled_tools: enabledTools,
+                        cross_cutting: {
+                            sales_assertiveness: salesAssertiveness,
+                            response_length: responseLength,
+                            emoji_usage: emojiUsage,
+                        },
+                    },
                 }),
             });
             if (!shopRes.ok) {
@@ -202,6 +229,12 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
                         onEmotionChange={setEmotion}
                         instructions={instructions}
                         onInstructionsChange={setInstructions}
+                        salesAssertiveness={salesAssertiveness}
+                        onSalesAssertivenessChange={setSalesAssertiveness}
+                        responseLength={responseLength}
+                        onResponseLengthChange={setResponseLength}
+                        emojiUsage={emojiUsage}
+                        onEmojiUsageChange={setEmojiUsage}
                     />
                 );
             case 2:

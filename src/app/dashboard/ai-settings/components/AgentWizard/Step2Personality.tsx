@@ -2,7 +2,12 @@
 
 import { Smile, Briefcase, Zap, Cloud, PartyPopper, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { AIEmotion } from '@/types/ai';
+import {
+    ASSERTIVENESS_OPTIONS,
+    RESPONSE_LENGTH_OPTIONS,
+    EMOJI_OPTIONS,
+} from '@/lib/constants/ai-setup';
+import type { AIEmotion, SalesAssertiveness, ResponseLength, EmojiUsage } from '@/types/ai';
 
 const EMOTION_OPTIONS: { value: AIEmotion; label: string; description: string; icon: React.ComponentType<{ className?: string }>; accent: string }[] = [
     { value: 'friendly', label: 'Найрсаг', description: 'Дотно, эелдэг, найз шиг ярьдаг', icon: Smile, accent: 'bg-emerald-100 text-emerald-700' },
@@ -19,6 +24,12 @@ interface Step2Props {
     onEmotionChange: (e: AIEmotion) => void;
     instructions: string;
     onInstructionsChange: (s: string) => void;
+    salesAssertiveness: SalesAssertiveness;
+    onSalesAssertivenessChange: (v: SalesAssertiveness) => void;
+    responseLength: ResponseLength;
+    onResponseLengthChange: (v: ResponseLength) => void;
+    emojiUsage: EmojiUsage;
+    onEmojiUsageChange: (v: EmojiUsage) => void;
 }
 
 export function Step2Personality({
@@ -28,6 +39,12 @@ export function Step2Personality({
     onEmotionChange,
     instructions,
     onInstructionsChange,
+    salesAssertiveness,
+    onSalesAssertivenessChange,
+    responseLength,
+    onResponseLengthChange,
+    emojiUsage,
+    onEmojiUsageChange,
 }: Step2Props) {
     return (
         <div className="max-w-2xl space-y-8">
@@ -97,6 +114,27 @@ export function Step2Personality({
                 </div>
             </section>
 
+            {/* Reply-style knobs — assertiveness / length / emoji */}
+            <Segment
+                label="Борлуулалтын зан"
+                hint="AI хэт зөөлөн санагдвал «Шулуухан» сонгоорой."
+                options={ASSERTIVENESS_OPTIONS}
+                value={salesAssertiveness}
+                onChange={onSalesAssertivenessChange}
+            />
+            <Segment
+                label="Хариултын урт"
+                options={RESPONSE_LENGTH_OPTIONS}
+                value={responseLength}
+                onChange={onResponseLengthChange}
+            />
+            <Segment
+                label="Emoji хэрэглээ"
+                options={EMOJI_OPTIONS}
+                value={emojiUsage}
+                onChange={onEmojiUsageChange}
+            />
+
             {/* Custom instructions */}
             <section>
                 <label className="block text-[11.5px] font-semibold text-white/55 uppercase tracking-[0.08em] mb-2">
@@ -115,5 +153,56 @@ export function Step2Personality({
                 </p>
             </section>
         </div>
+    );
+}
+
+/**
+ * Dark-themed single-choice segment for the wizard reply-style knobs.
+ */
+function Segment<T extends string>({
+    label,
+    hint,
+    options,
+    value,
+    onChange,
+}: {
+    label: string;
+    hint?: string;
+    options: { value: T; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[];
+    value: T;
+    onChange: (v: T) => void;
+}) {
+    return (
+        <section>
+            <label className="block text-[11.5px] font-semibold text-white/55 uppercase tracking-[0.08em] mb-2">
+                {label}
+            </label>
+            {hint && <p className="text-[11px] text-white/40 -mt-1 mb-2">{hint}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {options.map((opt) => {
+                    const isActive = value === opt.value;
+                    const Icon = opt.icon;
+                    return (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onChange(opt.value)}
+                            className={cn(
+                                'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all',
+                                isActive
+                                    ? 'border-[var(--brand-indigo,#4A7CE7)] bg-[var(--brand-indigo,#4A7CE7)]/[0.08]'
+                                    : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]',
+                            )}
+                        >
+                            <span className="flex items-center gap-1.5">
+                                <Icon className={cn('h-4 w-4', isActive ? 'text-[var(--brand-indigo,#4A7CE7)]' : 'text-white/45')} />
+                                <span className="text-[12.5px] font-semibold text-foreground tracking-tight">{opt.label}</span>
+                            </span>
+                            <span className="text-[11px] text-white/45 leading-snug">{opt.description}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </section>
     );
 }

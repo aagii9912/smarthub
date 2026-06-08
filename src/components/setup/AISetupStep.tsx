@@ -4,9 +4,17 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Check, RefreshCw, ChevronRight, ChevronLeft, Sparkles, Layers, ShoppingCart, CalendarCheck, Info, LifeBuoy, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Textarea, Input } from '@/components/ui/Input';
-import { EMOTIONS, STEPS } from '@/lib/constants/ai-setup';
+import {
+    EMOTIONS,
+    STEPS,
+    ASSERTIVENESS_OPTIONS,
+    RESPONSE_LENGTH_OPTIONS,
+    EMOJI_OPTIONS,
+    PERSONA_STYLE_DEFAULTS,
+} from '@/lib/constants/ai-setup';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { SalesAssertiveness, ResponseLength, EmojiUsage } from '@/types/ai';
 import {
     AGENT_ROLES,
     getRecommendedAgentForBusinessType,
@@ -68,6 +76,14 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
     const [description, setDescription] = useState(initialData.description || '');
     const [emotion, setEmotion] = useState(initialData.ai_emotion || template.defaultEmotion);
     const [instructions, setInstructions] = useState(initialData.ai_instructions || template.defaultInstructions);
+    // Owner-tunable reply style — saved to cross_cutting (see handleSave).
+    const [salesAssertiveness, setSalesAssertiveness] = useState<SalesAssertiveness>(
+        PERSONA_STYLE_DEFAULTS.sales_assertiveness,
+    );
+    const [responseLength, setResponseLength] = useState<ResponseLength>(
+        PERSONA_STYLE_DEFAULTS.response_length,
+    );
+    const [emojiUsage, setEmojiUsage] = useState<EmojiUsage>(PERSONA_STYLE_DEFAULTS.emoji_usage);
     const userEditedRef = useRef(Boolean(initialData.ai_instructions));
 
     // When the recommendation changes (e.g. user backs up and changes business
@@ -109,6 +125,19 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
     const handleSave = async () => {
         setLoading(true);
         try {
+            // Reply-style knobs live in cross_cutting (JSONB), persisted via the
+            // merge-safe config endpoint so we don't clobber other AI config.
+            await fetch('/api/ai-settings/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cross_cutting: {
+                        sales_assertiveness: salesAssertiveness,
+                        response_length: responseLength,
+                        emoji_usage: emojiUsage,
+                    },
+                }),
+            });
             await onSave({
                 description,
                 ai_emotion: emotion,
@@ -245,6 +274,27 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Reply-style knobs — lets the owner avoid an over-soft AI */}
+                            <StyleChoice
+                                label="Борлуулалтын зан"
+                                hint="AI хэт зөөлөн санагдвал «Шулуухан» сонгоорой."
+                                options={ASSERTIVENESS_OPTIONS}
+                                value={salesAssertiveness}
+                                onChange={setSalesAssertiveness}
+                            />
+                            <StyleChoice
+                                label="Хариултын урт"
+                                options={RESPONSE_LENGTH_OPTIONS}
+                                value={responseLength}
+                                onChange={setResponseLength}
+                            />
+                            <StyleChoice
+                                label="Emoji хэрэглээ"
+                                options={EMOJI_OPTIONS}
+                                value={emojiUsage}
+                                onChange={setEmojiUsage}
+                            />
                         </div>
                     )}
 
@@ -301,6 +351,57 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                         </Button>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Light-themed single-choice control for the onboarding reply-style knobs
+ * (assertiveness / length / emoji). Mirrors the dashboard's StyleSegment but
+ * styled for the white /setup wizard.
+ */
+function StyleChoice<T extends string>({
+    label,
+    hint,
+    options,
+    value,
+    onChange,
+}: {
+    label: string;
+    hint?: string;
+    options: { value: T; label: string; description: string; icon: React.ComponentType<{ className?: string }> }[];
+    value: T;
+    onChange: (v: T) => void;
+}) {
+    return (
+        <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-900">{label}</label>
+            {hint && <p className="text-xs text-gray-500 -mt-1">{hint}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {options.map((opt) => {
+                    const selected = value === opt.value;
+                    const Icon = opt.icon;
+                    return (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onChange(opt.value)}
+                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${selected
+                                ? 'bg-violet-50 border-violet-400 ring-1 ring-violet-300'
+                                : 'bg-white border-gray-200 hover:border-violet-200 shadow-sm'
+                                }`}
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <Icon className={`w-4 h-4 ${selected ? 'text-violet-600' : 'text-gray-400'}`} />
+                                <span className={`text-[13px] font-semibold ${selected ? 'text-violet-700' : 'text-gray-700'}`}>
+                                    {opt.label}
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-gray-500 leading-snug">{opt.description}</span>
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

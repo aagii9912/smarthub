@@ -8,7 +8,9 @@ import {
     buildFAQSection,
     buildSloganSection,
     buildSystemPrompt,
+    buildResponseStyleSection,
 } from '../services/PromptService';
+import { getRoleTitle, getRoleGoalLine } from '../agents/registry';
 import type { ChatContext } from '@/types/ai';
 
 describe('PromptService', () => {
@@ -226,7 +228,11 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('Test Shop');
-            expect(result).toContain('борлуулалтын мэргэжилтэн');
+            // Opening line + goal now come from the sales role in the agent
+            // registry (buildRolePromptRules), not the legacy basicRules block.
+            expect(result).toContain(getRoleTitle('sales'));
+            expect(result).toContain(getRoleGoalLine('sales'));
+            // Rule markers emitted by the role registry's sales rules.
             expect(result).toContain('ЧУХАЛ ДҮРЭМ');
             expect(result).toContain('ХЯЗГААРЛАЛТ');
         });
@@ -256,6 +262,46 @@ describe('PromptService', () => {
             const result = buildSystemPrompt(context);
 
             expect(result).toContain('урам зоригтой');
+        });
+
+        it('injects owner reply-style controls (assertive / short / no emoji)', () => {
+            const context: ChatContext = {
+                shopId: 'shop1',
+                shopName: 'Test Shop',
+                products: [],
+                crossCutting: {
+                    sales_assertiveness: 'assertive',
+                    response_length: 'short',
+                    emoji_usage: 'none',
+                },
+            };
+            const result = buildSystemPrompt(context);
+
+            expect(result).toContain('ХАРИУЛТЫН ХЭВ МАЯГ');
+            expect(result).toContain('ШУЛУУХАН');
+            expect(result).toContain('БОГИНО');
+            expect(result).toContain('ОГТ ҮГҮЙ');
+        });
+    });
+
+    describe('buildResponseStyleSection', () => {
+        it('returns empty when nothing is configured', () => {
+            expect(buildResponseStyleSection()).toBe('');
+            expect(buildResponseStyleSection({})).toBe('');
+        });
+
+        it('renders the assertive directive against an over-soft AI', () => {
+            const result = buildResponseStyleSection({ sales_assertiveness: 'assertive' });
+            expect(result).toContain('ХАРИУЛТЫН ХЭВ МАЯГ');
+            expect(result).toContain('Шулуун зан');
+            expect(result).toContain('ИДЭВХТЭЙ');
+        });
+
+        it('only includes the knobs that are set', () => {
+            const result = buildResponseStyleSection({ response_length: 'long' });
+            expect(result).toContain('ДЭЛГЭРЭНГҮЙ');
+            expect(result).not.toContain('Шулуун зан');
+            expect(result).not.toContain('Emoji');
         });
     });
 });
