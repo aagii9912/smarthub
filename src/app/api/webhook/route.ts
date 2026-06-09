@@ -590,7 +590,38 @@ export async function POST(request: NextRequest) {
                         const productName = payload.replace('DETAILS_', '');
                         userMessage = `${productName}-ийн талаар дэлгэрэнгүй хэлж өгнө үү`;
                     } else if (payload === 'CHECKOUT') {
-                        userMessage = 'QPay-ээр шууд төлнө';
+                        // Deterministically send the editable checkout-review link
+                        // (bypass the AI, same reasoning as VIEW_CART below). Tapping
+                        // "💳 Төлбөр төлөх" opens /checkout/<cartId> where the customer
+                        // can review, add/remove items, set delivery, and then pay —
+                        // instead of jumping straight to a locked payment invoice.
+                        try {
+                            const { getCartFromDB } = await import('@/lib/ai/helpers/stockHelpers');
+                            const cart = await getCartFromDB(shop.id, customer.id);
+                            if (!cart || cart.items.length === 0) {
+                                await sendTextMessage({
+                                    recipientId: senderId,
+                                    message: '🛒 Сагс хоосон байна. Аль бараагаа авмаар байгаагаа хэлээрэй.',
+                                    pageAccessToken: accessToken,
+                                    authType: igAuthType,
+                                });
+                            } else {
+                                const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.syncly.mn';
+                                const checkoutLink = `${siteUrl}/checkout/${cart.id}`;
+                                await sendTextMessage({
+                                    recipientId: senderId,
+                                    message: `🛒 Захиалгаа доорх линкээр шалгаад төлбөрөө төлнө үү — бараа нэмэх/хасах, тоо ширхэг өөрчлөх боломжтой:\n${checkoutLink}`,
+                                    pageAccessToken: accessToken,
+                                    authType: igAuthType,
+                                });
+                            }
+                        } catch (checkoutLinkErr) {
+                            logger.warn('Direct CHECKOUT link failed, falling back to AI', {
+                                error: String(checkoutLinkErr),
+                            });
+                            userMessage = 'Захиалгаа шалгах төлбөрийн линк илгээнэ үү';
+                        }
+                        if (!userMessage) continue;
                     } else if (payload === 'CHECKOUT_COD') {
                         userMessage = 'Хүргэлтээр авч төлнө';
                     } else if (payload === 'CHECKOUT_BANK') {
