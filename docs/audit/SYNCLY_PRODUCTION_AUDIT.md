@@ -141,6 +141,8 @@ shop_id шүүлтийг мартвал **cross-shop data leak**. Жишээ: `S
 2. **Stock trigger double-deduction conflict** — `20260424110000_atomic_stock_deduction.sql:18-19`
    нь `trigger_decrement_stock_on_paid`-г зориудаар `DROP` хийж, app-driven idempotent
    RPC болгож нэг эх сурвалжтай болгосон. Conflict **зориуд шийдэгдсэн**.
+3. **`pending_messages(processed)` index дутуу** — `20260201000000_add_pending_messages.sql:20`
+   дотор partial index аль хэдийн байгаа (дэлгэрэнгүйг §6). Index нэмэх шаардлагагүй.
 
 ---
 
@@ -238,8 +240,13 @@ threshold нэмэх.
 - 🟢 AI үйлдлүүдэд APM (Sentry transaction) нэмж token/latency хэмжих.
 
 ### 🟡 Performance / Scalability
-- `cron/process-messages` 5 сек тутам (~17,280/өдөр); `pending_messages(processed)`
-  index дутуу → linear scan. → Index нэмж interval 15-30 сек болгох.
+- `cron/process-messages` 5 сек тутам (~17,280/өдөр) ажилладаг → interval-ийг 15-30 сек
+  болгох нь cold-start/invocation cost бууруулна.
+  ⚠️ *Тэмдэглэл:* Анхны сканнер "`pending_messages(processed)` index дутуу → linear scan"
+  гэсэн нь **FALSE POSITIVE** — `20260201000000_add_pending_messages.sql:20` дотор
+  `idx_pending_messages_process (process_after, processed) WHERE processed=FALSE` partial
+  index аль хэдийн байгаа бөгөөд cron query-г (`processed=false AND process_after<=now`)
+  бүрэн хангадаг.
 - Гадаад CDN зураг (fbcdn/cdninstagram) optimize хийгдээгүй; above-fold-д `priority`.
 - Rate-limiter in-memory fallback (`Map`) Redis унавал хязгааргүй өснө → cleanup.
 
@@ -263,7 +270,7 @@ threshold нэмэх.
 | 12 | 🟡 MEDIUM | RLS policy цоорхой / зөрүүтэй pattern | олон migration |
 | 13 | 🟡 MEDIUM | order_items `quantity>0` CHECK дутуу | `001_initial_schema_safe.sql` |
 | 14 | 🟡 MEDIUM | i18n хагас (hardcoded монгол string) | `dashboard/page.tsx` г.м. |
-| 15 | 🟡 MEDIUM | cron 5 сек + `pending_messages(processed)` index дутуу | `cron/process-messages` |
+| 15 | 🟡 MEDIUM | cron 5 сек тутам — interval-ийг сулруулах (index аль хэдийн бий) | `cron/process-messages` |
 | 16 | 🟡 MEDIUM | Том компонент / давхардал | `SubscriptionStep.tsx`, `ProductForm.tsx` |
 | 17 | 🟡 MEDIUM | Production `console.*` + structured logging дутуу | `middleware.ts` г.м. |
 | 18 | 🟡 MEDIUM | Critical-path E2E дутуу (payment/order/subscription) | `e2e/` |
@@ -308,12 +315,25 @@ bulk reservation · ✅ 112 DB index · ✅ Sentry (client/server/edge) + health
 
 ---
 
-## 10. Quick Wins (≤1 цаг тус бүр)
+## 10. Quick Wins
 
-Хүсвэл дараагийн алхамд тусдаа branch дээр хийж болох бага эрсдэлтэй засварууд:
-`Promise.all()` delete-үүд · rate-limit key-д user_id · `ai-settings` Zod enum ·
-`order_items` `CHECK (quantity>0)` · `pending_messages(processed, created_at)` index ·
-production `console.*` → `logger.*`.
+### ✅ Энэ PR-д хийгдсэн
+- **x-shop-id fallback устгасан** (CRITICAL #2) — `api/dashboard/customers/route.ts`
+  DELETE одоо `authShop`-ийг заавал шаардана (GET/PATCH-тэй ижил).
+- **Sequential delete → `Promise.all()`** — `api/shop/route.ts` (~18 table cleanup) ба
+  `api/dashboard/customers/route.ts` (3 related-table delete).
+- **`ai-settings` POST Zod validation** — type discriminated-union + required талбар
+  шалгалт (null insert хаасан); PATCH/DELETE-д enum guard.
+- **`order_items` `CHECK (quantity > 0)`** — `20260609000000_order_items_quantity_check.sql`
+  (cart_items-тэй parity; idempotent + defensive repair).
+
+### ⏭️ Зориуд хойшлуулсан (шалтгаантай)
+- **Rate-limit key-д user_id** — middleware-д rate-limit нь auth-аас **өмнө** ажилладаг
+  (`middleware.ts:81`). user_id нэмэхэд request бүрд getUser нэмэгдэх → §1.3 (round-trip
+  багасгах) зөвлөмжтэй зөрчилдөнө. Subscription-cache ажлын хүрээнд хамт хийх нь зөв.
+- **`console.*` → `logger.*`** — `middleware.ts`-ийн console нь **edge runtime**; logger
+  edge-safe эсэхийг шалгах шаардлагатай тул тусдаа PR-д аюулгүй хийнэ.
+- **`pending_messages` index** — шаардлагагүй (§6 — аль хэдийн бий).
 
 ---
 
