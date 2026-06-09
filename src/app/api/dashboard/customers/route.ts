@@ -120,12 +120,10 @@ export async function DELETE(request: NextRequest) {
   try {
     const authShop = await getAuthUserShop();
     if (!authShop) {
-      // Fallback: x-shop-id header
-      const shopId = request.headers.get('x-shop-id');
-      if (!shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const shopId = authShop?.id || request.headers.get('x-shop-id')!;
+    const shopId = authShop.id;
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('id');
 
@@ -147,10 +145,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Delete related records first
-    await supabase.from('chat_history').delete().eq('customer_id', customerId);
-    await supabase.from('cart_items').delete().eq('customer_id', customerId);
-    await supabase.from('customer_complaints').delete().eq('customer_id', customerId);
+    // Delete related records first (in parallel — independent tables)
+    await Promise.all([
+      supabase.from('chat_history').delete().eq('customer_id', customerId),
+      supabase.from('cart_items').delete().eq('customer_id', customerId),
+      supabase.from('customer_complaints').delete().eq('customer_id', customerId),
+    ]);
 
     // Delete customer
     const { error } = await supabase

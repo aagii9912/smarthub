@@ -580,9 +580,12 @@ export async function DELETE(request: NextRequest) {
       'subscriptions',
     ];
 
-    for (const table of tablesToClean) {
-      await supabase.from(table).delete().eq('shop_id', shopId);
-    }
+    // Independent tables — delete in parallel to avoid serial round-trip latency
+    await Promise.all(
+      tablesToClean.map((table) =>
+        supabase.from(table).delete().eq('shop_id', shopId)
+      )
+    );
 
     // NOTE: QPay merchant intentionally NOT removed.
     // Merchants are scoped by register_number on QPay's side (not by shop), so:

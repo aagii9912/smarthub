@@ -4,9 +4,37 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+
+// Allowed setting types — single source of truth for POST/PATCH/DELETE
+const AI_SETTING_TYPE = z.enum(['faqs', 'quick_replies', 'slogans']);
+
+// POST payload validation per type (prevents inserting null/empty required fields)
+const triggerWords = z.union([z.array(z.string()), z.string()]);
+const aiSettingPostSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('faqs'),
+        question: z.string().trim().min(1),
+        answer: z.string().trim().min(1),
+        category: z.string().optional(),
+        sort_order: z.number().int().optional(),
+    }),
+    z.object({
+        type: z.literal('quick_replies'),
+        name: z.string().trim().min(1),
+        trigger_words: triggerWords,
+        response: z.string().trim().min(1),
+        is_exact_match: z.boolean().optional(),
+    }),
+    z.object({
+        type: z.literal('slogans'),
+        slogan: z.string().trim().min(1),
+        usage_context: z.string().optional(),
+    }),
+]);
 
 // GET - Fetch all AI settings (FAQs, Quick Replies, Slogans, Stats)
 export async function GET(request: NextRequest) {
@@ -129,11 +157,16 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { type, ...data } = body;
+        const parsed = aiSettingPostSchema.safeParse(body);
 
-        if (!type) {
-            return NextResponse.json({ error: 'Type is required (faqs, quick_replies, slogans)' }, { status: 400 });
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: 'Invalid input', details: parsed.error.issues.map((i) => i.message) },
+                { status: 400 }
+            );
         }
+
+        const { type, ...data } = parsed.data as { type: string } & Record<string, any>;
 
         const supabase = supabaseAdmin();
         let tableName: string;
@@ -205,6 +238,10 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Type and ID are required' }, { status: 400 });
         }
 
+        if (!AI_SETTING_TYPE.safeParse(type).success) {
+            return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+        }
+
         const supabase = supabaseAdmin();
         let tableName: string;
 
@@ -258,6 +295,10 @@ export async function DELETE(request: NextRequest) {
 
         if (!type || !id) {
             return NextResponse.json({ error: 'Type and ID are required' }, { status: 400 });
+        }
+
+        if (!AI_SETTING_TYPE.safeParse(type).success) {
+            return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
         }
 
         const supabase = supabaseAdmin();
