@@ -50,6 +50,19 @@ describe('CartHandlers', () => {
         vi.mocked(addItemToCart).mockResolvedValue({ success: true, newQuantity: 1 } as any);
         vi.mocked(getCartFromDB).mockResolvedValue(null);
         mockSupabase.rpc.mockResolvedValue({ data: 100000, error: null });
+
+        // Default chainable `from()` so executeAddToCart's stale-cart guard
+        // (supabase.from('cart_items').select('id, created_at').eq('cart_id', cartId))
+        // resolves cleanly. `.eq` returns an empty array => no stale items, so the
+        // guard never fires the delete branch. Tests that need the delete path
+        // (executeRemoveFromCart) override mockSupabase.from with their own mock.
+        const chain: any = {};
+        chain.select = vi.fn().mockReturnValue(chain);
+        chain.eq = vi.fn().mockResolvedValue({ data: [], error: null });
+        chain.delete = vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+        });
+        mockSupabase.from.mockReturnValue(chain);
     });
 
     // ─── add_to_cart ─────────────────────────────────────────────

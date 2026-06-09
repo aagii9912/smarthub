@@ -73,11 +73,11 @@ describe('Order Flow Integration', () => {
         },
     };
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-
-        // Setup default mock behavior
-        mockSupabase.from.mockReturnValue({
+    // Generic chainable used for product/order/customer/payment style queries.
+    // Mirrors handler-order.test.ts: every chain method returns the chain and
+    // the terminal calls resolve to sensible defaults.
+    function buildGenericChain() {
+        return {
             select: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
                     eq: vi.fn().mockReturnValue({
@@ -96,6 +96,8 @@ describe('Order Flow Integration', () => {
                         error: null
                     }),
                 }),
+                // performCheckout looks up products in bulk via .in('id', ids)
+                in: vi.fn().mockResolvedValue({ data: [], error: null }),
             }),
             insert: vi.fn().mockReturnValue({
                 select: vi.fn().mockReturnValue({
@@ -111,7 +113,54 @@ describe('Order Flow Integration', () => {
             delete: vi.fn().mockReturnValue({
                 eq: vi.fn().mockResolvedValue({ error: null }),
             }),
+        };
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        // Table-aware default: `shops` returns a real owner row + a valid
+        // Mongolian phone so executeRequestSupport can surface its «Залгах»
+        // button (it now reads shops.user_id/name and shops.phone, and bails
+        // out with success:false when no business phone is configured).
+        // Every other table falls back to the generic product/order chain so
+        // the cart + checkout flows keep working unchanged.
+        mockSupabase.from.mockImplementation((table: string) => {
+            if (table === 'shops') {
+                return {
+                    select: vi.fn().mockReturnValue({
+                        eq: vi.fn().mockReturnValue({
+                            single: vi.fn().mockResolvedValue({
+                                data: {
+                                    id: 'shop-123',
+                                    user_id: 'user-789',
+                                    name: 'Test Shop',
+                                    phone: '99001122',
+                                    accepted_payment_methods: { cod: true, qpay: true, bank_transfer: true },
+                                    account_number: null,
+                                },
+                                error: null,
+                            }),
+                        }),
+                    }),
+                };
+            }
+            if (table === 'customer_complaints') {
+                return {
+                    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+                };
+            }
+            return buildGenericChain();
         });
+
+        // executeRequestSupport reads shop owner email via the admin auth API;
+        // it is wrapped in try/catch but provide a benign stub so it doesn't
+        // throw and we stay on the happy path.
+        (mockSupabase as Record<string, unknown>).auth = {
+            admin: {
+                getUserById: vi.fn().mockResolvedValue({ data: { user: { email: null } }, error: null }),
+            },
+        };
 
         mockSupabase.rpc.mockResolvedValue({ data: 'cart-123', error: null });
     });
@@ -257,6 +306,23 @@ describe('Order Flow Integration', () => {
             );
 
             expect(result.success).toBe(true);
+            expect(result.message).toContain('Дэлгүүрийн эзэнд мэдэгдэл илгээлээ');
+            // The configured shop phone (99001122 → +97699001122) must surface
+            // as a tap-to-call «Залгах» button.
+            expect(result.actions).toEqual([
+                {
+                    type: 'support_actions',
+                    buttons: [
+                        {
+                            id: 'call_phone',
+                            label: '📞 Залгах',
+                            icon: 'phone',
+                            variant: 'secondary',
+                            payload: 'CALL:+97699001122',
+                        },
+                    ],
+                },
+            ]);
         });
     });
 

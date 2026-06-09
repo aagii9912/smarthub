@@ -3,7 +3,7 @@
  *
  * If a developer adds a new TokenFeature in src/lib/ai/tokenFeatures.ts
  * but forgets to add it to the SQL seed in
- * supabase/migrations/20260428_token_feature_breakdown.sql, the FK in
+ * supabase/migrations/20260428000000_token_feature_breakdown.sql, the FK in
  * shop_token_usage_daily.feature → token_feature_categories.key will
  * blow up at runtime when the AI call site is invoked. This test reads
  * both files and asserts every TS constant has a matching INSERT row.
@@ -16,10 +16,10 @@ import { TOKEN_FEATURES } from '@/lib/ai/tokenFeatures';
 
 const MIGRATION_PATH = resolve(
     __dirname,
-    '../../../../supabase/migrations/20260428_token_feature_breakdown.sql'
+    '../../../../supabase/migrations/20260428000000_token_feature_breakdown.sql'
 );
 
-describe('migration parity — tokenFeatures.ts ↔ 20260428_token_feature_breakdown.sql', () => {
+describe('migration parity — tokenFeatures.ts ↔ 20260428000000_token_feature_breakdown.sql', () => {
     const sql = readFileSync(MIGRATION_PATH, 'utf-8');
 
     it('migration file is non-empty and contains the seed INSERT', () => {

@@ -81,14 +81,20 @@ describe('ProductHandlers', () => {
             expect(result.imageAction?.type).toBe('confirm');
         });
 
-        it('should use placeholder for products without images', () => {
+        it('should fail (no placeholder) for products without images', () => {
+            // USB-C кабель has image_url: null and images: [] in fixtures.
+            // The handler no longer fabricates a placehold.co URL — it skips
+            // imageless products and, when none remain, returns an explicit
+            // failure so the AI tells the customer no image exists yet.
             const result = executeShowProductImage(
                 { product_names: ['USB-C кабель'], mode: 'single' },
                 ctx
             );
 
-            expect(result.success).toBe(true);
-            expect(result.imageAction?.products[0].imageUrl).toContain('placehold');
+            expect(result.success).toBe(false);
+            expect(result.imageAction).toBeUndefined();
+            expect(result.error).toContain('зураг одоогоор оруулагдаагүй');
+            expect(result.error).toContain('USB-C кабель');
         });
 
         it('should fail for non-existent products', () => {

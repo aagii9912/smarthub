@@ -111,15 +111,19 @@ describe('ToolExecutor', () => {
             expect(result.imageAction?.type).toBe('confirm');
         });
 
-        it('should use placeholder for products without images', () => {
+        it('should report missing image for products without images', () => {
             const result = executeShowProductImage(
                 { product_names: ['No Image Product'], mode: 'single' },
                 mockContext
             );
 
-            // Now uses placeholder fallback instead of error
-            expect(result.success).toBe(true);
-            expect(result.imageAction?.products[0].imageUrl).toContain('placehold');
+            // Products without an image no longer get a placehold.co fallback —
+            // that tricked the AI into claiming an image existed. The handler now
+            // returns success:false with an honest "no image" error so the AI tells
+            // the customer there is no image yet.
+            expect(result.success).toBe(false);
+            expect(result.imageAction).toBeUndefined();
+            expect(result.error).toContain('зураг');
         });
 
         it('should handle partial name matching', () => {

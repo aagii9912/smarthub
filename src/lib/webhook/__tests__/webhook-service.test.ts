@@ -75,6 +75,15 @@ describe('WebhookService', () => {
                 support: true,
                 cancel: true,
                 complaints: true,
+                payment_received: true,
+                payment_failed: true,
+                refund: true,
+                new_customer: true,
+                subscription: true,
+                automation: true,
+                plan_limit: true,
+                low_stock: true,
+                import: true,
             });
         });
 
@@ -99,6 +108,15 @@ describe('WebhookService', () => {
                 support: false,
                 cancel: true,
                 complaints: false,
+                payment_received: true,
+                payment_failed: true,
+                refund: true,
+                new_customer: true,
+                subscription: true,
+                automation: true,
+                plan_limit: true,
+                low_stock: true,
+                import: true,
             });
         });
     });
