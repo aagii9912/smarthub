@@ -711,3 +711,24 @@ body {
   ::-webkit-scrollbar-thumb  { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 }
+
+/* ═══════════════════════════════════════════════
+   /zaawar — mind map хөдөлгөөн
+   (styled-jsx-ээс нүүлгэсэн: SSR HTML-д шууд орж,
+   глобал prefers-reduced-motion override үйлчилнэ)
+   ═══════════════════════════════════════════════ */
+@keyframes zw-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.zw-float {
+  animation-name: zw-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.zw-float:hover { animation-play-state: paused; }
+
+@keyframes zw-dash {
+  to { stroke-dashoffset: -48; }
+}
+.zw-dash { animation: zw-dash 4s linear infinite; }

@@ -21,6 +21,7 @@ export function Navbar() {
           <a href="#features" className="hover:text-white transition-colors duration-200">Боломжууд</a>
           <a href="#pricing" className="hover:text-white transition-colors duration-200">Үнэ</a>
           <a href="#faq" className="hover:text-white transition-colors duration-200">Түгээмэл асуулт</a>
+          <Link href="/zaawar" className="hover:text-white transition-colors duration-200">Заавар</Link>
         </div>
 
         <div className="hidden md:flex items-center gap-3">
@@ -49,6 +50,7 @@ export function Navbar() {
           <a href="#features" className="block text-sm text-slate-400 hover:text-white">Боломжууд</a>
           <a href="#pricing" className="block text-sm text-slate-400 hover:text-white">Үнэ</a>
           <a href="#faq" className="block text-sm text-slate-400 hover:text-white">Түгээмэл асуулт</a>
+          <Link href="/zaawar" className="block text-sm text-slate-400 hover:text-white">Заавар</Link>
           <div className="pt-3 border-t border-white/[0.05] flex gap-3">
             <Button href="/auth/login" variant="ghost" size="sm" className="flex-1">Нэвтрэх</Button>
             <Link href="/auth/register" className="flex-1 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-sm font-medium">Эхлэх</Link>

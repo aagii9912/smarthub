@@ -106,6 +106,7 @@ export function Footer() {
             <ul className="space-y-2 text-[13px] text-slate-300">
               <li><a href="#features" className="hover:text-white transition-colors">Боломжууд</a></li>
               <li><a href="#pricing" className="hover:text-white transition-colors">Үнэ</a></li>
+              <li><Link href="/zaawar" className="hover:text-white transition-colors">Хэрэглэх заавар</Link></li>
               <li><Link href="/docs" className="hover:text-white transition-colors">API Баримт</Link></li>
             </ul>
           </div>

@@ -37,6 +37,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // og:url, canonical, og:image зэрэг харьцангуй URL-уудыг шийдвэрлэх суурь
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://www.syncly.mn"),
   title: "Syncly - AI Чатбот",
   description: "Facebook Messenger дээр ажилладаг AI чатбот. Таны бизнесийг автоматжуулна.",
   manifest: "/manifest.json",

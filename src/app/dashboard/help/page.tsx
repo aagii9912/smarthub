@@ -8,6 +8,7 @@ import {
     Package,
     Mail,
     ArrowRight,
+    BookOpen,
     ExternalLink,
     Sparkles,
     ChevronDown,
@@ -44,6 +45,15 @@ const FAQS = [
 ];
 
 const QUICK_LINKS = [
+    {
+        href: '/zaawar',
+        icon: BookOpen,
+        iconTone: 'text-[var(--brand-indigo-400)]',
+        iconBg: 'bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)]',
+        title: 'Интерактив заавар',
+        desc: 'Syncly-г алхам алхмаар эзэмших гарын авлага',
+        cta: 'Заавар үзэх',
+    },
     {
         href: '/setup',
         icon: Facebook,
@@ -88,7 +98,7 @@ export default function HelpPage() {
             />
 
             {/* Quick links */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {QUICK_LINKS.map((link) => {
                     const Icon = link.icon;
                     return (
