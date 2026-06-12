@@ -1,36 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
-import { parseProductFile, ParsedProduct } from '@/lib/utils/file-parser';
+import { getAuthUser, getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
+import { parseProductFile, ParsedProduct, SkippedRow } from '@/lib/utils/file-parser';
+import { logProductImport } from '@/lib/services/importAudit';
 import { logger } from '@/lib/utils/logger';
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_EXTENSIONS = ['xlsx', 'xls', 'csv', 'docx'];
+
+// GET - Сүүлийн импортын түүх (audit)
+export async function GET() {
+    try {
+        const shop = await getAuthUserShop();
+        if (!shop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { data: logs, error } = await supabaseAdmin()
+            .from('product_import_logs')
+            .select('id, file_name, action, source, total_rows, imported_count, skipped_count, status, error_message, created_at')
+            .eq('shop_id', shop.id)
+            .eq('action', 'import')
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+
+        return NextResponse.json({ logs: logs || [] });
+    } catch (error: unknown) {
+        logger.error('Import history error:', { error });
+        return NextResponse.json({ error: 'Импортын түүх ачаалахад алдаа гарлаа' }, { status: 500 });
+    }
+}
+
 // POST - Import products from Excel/DOCX file
+// Хоёр горим:
+//   1. FormData + file        → файл уншиж parse хийнэ (preview=true бол DB бичихгүй)
+//   2. JSON { products: [] }  → preview-ээс баталгаажуулсан өгөгдлийг шууд хадгална (AI дахин дуудахгүй)
 export async function POST(request: NextRequest) {
+    let shopId: string | undefined;
+    let userId: string | null = null;
+    let fileName: string | null = null;
+    let fileSize: number | null = null;
+
     try {
         const shop = await getAuthUserShop();
 
         if (!shop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        shopId = shop.id;
+        userId = await getAuthUser();
 
-        const formData = await request.formData();
-        const file = formData.get('file') as File;
-        const preview = formData.get('preview') === 'true';
+        let products: ParsedProduct[] = [];
+        let skipped: SkippedRow[] = [];
+        let source = 'ai';
+        let preview = false;
 
-        if (!file) {
-            return NextResponse.json({ error: 'File is required' }, { status: 400 });
+        const contentType = request.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+            // Горим 2: preview-ээр баталгаажсан өгөгдлийг шууд хадгална
+            const body = await request.json();
+            products = Array.isArray(body.products) ? body.products : [];
+            fileName = body.file_name || null;
+            fileSize = body.file_size || null;
+            source = 'preview_confirm';
+
+            if (products.length === 0) {
+                return NextResponse.json({ error: 'Импортлох бүтээгдэхүүн олдсонгүй' }, { status: 400 });
+            }
+        } else {
+            // Горим 1: файл уншиж parse хийнэ
+            const formData = await request.formData();
+            const file = formData.get('file') as File;
+            preview = formData.get('preview') === 'true';
+
+            if (!file) {
+                return NextResponse.json({ error: 'Файл оруулна уу' }, { status: 400 });
+            }
+
+            fileName = file.name;
+            fileSize = file.size;
+
+            const extension = file.name.toLowerCase().split('.').pop() || '';
+            if (!ALLOWED_EXTENSIONS.includes(extension)) {
+                return NextResponse.json(
+                    { error: 'Зөвхөн Excel (.xlsx, .xls), CSV, Word (.docx) файл дэмжигдэнэ' },
+                    { status: 400 }
+                );
+            }
+
+            if (file.size > MAX_FILE_SIZE) {
+                return NextResponse.json(
+                    { error: 'Файлын хэмжээ 5MB-аас хэтэрсэн байна' },
+                    { status: 400 }
+                );
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            const result = await parseProductFile(buffer, file.name, shop.id);
+            products = result.products;
+            skipped = result.skipped;
+            source = result.source;
         }
-
-        // Read file buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Parse file
-        const products = await parseProductFile(buffer, file.name, shop.id);
 
         if (products.length === 0) {
             return NextResponse.json({
-                error: 'Файлаас бүтээгдэхүүн олдсонгүй. Формат шалгана уу.',
-                hint: 'Excel: Нэр, Үнэ баганууд байх ёстой. DOCX: "Нэр - Үнэ" формат'
+                error: 'Файлаас бүтээгдэхүүн олдсонгүй. Загвар файл ашиглан форматаа шалгана уу.',
+                hint: 'Excel: "Нэр", "Үнэ" багана заавал байх ёстой. DOCX: "Нэр - Үнэ" формат',
+                skipped
             }, { status: 400 });
         }
 
@@ -39,6 +119,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 preview: true,
                 products,
+                skipped,
+                source,
                 count: products.length
             });
         }
@@ -53,9 +135,10 @@ export async function POST(request: NextRequest) {
             description: p.description || null,
             stock: p.stock ?? 0,
             type: p.type || 'physical',
+            unit: p.unit || (p.type === 'service' ? 'захиалга' : 'ширхэг'),
             colors: p.colors || [],
             sizes: p.sizes || [],
-            images: [],
+            images: p.image_url ? [p.image_url] : [],
             is_active: true
         }));
 
@@ -67,15 +150,47 @@ export async function POST(request: NextRequest) {
 
         if (error) throw error;
 
+        await logProductImport({
+            shop_id: shop.id,
+            user_id: userId,
+            file_name: fileName,
+            file_size: fileSize,
+            action: 'import',
+            source,
+            total_rows: products.length + skipped.length,
+            imported_count: insertedProducts.length,
+            skipped_count: skipped.length,
+            skipped_rows: skipped,
+            status: skipped.length > 0 ? 'partial' : 'success',
+        });
+
         return NextResponse.json({
             success: true,
             products: insertedProducts,
             count: insertedProducts.length,
+            skipped,
             message: `${insertedProducts.length} бүтээгдэхүүн амжилттай импорт хийгдлээ!`
         });
 
     } catch (error: unknown) {
         logger.error('Import error:', { error: error });
+
+        if (shopId) {
+            await logProductImport({
+                shop_id: shopId,
+                user_id: userId,
+                file_name: fileName,
+                file_size: fileSize,
+                action: 'import',
+                source: 'ai',
+                total_rows: 0,
+                imported_count: 0,
+                skipped_count: 0,
+                status: 'failed',
+                error_message: error instanceof Error ? error.message : String(error),
+            });
+        }
+
         return NextResponse.json({
             error: error instanceof Error ? error.message : 'Import failed',
         }, { status: 500 });

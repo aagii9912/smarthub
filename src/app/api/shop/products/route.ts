@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
+import { getAuthUser, getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
+import { logProductImport } from '@/lib/services/importAudit';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
@@ -70,6 +71,18 @@ export async function POST(request: NextRequest) {
     // Manual single-product additions don't merit a notification, but Excel
     // imports always include many rows.
     if (insertedProducts && insertedProducts.length >= 3) {
+      const userId = await getAuthUser();
+      await logProductImport({
+        shop_id: shop.id,
+        user_id: userId,
+        action: 'import',
+        source: 'setup',
+        total_rows: products.length,
+        imported_count: insertedProducts.length,
+        skipped_count: products.length - validProducts.length,
+        status: products.length > validProducts.length ? 'partial' : 'success',
+      });
+
       try {
         const enabled = await isNotificationEnabled(shop.id, 'import');
         if (enabled) {

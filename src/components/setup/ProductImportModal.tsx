@@ -14,6 +14,9 @@ interface Product {
     image_url?: string;
     stock?: number;
     type?: string;
+    unit?: string;
+    colors?: string[];
+    sizes?: string[];
 }
 
 interface ProductImportModalProps {
@@ -24,7 +27,8 @@ interface ProductImportModalProps {
 
 // Parse CSV content
 function parseCSV(content: string): { headers: string[]; rows: string[][] } {
-    const lines = content.trim().split('\n');
+    // \r\n (Windows/Excel export) болон \n хоёуланг нь дэмжинэ
+    const lines = content.trim().split(/\r?\n/).filter(line => line.trim());
     if (lines.length < 2) {
         throw new Error('CSV файл хоосон байна');
     }
@@ -53,12 +57,6 @@ function parseCSV(content: string): { headers: string[]; rows: string[][] } {
     return { headers, rows };
 }
 
-// Sample CSV template
-const SAMPLE_CSV = `name,price,description,image_url
-Цамц (Хар),45000,Хар өнгөтэй хөвөн цамц,
-Өмд (Цэнхэр),55000,Цэнхэр жинс өмд,
-Малгай,15000,Дулаан өвлийн малгай,`;
-
 type ImportMode = 'csv' | 'excel';
 type ModalStep = 'upload' | 'mapping' | 'ai-processing' | 'preview';
 
@@ -67,26 +65,34 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
     const [file, setFile] = useState<File | null>(null);
     const [importMode, setImportMode] = useState<ImportMode>('excel');
 
-    // CSV state
-    const [parsedData, setParsedData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
-    const [columnMapping, setColumnMapping] = useState<Record<string, number>>({
+    const EMPTY_MAPPING: Record<string, number> = {
         name: -1,
         price: -1,
+        stock: -1,
+        colors: -1,
+        sizes: -1,
         description: -1,
         image_url: -1
-    });
+    };
+
+    // CSV state
+    const [parsedData, setParsedData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+    const [columnMapping, setColumnMapping] = useState<Record<string, number>>(EMPTY_MAPPING);
 
     // Excel AI state
     const [aiProducts, setAiProducts] = useState<Product[]>([]);
     const [aiSource, setAiSource] = useState<'ai' | 'manual_fallback' | null>(null);
+    const [aiSkippedCount, setAiSkippedCount] = useState(0);
+    const [aiWarning, setAiWarning] = useState('');
 
     // Common state
     const [error, setError] = useState('');
     const [importing, setImporting] = useState(false);
+    const [downloadingTemplate, setDownloadingTemplate] = useState(false);
     const [step, setStep] = useState<ModalStep>('upload');
 
     const requiredColumns = ['name', 'price'];
-    const optionalColumns = ['description', 'image_url'];
+    const optionalColumns = ['stock', 'colors', 'sizes', 'description', 'image_url'];
 
     // ═══════════ CSV Handler ═══════════
     const handleCSVSelect = async (selectedFile: File) => {
@@ -95,19 +101,21 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
             const parsed = parseCSV(content);
 
             // Auto-map columns
-            const autoMapping: Record<string, number> = {
-                name: -1,
-                price: -1,
-                description: -1,
-                image_url: -1
-            };
+            const autoMapping: Record<string, number> = { ...EMPTY_MAPPING };
 
             parsed.headers.forEach((header, index) => {
-                const normalized = header.toLowerCase().replace(/[^a-z]/g, '');
+                const normalized = header.toLowerCase().replace(/[^a-zа-яөүё_]/g, '');
                 if (normalized.includes('name') || normalized.includes('нэр')) {
                     autoMapping.name = index;
                 } else if (normalized.includes('price') || normalized.includes('үнэ')) {
                     autoMapping.price = index;
+                } else if (normalized.includes('color') || normalized.includes('өнгө')) {
+                    autoMapping.colors = index;
+                } else if (normalized.includes('size') || normalized.includes('размер') || (normalized.includes('хэмжээ') && !normalized.includes('тоо'))) {
+                    // "Тоо хэмжээ" = stock, харин "Хэмжээ" = size
+                    autoMapping.sizes = index;
+                } else if (normalized.includes('stock') || normalized.includes('тоо') || normalized.includes('үлдэгдэл') || normalized.includes('qty')) {
+                    autoMapping.stock = index;
                 } else if (normalized.includes('desc') || normalized.includes('тайлбар')) {
                     autoMapping.description = index;
                 } else if (normalized.includes('image') || normalized.includes('зураг')) {
@@ -162,16 +170,24 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                 stock?: number;
                 description?: string;
                 type?: string;
+                unit?: string;
+                colors?: string[];
+                sizes?: string[];
             }) => ({
                 name: p.name || '',
                 price: Number(p.price) || 0,
                 description: p.description || undefined,
                 stock: Number(p.stock) || 0,
                 type: p.type || 'physical',
+                unit: p.unit || undefined,
+                colors: Array.isArray(p.colors) ? p.colors.filter(Boolean) : [],
+                sizes: Array.isArray(p.sizes) ? p.sizes.filter(Boolean) : [],
             })).filter((p: Product) => p.name && p.price > 0);
 
             setAiProducts(mapped);
             setAiSource(data.source || 'ai');
+            setAiSkippedCount(Math.max(0, data.products.length - mapped.length));
+            setAiWarning(data.warning || '');
             setStep('preview');
         } catch (err: unknown) {
             setError((err instanceof Error ? err.message : String(err)) || 'Excel импорт алдаа');
@@ -225,10 +241,16 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
 
         if (!parsedData) return [];
 
+        const splitList = (value?: string) =>
+            value ? value.split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
+
         const rows = limit ? parsedData.rows.slice(0, limit) : parsedData.rows;
         return rows.map(row => ({
             name: columnMapping.name >= 0 ? row[columnMapping.name] || '' : '',
             price: columnMapping.price >= 0 ? parseFloat(row[columnMapping.price]) || 0 : 0,
+            stock: columnMapping.stock >= 0 ? parseInt(row[columnMapping.stock]) || 0 : undefined,
+            colors: columnMapping.colors >= 0 ? splitList(row[columnMapping.colors]) : [],
+            sizes: columnMapping.sizes >= 0 ? splitList(row[columnMapping.sizes]) : [],
             description: columnMapping.description >= 0 ? row[columnMapping.description] : undefined,
             image_url: columnMapping.image_url >= 0 ? row[columnMapping.image_url] : undefined
         })).filter(p => p.name && p.price > 0);
@@ -252,22 +274,33 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
         }
     };
 
-    const downloadTemplate = () => {
-        const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'products_template.csv';
-        a.click();
-        URL.revokeObjectURL(url);
+    const downloadTemplate = async () => {
+        setDownloadingTemplate(true);
+        try {
+            const res = await fetch('/api/shop/products/import-template');
+            if (!res.ok) throw new Error('Загвар татахад алдаа гарлаа');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'syncly_products_template.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err: unknown) {
+            setError((err instanceof Error ? err.message : String(err)) || 'Загвар татахад алдаа гарлаа');
+        } finally {
+            setDownloadingTemplate(false);
+        }
     };
 
     const resetState = () => {
         setFile(null);
         setParsedData(null);
-        setColumnMapping({ name: -1, price: -1, description: -1, image_url: -1 });
+        setColumnMapping(EMPTY_MAPPING);
         setAiProducts([]);
         setAiSource(null);
+        setAiSkippedCount(0);
+        setAiWarning('');
         setError('');
         setStep('upload');
         setImportMode('excel');
@@ -352,11 +385,19 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
 
                             <button
                                 onClick={downloadTemplate}
-                                className="w-full flex items-center justify-center gap-2 text-sm text-violet-600 hover:text-violet-700 py-2"
+                                disabled={downloadingTemplate}
+                                className="w-full flex items-center justify-center gap-2 text-sm text-violet-600 hover:text-violet-700 py-2 disabled:opacity-50"
                             >
-                                <Download className="w-4 h-4" />
-                                CSV загвар файл татах
+                                {downloadingTemplate ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4" />
+                                )}
+                                Excel загвар файл татах (.xlsx)
                             </button>
+                            <p className="text-xs text-gray-400 text-center -mt-2">
+                                Загварт Нэр, Үнэ, Тоо, Өнгө, Хэмжээ зэрэг баганууд жишээтэйгээ бэлэн байгаа
+                            </p>
                         </div>
                     )}
 
@@ -394,6 +435,9 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                         <span className={`w-28 text-sm ${requiredColumns.includes(field) ? 'font-medium' : 'text-gray-500'}`}>
                                             {field === 'name' && 'Нэр *'}
                                             {field === 'price' && 'Үнэ *'}
+                                            {field === 'stock' && 'Тоо / Нөөц'}
+                                            {field === 'colors' && 'Өнгө'}
+                                            {field === 'sizes' && 'Хэмжээ'}
                                             {field === 'description' && 'Тайлбар'}
                                             {field === 'image_url' && 'Зургийн URL'}
                                         </span>
@@ -440,6 +484,20 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                 </div>
                             )}
 
+                            {/* Алгасагдсан мөр / том файлын анхааруулга */}
+                            {importMode === 'excel' && aiSkippedCount > 0 && (
+                                <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-amber-50 border border-amber-100 text-amber-700">
+                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                    {aiSkippedCount} мөр нэр эсвэл үнэ дутуу тул алгасагдлаа
+                                </div>
+                            )}
+                            {importMode === 'excel' && aiWarning && (
+                                <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs font-medium bg-amber-50 border border-amber-100 text-amber-700">
+                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                    {aiWarning}
+                                </div>
+                            )}
+
                             <p className="text-sm font-medium text-gray-900">
                                 Урьдчилан харах ({allProducts.length} бүтээгдэхүүн)
                             </p>
@@ -449,10 +507,9 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                     <thead className="bg-gray-50">
                                         <tr>
                                             <th className="px-3 py-2 text-left font-medium text-gray-600">Нэр</th>
+                                            <th className="px-3 py-2 text-left font-medium text-gray-600">Өнгө / Хэмжээ</th>
                                             <th className="px-3 py-2 text-right font-medium text-gray-600">Үнэ</th>
-                                            {importMode === 'excel' && (
-                                                <th className="px-3 py-2 text-right font-medium text-gray-600">Тоо</th>
-                                            )}
+                                            <th className="px-3 py-2 text-right font-medium text-gray-600">Тоо</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
@@ -461,19 +518,34 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                                 <td className="px-3 py-2 text-gray-900">
                                                     {product.name}
                                                     {product.description && (
-                                                        <span className="block text-xs text-gray-400 truncate max-w-[200px]">
+                                                        <span className="block text-xs text-gray-400 truncate max-w-[160px]">
                                                             {product.description}
                                                         </span>
                                                     )}
                                                 </td>
+                                                <td className="px-3 py-2">
+                                                    <div className="flex flex-wrap gap-1 max-w-[140px]">
+                                                        {(product.colors || []).map((c, i) => (
+                                                            <span key={`c-${i}`} className="px-1.5 py-0.5 rounded text-[10px] bg-violet-50 text-violet-600 border border-violet-100">
+                                                                {c}
+                                                            </span>
+                                                        ))}
+                                                        {(product.sizes || []).map((s, i) => (
+                                                            <span key={`s-${i}`} className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                                {s}
+                                                            </span>
+                                                        ))}
+                                                        {!(product.colors?.length || product.sizes?.length) && (
+                                                            <span className="text-xs text-gray-300">—</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
                                                     {product.price.toLocaleString()}₮
                                                 </td>
-                                                {importMode === 'excel' && (
-                                                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">
-                                                        {product.stock || 0}
-                                                    </td>
-                                                )}
+                                                <td className="px-3 py-2 text-right text-gray-500 tabular-nums">
+                                                    {product.stock ?? 0}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

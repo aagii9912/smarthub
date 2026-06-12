@@ -92,16 +92,25 @@ export function ProductStep({ initialProducts, onBack, onComplete, productNoun, 
     }]);
   };
 
-  // Handle CSV import
-  const handleImport = async (importedProducts: { name: string; price: number; description?: string; image_url?: string }[]) => {
+  // Handle Excel/CSV import — parser-аас ирсэн өнгө, хэмжээ, тоо, төрлийг хадгална
+  const handleImport = async (importedProducts: {
+    name: string;
+    price: number;
+    description?: string;
+    image_url?: string;
+    stock?: number;
+    type?: string;
+    colors?: string[];
+    sizes?: string[];
+  }[]) => {
     const newProducts: Product[] = importedProducts.map(p => ({
       name: p.name,
       price: p.price.toString(),
       description: p.description || '',
-      colors: '',
-      sizes: '',
-      type: 'physical' as const,
-      stock: '10',
+      colors: (p.colors || []).join(', '),
+      sizes: (p.sizes || []).join(', '),
+      type: p.type === 'service' ? 'service' as const : 'physical' as const,
+      stock: p.stock != null ? p.stock.toString() : '10',
       imageUrl: p.image_url,
       imageFile: null
     }));

@@ -56,8 +56,9 @@ RULES:
 2. Determine 'type': 'physical' for physical goods (phones, clothes), 'service' for services (repair, editing, consulting).
 3. Determine 'unit': e.g., 'ширхэг' for goods, 'захиалга', 'цаг', 'хүн' for services.
 4. Extract 'stock': For services, this is the Number of Available Slots/Orders. If not specified, default to 0.
-5. Extract 'colors' and 'sizes' if available.
-6. Return a JSON object with a "products" array.
+5. Extract 'colors' and 'sizes' as arrays. Column names may be Mongolian: 'Өнгө' = colors, 'Хэмжээ'/'Размер' = sizes (e.g. S/M/L or 38/39/40). Values are usually comma-separated — split them. Careful: 'Тоо' / 'Тоо хэмжээ' / 'Үлдэгдэл' means stock quantity, NOT sizes.
+6. If physical dimensions/specs are present (урт, өргөн, өндөр, жин, багтаамж, cm, kg etc.), append them to 'description' so the info is not lost.
+7. Return a JSON object with a "products" array.
 
 Input Content:
 ${fileContent.slice(0, 15000)}

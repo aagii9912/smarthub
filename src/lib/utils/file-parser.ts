@@ -8,71 +8,110 @@ export interface ParsedProduct {
     description?: string;
     stock?: number;
     type?: 'physical' | 'service';
+    unit?: string;
     colors?: string[];
     sizes?: string[];
+    image_url?: string;
+}
+
+/** Импортод ороогүй мөр + шалтгаан (хэрэглэгчид харуулна) */
+export interface SkippedRow {
+    row: number;
+    name?: string;
+    reason: string;
+}
+
+export interface ParseResult {
+    products: ParsedProduct[];
+    skipped: SkippedRow[];
+    source: 'ai' | 'rules' | 'docx';
+}
+
+function splitList(raw: unknown): string[] {
+    return raw
+        ? String(raw).split(/[,;]/).map(s => s.trim()).filter(Boolean)
+        : [];
+}
+
+function normalizeType(raw: unknown): 'physical' | 'service' {
+    const value = String(raw || '').toLowerCase().trim();
+    return value === 'service' || value.includes('үйлчилгээ') ? 'service' : 'physical';
 }
 
 /**
- * Parse Excel file (xlsx, xls, csv)
+ * Parse Excel file (xlsx, xls, csv) — дүрэмд суурилсан баганын нэр таних
  */
-export async function parseExcel(buffer: Buffer): Promise<ParsedProduct[]> {
+export async function parseExcel(buffer: Buffer): Promise<ParseResult> {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
 
-    // Convert to JSON
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
 
-    // Try to detect column names
     const products: ParsedProduct[] = [];
+    const skipped: SkippedRow[] = [];
 
-    for (const row of data) {
-        // Try different column name variations
+    data.forEach((row, index) => {
+        // Excel дээрх бодит мөрийн дугаар (header = 1-р мөр)
+        const rowNumber = index + 2;
+
         const name = row['Нэр'] || row['name'] || row['Name'] || row['Бүтээгдэхүүн'] || row['Product'] || '';
         const price = parseFloat(row['Үнэ'] || row['price'] || row['Price'] || row['Үнэ (₮)'] || 0);
         const description = row['Тайлбар'] || row['description'] || row['Description'] || row['Дэлгэрэнгүй'] || '';
         const stock = parseInt(row['Тоо'] || row['stock'] || row['Stock'] || row['Үлдэгдэл'] || row['Qty'] || 0);
-        const type = row['Төрөл'] || row['type'] || row['Type'] || 'physical';
+        const type = normalizeType(row['Төрөл'] || row['type'] || row['Type']);
+        const unit = String(row['Нэгж'] || row['unit'] || row['Unit'] || '').trim();
+        const imageUrl = String(row['Зургийн URL'] || row['Зураг'] || row['image_url'] || row['Image'] || '').trim();
 
-        // Parse colors and sizes if they exist
-        const colorsRaw = row['Өнгө'] || row['colors'] || row['Colors'] || '';
-        const sizesRaw = row['Хэмжээ'] || row['sizes'] || row['Sizes'] || '';
+        const colors = splitList(row['Өнгө'] || row['colors'] || row['Colors'] || row['Color']);
+        const sizes = splitList(row['Хэмжээ'] || row['sizes'] || row['Sizes'] || row['Size'] || row['Размер']);
 
-        const colors = colorsRaw ? String(colorsRaw).split(',').map((c: string) => c.trim()).filter(Boolean) : [];
-        const sizes = sizesRaw ? String(sizesRaw).split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-
-        if (name && price > 0) {
-            products.push({
-                name: String(name).trim(),
-                price,
-                description: String(description).trim() || undefined,
-                stock: isNaN(stock) ? 0 : stock,
-                type: type === 'service' ? 'service' : 'physical',
-                colors: colors.length > 0 ? colors : undefined,
-                sizes: sizes.length > 0 ? sizes : undefined,
-            });
+        if (!name) {
+            // Бүх нүд нь хоосон мөрийг чимээгүй алгасна, хагас бөглөсөн мөрийг мэдэгдэнэ
+            const hasAnyValue = Object.values(row).some(v => String(v ?? '').trim());
+            if (hasAnyValue) {
+                skipped.push({ row: rowNumber, reason: 'Нэр хоосон байна' });
+            }
+            return;
         }
-    }
+        if (!price || price <= 0) {
+            skipped.push({ row: rowNumber, name: String(name).trim(), reason: 'Үнэ хоосон эсвэл буруу байна' });
+            return;
+        }
 
-    return products;
+        products.push({
+            name: String(name).trim(),
+            price,
+            description: String(description).trim() || undefined,
+            stock: isNaN(stock) ? 0 : stock,
+            type,
+            unit: unit || undefined,
+            colors: colors.length > 0 ? colors : undefined,
+            sizes: sizes.length > 0 ? sizes : undefined,
+            image_url: imageUrl.startsWith('http') ? imageUrl : undefined,
+        });
+    });
+
+    return { products, skipped, source: 'rules' };
 }
 
 /**
  * Parse DOCX file
- * Expected format: 
+ * Expected format:
  * - Each product on a new line
  * - Format: "Нэр - Үнэ₮ - Тайлбар"
  * - Or table format
  */
-export async function parseDocx(buffer: Buffer): Promise<ParsedProduct[]> {
+export async function parseDocx(buffer: Buffer): Promise<ParseResult> {
     const result = await mammoth.extractRawText({ buffer });
     const text = result.value;
 
     const products: ParsedProduct[] = [];
+    const skipped: SkippedRow[] = [];
     const lines = text.split('\n').filter(line => line.trim());
 
-    for (const line of lines) {
+    lines.forEach((line, index) => {
         // Try to parse "Name - Price - Description" format
         const parts = line.split(/[-–—]/).map(p => p.trim());
 
@@ -91,16 +130,15 @@ export async function parseDocx(buffer: Buffer): Promise<ParsedProduct[]> {
                     stock: 0,
                     type: 'physical',
                 });
+            } else {
+                skipped.push({ row: index + 1, name: name || undefined, reason: 'Үнэ танигдсангүй ("Нэр - Үнэ - Тайлбар" формат)' });
             }
         }
-    }
+    });
 
-    return products;
+    return { products, skipped, source: 'docx' };
 }
 
-/**
- * Detect file type and parse accordingly
- */
 /**
  * Get file content as text for AI processing
  */
@@ -118,9 +156,10 @@ async function getFileContent(buffer: Buffer, extension: string): Promise<string
 }
 
 /**
- * Parse file using AI (GPT) to extract products and services
+ * Parse file using AI to extract products and services.
+ * Falls back to rule-based parsing when AI fails or returns nothing.
  */
-export async function parseProductFile(buffer: Buffer, fileName: string, shopId?: string): Promise<ParsedProduct[]> {
+export async function parseProductFile(buffer: Buffer, fileName: string, shopId?: string): Promise<ParseResult> {
     const extension = fileName.toLowerCase().split('.').pop() || '';
 
     try {
@@ -132,16 +171,25 @@ export async function parseProductFile(buffer: Buffer, fileName: string, shopId?
         const { parseProductDataWithAI } = await import('@/lib/ai/services/ProductParser');
         const products = await parseProductDataWithAI(content, fileName, shopId);
 
+        if (products.length === 0) {
+            throw new Error('AI returned no products');
+        }
+
         // 3. Map to ParsedProduct interface
-        return products.map(p => ({
-            name: p.name,
-            price: p.price,
-            description: p.description,
-            stock: p.stock,
-            type: p.type,
-            colors: p.colors,
-            sizes: p.sizes
-        }));
+        return {
+            products: products.map(p => ({
+                name: p.name,
+                price: p.price,
+                description: p.description,
+                stock: p.stock,
+                type: p.type,
+                unit: p.unit,
+                colors: p.colors,
+                sizes: p.sizes,
+            })),
+            skipped: [],
+            source: 'ai',
+        };
     } catch (error: unknown) {
         logger.error('AI Parsing failed, falling back to rule-based:', { error });
         // Fallback to old methods if AI fails

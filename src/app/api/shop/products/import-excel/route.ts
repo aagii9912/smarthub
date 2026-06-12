@@ -8,10 +8,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop } from '@/lib/auth/auth';
+import { getAuthUser, getAuthUserShop } from '@/lib/auth/auth';
 import { parseProductDataWithAI } from '@/lib/ai/services/ProductParser';
+import { logProductImport } from '@/lib/services/importAudit';
 import { logger } from '@/lib/utils/logger';
 import * as XLSX from 'xlsx';
+
+// ProductParser нь AI prompt-д эхний 15,000 тэмдэгтийг л дамжуулдаг
+const AI_CONTENT_LIMIT = 15000;
 
 export async function POST(request: NextRequest) {
     try {
@@ -89,8 +93,15 @@ export async function POST(request: NextRequest) {
             contentLength: csvLikeContent.length,
         });
 
+        // Том файлын агуулга AI-д тасарч очдог тул хэрэглэгчид анхааруулна
+        const truncated = csvLikeContent.length > AI_CONTENT_LIMIT;
+        const warning = truncated
+            ? 'Файл том тул зөвхөн эхний хэсэг нь боловсруулагдлаа. Бүх мөрийг оруулахын тулд файлаа хувааж импортлоно уу.'
+            : undefined;
+
         // Use existing AI parser
         const products = await parseProductDataWithAI(csvLikeContent, file.name, shop.id);
+        const userId = await getAuthUser();
 
         if (products.length === 0) {
             // Fallback: try manual extraction without AI
@@ -101,16 +112,44 @@ export async function POST(request: NextRequest) {
                     count: fallbackProducts.length,
                 });
 
+                await logProductImport({
+                    shop_id: shop.id,
+                    user_id: userId,
+                    file_name: file.name,
+                    file_size: file.size,
+                    action: 'parse',
+                    source: 'manual_fallback',
+                    total_rows: jsonData.length - 1,
+                    imported_count: fallbackProducts.length,
+                    skipped_count: (jsonData.length - 1) - fallbackProducts.length,
+                    status: 'success',
+                });
+
                 return NextResponse.json({
                     products: fallbackProducts,
                     raw_headers: rawHeaders,
                     source: 'manual_fallback',
                     total_rows: jsonData.length - 1,
+                    warning,
                 });
             }
 
+            await logProductImport({
+                shop_id: shop.id,
+                user_id: userId,
+                file_name: file.name,
+                file_size: file.size,
+                action: 'parse',
+                source: 'ai',
+                total_rows: jsonData.length - 1,
+                imported_count: 0,
+                skipped_count: jsonData.length - 1,
+                status: 'failed',
+                error_message: 'AI болон гар таних хоёулаа амжилтгүй',
+            });
+
             return NextResponse.json(
-                { error: 'AI бараа таних амжилтгүй. Баганы нэрсийг шалгана уу (нэр, үнэ гэсэн багана байх ёстой).' },
+                { error: 'AI бараа таних амжилтгүй. Загвар файл татаж аваад баганы нэрсийг тааруулна уу ("Нэр", "Үнэ" багана заавал хэрэгтэй).' },
                 { status: 422 }
             );
         }
@@ -120,11 +159,25 @@ export async function POST(request: NextRequest) {
             productCount: products.length,
         });
 
+        await logProductImport({
+            shop_id: shop.id,
+            user_id: userId,
+            file_name: file.name,
+            file_size: file.size,
+            action: 'parse',
+            source: 'ai',
+            total_rows: jsonData.length - 1,
+            imported_count: products.length,
+            skipped_count: Math.max(0, (jsonData.length - 1) - products.length),
+            status: 'success',
+        });
+
         return NextResponse.json({
             products,
             raw_headers: rawHeaders,
             source: 'ai',
             total_rows: jsonData.length - 1,
+            warning,
         });
 
     } catch (error: unknown) {
@@ -151,18 +204,31 @@ function tryManualExtraction(
     const pricePatterns = ['үнэ', 'price', 'төлбөр', 'дүн', 'amount', 'cost'];
     const stockPatterns = ['тоо', 'stock', 'ширхэг', 'qty', 'quantity', 'үлдэгдэл', 'нөөц'];
     const descPatterns = ['тайлбар', 'desc', 'description', 'мэдээлэл', 'тодорхойлолт'];
+    const colorPatterns = ['өнгө', 'color', 'colour'];
+    const sizePatterns = ['хэмжээ', 'size', 'размер'];
+    const unitPatterns = ['нэгж', 'unit'];
+    const typePatterns = ['төрөл', 'type', 'ангилал'];
 
     let nameIdx = -1;
     let priceIdx = -1;
     let stockIdx = -1;
     let descIdx = -1;
+    let colorIdx = -1;
+    let sizeIdx = -1;
+    let unitIdx = -1;
+    let typeIdx = -1;
 
     headers.forEach((h, idx) => {
         const lower = h.toLowerCase().replace(/[^a-zа-яөүё]/g, '');
         if (nameIdx === -1 && namePatterns.some(p => lower.includes(p))) nameIdx = idx;
         if (priceIdx === -1 && pricePatterns.some(p => lower.includes(p))) priceIdx = idx;
-        if (stockIdx === -1 && stockPatterns.some(p => lower.includes(p))) stockIdx = idx;
+        // "Хэмжээ" нь stock pattern "тоо хэмжээ"-тэй давхцахаас сэргийлж size-ийг эхэлж шалгана
+        if (sizeIdx === -1 && sizePatterns.some(p => lower.includes(p))) sizeIdx = idx;
+        if (stockIdx === -1 && sizeIdx !== idx && stockPatterns.some(p => lower.includes(p))) stockIdx = idx;
         if (descIdx === -1 && descPatterns.some(p => lower.includes(p))) descIdx = idx;
+        if (colorIdx === -1 && colorPatterns.some(p => lower.includes(p))) colorIdx = idx;
+        if (unitIdx === -1 && unitPatterns.some(p => lower.includes(p))) unitIdx = idx;
+        if (typeIdx === -1 && typePatterns.some(p => lower.includes(p))) typeIdx = idx;
     });
 
     // Must have at least name column
@@ -190,16 +256,28 @@ function tryManualExtraction(
         const price = priceIdx >= 0 ? Number(row[priceIdx]) || 0 : 0;
         const stock = stockIdx >= 0 ? Number(row[stockIdx]) || 0 : 0;
         const description = descIdx >= 0 ? String(row[descIdx] ?? '') : '';
+        const colors = colorIdx >= 0
+            ? String(row[colorIdx] ?? '').split(/[,;]/).map(c => c.trim()).filter(Boolean)
+            : [];
+        const sizes = sizeIdx >= 0
+            ? String(row[sizeIdx] ?? '').split(/[,;]/).map(s => s.trim()).filter(Boolean)
+            : [];
+        const typeRaw = typeIdx >= 0 ? String(row[typeIdx] ?? '').toLowerCase() : '';
+        const type: 'physical' | 'service' =
+            typeRaw === 'service' || typeRaw.includes('үйлчилгээ') ? 'service' : 'physical';
+        const unit = unitIdx >= 0 && String(row[unitIdx] ?? '').trim()
+            ? String(row[unitIdx]).trim()
+            : (type === 'service' ? 'захиалга' : 'ширхэг');
 
         products.push({
             name,
             price,
             stock,
             description,
-            type: 'physical',
-            unit: 'ширхэг',
-            colors: [],
-            sizes: [],
+            type,
+            unit,
+            colors,
+            sizes,
         });
     }
 

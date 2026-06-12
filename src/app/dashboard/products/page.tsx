@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, Filter, LayoutGrid, List } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, LayoutGrid, List, AlertTriangle, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,16 +24,27 @@ interface ImportPreviewRow {
     stock?: number;
     unit?: string;
     description?: string;
+    colors?: string[];
+    sizes?: string[];
+    image_url?: string;
+}
+
+interface ImportSkippedRow {
+    row: number;
+    name?: string;
+    reason: string;
 }
 
 export default function ProductsPage() {
-    const { data: products = [], isLoading } = useProducts();
+    const { data: products = [], isLoading, isError, refetch } = useProducts();
     const deleteProduct = useDeleteProduct();
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const { t } = useLanguage();
 
     const [searchQuery, setSearchQuery] = useState('');
+    // Энгийн шүүлтүүр — нөөц/идэвхийн төлвөөр клиент талд шүүнэ
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'out'>('all');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
@@ -53,6 +65,7 @@ export default function ProductsPage() {
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
     const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
+    const [importSkipped, setImportSkipped] = useState<ImportSkippedRow[]>([]);
     const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
 
@@ -90,6 +103,7 @@ export default function ProductsPage() {
         try {
             await deleteProduct.mutateAsync(id);
         } catch (error: unknown) {
+            // Toast-ыг useDeleteProduct-ийн onError харуулна — энд зөвхөн log хийнэ
             logger.error('Failed to delete product:', { error: error });
         }
     }
@@ -100,6 +114,7 @@ export default function ProductsPage() {
             setImportFile(file);
             setImportError(null);
             setImportPreview([]);
+            setImportSkipped([]);
             setImporting(true);
             try {
                 const formData = new FormData();
@@ -109,8 +124,10 @@ export default function ProductsPage() {
                 const data = await res.json();
                 if (!res.ok) {
                     setImportError(data.error || 'Preview failed');
+                    setImportSkipped(data.skipped || []);
                 } else {
                     setImportPreview(data.products || []);
+                    setImportSkipped(data.skipped || []);
                 }
             } catch (error: unknown) {
                 setImportError(error instanceof Error ? error.message : 'Preview failed');
@@ -121,20 +138,28 @@ export default function ProductsPage() {
     }
 
     async function handleImportConfirm() {
-        if (!importFile) return;
+        if (!importFile || importPreview.length === 0) return;
         setImporting(true);
         try {
-            const formData = new FormData();
-            formData.append('file', importFile);
-            const res = await fetch('/api/shop/import', { method: 'POST', body: formData });
+            // Preview-д харагдсан өгөгдлийг шууд илгээнэ — файлыг дахин parse хийхгүй (AI давхар дуудагдахгүй)
+            const res = await fetch('/api/shop/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    products: importPreview,
+                    file_name: importFile.name,
+                    file_size: importFile.size,
+                }),
+            });
             const data = await res.json();
             if (!res.ok) {
                 setImportError(data.error || 'Import failed');
             } else {
-                alert(`${data.count} ${t.products.importSuccess}`);
+                toast.success(`${data.count} ${t.products.importSuccess}`);
                 setShowImportModal(false);
                 setImportFile(null);
                 setImportPreview([]);
+                setImportSkipped([]);
                 queryClient.invalidateQueries({ queryKey: ['products'] });
             }
         } catch (error: unknown) {
@@ -144,9 +169,32 @@ export default function ProductsPage() {
         }
     }
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    async function handleTemplateDownload() {
+        try {
+            const res = await fetch('/api/shop/products/import-template');
+            if (!res.ok) throw new Error('Загвар татахад алдаа гарлаа');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'syncly_products_template.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Загвар татахад алдаа гарлаа');
+        }
+    }
+
+    const filteredProducts = products.filter(p => {
+        if (!p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        const available = (p.stock || 0) - (p.reserved_stock || 0);
+        switch (statusFilter) {
+            case 'active': return p.is_active;
+            case 'inactive': return !p.is_active;
+            case 'out': return p.type === 'physical' && available <= 0;
+            default: return true;
+        }
+    });
 
     const activeCount = products.filter((p) => p.is_active).length;
     const lowStockCount = products.filter((p) => p.type === 'physical' && ((p.stock || 0) - (p.reserved_stock || 0)) < 5 && ((p.stock || 0) - (p.reserved_stock || 0)) > 0).length;
@@ -160,6 +208,27 @@ export default function ProductsPage() {
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                         <div key={i} className="h-56 card-outlined animate-pulse" />
                     ))}
+                </div>
+            </div>
+        );
+    }
+
+    // Алдааны төлөв — "бүтээгдэхүүн алга" гэсэн худал хоосон төлвийн оронд
+    if (isError) {
+        return (
+            <div className="card-outlined p-12 text-center">
+                <AlertTriangle className="w-12 h-12 text-white/10 mx-auto mb-4" strokeWidth={1.5} />
+                <p className="text-[14px] text-white/60 font-medium tracking-[-0.01em]">Бүтээгдэхүүн ачаалахад алдаа гарлаа</p>
+                <p className="text-[12px] text-white/40 mt-1">Интернэт холболтоо шалгаад дахин оролдоно уу.</p>
+                <div className="mt-5 flex justify-center">
+                    <Button
+                        variant="ghost"
+                        size="md"
+                        leftIcon={<RefreshCw className="h-4 w-4" strokeWidth={1.5} />}
+                        onClick={() => refetch()}
+                    >
+                        Дахин оролдох
+                    </Button>
                 </div>
             </div>
         );
@@ -226,9 +295,17 @@ export default function ProductsPage() {
                         className="w-full pl-10 pr-4 h-10 border border-white/[0.08] rounded-lg text-[13px] bg-white/[0.02] focus:outline-none focus:border-[var(--brand-indigo)] focus:bg-white/[0.04] transition-colors tracking-[-0.01em] placeholder:text-white/30"
                     />
                 </div>
-                <Button variant="ghost" size="md" leftIcon={<Filter className="h-4 w-4" strokeWidth={1.5} />}>
-                    <span className="hidden sm:inline">Шүүлтүүр</span>
-                </Button>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                    aria-label="Шүүлтүүр"
+                    className="h-10 px-3 bg-white/[0.02] border border-white/[0.08] rounded-lg text-[13px] text-foreground focus:outline-none focus:border-[var(--brand-indigo)] transition-colors"
+                >
+                    <option value="all">Бүгд</option>
+                    <option value="active">Идэвхтэй</option>
+                    <option value="inactive">Идэвхгүй</option>
+                    <option value="out">Дууссан</option>
+                </select>
                 {/* Grid/List view toggle */}
                 <div className="flex items-center bg-white/[0.03] border border-white/[0.08] rounded-lg p-0.5">
                     <button
@@ -541,7 +618,7 @@ export default function ProductsPage() {
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label="Close"
-                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }}
+                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportSkipped([]); setImportError(null); }}
                             >
                                 <X className="w-4 h-4" strokeWidth={1.8} />
                             </Button>
@@ -557,7 +634,7 @@ export default function ProductsPage() {
                                         <p className="text-[11px] text-white/40">{(importFile.size / 1024).toFixed(1)} KB</p>
                                     </div>
                                     <button
-                                        onClick={() => { setImportFile(null); setImportPreview([]); }}
+                                        onClick={() => { setImportFile(null); setImportPreview([]); setImportSkipped([]); }}
                                         className="ml-4 p-1.5 rounded-lg text-white/30 hover:text-[var(--destructive)] hover:bg-white/[0.04] transition-colors"
                                     >
                                         <X className="w-4 h-4" />
@@ -584,6 +661,25 @@ export default function ProductsPage() {
                             </div>
                         )}
 
+                        {/* Алгасагдсан мөрүүд — аль мөр яагаад орохгүйг тодорхой харуулна */}
+                        {importSkipped.length > 0 && (
+                            <div className="mt-4 p-3 bg-[color-mix(in_oklab,var(--warning)_14%,transparent)] border border-[color-mix(in_oklab,var(--warning)_28%,transparent)] rounded-lg">
+                                <p className="text-[12.5px] font-semibold text-[var(--warning)] mb-1.5">
+                                    {importSkipped.length} мөр импортод орохгүй:
+                                </p>
+                                <ul className="text-[11.5px] text-white/55 space-y-0.5 max-h-24 overflow-y-auto">
+                                    {importSkipped.slice(0, 8).map((s, i) => (
+                                        <li key={i}>
+                                            {s.row}-р мөр{s.name ? ` (${s.name})` : ''} — {s.reason}
+                                        </li>
+                                    ))}
+                                    {importSkipped.length > 8 && (
+                                        <li>... болон {importSkipped.length - 8} бусад мөр</li>
+                                    )}
+                                </ul>
+                            </div>
+                        )}
+
                         {importPreview.length > 0 && (
                             <div className="mt-5">
                                 <h3 className="font-semibold text-[13px] text-foreground mb-3 tracking-[-0.01em]">
@@ -597,6 +693,7 @@ export default function ProductsPage() {
                                                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.type}</th>
                                                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.price}</th>
                                                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.quantity}</th>
+                                                <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">Өнгө / Хэмжээ</th>
                                                 <th className="text-left px-3 py-2 font-semibold text-muted-foreground uppercase tracking-[0.08em] text-[10px]">{t.products.description}</th>
                                             </tr>
                                         </thead>
@@ -611,6 +708,23 @@ export default function ProductsPage() {
                                                     </td>
                                                     <td className="px-3 py-2 text-white/60 tabular-nums">₮{p.price?.toLocaleString()}</td>
                                                     <td className="px-3 py-2 text-white/60 tabular-nums">{p.stock || 0} {p.unit}</td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="flex flex-wrap gap-1 max-w-[160px]">
+                                                            {(p.colors || []).map((c, ci) => (
+                                                                <span key={`c-${ci}`} className="px-1.5 py-0.5 rounded text-[10px] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo-400)]">
+                                                                    {c}
+                                                                </span>
+                                                            ))}
+                                                            {(p.sizes || []).map((s, si) => (
+                                                                <span key={`s-${si}`} className="px-1.5 py-0.5 rounded text-[10px] bg-[color-mix(in_oklab,var(--success)_18%,transparent)] text-[var(--success)]">
+                                                                    {s}
+                                                                </span>
+                                                            ))}
+                                                            {!(p.colors?.length || p.sizes?.length) && (
+                                                                <span className="text-white/25">—</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-3 py-2 text-white/45 truncate max-w-[200px]">{p.description || '—'}</td>
                                                 </tr>
                                             ))}
@@ -626,11 +740,21 @@ export default function ProductsPage() {
                         )}
 
                         <div className="mt-5 card-outlined p-4">
-                            <h4 className="font-semibold text-[12px] text-foreground mb-2 tracking-[-0.01em]">
-                                {t.products.formatGuide}
-                            </h4>
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-semibold text-[12px] text-foreground tracking-[-0.01em]">
+                                    {t.products.formatGuide}
+                                </h4>
+                                <button
+                                    onClick={handleTemplateDownload}
+                                    className="flex items-center gap-1.5 text-[11.5px] font-medium text-[var(--brand-indigo-400)] hover:text-[var(--brand-indigo)] transition-colors"
+                                >
+                                    <FileSpreadsheet className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                    Excel загвар татах (.xlsx)
+                                </button>
+                            </div>
                             <ul className="text-[11.5px] text-white/50 space-y-1">
                                 <li><strong className="text-foreground">Excel:</strong> {t.products.excelFormat}</li>
+                                <li><strong className="text-foreground">Багана:</strong> Нэр*, Үнэ*, Тоо, Нэгж, Өнгө, Хэмжээ, Тайлбар, Зургийн URL (Өнгө/Хэмжээг таслалаар тусгаарлана)</li>
                                 <li><strong className="text-foreground">Word:</strong> {t.products.wordFormat}</li>
                             </ul>
                         </div>
@@ -640,7 +764,7 @@ export default function ProductsPage() {
                                 variant="ghost"
                                 size="md"
                                 disabled={importing}
-                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportError(null); }}
+                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportPreview([]); setImportSkipped([]); setImportError(null); }}
                             >
                                 {t.orders.cancel}
                             </Button>
