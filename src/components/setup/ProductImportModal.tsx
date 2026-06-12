@@ -7,6 +7,13 @@ import {
     AlertCircle, Loader2, Download, Sparkles, Table
 } from 'lucide-react';
 
+interface ProductVariant {
+    sku?: string;
+    options: { color?: string; size?: string };
+    price?: number;
+    stock: number;
+}
+
 interface Product {
     name: string;
     price: number;
@@ -17,6 +24,7 @@ interface Product {
     unit?: string;
     colors?: string[];
     sizes?: string[];
+    variants?: ProductVariant[];
 }
 
 interface ProductImportModalProps {
@@ -173,6 +181,7 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                 unit?: string;
                 colors?: string[];
                 sizes?: string[];
+                variants?: ProductVariant[];
             }) => ({
                 name: p.name || '',
                 price: Number(p.price) || 0,
@@ -182,6 +191,7 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                 unit: p.unit || undefined,
                 colors: Array.isArray(p.colors) ? p.colors.filter(Boolean) : [],
                 sizes: Array.isArray(p.sizes) ? p.sizes.filter(Boolean) : [],
+                variants: Array.isArray(p.variants) && p.variants.length > 0 ? p.variants : undefined,
             })).filter((p: Product) => p.name && p.price > 0);
 
             setAiProducts(mapped);
@@ -517,6 +527,11 @@ export function ProductImportModal({ isOpen, onClose, onImport }: ProductImportM
                                             <tr key={idx}>
                                                 <td className="px-3 py-2 text-gray-900">
                                                     {product.name}
+                                                    {(product.variants?.length ?? 0) > 0 && (
+                                                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap">
+                                                            {product.variants!.length} хувилбар
+                                                        </span>
+                                                    )}
                                                     {product.description && (
                                                         <span className="block text-xs text-gray-400 truncate max-w-[160px]">
                                                             {product.description}

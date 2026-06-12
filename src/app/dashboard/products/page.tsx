@@ -17,6 +17,13 @@ import { cn } from '@/lib/utils';
 void useCreateProduct;
 void useUpdateProduct;
 
+interface ImportPreviewVariant {
+    sku?: string;
+    options: { color?: string; size?: string };
+    price?: number;
+    stock: number;
+}
+
 interface ImportPreviewRow {
     name?: string;
     type?: 'physical' | 'service' | 'appointment' | string;
@@ -27,6 +34,7 @@ interface ImportPreviewRow {
     colors?: string[];
     sizes?: string[];
     image_url?: string;
+    variants?: ImportPreviewVariant[];
 }
 
 interface ImportSkippedRow {
@@ -700,7 +708,14 @@ export default function ProductsPage() {
                                         <tbody className="divide-y divide-white/[0.04]">
                                             {importPreview.slice(0, 10).map((p, i) => (
                                                 <tr key={i}>
-                                                    <td className="px-3 py-2 text-foreground">{p.name}</td>
+                                                    <td className="px-3 py-2 text-foreground">
+                                                        {p.name}
+                                                        {(p.variants?.length ?? 0) > 0 && (
+                                                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-[var(--brand-indigo-400)] whitespace-nowrap">
+                                                                {p.variants!.length} хувилбар
+                                                            </span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-3 py-2">
                                                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/[0.06] text-white/60">
                                                             {p.type === 'service' ? t.products.service : p.type === 'appointment' ? t.products.appointment : t.products.physical}
@@ -754,7 +769,8 @@ export default function ProductsPage() {
                             </div>
                             <ul className="text-[11.5px] text-white/50 space-y-1">
                                 <li><strong className="text-foreground">Excel:</strong> {t.products.excelFormat}</li>
-                                <li><strong className="text-foreground">Багана:</strong> Нэр*, Үнэ*, Тоо, Нэгж, Өнгө, Хэмжээ, Тайлбар, Зургийн URL (Өнгө/Хэмжээг таслалаар тусгаарлана)</li>
+                                <li><strong className="text-foreground">Багана:</strong> Нэр*, Үнэ*, Тоо, Нэгж, Өнгө, Хэмжээ, SKU, Тайлбар, Зургийн URL (Өнгө/Хэмжээг таслалаар тусгаарлана)</li>
+                                <li><strong className="text-foreground">Хувилбар:</strong> Нэг нэрийг олон мөрөнд давтаж, мөр бүрт нэг өнгө×хэмжээ + тоог бичвэл хослол тус бүрийн нөөцтэйгөөр орно</li>
                                 <li><strong className="text-foreground">Word:</strong> {t.products.wordFormat}</li>
                             </ul>
                         </div>

@@ -23,6 +23,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = supabaseAdmin();
 
+    interface VariantInput {
+      sku?: string;
+      options: { color?: string; size?: string };
+      price?: number;
+      stock: number;
+    }
+
     interface ProductInput {
       name?: string;
       price?: string | number;
@@ -34,12 +41,12 @@ export async function POST(request: NextRequest) {
       discount_percent?: number;
       images?: string[];
       image_url?: string;
+      variants?: VariantInput[];
     }
 
     // Filter valid products
-    const validProducts = (products as ProductInput[])
-      .filter((p) => p.name && p.price)
-      .map((p) => ({
+    const validInputs = (products as ProductInput[]).filter((p) => p.name && p.price);
+    const validProducts = validInputs.map((p) => ({
         shop_id: shop.id,
         name: p.name,
         price: parseFloat(String(p.price ?? 0)) || 0,
@@ -49,6 +56,7 @@ export async function POST(request: NextRequest) {
         colors: p.colors || [],
         sizes: p.sizes || [],
         images: p.images || [],
+        has_variants: (p.variants?.length ?? 0) > 0,
         is_active: true
       }));
 
@@ -63,6 +71,26 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) throw error;
+
+    // Excel импортоос ирсэн хувилбаруудыг бичнэ — нөөцийг trigger эцэг рүү нэгтгэнэ
+    const variantsToInsert = insertedProducts.flatMap((inserted: { id: string }, i: number) =>
+      (validInputs[i].variants || []).map((v) => ({
+        product_id: inserted.id,
+        sku: v.sku || null,
+        name: [v.options.color, v.options.size].filter(Boolean).join(' / '),
+        options: v.options,
+        price: v.price ?? null,
+        stock: v.stock,
+        is_active: true,
+      }))
+    );
+
+    if (variantsToInsert.length > 0) {
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .insert(variantsToInsert);
+      if (variantError) throw variantError;
+    }
 
     // Note: setup_completed is set AFTER subscription payment is verified
     // in check-payment or webhook handler — NOT here

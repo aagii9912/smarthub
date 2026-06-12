@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, getAuthUserShop } from '@/lib/auth/auth';
 import { parseProductDataWithAI } from '@/lib/ai/services/ProductParser';
+import { groupProductVariants } from '@/lib/utils/file-parser';
 import { logProductImport } from '@/lib/services/importAudit';
 import { logger } from '@/lib/utils/logger';
 import * as XLSX from 'xlsx';
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
                 });
 
                 return NextResponse.json({
-                    products: fallbackProducts,
+                    products: groupProductVariants(fallbackProducts),
                     raw_headers: rawHeaders,
                     source: 'manual_fallback',
                     total_rows: jsonData.length - 1,
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json({
-            products,
+            products: groupProductVariants(products),
             raw_headers: rawHeaders,
             source: 'ai',
             total_rows: jsonData.length - 1,
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
 function tryManualExtraction(
     jsonData: unknown[][],
     headers: string[]
-): Array<{ name: string; price: number; stock: number; description: string; type: 'physical' | 'service'; unit: string; colors: string[]; sizes: string[] }> {
+): Array<{ name: string; price: number; stock: number; description: string; type: 'physical' | 'service'; unit: string; colors: string[]; sizes: string[]; sku?: string }> {
     // Common header patterns for Mongolian & English
     const namePatterns = ['нэр', 'name', 'бараа', 'бүтээгдэхүүн', 'product', 'нэрс', 'item'];
     const pricePatterns = ['үнэ', 'price', 'төлбөр', 'дүн', 'amount', 'cost'];
@@ -208,6 +209,7 @@ function tryManualExtraction(
     const sizePatterns = ['хэмжээ', 'size', 'размер'];
     const unitPatterns = ['нэгж', 'unit'];
     const typePatterns = ['төрөл', 'type', 'ангилал'];
+    const skuPatterns = ['sku', 'код', 'баркод', 'barcode'];
 
     let nameIdx = -1;
     let priceIdx = -1;
@@ -217,6 +219,7 @@ function tryManualExtraction(
     let sizeIdx = -1;
     let unitIdx = -1;
     let typeIdx = -1;
+    let skuIdx = -1;
 
     headers.forEach((h, idx) => {
         const lower = h.toLowerCase().replace(/[^a-zа-яөүё]/g, '');
@@ -229,6 +232,7 @@ function tryManualExtraction(
         if (colorIdx === -1 && colorPatterns.some(p => lower.includes(p))) colorIdx = idx;
         if (unitIdx === -1 && unitPatterns.some(p => lower.includes(p))) unitIdx = idx;
         if (typeIdx === -1 && typePatterns.some(p => lower.includes(p))) typeIdx = idx;
+        if (skuIdx === -1 && skuPatterns.some(p => lower.includes(p))) skuIdx = idx;
     });
 
     // Must have at least name column
@@ -246,7 +250,7 @@ function tryManualExtraction(
 
     if (nameIdx === -1) return [];
 
-    const products: Array<{ name: string; price: number; stock: number; description: string; type: 'physical' | 'service'; unit: string; colors: string[]; sizes: string[] }> = [];
+    const products: Array<{ name: string; price: number; stock: number; description: string; type: 'physical' | 'service'; unit: string; colors: string[]; sizes: string[]; sku?: string }> = [];
 
     for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i] as (string | number | undefined)[];
@@ -269,6 +273,8 @@ function tryManualExtraction(
             ? String(row[unitIdx]).trim()
             : (type === 'service' ? 'захиалга' : 'ширхэг');
 
+        const sku = skuIdx >= 0 ? String(row[skuIdx] ?? '').trim() : '';
+
         products.push({
             name,
             price,
@@ -278,6 +284,7 @@ function tryManualExtraction(
             unit,
             colors,
             sizes,
+            sku: sku || undefined,
         });
     }
 

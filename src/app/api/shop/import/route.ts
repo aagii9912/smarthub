@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, getAuthUserShop, supabaseAdmin } from '@/lib/auth/auth';
-import { parseProductFile, ParsedProduct, SkippedRow } from '@/lib/utils/file-parser';
+import { parseProductFile, GroupedProduct, SkippedRow, variantDisplayName } from '@/lib/utils/file-parser';
 import { logProductImport } from '@/lib/services/importAudit';
 import { logger } from '@/lib/utils/logger';
 
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         shopId = shop.id;
         userId = await getAuthUser();
 
-        let products: ParsedProduct[] = [];
+        let products: GroupedProduct[] = [];
         let skipped: SkippedRow[] = [];
         let source = 'ai';
         let preview = false;
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         const supabase = supabaseAdmin();
 
         // Prepare products for database
-        const productsToInsert = products.map((p: ParsedProduct) => ({
+        const productsToInsert = products.map((p: GroupedProduct) => ({
             shop_id: shop.id,
             name: p.name,
             price: p.price,
@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
             colors: p.colors || [],
             sizes: p.sizes || [],
             images: p.image_url ? [p.image_url] : [],
+            has_variants: (p.variants?.length ?? 0) > 0,
             is_active: true
         }));
 
@@ -149,6 +150,29 @@ export async function POST(request: NextRequest) {
             .select();
 
         if (error) throw error;
+
+        // Хувилбаруудыг бичнэ — нөөцийн нийлбэрийг trigger эцэг рүү автоматаар нэгтгэнэ
+        // (PostgREST inserted мөрүүдийг оруулсан дарааллаар нь буцаадаг тул индексээр тааруулна)
+        const variantsToInsert = insertedProducts.flatMap((inserted, i) =>
+            (products[i].variants || []).map(v => ({
+                product_id: inserted.id,
+                sku: v.sku || null,
+                name: variantDisplayName(v),
+                options: v.options,
+                price: v.price ?? null,
+                stock: v.stock,
+                is_active: true,
+            }))
+        );
+
+        let variantCount = 0;
+        if (variantsToInsert.length > 0) {
+            const { error: variantError } = await supabase
+                .from('product_variants')
+                .insert(variantsToInsert);
+            if (variantError) throw variantError;
+            variantCount = variantsToInsert.length;
+        }
 
         await logProductImport({
             shop_id: shop.id,
@@ -168,8 +192,11 @@ export async function POST(request: NextRequest) {
             success: true,
             products: insertedProducts,
             count: insertedProducts.length,
+            variant_count: variantCount,
             skipped,
-            message: `${insertedProducts.length} бүтээгдэхүүн амжилттай импорт хийгдлээ!`
+            message: variantCount > 0
+                ? `${insertedProducts.length} бүтээгдэхүүн (${variantCount} хувилбартай) амжилттай импорт хийгдлээ!`
+                : `${insertedProducts.length} бүтээгдэхүүн амжилттай импорт хийгдлээ!`
         });
 
     } catch (error: unknown) {

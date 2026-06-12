@@ -14,6 +14,13 @@ import { ProductImportModal } from './ProductImportModal';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+interface ProductVariant {
+  sku?: string;
+  options: { color?: string; size?: string };
+  price?: number;
+  stock: number;
+}
+
 interface Product {
   name: string;
   price: string;
@@ -24,6 +31,8 @@ interface Product {
   stock: string;
   imageUrl?: string;
   imageFile?: File | null;
+  /** Excel импортоос ирсэн өнгө×хэмжээ тус бүрийн нөөц — хадгалахад product_variants болж бичигдэнэ */
+  variants?: ProductVariant[];
 }
 
 interface ProductStepProps {
@@ -50,7 +59,8 @@ export function ProductStep({ initialProducts, onBack, onComplete, productNoun, 
         type: p.type || defaultType,
         stock: p.stock || '10',
         imageUrl: p.imageUrl,
-        imageFile: null
+        imageFile: null,
+        variants: p.variants
       }))
       : [{
         name: '',
@@ -102,6 +112,7 @@ export function ProductStep({ initialProducts, onBack, onComplete, productNoun, 
     type?: string;
     colors?: string[];
     sizes?: string[];
+    variants?: ProductVariant[];
   }[]) => {
     const newProducts: Product[] = importedProducts.map(p => ({
       name: p.name,
@@ -112,7 +123,8 @@ export function ProductStep({ initialProducts, onBack, onComplete, productNoun, 
       type: p.type === 'service' ? 'service' as const : 'physical' as const,
       stock: p.stock != null ? p.stock.toString() : '10',
       imageUrl: p.image_url,
-      imageFile: null
+      imageFile: null,
+      variants: p.variants
     }));
 
     // Replace empty product with imported ones, or append
@@ -260,6 +272,12 @@ export function ProductStep({ initialProducts, onBack, onComplete, productNoun, 
                   <Layers className="w-3.5 h-3.5" /> {t.setup.products.service}
                 </button>
               </div>
+
+              {(product.variants?.length ?? 0) > 0 && (
+                <span className="px-2 py-1 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-600 border border-indigo-100">
+                  {product.variants!.length} хувилбар · нөөц хослол тус бүрээр
+                </span>
+              )}
 
               {products.length > 1 && (
                 <button

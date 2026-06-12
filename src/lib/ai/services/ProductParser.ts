@@ -18,6 +18,7 @@ export interface AIExtractedProduct {
     unit: string;
     colors: string[];
     sizes: string[];
+    sku?: string;
 }
 
 /**
@@ -57,8 +58,10 @@ RULES:
 3. Determine 'unit': e.g., 'ширхэг' for goods, 'захиалга', 'цаг', 'хүн' for services.
 4. Extract 'stock': For services, this is the Number of Available Slots/Orders. If not specified, default to 0.
 5. Extract 'colors' and 'sizes' as arrays. Column names may be Mongolian: 'Өнгө' = colors, 'Хэмжээ'/'Размер' = sizes (e.g. S/M/L or 38/39/40). Values are usually comma-separated — split them. Careful: 'Тоо' / 'Тоо хэмжээ' / 'Үлдэгдэл' means stock quantity, NOT sizes.
-6. If physical dimensions/specs are present (урт, өргөн, өндөр, жин, багтаамж, cm, kg etc.), append them to 'description' so the info is not lost.
-7. Return a JSON object with a "products" array.
+6. IMPORTANT: Output one item PER INPUT ROW. Do NOT merge rows that share the same product name — repeated names are color/size variants, each with its own stock. Preserve each row's own color, size, stock, price and sku.
+7. Extract 'sku' if a SKU/Код/Barcode column exists, else omit it.
+8. If physical dimensions/specs are present (урт, өргөн, өндөр, жин, багтаамж, cm, kg etc.), append them to 'description' so the info is not lost.
+9. Return a JSON object with a "products" array.
 
 Input Content:
 ${fileContent.slice(0, 15000)}
@@ -74,7 +77,8 @@ Response Format (JSON only):
       "type": "physical",
       "unit": "ширхэг",
       "colors": ["red", "blue"],
-      "sizes": ["S", "M"]
+      "sizes": ["S", "M"],
+      "sku": "TS-RED-S"
     }
   ]
 }`;
@@ -103,6 +107,7 @@ Response Format (JSON only):
             unit?: string;
             colors?: string[];
             sizes?: string[];
+            sku?: string;
         }
 
         return (parsed.products as ParsedProduct[]).map((p) => ({
@@ -114,6 +119,7 @@ Response Format (JSON only):
             unit: p.unit || (p.type === 'service' ? 'захиалга' : 'ширхэг'),
             colors: Array.isArray(p.colors) ? p.colors : [],
             sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            sku: p.sku ? String(p.sku).trim() : undefined,
         }));
 
     } catch (error: unknown) {
