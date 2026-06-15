@@ -127,7 +127,10 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
     const persistAndComplete = async () => {
         setSaving(true);
         try {
-            // 1) Save shop-level fields.
+            // 1) Save shop-level fields. ai_agent_config is intentionally NOT
+            // sent here: /api/shop replaces that column wholesale, which wipes
+            // Brand/Policy settings living under cross_cutting. The JSONB bits
+            // go through the merge-safe config endpoint in step 2.
             const shopRes = await fetch('/api/shop', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -140,17 +143,6 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
                     ai_instructions: instructions,
                     description,
                     ai_setup_completed_at: new Date().toISOString(),
-                    // Persist enabled tools + reply-style knobs together. /api/shop
-                    // replaces the ai_agent_config column wholesale, so both must
-                    // be written in this single payload.
-                    ai_agent_config: {
-                        enabled_tools: enabledTools,
-                        cross_cutting: {
-                            sales_assertiveness: salesAssertiveness,
-                            response_length: responseLength,
-                            emoji_usage: emojiUsage,
-                        },
-                    },
                 }),
             });
             if (!shopRes.ok) {
@@ -158,18 +150,34 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
                 throw new Error(data?.error || 'Шопын мэдээлэл хадгалахад алдаа гарлаа');
             }
 
-            // 2) Replace FAQs (small list, simpler than diffing).
-            const faqRes = await fetch('/api/ai-settings?type=faqs', { method: 'GET' });
-            if (faqRes.ok) {
-                const data = await faqRes.json();
-                const existing = (data?.faqs || []) as { id: string }[];
-                await Promise.all(
-                    existing.map((f) =>
-                        fetch(`/api/ai-settings?type=faqs&id=${f.id}`, { method: 'DELETE' }),
-                    ),
-                );
+            // 2) Merge enabled tools + reply-style knobs into ai_agent_config
+            // without touching sibling keys (brand voice, policies, etc.).
+            const configRes = await fetch('/api/ai-settings/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    enabled_tools: enabledTools,
+                    cross_cutting: {
+                        sales_assertiveness: salesAssertiveness,
+                        response_length: responseLength,
+                        emoji_usage: emojiUsage,
+                    },
+                }),
+            });
+            if (!configRes.ok) {
+                const data = await configRes.json().catch(() => ({}));
+                throw new Error(data?.error || 'AI тохиргоо хадгалахад алдаа гарлаа');
             }
-            await Promise.all(
+
+            // 3) Replace FAQs (small list, simpler than diffing). Create the new
+            // set FIRST and verify every response — only then delete the old
+            // rows, so a failure can't leave the shop with zero FAQs.
+            const faqRes = await fetch('/api/ai-settings?type=faqs', { method: 'GET' });
+            const existing: { id: string }[] = faqRes.ok
+                ? (((await faqRes.json())?.faqs || []) as { id: string }[])
+                : [];
+
+            const created = await Promise.all(
                 faqs.map((f) =>
                     fetch('/api/ai-settings', {
                         method: 'POST',
@@ -182,6 +190,18 @@ export function AgentWizard({ initial, onClose, onComplete }: AgentWizardProps) 
                     }),
                 ),
             );
+            if (created.some((r) => !r.ok)) {
+                throw new Error('Зарим FAQ хадгалагдсангүй. Дахин оролдоно уу.');
+            }
+
+            const deleted = await Promise.all(
+                existing.map((f) =>
+                    fetch(`/api/ai-settings?type=faqs&id=${f.id}`, { method: 'DELETE' }),
+                ),
+            );
+            if (deleted.some((r) => !r.ok)) {
+                toast.warning('Хуучин зарим FAQ устгагдсангүй — FAQ жагсаалтаа шалгаарай.');
+            }
 
             toast.success('AI agent идэвхжлээ! Хэрэглэгчид шууд хариу авах боломжтой.');
             onComplete();

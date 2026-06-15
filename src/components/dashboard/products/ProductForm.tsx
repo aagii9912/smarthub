@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Upload, Box, Layers, Calendar, Plus, X, Trash2 } from 'lucide-react';
@@ -33,6 +34,8 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     const isServiceBusiness = shop?.business_type === 'service' || shop?.business_type === 'beauty';
 
     const [saving, setSaving] = useState(false);
+    // Талбар бүрийн validation алдаа — alert-ийн оронд талбарын доор улаанаар харуулна
+    const [fieldErrors, setFieldErrors] = useState<{ price?: string; discount?: string; stock?: string }>({});
     const [productType, setProductType] = useState<'physical' | 'service' | 'appointment'>(
         product?.type ?? (isServiceBusiness ? 'service' : 'physical')
     );
@@ -228,8 +231,26 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        setSaving(true);
         const formData = new FormData(e.currentTarget);
+
+        // Тоон утгуудын хязгаарыг шалгана
+        const priceValue = Number(formData.get('price'));
+        const discountValue = Number(formData.get('discount')) || 0;
+        const stockValue = Number(formData.get('stock')) || 0;
+        const errors: typeof fieldErrors = {};
+        if (!Number.isFinite(priceValue) || priceValue < 0) {
+            errors.price = 'Үнэ 0-ээс бага байж болохгүй';
+        }
+        if (discountValue < 0 || discountValue > 100) {
+            errors.discount = 'Хямдрал 0-100% хооронд байх ёстой';
+        }
+        if (productType === 'physical' && !hasVariants && stockValue < 0) {
+            errors.stock = 'Үлдэгдэл 0-ээс бага байж болохгүй';
+        }
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) return;
+
+        setSaving(true);
 
         try {
             // Resolve every image slot in parallel: keep its existingUrl if no
@@ -305,7 +326,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             }
             onSuccess();
         } catch (error: unknown) {
-            alert(error instanceof Error ? error.message : 'Алдаа гарлаа');
+            toast.error(error instanceof Error ? error.message : 'Хадгалахад алдаа гарлаа');
         } finally {
             setSaving(false);
         }
@@ -346,12 +367,12 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                         <h3 className="text-[13px] font-semibold text-white/90">Үнэ болон Хямдрал</h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input name="price" label="Үнэ (₮)" type="number" defaultValue={product?.price} required placeholder="0" />
-                            <Input name="discount" label="Хямдрал (%)" type="number" defaultValue={product?.discount_percent || ''} placeholder="0" />
+                            <Input name="price" label="Үнэ (₮)" type="number" min={0} defaultValue={product?.price} required placeholder="0" error={fieldErrors.price} />
+                            <Input name="discount" label="Хямдрал (%)" type="number" min={0} max={100} defaultValue={product?.discount_percent || ''} placeholder="0" error={fieldErrors.discount} />
                         </div>
                         {productType === 'physical' && !hasVariants && (
                             <div className="pt-1">
-                                <Input name="stock" label="Үлдэгдэл тоо (Stock)" type="number" defaultValue={product?.stock || ''} placeholder="0" />
+                                <Input name="stock" label="Үлдэгдэл тоо (Stock)" type="number" min={0} defaultValue={product?.stock || ''} placeholder="0" error={fieldErrors.stock} />
                             </div>
                         )}
                     </div>

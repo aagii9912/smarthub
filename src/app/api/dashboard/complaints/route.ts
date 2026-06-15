@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getAuthUserShop } from '@/lib/auth/auth';
 import { z } from 'zod';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
@@ -10,14 +11,17 @@ const updateSchema = z.object({
     resolution_notes: z.string().optional()
 });
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
-        const shopId = request.headers.get('x-shop-id');
+        // Validates that the authed user owns the shop from x-shop-id
+        // (falls back to the user's first shop when the header is absent).
+        const shop = await getAuthUserShop();
 
-        if (!shopId) {
-            return NextResponse.json({ error: 'Shop ID required' }, { status: 400 });
+        if (!shop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const shopId = shop.id;
         const supabase = supabaseAdmin();
 
         const { data, error } = await supabase
@@ -52,12 +56,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const shopId = request.headers.get('x-shop-id');
+        const shop = await getAuthUserShop();
 
-        if (!shopId) {
-            return NextResponse.json({ error: 'Shop ID required' }, { status: 400 });
+        if (!shop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const shopId = shop.id;
         const body = await request.json();
         const parsed = updateSchema.safeParse(body);
 

@@ -5,6 +5,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
+import { isNotificationEnabled } from '@/lib/notifications-prefs';
 
 /** Products with stock at or below this threshold trigger alerts */
 const LOW_STOCK_THRESHOLD = 3;
@@ -65,6 +66,11 @@ async function notifyLowStockAfterDeduction(orderId: string): Promise<void> {
         .single();
 
     if (!order?.shop_id) return;
+
+    // Respect the shop owner's saved 'low_stock' notification preference
+    if (!(await isNotificationEnabled(order.shop_id, 'low_stock'))) {
+        return;
+    }
 
     const { data: items } = await supabase
         .from('order_items')
@@ -189,6 +195,11 @@ export async function checkAllShopsLowStock(): Promise<{ alertCount: number }> {
     }
 
     for (const [shopId, products] of shopAlerts) {
+        // Respect the shop owner's saved 'low_stock' notification preference
+        if (!(await isNotificationEnabled(shopId, 'low_stock'))) {
+            continue;
+        }
+
         const count = products.length;
         await sendPushNotification(shopId, {
             title: `⚠️ ${count} бараа нөөц бага`,

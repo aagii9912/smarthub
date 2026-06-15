@@ -125,6 +125,11 @@
 
 .co-form { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 .co-form-title { font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.co-field { display: flex; flex-direction: column; gap: 5px; }
+.co-label { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.7); }
+.co-required { color: #ff6b6b; }
+.co-field-error { color: #ff6b6b; font-size: 12px; margin: 0; }
+.co-input[aria-invalid='true'] { border-color: rgba(255, 107, 107, 0.6); }
 .co-input {
     width: 100%;
     padding: 12px 14px;

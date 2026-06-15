@@ -252,6 +252,8 @@ export const operationsSchema = z.discriminatedUnion('business_type', [
 export const aiSettingsConfigPatchSchema = z
     .object({
         cross_cutting: crossCuttingSchema.partial().optional(),
+        // Replaces ai_agent_config.enabled_tools only; sibling keys are preserved.
+        enabled_tools: z.array(z.string().min(1).max(100)).max(50).optional(),
         operations: operationsSchema.optional(),
         working_hours_structured: weeklyHoursSchema.optional(),
         mark_completed: z.boolean().optional(),
@@ -260,6 +262,7 @@ export const aiSettingsConfigPatchSchema = z
     .refine(
         d =>
             d.cross_cutting !== undefined ||
+            d.enabled_tools !== undefined ||
             d.operations !== undefined ||
             d.working_hours_structured !== undefined ||
             d.mark_completed !== undefined,

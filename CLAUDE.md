@@ -25,7 +25,7 @@
 | Styling | Tailwind CSS | 4.x |
 | Database | Supabase (PostgreSQL + RLS) | — |
 | Auth | Supabase Auth (Email, Google, Facebook OAuth) | 0.8.0 |
-| AI | Google Generative AI (`@google/generative-ai`) + Vercel AI SDK | 0.24.1 / 6.0.33 |
+| AI | Google Generative AI (`@google/generative-ai`) | 0.24.1 |
 | Validation | Zod | 4.x |
 | DB Client | `@supabase/supabase-js` + `postgres` (raw) | 2.89 / 3.4 |
 | Monitoring | Sentry (client + server + edge) | 10.34.0 |
@@ -131,8 +131,7 @@ src/
 │   ├── supabase-browser.ts       # Browser Supabase client
 │   ├── supabase-server.ts        # Server-side Supabase client
 │   ├── supabase-middleware.ts    # Middleware Supabase client
-│   ├── notifications.ts          # Push notification helpers
-│   └── plan-limits.ts            # Subscription plan limits
+│   └── notifications.ts          # Push notification helpers
 │
 ├── components/                   # React components
 │   ├── ui/                       # Base UI primitives (buttons, inputs, cards, etc.)

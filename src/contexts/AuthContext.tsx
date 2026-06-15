@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { toast } from 'sonner';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import type { User } from '@supabase/supabase-js';
 import type { Shop } from '@/types/database';
@@ -125,9 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success && data.shop) {
         setActiveShop(data.shop);
         window.location.reload();
+      } else {
+        // Чимээгүй унтарвал хэрэглэгч хуучин дэлгүүр дээрээ үлдсэнээ мэдэхгүй.
+        toast.error('Дэлгүүр солиход алдаа гарлаа');
       }
     } catch (err) {
       if (isDev) logger.error('Switch shop error:', { error: err });
+      toast.error('Дэлгүүр солиход алдаа гарлаа');
     }
   }, [setActiveShop]);
 

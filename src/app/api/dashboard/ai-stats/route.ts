@@ -13,13 +13,16 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getAuthUserShop } from '@/lib/auth/auth';
+import { getAuthUser, getAuthUserShop } from '@/lib/auth/auth';
+import { getUserBilling } from '@/lib/billing/getUserBilling';
 import {
     getPlanTypeFromSubscription,
     checkTokenLimit,
     checkCreditLimit,
     getPlanConfig,
     getCreditsPerMonth,
+    tokensToCredits,
+    TOKENS_PER_CREDIT,
 } from '@/lib/ai/config/plans';
 
 export async function GET(request: Request) {
@@ -140,15 +143,57 @@ export async function GET(request: Request) {
         const emailsCollected = allCustomers.filter(c => c.email).length;
         const totalCustomersWithMessages = allCustomers.filter(c => (c.message_count || 0) > 0).length;
 
-        // Token usage
+        // Token usage — the authoritative counter is the per-user 30-day
+        // token pool (getUserBilling). The legacy per-shop counter
+        // (shops.token_usage_total) is only a fallback when the billing
+        // snapshot carries no plan/limit info. A billing lookup failure must
+        // degrade to the legacy counter, not 500 the whole stats endpoint.
+        let billing: Awaited<ReturnType<typeof getUserBilling>> | null = null;
+        try {
+            const userId = await getAuthUser();
+            billing = userId ? await getUserBilling(userId) : null;
+        } catch (billingErr) {
+            logger.warn('ai-stats: billing lookup failed, using legacy counters', {
+                error: billingErr instanceof Error ? billingErr.message : billingErr,
+            });
+        }
+        const tokensLimitFromBilling = billing?.tokensLimit ?? null;
+        const billingAvailable = tokensLimitFromBilling !== null;
+
         const planType = getPlanTypeFromSubscription({
-            plan: shopFull?.subscription_plan || 'lite',
-            status: shopFull?.subscription_status || 'active',
+            plan: (billingAvailable ? billing?.plan : shopFull?.subscription_plan) || 'lite',
+            status: (billingAvailable ? billing?.status : shopFull?.subscription_status) || 'active',
         });
         const planConfig = getPlanConfig(planType);
-        const tokensTotal = shopFull?.token_usage_total || 0;
-        const tokenCheck = checkTokenLimit(planType, tokensTotal);
-        const creditCheck = checkCreditLimit(planType, tokensTotal);
+        const tokensTotal = billingAvailable
+            ? (billing?.tokensUsed ?? 0)
+            : (shopFull?.token_usage_total || 0);
+
+        const tokenCheck = billingAvailable
+            ? {
+                allowed: tokensTotal < tokensLimitFromBilling,
+                remaining: Math.max(0, tokensLimitFromBilling - tokensTotal),
+                limit: tokensLimitFromBilling,
+                usagePercent: tokensLimitFromBilling > 0
+                    ? Math.min(100, Math.round((tokensTotal / tokensLimitFromBilling) * 100))
+                    : 0,
+            }
+            : checkTokenLimit(planType, tokensTotal);
+
+        const creditCheck = billingAvailable
+            ? {
+                allowed: tokenCheck.allowed,
+                used: tokensToCredits(tokensTotal),
+                remaining: Math.floor(tokenCheck.remaining / TOKENS_PER_CREDIT),
+                limit: Math.floor(tokensLimitFromBilling / TOKENS_PER_CREDIT),
+                usagePercent: tokenCheck.usagePercent,
+            }
+            : checkCreditLimit(planType, tokensTotal);
+
+        // 30-day rolling window reset date when billing is available
+        const resetAt = billingAvailable && billing?.periodAnchorAt
+            ? new Date(new Date(billing.periodAnchorAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            : shopFull?.token_usage_reset_at;
 
         // Top customers
         const topCustomers = (topCustomersRes.data || []).map(c => ({
@@ -215,14 +260,14 @@ export async function GET(request: Request) {
                 limit: creditCheck.limit,
                 percent: creditCheck.usagePercent,
                 remaining: creditCheck.remaining,
-                resetAt: shopFull?.token_usage_reset_at,
+                resetAt,
             },
             tokenUsage: {
                 total: tokensTotal,
                 limit: tokenCheck.limit,
                 percent: tokenCheck.usagePercent,
                 remaining: tokenCheck.remaining,
-                resetAt: shopFull?.token_usage_reset_at,
+                resetAt,
             },
             plan: {
                 type: planType,

@@ -96,13 +96,18 @@ export async function PATCH(request: NextRequest) {
 
         const update: Record<string, unknown> = {};
 
-        // ── cross_cutting (merged into ai_agent_config.cross_cutting) ──
-        if (patch.cross_cutting !== undefined) {
+        // ── cross_cutting / enabled_tools (merged into ai_agent_config) ──
+        if (patch.cross_cutting !== undefined || patch.enabled_tools !== undefined) {
             const existingConfig = (current.ai_agent_config ?? {}) as Record<string, unknown>;
             const existingCC = (existingConfig.cross_cutting ?? {}) as Record<string, unknown>;
             update.ai_agent_config = {
                 ...existingConfig,
-                cross_cutting: { ...existingCC, ...patch.cross_cutting },
+                ...(patch.cross_cutting !== undefined
+                    ? { cross_cutting: { ...existingCC, ...patch.cross_cutting } }
+                    : {}),
+                ...(patch.enabled_tools !== undefined
+                    ? { enabled_tools: patch.enabled_tools }
+                    : {}),
             };
         }
 

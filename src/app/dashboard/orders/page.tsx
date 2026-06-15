@@ -13,6 +13,7 @@ import { useOrders, OrderWithDetails } from '@/hooks/useOrders';
 import { useUpdateOrder, useBulkUpdateOrders } from '@/hooks/useUpdateOrder';
 import { useRecheckPayment } from '@/hooks/useRecheckPayment';
 import {
+  AlertTriangle,
   Package,
   User,
   Phone,
@@ -52,7 +53,7 @@ export default function OrdersPage() {
     { value: 'qpay', label: '💳 QPay' },
   ];
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
-  const { data: orders = [], isLoading, refetch, isRefetching } = useOrders(dateRange);
+  const { data: orders = [], isLoading, isError, refetch, isRefetching } = useOrders(dateRange);
   const { mutate: updateStatus } = useUpdateOrder();
   const { mutate: bulkUpdateStatus } = useBulkUpdateOrders();
   const { mutate: recheckPayment, isPending: isRechecking } = useRecheckPayment();
@@ -62,6 +63,8 @@ export default function OrdersPage() {
   const [bulkSelectedOrders, setBulkSelectedOrders] = useState<OrderWithDetails[]>([]);
   // Нэг захиалгын төлвийг түргэн солих popup (1 товшилт)
   const [statusModalOrder, setStatusModalOrder] = useState<OrderWithDetails | null>(null);
+  // "Цуцлах" төлөв сонгоход баталгаажуулах жижиг popup — бусад төлөв 1 товшилтоор
+  const [cancelConfirmIds, setCancelConfirmIds] = useState<string[] | null>(null);
   const [dateFromInput, setDateFromInput] = useState('');
   const [dateToInput, setDateToInput] = useState('');
 
@@ -209,16 +212,62 @@ export default function OrdersPage() {
 
   const handleBulkStatusUpdate = (newStatus: string) => {
     const orderIds = bulkSelectedOrders.map(o => o.id);
-    bulkUpdateStatus({ orderIds, status: newStatus });
     setShowBulkStatusModal(false);
     setBulkSelectedOrders([]);
     setTableKey(prev => prev + 1);
+    if (newStatus === 'cancelled') {
+      setCancelConfirmIds(orderIds);
+      return;
+    }
+    bulkUpdateStatus({ orderIds, status: newStatus });
+  };
+
+  // Цуцлахаас бусад төлөв шууд солигдоно; цуцлахад баталгаажуулна
+  const requestStatusChange = (orderId: string, status: string) => {
+    if (status === 'cancelled') {
+      setCancelConfirmIds([orderId]);
+      return;
+    }
+    updateStatus({ orderId, status });
+  };
+
+  const confirmCancel = () => {
+    if (!cancelConfirmIds || cancelConfirmIds.length === 0) {
+      setCancelConfirmIds(null);
+      return;
+    }
+    if (cancelConfirmIds.length === 1) {
+      updateStatus({ orderId: cancelConfirmIds[0], status: 'cancelled' });
+    } else {
+      bulkUpdateStatus({ orderIds: cancelConfirmIds, status: 'cancelled' });
+    }
+    setCancelConfirmIds(null);
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-[13px] text-white/40 tracking-[-0.01em]">{t.orders.loading}</div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4 text-center">
+        <AlertTriangle className="w-10 h-10 text-white/20" strokeWidth={1.5} />
+        <div>
+          <p className="text-[13px] text-white/60 tracking-[-0.01em]">Захиалга ачаалахад алдаа гарлаа</p>
+          <p className="text-[12px] text-white/35 mt-1">Интернэт холболтоо шалгаад дахин оролдоно уу.</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium text-white/60 bg-card border border-border rounded-lg hover:border-[var(--brand-indigo)]/40 transition-colors tracking-[-0.01em]"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
+          Дахин оролдох
+        </button>
       </div>
     );
   }
@@ -236,7 +285,7 @@ export default function OrdersPage() {
               onClick={() => window.open('/api/orders/export', '_blank')}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Export
+              {t.orders.export}
             </button>
             <button
               onClick={() => refetch()}
@@ -565,7 +614,7 @@ export default function OrdersPage() {
                           key={status.value}
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateStatus({ orderId: selectedOrder.id, status: status.value });
+                            requestStatusChange(selectedOrder.id, status.value);
                           }}
                           disabled={isActive}
                           className={`flex items-center gap-2 px-3 py-2 rounded-md text-[12px] font-medium transition-all tracking-[-0.01em] ${isActive
@@ -606,7 +655,7 @@ export default function OrdersPage() {
         cancelLabel={t.orders.cancel}
         onSelect={(status) => {
           if (statusModalOrder) {
-            updateStatus({ orderId: statusModalOrder.id, status });
+            requestStatusChange(statusModalOrder.id, status);
           }
           setStatusModalOrder(null);
         }}
@@ -622,6 +671,49 @@ export default function OrdersPage() {
         onSelect={handleBulkStatusUpdate}
         onClose={() => setShowBulkStatusModal(false)}
       />
+
+      {/* Захиалга цуцлахын өмнөх баталгаажуулалт */}
+      {cancelConfirmIds && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+          onClick={() => setCancelConfirmIds(null)}
+        >
+          <div
+            className="bg-card rounded-2xl border border-white/[0.08] w-full max-w-sm p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4.5 h-4.5 text-red-400" strokeWidth={1.5} />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground tracking-[-0.02em]">
+                  {t.orders.statusCancelled}
+                </h2>
+                <p className="text-[13px] text-white/55 mt-1.5 tracking-[-0.01em]">
+                  {cancelConfirmIds.length > 1
+                    ? `${cancelConfirmIds.length} захиалгыг цуцлах уу? Энэ үйлдлийг буцаах боломжгүй.`
+                    : 'Захиалгыг цуцлах уу? Энэ үйлдлийг буцаах боломжгүй.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setCancelConfirmIds(null)}
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-white/50 hover:text-foreground bg-white/[0.04] hover:bg-white/[0.08] transition-colors tracking-[-0.01em]"
+              >
+                Үгүй, болих
+              </button>
+              <button
+                onClick={confirmCancel}
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-white bg-red-500 hover:bg-red-600 transition-colors tracking-[-0.01em]"
+              >
+                Тийм, цуцлах
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

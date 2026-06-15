@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
 import {
     Search,
@@ -91,9 +92,17 @@ export default function CustomersPage() {
         if (!selectedCustomer) return;
         setSaving(true);
         try {
-            await fetch('/api/dashboard/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' }, body: JSON.stringify({ id: selectedCustomer.id, ...editForm }) });
+            const res = await fetch('/api/dashboard/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' }, body: JSON.stringify({ id: selectedCustomer.id, ...editForm }) });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({} as { error?: string }));
+                throw new Error(data.error || 'Хадгалахад алдаа гарлаа');
+            }
+            // Зөвхөн амжилттай үед засах горимоос гарна
             setEditMode(false); fetchCustomers(); fetchDetail(selectedCustomer.id);
-        } catch (e) { logger.error('Хэрэглэгчийн алдаа', { error: e }); } finally { setSaving(false); }
+        } catch (e) {
+            logger.error('Хэрэглэгчийн алдаа', { error: e });
+            toast.error(e instanceof Error ? e.message : 'Хадгалахад алдаа гарлаа');
+        } finally { setSaving(false); }
     }
 
     async function deleteCustomer(id: string, name: string | null) {
@@ -107,7 +116,10 @@ export default function CustomersPage() {
             setIsDetailOpen(false);
             setSelectedCustomer(null);
             fetchCustomers();
-        } catch (e) { logger.error('Устгах алдаа', { error: e }); }
+        } catch (e) {
+            logger.error('Устгах алдаа', { error: e });
+            toast.error('Устгахад алдаа гарлаа');
+        }
     }
 
     async function addTag(cid: string, tag: string) {
@@ -123,7 +135,10 @@ export default function CustomersPage() {
             if (!res.ok) throw new Error(`Tag add failed: ${res.status}`);
             fetchCustomers();
             if (selectedCustomer?.id === cid) fetchDetail(cid);
-        } catch (e) { logger.error('Tag нэмэх алдаа', { error: e }); }
+        } catch (e) {
+            logger.error('Tag нэмэх алдаа', { error: e });
+            toast.error('Tag нэмэхэд алдаа гарлаа');
+        }
     }
     async function removeTag(cid: string, tag: string) {
         try {
@@ -138,7 +153,10 @@ export default function CustomersPage() {
             if (!res.ok) throw new Error(`Tag remove failed: ${res.status}`);
             fetchCustomers();
             if (selectedCustomer?.id === cid) fetchDetail(cid);
-        } catch (e) { logger.error('Tag устгах алдаа', { error: e }); }
+        } catch (e) {
+            logger.error('Tag устгах алдаа', { error: e });
+            toast.error('Tag устгахад алдаа гарлаа');
+        }
     }
 
     const filtered = customers.filter(c => (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.phone || '').includes(searchQuery));

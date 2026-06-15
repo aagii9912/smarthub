@@ -26,8 +26,8 @@ export async function GET(request: Request) {
       .from('orders')
       .select(`
         *,
-        customers (id, name, phone, address),
-        order_items (id, quantity, unit_price, products (id, name))
+        customers (id, name, phone, address, facebook_id),
+        order_items (id, quantity, unit_price, products (id, name, price))
       `)
       .eq('shop_id', shopId);
 

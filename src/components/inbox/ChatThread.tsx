@@ -49,16 +49,18 @@ export function ChatThread({ customerId }: ChatThreadProps) {
     const [summaryLoading, setSummaryLoading] = useState(false);
     const autoRegenAttemptedRef = useRef<string | null>(null);
 
-    const fetchDetail = useCallback(async () => {
+    const fetchDetail = useCallback(async (silent = false) => {
         if (!shopId) return;
         try {
-            setLoading(true);
-            setNotFound(false);
+            if (!silent) {
+                setLoading(true);
+                setNotFound(false);
+            }
             const res = await fetch(`/api/dashboard/conversations/${customerId}`, {
                 headers: { 'x-shop-id': shopId },
             });
             if (res.status === 404) {
-                setNotFound(true);
+                if (!silent) setNotFound(true);
                 return;
             }
             if (!res.ok) {
@@ -69,9 +71,10 @@ export function ChatThread({ customerId }: ChatThreadProps) {
             setMessages(data.messages);
             setLastInboundAt(data.last_customer_message_at);
         } catch {
-            toast.error(t.inbox.error);
+            // Polling-ийн чимээгүй шинэчлэлт бүтэлгүйтвэл toast-оор дарамтлахгүй
+            if (!silent) toast.error(t.inbox.error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [customerId, shopId, t.inbox.error]);
 
@@ -79,6 +82,16 @@ export function ChatThread({ customerId }: ChatThreadProps) {
         autoRegenAttemptedRef.current = null;
         void fetchDetail();
     }, [fetchDetail]);
+
+    // Нээлттэй харилцан яриаг 15 секунд тутамд чимээгүй шинэчилнэ —
+    // илгээж байх үед optimistic зурвасыг дарж бичихгүйн тулд түр зогсооно.
+    useEffect(() => {
+        if (isSending) return;
+        const interval = setInterval(() => {
+            void fetchDetail(true);
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [fetchDetail, isSending]);
 
     const regenerateSummary = useCallback(async () => {
         if (!shopId || !customer) return;

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { mapAuthError } from '../_lib/authErrors';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -28,7 +29,13 @@ export default function LoginPage() {
         });
 
         if (error) {
-            setError(t.auth.invalidCredentials);
+            // "Email not confirmed" зэрэг бусад алдааг буруу нууц үг гэж
+            // андуурахгүйн тулд нийтлэг mapping-аар буулгана.
+            setError(
+                error.message === 'Invalid login credentials'
+                    ? t.auth.invalidCredentials
+                    : mapAuthError(error.message)
+            );
             setLoading(false);
         } else {
             router.push('/dashboard');
@@ -48,7 +55,7 @@ export default function LoginPage() {
             },
         });
         if (error) {
-            setError(error.message);
+            setError(mapAuthError(error.message));
         }
     };
 

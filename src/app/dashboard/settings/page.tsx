@@ -69,6 +69,68 @@ function StatusBadge({ tone, children }: { tone: 'success' | 'danger' | 'warning
     );
 }
 
+/**
+ * Нэг товчоор салгачихдаг байсан устгах-маягийн үйлдлүүдэд зориулсан
+ * inline баталгаажуулах хайрцаг — QPay delete confirm-той ижил загвар.
+ */
+function ConfirmPanel({
+    title,
+    body,
+    confirmLabel,
+    onConfirm,
+    onCancel,
+    busy,
+}: {
+    title: string;
+    body: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    busy?: boolean;
+}) {
+    return (
+        <div className="mt-4 p-4 rounded-xl border border-[color-mix(in_oklab,var(--destructive)_30%,transparent)] bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]">
+            <div className="flex items-start gap-3">
+                <AlertTriangle
+                    className="w-4 h-4 mt-0.5 shrink-0"
+                    style={{ color: 'var(--destructive)' }}
+                    strokeWidth={1.5}
+                />
+                <div className="flex-1">
+                    <p className="text-[13px] font-semibold text-foreground mb-1 tracking-[-0.01em]">
+                        {title}
+                    </p>
+                    <p className="text-[12px] text-white/55 mb-3 tracking-[-0.01em]">{body}</p>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={onCancel} disabled={busy}>
+                            Болих
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={onConfirm}
+                            disabled={busy}
+                            leftIcon={
+                                busy ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                    <Unlink className="w-3 h-3" strokeWidth={1.5} />
+                                )
+                            }
+                            style={{
+                                background: 'var(--destructive)',
+                                borderColor: 'var(--destructive)',
+                            }}
+                        >
+                            {confirmLabel}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function SettingsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -129,6 +191,10 @@ function SettingsContent() {
     const [qpayStatus, setQpayStatus] = useState<string>('none');
     const [qpayUnlinking, setQpayUnlinking] = useState(false);
     const [showQpayDeleteConfirm, setShowQpayDeleteConfirm] = useState(false);
+    const [showQpayDisconnectConfirm, setShowQpayDisconnectConfirm] = useState(false);
+    // Платформ салгахын өмнө баталгаажуулах — нэг товчоор салгахгүй.
+    const [confirmDisconnect, setConfirmDisconnect] = useState<'facebook' | 'instagram' | null>(null);
+    const [disconnecting, setDisconnecting] = useState(false);
 
     const [fbPages, setFbPages] = useState<FacebookPage[]>([]);
     const [fbSelecting, setFbSelecting] = useState(false);
@@ -380,6 +446,17 @@ function SettingsContent() {
         }
     }
 
+    async function handleConfirmDisconnect() {
+        if (!confirmDisconnect) return;
+        setDisconnecting(true);
+        try {
+            await disconnectPlatform(confirmDisconnect);
+        } finally {
+            setDisconnecting(false);
+            setConfirmDisconnect(null);
+        }
+    }
+
     async function unlinkQpay(mode: 'disconnect' | 'delete') {
         try {
             setQpayUnlinking(true);
@@ -395,6 +472,7 @@ function SettingsContent() {
             }
             toast.success(data?.message || (mode === 'delete' ? 'QPay устгагдлаа' : 'QPay салгагдлаа'));
             setShowQpayDeleteConfirm(false);
+            setShowQpayDisconnectConfirm(false);
             await fetchSettings();
         } catch (err) {
             logger.error('unlinkQpay error', { error: err, mode });
@@ -679,7 +757,7 @@ function SettingsContent() {
                                 <Button
                                     variant="outline"
                                     size="md"
-                                    onClick={() => unlinkQpay('disconnect')}
+                                    onClick={() => setShowQpayDisconnectConfirm(true)}
                                     disabled={qpayUnlinking}
                                     leftIcon={
                                         qpayUnlinking ? (
@@ -726,6 +804,17 @@ function SettingsContent() {
                         Хадгалах
                     </Button>
                 </div>
+
+                {showQpayDisconnectConfirm && (
+                    <ConfirmPanel
+                        title="QPay холболтыг салгах уу?"
+                        body="AI төлбөрийн QR код, линк үүсгэхээ зогсооно. Хожим дахин холбох боломжтой."
+                        confirmLabel="Тийм, салгая"
+                        busy={qpayUnlinking}
+                        onCancel={() => setShowQpayDisconnectConfirm(false)}
+                        onConfirm={() => unlinkQpay('disconnect')}
+                    />
+                )}
 
                 {showQpayDeleteConfirm && (
                     <div className="mt-4 p-4 rounded-xl border border-[color-mix(in_oklab,var(--destructive)_30%,transparent)] bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]">
@@ -1001,7 +1090,7 @@ function SettingsContent() {
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => disconnectPlatform('facebook')}
+                                            onClick={() => setConfirmDisconnect('facebook')}
                                             leftIcon={<Unlink className="w-3 h-3" strokeWidth={1.5} />}
                                             className="text-[var(--destructive)] border-[color-mix(in_oklab,var(--destructive)_25%,transparent)] hover:bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]"
                                         >
@@ -1057,70 +1146,94 @@ function SettingsContent() {
                                 </div>
                             </div>
                         )}
+
+                        {confirmDisconnect === 'facebook' && (
+                            <ConfirmPanel
+                                title="Facebook холболтыг салгах уу?"
+                                body="AI борлуулалтын суваг шууд зогсоно. Хожим дахин холбох боломжтой."
+                                confirmLabel="Тийм, салгая"
+                                busy={disconnecting}
+                                onCancel={() => setConfirmDisconnect(null)}
+                                onConfirm={handleConfirmDisconnect}
+                            />
+                        )}
                     </div>
                     {/* Instagram */}
-                    <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl border border-white/[0.06]">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[color-mix(in_oklab,var(--brand-violet-500)_20%,transparent)] text-[#e879c4]">
-                                <Instagram className="w-4.5 h-4.5" strokeWidth={1.5} />
+                    <div className="p-4 bg-white/[0.02] rounded-xl border border-white/[0.06]">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[color-mix(in_oklab,var(--brand-violet-500)_20%,transparent)] text-[#e879c4]">
+                                    <Instagram className="w-4.5 h-4.5" strokeWidth={1.5} />
+                                </div>
+                                <div>
+                                    <p className="text-[13px] font-medium text-foreground tracking-[-0.01em]">
+                                        Instagram
+                                    </p>
+                                    <p className="text-[11px] text-white/45">
+                                        {igConnected ? 'Холбогдсон' : 'Холбогдоогүй'}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[13px] font-medium text-foreground tracking-[-0.01em]">
-                                    Instagram
-                                </p>
-                                <p className="text-[11px] text-white/45">
-                                    {igConnected ? 'Холбогдсон' : 'Холбогдоогүй'}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {igConnected ? (
-                                <>
-                                    <span
-                                        className="w-1.5 h-1.5 rounded-full"
-                                        style={{ background: 'var(--success)' }}
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => disconnectPlatform('instagram')}
-                                        leftIcon={<Unlink className="w-3 h-3" strokeWidth={1.5} />}
-                                        className="text-[var(--destructive)] border-[color-mix(in_oklab,var(--destructive)_25%,transparent)] hover:bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]"
-                                    >
-                                        Салгах
-                                    </Button>
-                                </>
-                            ) : (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {fbConnected && (
+                            <div className="flex items-center gap-2">
+                                {igConnected ? (
+                                    <>
+                                        <span
+                                            className="w-1.5 h-1.5 rounded-full"
+                                            style={{ background: 'var(--success)' }}
+                                        />
                                         <Button
-                                            variant="primary"
+                                            variant="outline"
                                             size="sm"
-                                            leftIcon={<Link2 className="w-3 h-3" strokeWidth={1.5} />}
+                                            onClick={() => setConfirmDisconnect('instagram')}
+                                            leftIcon={<Unlink className="w-3 h-3" strokeWidth={1.5} />}
+                                            className="text-[var(--destructive)] border-[color-mix(in_oklab,var(--destructive)_25%,transparent)] hover:bg-[color-mix(in_oklab,var(--destructive)_8%,transparent)]"
+                                        >
+                                            Салгах
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {fbConnected && (
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                leftIcon={<Link2 className="w-3 h-3" strokeWidth={1.5} />}
+                                                onClick={() => {
+                                                    const shopId =
+                                                        localStorage.getItem('smarthub_active_shop_id') || '';
+                                                    window.location.href = `/api/auth/instagram?source=settings&shop_id=${encodeURIComponent(shopId)}`;
+                                                }}
+                                            >
+                                                Facebook хуудсаар
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant={fbConnected ? 'outline' : 'primary'}
+                                            size="sm"
+                                            leftIcon={<Instagram className="w-3 h-3" strokeWidth={1.5} />}
                                             onClick={() => {
                                                 const shopId =
                                                     localStorage.getItem('smarthub_active_shop_id') || '';
-                                                window.location.href = `/api/auth/instagram?source=settings&shop_id=${encodeURIComponent(shopId)}`;
+                                                window.location.href = `/api/auth/instagram-login?source=settings&shop_id=${encodeURIComponent(shopId)}`;
                                             }}
                                         >
-                                            Facebook хуудсаар
+                                            Шууд Instagram-р
                                         </Button>
-                                    )}
-                                    <Button
-                                        variant={fbConnected ? 'outline' : 'primary'}
-                                        size="sm"
-                                        leftIcon={<Instagram className="w-3 h-3" strokeWidth={1.5} />}
-                                        onClick={() => {
-                                            const shopId =
-                                                localStorage.getItem('smarthub_active_shop_id') || '';
-                                            window.location.href = `/api/auth/instagram-login?source=settings&shop_id=${encodeURIComponent(shopId)}`;
-                                        }}
-                                    >
-                                        Шууд Instagram-р
-                                    </Button>
-                                </div>
-                            )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
+                        {confirmDisconnect === 'instagram' && (
+                            <ConfirmPanel
+                                title="Instagram холболтыг салгах уу?"
+                                body="AI борлуулалтын суваг шууд зогсоно. Хожим дахин холбох боломжтой."
+                                confirmLabel="Тийм, салгая"
+                                busy={disconnecting}
+                                onCancel={() => setConfirmDisconnect(null)}
+                                onConfirm={handleConfirmDisconnect}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

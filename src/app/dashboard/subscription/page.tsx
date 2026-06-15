@@ -80,9 +80,13 @@ export default function SubscriptionPage() {
         link?: string;
     }
     const [billingHistory, setBillingHistory] = useState<BillingEntry[]>([]);
+    const [plansError, setPlansError] = useState(false);
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
     const [upgrading, setUpgrading] = useState(false);
+    // QR-poll гацсан (MAX_DURATION_MS хэтэрсэн) үед гараар шалгах UI харуулна.
+    const [pollTimedOut, setPollTimedOut] = useState(false);
+    const [manualChecking, setManualChecking] = useState(false);
     const [paymentInfo, setPaymentInfo] = useState<{
         invoice_id?: string;
         qr_code?: string;
@@ -101,6 +105,19 @@ export default function SubscriptionPage() {
         fetchData();
     }, []);
 
+    // Escape товчоор upgrade модалыг хаана (a11y).
+    useEffect(() => {
+        if (!showUpgrade) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setShowUpgrade(false);
+                setPaymentInfo(null);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [showUpgrade]);
+
     // Auto-poll QPay payment status while the QR modal is open. The QPay
     // webhook or our /check-payment fallback flips the invoice to 'paid'
     // shortly after the user scans the QR with their banking app — the next
@@ -116,26 +133,20 @@ export default function SubscriptionPage() {
         const startedAt = Date.now();
         const invoiceId = paymentInfo.invoice_id;
 
+        setPollTimedOut(false);
+
         const poll = async () => {
-            if (cancelled || Date.now() - startedAt > MAX_DURATION_MS) return;
+            if (cancelled) return;
+            if (Date.now() - startedAt > MAX_DURATION_MS) {
+                // Автомат хяналт зогссоныг хэрэглэгчид мэдэгдэж, гараар
+                // шалгах товч руу шилжүүлнэ.
+                setPollTimedOut(true);
+                return;
+            }
 
             try {
-                const res = await fetch('/api/subscription/check-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ invoice_id: invoiceId }),
-                });
-                const data = await res.json();
-
-                if (cancelled) return;
-
-                if (data.status === 'paid') {
-                    toast.success(data.message || 'Төлбөр амжилттай! Plan шинэчлэгдлээ 🎉');
-                    setShowUpgrade(false);
-                    setPaymentInfo(null);
-                    fetchData(true);
-                    return;
-                }
+                const paid = await checkPaymentStatus(invoiceId);
+                if (cancelled || paid) return;
             } catch (e) {
                 logger.error('Auto-check payment error', { error: e });
             }
@@ -153,6 +164,43 @@ export default function SubscriptionPage() {
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showUpgrade, paymentInfo?.invoice_id]);
+
+    // Нэхэмжлэлийн төлөвийг нэг удаа шалгана — авто-poll болон гар шалгалт
+    // хоёулаа үүнийг хэрэглэнэ. Төлөгдсөн бол UI-г шинэчилж true буцаана.
+    async function checkPaymentStatus(invoiceId: string): Promise<boolean> {
+        const res = await fetch('/api/subscription/check-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoice_id: invoiceId }),
+        });
+        const data = await res.json();
+
+        if (data.status === 'paid') {
+            toast.success(data.message || 'Төлбөр амжилттай! Plan шинэчлэгдлээ 🎉');
+            setShowUpgrade(false);
+            setPaymentInfo(null);
+            setPollTimedOut(false);
+            fetchData(true);
+            return true;
+        }
+        return false;
+    }
+
+    async function manualCheckPayment() {
+        if (!paymentInfo?.invoice_id || manualChecking) return;
+        setManualChecking(true);
+        try {
+            const paid = await checkPaymentStatus(paymentInfo.invoice_id);
+            if (!paid) {
+                toast.info('Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.');
+            }
+        } catch (e) {
+            logger.error('Manual check payment error', { error: e });
+            toast.error('Төлбөр шалгахад алдаа гарлаа');
+        } finally {
+            setManualChecking(false);
+        }
+    }
 
     async function fetchData(refresh = false) {
         try {
@@ -220,7 +268,7 @@ export default function SubscriptionPage() {
                     else mappedFeatures.push('Facebook холболт');
                     if (feats.analytics && feats.analytics !== 'none')
                         mappedFeatures.push('Тайлан & Analytics');
-                    if (feats.priority_support) mappedFeatures.push('Priority support');
+                    if (feats.priority_support) mappedFeatures.push('Тэргүүлэх дэмжлэг');
 
                     return {
                         id: plan.slug || plan.id,
@@ -239,6 +287,9 @@ export default function SubscriptionPage() {
                 });
 
                 setPlans(fetchedPlans);
+                setPlansError(false);
+            } else {
+                setPlansError(true);
             }
 
             if (subRes.ok) {
@@ -252,6 +303,7 @@ export default function SubscriptionPage() {
             }
         } catch (e) {
             logger.error('Алдаа гарлаа', { error: e });
+            setPlansError(true);
         } finally {
             setLoading(false);
         }
@@ -290,19 +342,21 @@ export default function SubscriptionPage() {
         }
     }
 
-    const safePlans =
-        plans.length > 0
-            ? plans
-            : [
-                  {
-                      id: 'starter',
-                      name: 'Уншиж байна...',
-                      price_monthly: 0,
-                      price_yearly: 0,
-                      features: [],
-                      limits: { products: 0, orders: 0, messages: 0, tokens: 0 },
-                  },
-              ];
+    // Плангууд ачаалагдаагүй үед зөвхөн layout-ийн placeholder — хэзээ ч
+    // сонгох боломжтой карт болж рендэрлэгдэх ёсгүй (доорх grid-д шалгана).
+    const plansLoaded = plans.length > 0;
+    const safePlans = plansLoaded
+        ? plans
+        : [
+              {
+                  id: 'starter',
+                  name: 'Уншиж байна...',
+                  price_monthly: 0,
+                  price_yearly: 0,
+                  features: [],
+                  limits: { products: 0, orders: 0, messages: 0, tokens: 0 },
+              },
+          ];
     const PLANS = safePlans;
     const plan = PLANS.find((p) => p.id === currentPlan) || PLANS[0];
     const creditsUsed = Math.ceil((usage.tokens || 0) / 1000);
@@ -331,10 +385,14 @@ export default function SubscriptionPage() {
 
     const subStatus = shopStatus?.subscription_status;
     const trialEndsAt = shopStatus?.trial_ends_at ? new Date(shopStatus.trial_ends_at) : null;
-    const trialActive = subStatus === 'trial' && trialEndsAt && trialEndsAt > new Date();
+    // shops хүснэгт 'trial', subscriptions/user_profiles 'trialing' гэж
+    // хадгалдаг — хоёуланг нь хүлээж авна (useSubscriptionStatus-тэй ижил).
+    const isTrialing = subStatus === 'trial' || subStatus === 'trialing';
+    const trialActive = isTrialing && trialEndsAt && trialEndsAt > new Date();
     const trialExpired =
         subStatus === 'expired_trial' ||
-        (subStatus === 'trial' && trialEndsAt && trialEndsAt <= new Date());
+        subStatus === 'expired' ||
+        (isTrialing && trialEndsAt && trialEndsAt <= new Date());
 
     let trialRemainingText = '';
     if (trialActive && trialEndsAt) {
@@ -353,7 +411,7 @@ export default function SubscriptionPage() {
         <div className="space-y-6">
             <PageHero
                 eyebrow="Төлбөрийн тохиргоо"
-                title="Subscription & Билл"
+                title="Багц ба төлбөр"
                 subtitle="Одоогийн планы хэрэглээ, дараагийн төлбөр, түүх бүгдийг нэг дор удирдаарай."
                 actions={
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
@@ -583,6 +641,24 @@ export default function SubscriptionPage() {
             )}
 
             {/* Plans Grid */}
+            {plansError && !plansLoaded ? (
+                <div className="card-outlined p-10 flex flex-col items-center justify-center text-center">
+                    <AlertTriangle
+                        className="w-6 h-6 mb-3"
+                        style={{ color: 'var(--destructive)' }}
+                        strokeWidth={1.5}
+                    />
+                    <p className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em] mb-1">
+                        Багцын мэдээлэл ачаалахад алдаа гарлаа
+                    </p>
+                    <p className="text-[12px] text-white/55 mb-4 tracking-[-0.01em]">
+                        Сүлжээгээ шалгаад дахин оролдоно уу.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => fetchData()}>
+                        Дахин ачаалах
+                    </Button>
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PLANS.map((p) => {
                     const isCurrent = p.id === currentPlan;
@@ -626,7 +702,7 @@ export default function SubscriptionPage() {
                                     }}
                                 >
                                     <Sparkles className="w-3 h-3" strokeWidth={2} />
-                                    Popular
+                                    Эрэлттэй
                                 </div>
                             )}
                             <h4 className="text-[14px] font-semibold text-foreground tracking-[-0.01em]">
@@ -684,7 +760,7 @@ export default function SubscriptionPage() {
                                         initSubscription(p.id);
                                     }
                                 }}
-                                disabled={isCurrent || upgrading}
+                                disabled={isCurrent || upgrading || !plansLoaded}
                                 variant={isCurrent ? 'ghost' : p.highlighted ? 'primary' : 'outline'}
                                 size="md"
                                 className="w-full mt-6"
@@ -695,6 +771,7 @@ export default function SubscriptionPage() {
                     );
                 })}
             </div>
+            )}
 
             {/* Billing History */}
             {billingHistory.length > 0 && (
@@ -723,9 +800,12 @@ export default function SubscriptionPage() {
                                 {billingHistory.map((b, i) => (
                                     <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                                         <td className="px-5 py-3 text-[12.5px] text-white/70 tabular-nums">
-                                            {new Date(b.date || b.created_at || '').toLocaleDateString(
-                                                'mn-MN'
-                                            )}
+                                            {(() => {
+                                                const d = new Date(b.date || b.created_at || '');
+                                                return isNaN(d.getTime())
+                                                    ? '—'
+                                                    : d.toLocaleDateString('mn-MN');
+                                            })()}
                                         </td>
                                         <td className="px-5 py-3 text-[12.5px] text-foreground tracking-[-0.01em]">
                                             {b.description || ''}
@@ -743,8 +823,21 @@ export default function SubscriptionPage() {
 
             {/* Upgrade Modal */}
             {showUpgrade && selectedPlan && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-sm p-6 shadow-2xl">
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            setShowUpgrade(false);
+                            setPaymentInfo(null);
+                        }
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Багц шинэчлэх"
+                        className="bg-[#0c0c0f] rounded-2xl border border-white/[0.08] w-full max-w-sm p-6 shadow-2xl"
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-[15px] font-semibold text-foreground tracking-[-0.02em]">
                                 Шинэчлэх
@@ -787,10 +880,33 @@ export default function SubscriptionPage() {
                                     />
                                 </div>
                                 <div className="flex flex-col items-center gap-3">
-                                    <div className="flex items-center gap-2 text-[11px] text-white/55 tracking-[-0.01em]">
-                                        <Loader2 className="w-3 h-3 animate-spin text-[var(--brand-indigo-400)]" />
-                                        <span>Төлбөрийг автоматаар хянаж байна...</span>
-                                    </div>
+                                    {pollTimedOut ? (
+                                        <>
+                                            <p
+                                                className="text-[11px] text-center tracking-[-0.01em]"
+                                                style={{ color: 'var(--warning)' }}
+                                            >
+                                                Төлбөр автоматаар баталгаажсангүй. Та доорх товчоор
+                                                дахин шалгана уу.
+                                            </p>
+                                            <Button
+                                                variant="primary"
+                                                size="md"
+                                                onClick={manualCheckPayment}
+                                                disabled={manualChecking}
+                                                className="w-full"
+                                            >
+                                                {manualChecking
+                                                    ? 'Шалгаж байна...'
+                                                    : 'Төлбөр шалгах'}
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-[11px] text-white/55 tracking-[-0.01em]">
+                                            <Loader2 className="w-3 h-3 animate-spin text-[var(--brand-indigo-400)]" />
+                                            <span>Төлбөрийг автоматаар хянаж байна...</span>
+                                        </div>
+                                    )}
                                     <Button
                                         variant="outline"
                                         size="md"

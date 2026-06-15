@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { mapAuthError } from '../_lib/authErrors';
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -46,7 +47,7 @@ export default function RegisterPage() {
         if (error) {
             setError(error.message === 'User already registered'
                 ? t.auth.alreadyRegistered
-                : error.message);
+                : mapAuthError(error.message));
             setLoading(false);
         } else {
             setSuccess(true);
@@ -64,7 +65,7 @@ export default function RegisterPage() {
             },
         });
         if (error) {
-            setError(error.message);
+            setError(mapAuthError(error.message));
         }
     };
 

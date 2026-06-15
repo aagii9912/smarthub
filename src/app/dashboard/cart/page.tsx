@@ -188,7 +188,7 @@ export default function CartPage() {
                         className="text-[13px] mb-4 tracking-[-0.01em]"
                         style={{ color: 'var(--destructive)' }}
                     >
-                        Алдаа гарлаа: {(error as Error).message}
+                        Сагсны мэдээлэл ачаалахад алдаа гарлаа. Дахин оролдоно уу.
                     </p>
                     <Button
                         variant="outline"

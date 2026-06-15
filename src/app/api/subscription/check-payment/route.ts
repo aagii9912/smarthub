@@ -15,15 +15,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop } from '@/lib/auth/auth';
+import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
+import { upsertUserSubscription } from '@/lib/billing/subscriptionUpsert';
 
 export async function POST(request: NextRequest) {
     try {
         const shop = await getAuthUserShop();
-        if (!shop) {
+        const userId = await getAuthUser();
+        if (!shop || !userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -184,11 +186,14 @@ export async function POST(request: NextRequest) {
                     .neq('status', 'paid');
             }
 
-            // 3. Look up existing subscription (if any) for billing cycle + plan
+            // 3. Look up existing subscription (if any) for billing cycle + plan.
+            // Per-user plan model: subscriptions are keyed by user_id, not shop_id.
             const { data: subscription } = await supabase
                 .from('subscriptions')
                 .select('billing_cycle, plan_id, plans(slug)')
-                .eq('shop_id', shop.id)
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
 
             // 4. Resolve the plan slug in priority order:
@@ -250,20 +255,20 @@ export async function POST(request: NextRequest) {
             const periodEnd = new Date(periodStart);
             periodEnd.setMonth(periodEnd.getMonth() + (billingCycle === 'yearly' ? 12 : 1));
 
-            // 7. Upsert subscription as active
-            const { error: subError } = await supabase
-                .from('subscriptions')
-                .upsert(
-                    {
-                        shop_id: shop.id,
-                        plan_id: plan.id,
-                        status: 'active',
-                        billing_cycle: billingCycle,
-                        current_period_start: periodStart.toISOString(),
-                        current_period_end: periodEnd.toISOString(),
-                    },
-                    { onConflict: 'shop_id' }
-                );
+            // 7. Upsert subscription as active — keyed by user_id like every
+            // other write path. subscriptions has only a PARTIAL unique index,
+            // so .upsert(onConflict) is unusable here.
+            const { error: subError } = await upsertUserSubscription(supabase, {
+                user_id: userId,
+                shop_id: shop.id,
+                plan_id: plan.id,
+                status: 'active',
+                billing_cycle: billingCycle,
+                current_period_start: periodStart.toISOString(),
+                current_period_end: periodEnd.toISOString(),
+                period_anchor_at: periodStart.toISOString(),
+                tokens_used_in_period: 0,
+            });
 
             if (subError) {
                 logger.error('Failed to upsert subscription during activation', {

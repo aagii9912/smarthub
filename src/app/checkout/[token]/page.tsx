@@ -61,6 +61,7 @@ export default function CheckoutPage() {
 
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<{ phone?: string; address?: string }>({});
 
     const [catalogOpen, setCatalogOpen] = useState(false);
     const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
@@ -90,6 +91,16 @@ export default function CheckoutPage() {
     useEffect(() => {
         fetchSummary();
     }, [fetchSummary]);
+
+    // Escape товчоор каталог модалыг хаана (a11y).
+    useEffect(() => {
+        if (!catalogOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setCatalogOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [catalogOpen]);
 
     const mutate = useCallback(
         async (method: 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown) => {
@@ -144,16 +155,47 @@ export default function CheckoutPage() {
 
     const confirm = async () => {
         if (!summary) return;
+
+        // Хүргэлттэй захиалгад утас/хаягийг урьдчилан шалгана — backend-ийн
+        // 422-г хүлээлгүйгээр талбар бүр дээр алдааг шууд харуулна.
+        const cleanPhone = phone.replace(/\s+/g, '');
+        if (summary.hasDeliveryItems && summary.deliveryMethod === 'delivery') {
+            const errs: { phone?: string; address?: string } = {};
+            if (!/^\d{8}$/.test(cleanPhone)) {
+                errs.phone = 'Утасны дугаараа 8 оронтой тоогоор оруулна уу';
+            }
+            if (!address.trim()) {
+                errs.address = 'Хүргэх хаягаа оруулна уу';
+            }
+            if (errs.phone || errs.address) {
+                setFieldErrors(errs);
+                return;
+            }
+        }
+        setFieldErrors({});
+
         setConfirming(true);
         setError(null);
         try {
             const res = await fetch(`/api/checkout/${token}/confirm`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, address, payment_type: 'qpay' }),
+                body: JSON.stringify({ phone: cleanPhone, address, payment_type: 'qpay' }),
             });
             const data = await res.json();
             if (!res.ok) {
+                // Backend-ийн structured 422 → талбар тус бүрийн алдаа
+                if (data.needsDeliveryInfo) {
+                    setFieldErrors({
+                        ...(data.missingPhone
+                            ? { phone: 'Утасны дугаараа оруулна уу' }
+                            : {}),
+                        ...(data.missingAddress
+                            ? { address: 'Хүргэх хаягаа оруулна уу' }
+                            : {}),
+                    });
+                    return;
+                }
                 setError(data.error || 'Төлбөр үүсгэхэд алдаа гарлаа');
                 return;
             }
@@ -185,7 +227,20 @@ export default function CheckoutPage() {
     if (error && !summary) {
         return (
             <div className="co-container">
-                <div className="co-card"><div className="co-error-icon">✕</div><h2>{error}</h2></div>
+                <div className="co-card">
+                    <div className="co-error-icon">✕</div>
+                    <h2>{error}</h2>
+                    <button
+                        className="co-pay-btn"
+                        onClick={() => {
+                            setError(null);
+                            setLoading(true);
+                            fetchSummary();
+                        }}
+                    >
+                        Дахин оролдох
+                    </button>
+                </div>
             </div>
         );
     }
@@ -269,8 +324,43 @@ export default function CheckoutPage() {
                 {summary.hasDeliveryItems && summary.deliveryMethod === 'delivery' && (
                     <div className="co-form">
                         <p className="co-form-title">📦 Хүргэлтийн мэдээлэл</p>
-                        <input className="co-input" placeholder="📱 Утасны дугаар" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
-                        <input className="co-input" placeholder="📍 Хүргэх хаяг" value={address} onChange={(e) => setAddress(e.target.value)} />
+                        <div className="co-field">
+                            <label className="co-label" htmlFor="co-phone">
+                                Утасны дугаар <span className="co-required">*</span>
+                            </label>
+                            <input
+                                id="co-phone"
+                                className="co-input"
+                                placeholder="📱 Жишээ: 99112233"
+                                value={phone}
+                                onChange={(e) => {
+                                    setPhone(e.target.value);
+                                    setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                                }}
+                                inputMode="tel"
+                                required
+                                aria-invalid={!!fieldErrors.phone}
+                            />
+                            {fieldErrors.phone && <p className="co-field-error">{fieldErrors.phone}</p>}
+                        </div>
+                        <div className="co-field">
+                            <label className="co-label" htmlFor="co-address">
+                                Хүргэх хаяг <span className="co-required">*</span>
+                            </label>
+                            <input
+                                id="co-address"
+                                className="co-input"
+                                placeholder="📍 Дүүрэг, хороо, байр, тоот"
+                                value={address}
+                                onChange={(e) => {
+                                    setAddress(e.target.value);
+                                    setFieldErrors((prev) => ({ ...prev, address: undefined }));
+                                }}
+                                required
+                                aria-invalid={!!fieldErrors.address}
+                            />
+                            {fieldErrors.address && <p className="co-field-error">{fieldErrors.address}</p>}
+                        </div>
                     </div>
                 )}
 
@@ -286,7 +376,13 @@ export default function CheckoutPage() {
             {/* Catalog modal */}
             {catalogOpen && (
                 <div className="co-modal" onClick={() => setCatalogOpen(false)}>
-                    <div className="co-modal-card" onClick={(e) => e.stopPropagation()}>
+                    <div
+                        className="co-modal-card"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Бараа сонгох"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="co-modal-head">
                             <span>Бараа сонгох</span>
                             <button onClick={() => setCatalogOpen(false)}>✕</button>

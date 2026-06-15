@@ -9,7 +9,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Features {
     ai_enabled: boolean;
-    ai_model: 'gpt-4o-mini' | 'gpt-4o';
+    /** Gemini model id, e.g. 'gemini-3.1-flash-lite' (see lib/ai/config/plans.ts) */
+    ai_model: string;
     sales_intelligence: boolean;
     ai_memory: boolean;
     cart_system: 'none' | 'basic' | 'full';
@@ -136,9 +137,12 @@ export function useFeatures() {
     const plan = data?.plan?.slug ? data.plan : { slug: 'free', name: 'Free' };
 
     /**
-     * Check if user is on a paid plan
+     * Check if user is on a paid plan.
+     * The backend returns 'unpaid' for users without a plan
+     * (see /api/features) — treat it like the legacy 'free' slug.
      */
-    const isPaidPlan = plan.slug !== 'free';
+    const FREE_SLUGS = ['free', 'unpaid'];
+    const isPaidPlan = !FREE_SLUGS.includes(plan.slug);
 
     /**
      * Check if user is on Pro or higher

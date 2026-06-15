@@ -1,18 +1,36 @@
 /**
- * Admin Setup API
- * This endpoint automatically sets up the current user as a super admin.
- * 
- * WARNING: This should be disabled or protected in production!
+ * Admin Setup API — bootstrap the first super admin.
+ *
+ * Security: this endpoint can grant super_admin, so it must never be open.
+ *   - Development: any authenticated user may bootstrap themselves.
+ *   - Production: 404 unless ADMIN_SETUP_SECRET is configured AND the caller
+ *     supplies it via the `x-admin-setup-secret` header. Unset the env var
+ *     after bootstrapping to close the endpoint completely.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getAuthUser } from '@/lib/auth/auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
-export async function GET() {
+function secretsMatch(provided: string, expected: string): boolean {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+export async function GET(request: NextRequest) {
     try {
+        if (process.env.NODE_ENV === 'production') {
+            const expected = process.env.ADMIN_SETUP_SECRET;
+            const provided = request.headers.get('x-admin-setup-secret');
+            if (!expected || !provided || !secretsMatch(provided, expected)) {
+                return new NextResponse('Not Found', { status: 404 });
+            }
+        }
+
         const userId = await getAuthUser();
 
         if (!userId) {
@@ -29,36 +47,6 @@ export async function GET() {
 
         const supabase = supabaseAdmin();
 
-        // Step 1: Check if admins table exists and fix schema if needed
-        try {
-            await supabase.rpc('exec_sql', {
-                sql: `
-                    DO $$ 
-                    DECLARE r RECORD;
-                    BEGIN
-                        -- Drop policies first
-                        FOR r IN (SELECT policyname FROM pg_policies WHERE tablename = 'admins') LOOP
-                            EXECUTE 'DROP POLICY IF EXISTS "' || r.policyname || '" ON admins';
-                        END LOOP;
-                        
-                        -- Drop FK and change type
-                        ALTER TABLE admins DROP CONSTRAINT IF EXISTS admins_user_id_fkey;
-                        
-                        -- Only alter if not already text
-                        IF EXISTS (
-                            SELECT 1 FROM information_schema.columns 
-                            WHERE table_name = 'admins' AND column_name = 'user_id' AND data_type = 'uuid'
-                        ) THEN
-                            ALTER TABLE admins ALTER COLUMN user_id TYPE text;
-                        END IF;
-                    END $$;
-                `
-            });
-        } catch (rpcError) {
-            logger.debug('RPC not available, using direct approach');
-        }
-
-        // Step 2: Try to insert/update admin record
         const { data: existingAdmin } = await supabase
             .from('admins')
             .select('id, user_id, email, role')
@@ -96,6 +84,8 @@ export async function GET() {
             if (error) throw error;
             result = { action: 'created', admin: data };
         }
+
+        logger.warn('Super admin bootstrapped via /api/admin/setup', { userId, email });
 
         return NextResponse.json({
             success: true,

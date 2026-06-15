@@ -15,6 +15,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoiceDetailed } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
 import { TERMS_VERSION, PRIVACY_VERSION } from '@/lib/constants/legal';
+import { upsertUserSubscription } from '@/lib/billing/subscriptionUpsert';
 
 interface SubscribeConsent {
     terms_accepted?: boolean;
@@ -191,30 +192,28 @@ export async function POST(request: NextRequest) {
                 });
 
             // Store pending subscription info — keyed by user (per-user plan model).
-            // shop_id is retained for analytics linkage but is no longer the conflict target.
-            const subscriptionUpsert: Record<string, unknown> = {
-                user_id: userId,
-                shop_id: shop.id,
-                plan_id: plan.id,
-                status: 'pending',
-                billing_cycle,
-            };
+            // subscriptions has only a PARTIAL unique index, so .upsert(onConflict)
+            // always errors — upsertUserSubscription does manual select-then-write.
+            // preserveActive: an existing live plan must not be downgraded to
+            // 'pending' by a payment the user may abandon.
+            if (userId) {
+                const { error: subUpsertError } = await upsertUserSubscription(
+                    supabase,
+                    {
+                        user_id: userId,
+                        shop_id: shop.id,
+                        plan_id: plan.id,
+                        status: 'pending',
+                        billing_cycle,
+                    },
+                    { preserveActive: true }
+                );
 
-            const { error: subUpsertError } = await supabase
-                .from('subscriptions')
-                .upsert(subscriptionUpsert, { onConflict: 'user_id' });
-
-            if (subUpsertError) {
-                logger.warn('subscriptions upsert by user_id failed, falling back to shop_id', {
-                    err: subUpsertError.message,
-                });
-                // Legacy environments without the new partial UNIQUE — fall back to old behavior.
-                await supabase
-                    .from('subscriptions')
-                    .upsert(
-                        { shop_id: shop.id, plan_id: plan.id, status: 'pending', billing_cycle },
-                        { onConflict: 'shop_id' }
-                    );
+                if (subUpsertError) {
+                    logger.warn('Failed to store pending subscription (non-fatal)', {
+                        err: subUpsertError.message,
+                    });
+                }
             }
 
             return NextResponse.json({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUserShop } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
 import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 
@@ -11,10 +12,14 @@ const PROMPT_GEN_MODEL = 'gemini-3.1-flash-lite';
  */
 export async function POST(request: NextRequest) {
     try {
-        const shopId = request.headers.get('x-shop-id');
-        if (!shopId) {
-            return NextResponse.json({ error: 'Shop ID required' }, { status: 400 });
+        // Validates that the authed user owns the shop from x-shop-id
+        // (falls back to the user's first shop when the header is absent).
+        const shop = await getAuthUserShop();
+        if (!shop) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const shopId = shop.id;
 
         if (!GEMINI_API_KEY) {
             return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });

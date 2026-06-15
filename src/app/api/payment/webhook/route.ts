@@ -5,6 +5,7 @@ import { logger } from '@/lib/utils/logger';
 import crypto from 'crypto';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
+import { upsertUserSubscription } from '@/lib/billing/subscriptionUpsert';
 
 /**
  * Verify QPay webhook signature.
@@ -272,7 +273,9 @@ async function handleSubscriptionPayment(
         .limit(1)
         .maybeSingle();
 
-    if (existingSub?.billing_cycle) {
+    // The cycle the user just paid for (payment metadata) wins; the old
+    // subscription row is only a fallback when metadata doesn't carry one.
+    if (!metadata.billing_cycle && existingSub?.billing_cycle) {
         billingCycle = existingSub.billing_cycle;
     }
 
@@ -308,7 +311,10 @@ async function handleSubscriptionPayment(
     // ── Step 5: Upsert subscription keyed by USER_ID (per-user plan model) ──
     // shop_id is retained for analytics linkage. period_anchor_at + tokens_used_in_period
     // start a fresh 30-day rolling window every activation.
-    const subPayload = {
+    // subscriptions has only a PARTIAL unique index (user_id, open states), so
+    // .upsert(onConflict) always errors — upsertUserSubscription does the
+    // manual select-then-write instead.
+    const { data: upsertedSub, error: subError } = await upsertUserSubscription(supabase, {
         user_id: userId,
         shop_id: resolvedShopId,
         plan_id: plan.id,
@@ -318,35 +324,7 @@ async function handleSubscriptionPayment(
         current_period_end: endDate.toISOString(),
         period_anchor_at: startDate.toISOString(),
         tokens_used_in_period: 0,
-    };
-
-    let upsertedSub: { id?: string } | null = null;
-    let subError: { message?: string } | null = null;
-
-    {
-        const res = await supabase
-            .from('subscriptions')
-            .upsert(subPayload, { onConflict: 'user_id' })
-            .select('id')
-            .maybeSingle();
-        upsertedSub = res.data ?? null;
-        subError = res.error;
-    }
-
-    if (subError) {
-        logger.warn('subscriptions upsert by user_id failed, falling back to shop_id', {
-            err: subError.message,
-        });
-        const fallbackPayload = { ...subPayload };
-        delete (fallbackPayload as Record<string, unknown>).user_id;
-        const res = await supabase
-            .from('subscriptions')
-            .upsert(fallbackPayload, { onConflict: 'shop_id' })
-            .select('id')
-            .maybeSingle();
-        upsertedSub = res.data ?? null;
-        subError = res.error;
-    }
+    });
 
     if (subError || !upsertedSub) {
         logger.error('Failed to activate subscription:', { error: subError?.message });

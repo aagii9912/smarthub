@@ -5,9 +5,11 @@ import { z } from 'zod';
 import { logger } from '@/lib/utils/logger';
 import { sendBulkOrderNotifications } from '@/lib/services/OrderNotificationService';
 
+// Must match orderStatusSchema (src/lib/validations/index.ts) — 'paid' is a
+// payment_status, not an order status.
 const bulkUpdateSchema = z.object({
     orderIds: z.array(z.string().uuid()),
-    status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'paid']),
+    status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']),
 });
 
 export async function POST(request: NextRequest) {

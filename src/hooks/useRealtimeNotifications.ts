@@ -51,10 +51,15 @@ export function useRealtimeNotifications() {
                 table: 'chat_history',
                 filter: `shop_id=eq.${shop.id}`
             }, (payload) => {
-                // Only notify if it's from user
-                if (payload.new.role === 'user') {
+                // chat_history columns are (message, response, intent, ...) —
+                // an inbound customer message has `message` set and no AI
+                // `response` yet.
+                const content: string = payload.new.message || '';
+                const isInbound = !!payload.new.message && !payload.new.response;
+
+                if (isInbound) {
                     toast.info('💬 Шинэ мессеж', {
-                        description: payload.new.content.substring(0, 50) + (payload.new.content.length > 50 ? '...' : ''),
+                        description: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
                         action: {
                             label: 'Хариулах',
                             onClick: () => router.push(`/dashboard/inbox`)

@@ -144,7 +144,7 @@ export async function GET() {
 
                     // ── Audit log ──
                     try {
-                        await supabase
+                        const { error: auditError } = await supabase
                             .from('payment_audit_logs')
                             .insert({
                                 payment_id: payment.id,
@@ -161,8 +161,19 @@ export async function GET() {
                                     confirmed_via: 'cron_check_payments',
                                 },
                             });
-                    } catch {
-                        // non-critical
+                        if (auditError) {
+                            // non-critical, but surface the failure
+                            logger.warn('Payment audit log insert failed (cron):', {
+                                payment_id: payment.id,
+                                error: auditError.message,
+                            });
+                        }
+                    } catch (auditErr) {
+                        // non-critical, but surface the failure
+                        logger.warn('Payment audit log insert failed (cron):', {
+                            payment_id: payment.id,
+                            error: String(auditErr),
+                        });
                     }
                 }
 

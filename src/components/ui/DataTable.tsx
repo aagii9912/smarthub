@@ -151,7 +151,19 @@ export function DataTable<TData, TValue>({
                                     key={row.id}
                                     data-state={row.getIsSelected() && 'selected'}
                                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                                    className={`hover:bg-secondary/30 transition-colors data-[state=selected]:bg-violet-50 ${onRowClick ? 'cursor-pointer' : ''}`}
+                                    tabIndex={onRowClick ? 0 : undefined}
+                                    role={onRowClick ? 'button' : undefined}
+                                    onKeyDown={
+                                        onRowClick
+                                            ? (e) => {
+                                                  if (e.key === 'Enter' || e.key === ' ') {
+                                                      e.preventDefault();
+                                                      onRowClick(row.original);
+                                                  }
+                                              }
+                                            : undefined
+                                    }
+                                    className={`hover:bg-secondary/30 transition-colors data-[state=selected]:bg-violet-50 ${onRowClick ? 'cursor-pointer outline-none focus-visible:bg-secondary/40' : ''}`}
                                 >
                                     {row.getVisibleCells().map((cell) => (
                                         <td key={cell.id} className="px-4 py-3">

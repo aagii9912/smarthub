@@ -23,7 +23,7 @@ interface OrderItem {
 interface PaymentData {
     id: string;
     amount: number;
-    status: 'pending' | 'paid' | 'expired';
+    status: 'pending' | 'paid' | 'expired' | 'failed';
     shopName: string;
     shopLogo: string | null;
     paymentType: string;
@@ -44,14 +44,21 @@ export default function PaymentPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<string>('');
+    // Client-side countdown hit zero — hide pay UI immediately without
+    // waiting for the backend status flip.
+    const [clientExpired, setClientExpired] = useState(false);
+    // Consecutive poll failures — used to show a subtle reconnect hint.
+    // Once a payment is loaded, transient poll errors must NEVER replace
+    // the active payment screen (double-payment risk).
+    const [pollFailures, setPollFailures] = useState(0);
 
+    // Initial load only. Poll errors are handled separately below.
     const fetchPayment = useCallback(async () => {
         try {
             const res = await fetch(`/api/pay/${id}`);
             if (!res.ok) throw new Error('Payment not found');
             const data = await res.json();
             setPayment(data);
-            if (data.status === 'paid') setLoading(false);
         } catch {
             setError('Төлбөрийн мэдээлэл олдсонгүй');
         } finally {
@@ -64,12 +71,67 @@ export default function PaymentPage() {
         fetchPayment();
     }, [fetchPayment]);
 
-    // Poll for payment status every 5s
+    // Poll for payment status while pending. Resilient version:
+    //  - poll errors keep the last good state (no fatal error)
+    //  - exponential-ish backoff on consecutive failures
+    //  - skips fetching while the tab is hidden, resumes on focus
+    //  - stops once the status is terminal (paid/expired/failed)
     useEffect(() => {
         if (!payment || payment.status !== 'pending') return;
-        const interval = setInterval(fetchPayment, 5000);
-        return () => clearInterval(interval);
-    }, [payment, fetchPayment]);
+
+        let cancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let failures = 0;
+        const BASE_MS = 5000;
+
+        const schedule = () => {
+            if (cancelled) return;
+            // 5s → 10s → 20s → 40s (capped) while errors persist
+            const delay = BASE_MS * Math.min(2 ** failures, 8);
+            timeoutId = setTimeout(tick, delay);
+        };
+
+        const tick = async () => {
+            if (cancelled) return;
+            // Don't burn requests in a background tab — visibilitychange
+            // below re-checks immediately when the user comes back.
+            if (document.hidden) {
+                schedule();
+                return;
+            }
+            try {
+                const res = await fetch(`/api/pay/${id}`);
+                if (!res.ok) throw new Error('poll failed');
+                const data: PaymentData = await res.json();
+                if (cancelled) return;
+                failures = 0;
+                setPollFailures(0);
+                setPayment(data);
+                if (data.status !== 'pending') return; // terminal — stop polling
+            } catch {
+                if (cancelled) return;
+                failures += 1;
+                setPollFailures(failures);
+            }
+            schedule();
+        };
+
+        const onVisibility = () => {
+            if (!document.hidden && !cancelled) {
+                if (timeoutId) clearTimeout(timeoutId);
+                tick();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibility);
+        schedule();
+
+        return () => {
+            cancelled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, [payment, id]);
 
     // Countdown timer
     useEffect(() => {
@@ -82,6 +144,7 @@ export default function PaymentPage() {
 
             if (diff <= 0) {
                 setTimeLeft('Хугацаа дууссан');
+                setClientExpired(true);
                 return;
             }
 
@@ -213,14 +276,53 @@ export default function PaymentPage() {
         );
     }
 
+    // ── Failed ──
+    if (payment.status === 'failed') {
+        return (
+            <div className="pay-container">
+                <div className="pay-card">
+                    <div className="pay-status-icon pay-error-icon">✕</div>
+                    <h2>Төлбөр амжилтгүй боллоо</h2>
+                    <p className="pay-subtitle">
+                        Төлбөр баталгаажсангүй. Хэрэв данснаас тань мөнгө хасагдсан бол бидэнтэй холбогдоно уу.
+                    </p>
+                    {payment.paymentType === 'subscription' ? (
+                        <a
+                            href="/dashboard/subscription"
+                            className="pay-back-btn"
+                            style={{ textAlign: 'center', textDecoration: 'none' }}
+                        >
+                            Багц сонгох хуудас руу буцах
+                        </a>
+                    ) : (
+                        <p className="pay-chat-hint">💬 Чат руугаа буцаж шинэ төлбөрийн линк аваад дахин оролдоно уу</p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     // ── Expired ──
-    if (payment.status === 'expired') {
+    // Backend says expired, or the client countdown hit zero — either way
+    // hide the bank buttons / QR immediately so a late payment can't be made.
+    if (payment.status === 'expired' || clientExpired) {
         return (
             <div className="pay-container">
                 <div className="pay-card">
                     <div className="pay-status-icon pay-expired-icon">⏱</div>
                     <h2>Хугацаа дууссан</h2>
-                    <p className="pay-subtitle">Энэ нэхэмжлэлийн хугацаа дууссан байна. Шинэ нэхэмжлэл авна уу.</p>
+                    <p className="pay-subtitle">Энэ нэхэмжлэлийн хугацаа дууссан байна.</p>
+                    {payment.paymentType === 'subscription' ? (
+                        <a
+                            href="/dashboard/subscription"
+                            className="pay-back-btn"
+                            style={{ textAlign: 'center', textDecoration: 'none' }}
+                        >
+                            Багц сонгох хуудас руу буцах
+                        </a>
+                    ) : (
+                        <p className="pay-chat-hint">💬 Чат руугаа буцаж шинэ төлбөрийн линк авна уу</p>
+                    )}
                 </div>
             </div>
         );
@@ -381,6 +483,11 @@ export default function PaymentPage() {
                 {/* Footer */}
                 <div className="pay-footer">
                     <p>Төлбөр хийгдсэний дараа энэ хуудас автоматаар шинэчлэгдэнэ</p>
+                    {pollFailures >= 3 && (
+                        <p style={{ color: 'rgba(255, 171, 64, 0.8)' }}>
+                            Холболт сэргээж байна...
+                        </p>
+                    )}
                     <div className="pay-polling-dot" />
                 </div>
             </div>

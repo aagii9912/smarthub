@@ -13,6 +13,7 @@ import {
     PERSONA_STYLE_DEFAULTS,
 } from '@/lib/constants/ai-setup';
 import { logger } from '@/lib/utils/logger';
+import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { SalesAssertiveness, ResponseLength, EmojiUsage } from '@/types/ai';
 import {
@@ -86,6 +87,35 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
     const [emojiUsage, setEmojiUsage] = useState<EmojiUsage>(PERSONA_STYLE_DEFAULTS.emoji_usage);
     const userEditedRef = useRef(Boolean(initialData.ai_instructions));
 
+    // Setup-ыг дахин нээхэд өмнө нь хадгалсан reply-style утгууд default-аар
+    // дарагдахгүйн тулд одоогийн cross_cutting-аас state-ээ эхлүүлнэ.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/ai-settings/config');
+                if (!res.ok) return;
+                const data = await res.json();
+                const cc = data?.cross_cutting as Record<string, unknown> | null;
+                if (cancelled || !cc) return;
+                if (ASSERTIVENESS_OPTIONS.some((o) => o.value === cc.sales_assertiveness)) {
+                    setSalesAssertiveness(cc.sales_assertiveness as SalesAssertiveness);
+                }
+                if (RESPONSE_LENGTH_OPTIONS.some((o) => o.value === cc.response_length)) {
+                    setResponseLength(cc.response_length as ResponseLength);
+                }
+                if (EMOJI_OPTIONS.some((o) => o.value === cc.emoji_usage)) {
+                    setEmojiUsage(cc.emoji_usage as EmojiUsage);
+                }
+            } catch {
+                // Уншиж чадаагүй бол default-аар үлдээнэ — хадгалах үед л чухал.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // When the recommendation changes (e.g. user backs up and changes business
     // type), realign defaults — but only if the user hasn't manually edited.
     useEffect(() => {
@@ -127,7 +157,7 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
         try {
             // Reply-style knobs live in cross_cutting (JSONB), persisted via the
             // merge-safe config endpoint so we don't clobber other AI config.
-            await fetch('/api/ai-settings/config', {
+            const res = await fetch('/api/ai-settings/config', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -138,6 +168,9 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                     },
                 }),
             });
+            if (!res.ok) {
+                throw new Error(`cross_cutting save failed (${res.status})`);
+            }
             await onSave({
                 description,
                 ai_emotion: emotion,
@@ -148,7 +181,8 @@ export function AISetupStep({ initialData, onSkip, onSave, fbPageId, fbPageToken
                 ai_setup_completed_at: new Date().toISOString(),
             });
         } catch (err) {
-            logger.error('Алдаа гарлаа', { error: err });
+            logger.error('AI setup хадгалахад алдаа гарлаа', { error: err });
+            toast.error('Тохиргоо хадгалахад алдаа гарлаа. Дахин оролдоно уу.');
             setLoading(false);
         }
     };

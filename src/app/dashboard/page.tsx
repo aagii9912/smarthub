@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, Variants } from 'framer-motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { OrderStatusBadge } from '@/components/ui/Badge';
@@ -18,6 +19,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useAIStats } from '@/hooks/useAIStats';
 import {
+    AlertTriangle,
     Calendar,
     ChevronDown,
     ChevronRight,
@@ -58,10 +60,11 @@ type OrderFilter = 'all' | 'pending' | 'paid';
 export default function DashboardPage() {
     const { user, shop, loading: authLoading } = useAuth();
     const { t } = useLanguage();
+    const router = useRouter();
     const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
     const [orderTab, setOrderTab] = useState<OrderFilter>('all');
 
-    const { data, isLoading, refetch, isRefetching } = useDashboard(timeFilter);
+    const { data, isLoading, isError, refetch, isRefetching } = useDashboard(timeFilter);
     const { data: aiStats } = useAIStats(timeFilter);
 
     const stats = data?.stats || { todayOrders: 0, pendingOrders: 0, totalRevenue: 0, totalCustomers: 0 };
@@ -121,6 +124,9 @@ export default function DashboardPage() {
 
     const filteredOrders = useMemo(() => {
         if (orderTab === 'all') return recentOrders;
+        // "Төлөгдсөн" таб нь paid + confirmed-ийг хамруулна — badge тоололтой ижил
+        // байх ёстой (өмнө нь зөвхөн 'paid'-аар шүүж, confirmed захиалга алга болж байв).
+        if (orderTab === 'paid') return recentOrders.filter((o) => o.status === 'paid' || o.status === 'confirmed');
         return recentOrders.filter((o) => o.status === orderTab);
     }, [recentOrders, orderTab]);
 
@@ -168,6 +174,31 @@ export default function DashboardPage() {
         return <DashboardSkeleton />;
     }
 
+    // Алдааны төлөв — худал "0" KPI-уудын оронд алдааны banner + дахин оролдох товч
+    if (isError) {
+        return (
+            <div className="max-w-[1400px] mx-auto">
+                <div className="card-outlined p-12 text-center flex flex-col items-center gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-[color-mix(in_oklab,var(--status-danger)_18%,transparent)] flex items-center justify-center">
+                        <AlertTriangle className="h-5 w-5 text-[var(--status-danger)]" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                        <div className="text-[14px] font-medium text-foreground">Мэдээлэл ачаалахад алдаа гарлаа</div>
+                        <div className="text-[12px] text-muted-foreground mt-1">Интернэт холболтоо шалгаад дахин оролдоно уу.</div>
+                    </div>
+                    <button
+                        onClick={() => refetch()}
+                        disabled={isRefetching}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/70 bg-card border border-border rounded-xl hover:border-[var(--brand-indigo)]/40 transition-all duration-200"
+                    >
+                        <RefreshCw className={cn('h-3.5 w-3.5', isRefetching && 'animate-spin')} />
+                        Дахин оролдох
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const handleRefresh = async () => {
         await refetch();
     };
@@ -212,13 +243,19 @@ export default function DashboardPage() {
                                 ))}
                             </Dropdown>
                             <button
+                                onClick={() => window.open('/api/dashboard/export?type=orders', '_blank')}
+                                className="inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/70 bg-card border border-border rounded-xl hover:border-[var(--brand-indigo)]/40 transition-all duration-200"
+                                title={t.dashboard.export}
+                            >
+                                <Download className="h-3.5 w-3.5" />
+                                {t.dashboard.export}
+                            </button>
+                            <button
                                 onClick={() => refetch()}
                                 disabled={isRefetching}
                                 className="inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white/70 bg-card border border-border rounded-xl hover:border-[var(--brand-indigo)]/40 transition-all duration-200"
                                 title={t.dashboard.refresh}
                             >
-                                <Download className="h-3.5 w-3.5" />
-                                {t.dashboard.export}
                                 <RefreshCw className={cn('h-3.5 w-3.5 text-white/40', isRefetching && 'animate-spin')} />
                             </button>
                             <Link
@@ -333,6 +370,7 @@ export default function DashboardPage() {
                                                 return (
                                                     <tr
                                                         key={o.id}
+                                                        onClick={() => router.push('/dashboard/orders')}
                                                         className="group hover:bg-white/[0.03] transition-colors cursor-pointer"
                                                     >
                                                         <td className="px-5 py-3.5 align-middle">

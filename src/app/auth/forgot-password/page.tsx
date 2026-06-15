@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { mapAuthError } from '../_lib/authErrors';
 
 export default function ForgotPasswordPage() {
     const supabase = createSupabaseBrowserClient();
@@ -27,7 +28,7 @@ export default function ForgotPasswordPage() {
         setLoading(false);
 
         if (error) {
-            setError(error.message);
+            setError(mapAuthError(error.message));
             return;
         }
         setSent(true);

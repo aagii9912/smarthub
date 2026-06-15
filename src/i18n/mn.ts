@@ -449,7 +449,7 @@ export const mn = {
   // ─── Orders Page ───
   orders: {
     loading: 'Ачааллаж байна...',
-    export: 'Export',
+    export: 'Экспорт',
     startDate: 'Эхлэх огноо',
     endDate: 'Дуусах огноо',
     filterActive: 'Шүүлтүүр идэвхтэй',

@@ -69,6 +69,16 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         }
     }, [shopId, refreshConversations]);
 
+    // Шинэ зурвас гарын ажиллагаагүйгээр харагдахын тулд 15 секунд тутамд
+    // харилцан ярианы жагсаалтыг шинэчилнэ (нүүр хуудасны 15с pattern-тэй ижил).
+    useEffect(() => {
+        if (!shopId) return;
+        const interval = setInterval(() => {
+            void refreshConversations();
+        }, 15000);
+        return () => clearInterval(interval);
+    }, [shopId, refreshConversations]);
+
     const patchConversation = useCallback(
         (customerId: string, patch: Partial<InboxConversation>) => {
             setConversations((prev) =>

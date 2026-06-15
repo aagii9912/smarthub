@@ -58,17 +58,35 @@ export async function GET(request: NextRequest) {
 
         // Stats
         if (!type || type === 'stats') {
-            // Get shop AI stats from shops table
-            const { data: shopStats } = await supabase
-                .from('shops')
-                .select('ai_total_conversations, ai_total_messages, ai_conversion_rate')
-                .eq('id', shop.id)
-                .single();
+            // Compute live from chat_history / customers / orders. The legacy
+            // shops.ai_total_* columns are never populated (update_shop_ai_stats
+            // is not invoked anywhere) so they would always read 0.
+            const [messagesRes, conversationsRes, ordersRes] = await Promise.all([
+                supabase
+                    .from('chat_history')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('shop_id', shop.id),
+                supabase
+                    .from('customers')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('shop_id', shop.id)
+                    .gt('message_count', 0),
+                supabase
+                    .from('orders')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('shop_id', shop.id),
+            ]);
+
+            const totalConversations = conversationsRes.count || 0;
+            const totalOrders = ordersRes.count || 0;
 
             const aiStats = {
-                total_conversations: shopStats?.ai_total_conversations || 0,
-                total_messages: shopStats?.ai_total_messages || 0,
-                conversion_rate: shopStats?.ai_conversion_rate || 0
+                total_conversations: totalConversations,
+                total_messages: messagesRes.count || 0,
+                // Orders per chatted customer (%)
+                conversion_rate: totalConversations > 0
+                    ? Math.round((totalOrders / totalConversations) * 100)
+                    : 0
             };
 
             // Get top questions (may not exist yet if tables not created)
@@ -80,29 +98,39 @@ export async function GET(request: NextRequest) {
             }
             let topQuestions: TopQuestion[] = [];
             try {
-                const { data } = await supabase
+                const { data, error } = await supabase
                     .from('ai_question_stats')
                     .select('question_pattern, sample_question, category, count')
                     .eq('shop_id', shop.id)
                     .order('count', { ascending: false })
                     .limit(10);
+                if (error) {
+                    // Table might not exist yet — but log so real failures aren't invisible
+                    logger.debug('ai_question_stats query failed:', { error: error.message });
+                }
                 topQuestions = data || [];
             } catch (e) {
-                // Table might not exist yet
+                // Table might not exist yet — but log so real failures aren't invisible
+                logger.debug('ai_question_stats query threw:', { error: e instanceof Error ? e.message : String(e) });
             }
 
             // Get recent conversations count (last 7 days)
             let recentConversations = 0;
             try {
                 const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-                const { count } = await supabase
+                const { count, error } = await supabase
                     .from('ai_conversations')
                     .select('*', { count: 'exact', head: true })
                     .eq('shop_id', shop.id)
                     .gte('started_at', weekAgo);
+                if (error) {
+                    // Table might not exist yet — but log so real failures aren't invisible
+                    logger.debug('ai_conversations query failed:', { error: error.message });
+                }
                 recentConversations = count || 0;
             } catch (e) {
-                // Table might not exist yet
+                // Table might not exist yet — but log so real failures aren't invisible
+                logger.debug('ai_conversations query threw:', { error: e instanceof Error ? e.message : String(e) });
             }
 
             result.stats = {

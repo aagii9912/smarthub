@@ -1,14 +1,16 @@
 /**
  * Process Pending Messages API (Cron Job)
- * 
- * Runs every 5 seconds to batch and process collected messages
- * Groups messages by sender, combines them, and sends one AI response
+ *
+ * Runs daily at midnight UTC (see vercel.json crons) to batch and process
+ * collected messages. Groups messages by sender, combines them, and sends
+ * one AI response.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { getUserBilling } from '@/lib/billing/getUserBilling';
+import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import { sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { logger } from '@/lib/utils/logger';
@@ -188,6 +190,25 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         return;
     }
 
+    // CHECK: Paid subscription required for AI (same gate as /api/webhook).
+    // Per-user pool: source plan + token quota from the user, fall back to
+    // per-shop columns when the snapshot isn't populated.
+    // Messages were already marked processed above, so skipping here just
+    // drops the batch without retry loops.
+    const userIdForShop = (shopData as { user_id?: string }).user_id;
+    const billing = userIdForShop ? await getUserBilling(userIdForShop) : null;
+
+    if (!isAiAuthorized(billing, shopData)) {
+        logger.info(`[${shopData.name}] No active subscription — AI алгасаж байна.`, {
+            shopId: shopData.id,
+            billingStatus: billing?.status,
+            billingPlan: billing?.plan,
+            shopStatus: shopData.subscription_status,
+            shopPlan: shopData.subscription_plan,
+        });
+        return;
+    }
+
     // Combine messages
     const textMessages: string[] = [];
     const imageUrls: string[] = [];
@@ -243,8 +264,8 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         // Process images first if any
         if (imageUrls.length > 0) {
             const planType = getPlanTypeFromSubscription({
-                plan: shopData.subscription_plan || 'starter',
-                status: shopData.subscription_status || 'active',
+                plan: billing?.plan || shopData.subscription_plan || 'starter',
+                status: billing?.status || shopData.subscription_status || 'unpaid',
             });
 
             const productsForAnalysis = shopData.products.map(p => ({
@@ -283,11 +304,6 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         if (combinedText.trim()) {
             const intent = detectIntent(combinedText);
             const previousHistory: ChatMessage[] = await getChatHistory(shopId, customerId);
-
-            // Per-user pool: source plan + token quota from the user, fall
-            // back to per-shop columns when the snapshot isn't populated.
-            const userIdForShop = (shopData as { user_id?: string }).user_id;
-            const billing = userIdForShop ? await getUserBilling(userIdForShop) : null;
 
             const response = await routeToAI(
                 combinedText,
@@ -340,7 +356,9 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     }),
                     subscription: {
                         plan: billing?.plan || shopData.subscription_plan || 'starter',
-                        status: billing?.status || shopData.subscription_status || 'active',
+                        // Never default to 'active' — unpaid shops were already
+                        // filtered by isAiAuthorized above.
+                        status: billing?.status || shopData.subscription_status || 'unpaid',
                         trialEndsAt: billing?.trialEndsAt || shopData.trial_ends_at || undefined,
                     },
                     messageCount: customer.message_count || 0,

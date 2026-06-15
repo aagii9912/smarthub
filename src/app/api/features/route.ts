@@ -108,7 +108,7 @@ export async function GET() {
             return NextResponse.json({
                 features: {
                     ai_enabled: false,
-                    ai_model: 'gpt-4o-mini',
+                    ai_model: 'gemini-3.1-flash-lite',
                     sales_intelligence: false,
                     ai_memory: false,
                     cart_system: 'none',
