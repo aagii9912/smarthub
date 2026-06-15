@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -9,6 +10,8 @@ import { PageHero } from '@/components/ui/PageHero';
 import { SalesChart } from '@/components/dashboard/SalesChart';
 import { BestSellersTable } from '@/components/dashboard/BestSellersTable';
 import { RevenueStats } from '@/components/dashboard/RevenueStats';
+import { RevenueSummary } from '@/components/dashboard/RevenueSummary';
+import { RevenuePaymentBreakdown } from '@/components/dashboard/RevenuePaymentBreakdown';
 import { SmartInsights } from '@/components/dashboard/SmartInsights';
 import { TokenBreakdownCard } from '@/components/dashboard/TokenBreakdownCard';
 import { FeatureGate } from '@/components/FeatureGate';
@@ -74,7 +77,12 @@ function toneVar(tone: IntentTone): string {
 // Simple bar chart component for AI daily messages
 function MiniBarChart({ data, maxValue }: { data: Array<{ date: string; count: number }>; maxValue: number }) {
     if (data.length === 0) {
-        return <div className="text-[12px] text-white/30 text-center py-8">Мэдээлэл байхгүй</div>;
+        return (
+            <div className="text-center py-10">
+                <p className="text-[13px] text-white/45">Мессеж бүртгэгдээгүй</p>
+                <p className="text-[11.5px] text-white/30 mt-1">Энэ хугацаанд AI агент яриа хийгээгүй байна.</p>
+            </div>
+        );
     }
 
     return (
@@ -108,7 +116,12 @@ function IntentBreakdown({ data }: { data: Record<string, number> }) {
     const total = entries.reduce((sum, [, count]) => sum + count, 0);
 
     if (entries.length === 0) {
-        return <div className="text-[12px] text-white/30 text-center py-4">Мэдээлэл байхгүй</div>;
+        return (
+            <div className="text-center py-8">
+                <p className="text-[13px] text-white/45">Ангилал алга</p>
+                <p className="text-[11.5px] text-white/30 mt-1">Яриа эхэлмэгц сэдвийн задаргаа харагдана.</p>
+            </div>
+        );
     }
 
     return (
@@ -224,6 +237,7 @@ function ReportsPageContent() {
             document.body.removeChild(a);
         } catch (error: unknown) {
             logger.error('Export error:', { error: error });
+            toast.error('Экспорт хийхэд алдаа гарлаа');
         } finally {
             setExporting(null);
         }
@@ -383,6 +397,16 @@ function ReportsPageContent() {
             {/* ─────────── Sales Tab ─────────── */}
             {!isLoadingCurrent && activeTab === 'sales' && (
                 <>
+                    {/* Executive summary — headline + top takeaway */}
+                    {salesData && (
+                        <RevenueSummary
+                            bestSellers={salesData.bestSellers}
+                            revenue={salesData.revenue}
+                            chartData={salesData.chartData}
+                            period={period}
+                        />
+                    )}
+
                     {/* Revenue Stats */}
                     {salesData && (
                         <RevenueStats
@@ -390,8 +414,21 @@ function ReportsPageContent() {
                             orderCount={salesData.revenue.orderCount}
                             avgOrderValue={salesData.revenue.avgOrderValue}
                             growth={salesData.revenue.growth}
+                            growthAmount={salesData.revenue.total - salesData.revenue.prevPeriodTotal}
                             newCustomers={salesData.customers.new}
                             vipCustomers={salesData.customers.vip}
+                        />
+                    )}
+
+                    {/* Revenue transparency — payment-status / COD breakdown */}
+                    {salesData && (
+                        <RevenuePaymentBreakdown
+                            grossTotal={salesData.revenue.grossTotal}
+                            paidTotal={salesData.revenue.total}
+                            paymentBreakdown={salesData.revenue.paymentBreakdown}
+                            paymentCounts={salesData.revenue.paymentCounts}
+                            codTotal={salesData.revenue.codTotal}
+                            prepaidTotal={salesData.revenue.prepaidTotal}
                         />
                     )}
 
@@ -400,6 +437,7 @@ function ReportsPageContent() {
                         <SmartInsights
                             bestSellers={salesData.bestSellers}
                             revenue={salesData.revenue}
+                            chartData={salesData.chartData}
                             period={period}
                         />
                     )}
@@ -494,9 +532,9 @@ function ReportsPageContent() {
                             <div className="p-5">
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     {[
-                                        { type: 'orders' as const, label: t.reports.orders, icon: ShoppingCart },
-                                        { type: 'products' as const, label: t.reports.products, icon: Package },
-                                        { type: 'sales' as const, label: t.reports.revenue, icon: TrendingUp },
+                                        { type: 'orders' as const, label: t.reports.orders, icon: ShoppingCart, desc: 'Сүүлийн захиалгууд: огноо, харилцагч, дүн, төлөв' },
+                                        { type: 'products' as const, label: t.reports.products, icon: Package, desc: 'Бүх бараа: үнэ, хөнгөлөлт, үлдэгдэл, төлөв' },
+                                        { type: 'sales' as const, label: t.reports.revenue, icon: TrendingUp, desc: 'Сүүлийн 30 хоног: борлуулалтын мөр бүрчлэн' },
                                     ].map((item) => (
                                         <button
                                             key={item.type}
@@ -511,7 +549,7 @@ function ReportsPageContent() {
                                                 <p className="font-medium text-[13px] text-foreground tracking-[-0.01em]">
                                                     {item.label}
                                                 </p>
-                                                <p className="text-[11px] text-white/40">Excel файлаар татаж авах</p>
+                                                <p className="text-[11px] text-white/40 leading-snug">{item.desc}</p>
                                             </div>
                                             <Download
                                                 className={cn(
@@ -522,6 +560,9 @@ function ReportsPageContent() {
                                         </button>
                                     ))}
                                 </div>
+                                <p className="text-[11px] text-white/35 mt-3">
+                                    Захиалга, бараа нь бүх хугацааг хамарна. Борлуулалт нь сонгосон хугацаанаас үл хамааран сүүлийн 30 хоног.
+                                </p>
                             </div>
                         </div>
                     </FeatureGate>

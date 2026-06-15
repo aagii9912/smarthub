@@ -104,4 +104,22 @@ function PaymentStatusBadge({
     );
 }
 
-export { Badge, badgeVariants, OrderStatusBadge, PaymentStatusBadge };
+/* ─── Product Status Badge ─── */
+const productStatusConfig: Record<string, { label: string; variant: NonNullable<VariantProps<typeof badgeVariants>['variant']> }> = {
+    active: { label: 'Идэвхтэй', variant: 'success' },
+    pre_order: { label: 'Урьдчилсан захиалга', variant: 'warning' },
+    coming_soon: { label: 'Удахгүй ирнэ', variant: 'info' },
+    draft: { label: 'Ноорог', variant: 'secondary' },
+    discontinued: { label: 'Зогссон', variant: 'destructive' },
+};
+
+function ProductStatusBadge({ status, className }: { status: string | null | undefined; className?: string }) {
+    const config = productStatusConfig[status || 'active'] || { label: status || 'Идэвхтэй', variant: 'default' as const };
+    return (
+        <Badge variant={config.variant} dot className={cn('text-[10px]', className)}>
+            {config.label}
+        </Badge>
+    );
+}
+
+export { Badge, badgeVariants, OrderStatusBadge, PaymentStatusBadge, ProductStatusBadge };

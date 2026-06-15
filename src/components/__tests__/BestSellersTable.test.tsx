@@ -76,7 +76,7 @@ describe('BestSellersTable', () => {
     describe('Empty State', () => {
         it('shows empty state when products array is empty', () => {
             render(<BestSellersTable products={[]} />);
-            expect(screen.getByText('Борлуулалтын өгөгдөл байхгүй')).toBeInTheDocument();
+            expect(screen.getByText('Борлуулалтын өгөгдөл алга')).toBeInTheDocument();
         });
 
         it('shows Package icon in empty state', () => {
@@ -111,29 +111,26 @@ describe('BestSellersTable', () => {
         it('applies gold styling for rank 1', () => {
             render(<BestSellersTable products={mockProducts} />);
             const rank1 = screen.getByText('1');
-            expect(rank1.className).toContain('bg-yellow-100');
-            expect(rank1.className).toContain('text-yellow-700');
+            expect(rank1.className).toContain('var(--gold)');
         });
 
-        it('applies silver styling for rank 2', () => {
+        it('applies indigo styling for rank 2', () => {
             render(<BestSellersTable products={mockProducts} />);
             const rank2 = screen.getByText('2');
-            expect(rank2.className).toContain('bg-[#1C1650]');
-            expect(rank2.className).toContain('text-white/70');
+            expect(rank2.className).toContain('var(--brand-indigo)');
         });
 
-        it('applies bronze styling for rank 3', () => {
+        it('applies violet styling for rank 3', () => {
             render(<BestSellersTable products={mockProducts} />);
             const rank3 = screen.getByText('3');
-            expect(rank3.className).toContain('bg-orange-100');
-            expect(rank3.className).toContain('text-orange-700');
+            expect(rank3.className).toContain('var(--brand-violet-500)');
         });
 
         it('applies default styling for rank > 3', () => {
             render(<BestSellersTable products={mockProducts} />);
             const rank4 = screen.getByText('4');
-            expect(rank4.className).toContain('bg-[#151040]');
-            expect(rank4.className).toContain('text-white/60');
+            expect(rank4.className).toContain('bg-white/[0.05]');
+            expect(rank4.className).toContain('text-white/55');
         });
     });
 

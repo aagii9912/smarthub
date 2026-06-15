@@ -8,6 +8,14 @@ interface ReportsData {
         orderCount: number;
         avgOrderValue: number;
         growth: number;
+        prevPeriodTotal: number;
+        grossTotal: number;
+        unpaidTotal: number;
+        totalOrderCount: number;
+        paymentBreakdown: { paid: number; pending: number; failed: number; refunded: number };
+        paymentCounts: { paid: number; pending: number; failed: number; refunded: number };
+        codTotal: number;
+        prepaidTotal: number;
     };
     bestSellers: Array<{
         id: string;

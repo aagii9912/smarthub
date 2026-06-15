@@ -11,7 +11,17 @@ import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
+import { ProductStatusBadge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
+
+// Lifecycle статусын overlay badge (зураг дээр харагдах) — pre_order/coming_soon зэргийг
+// нөөц/идэвхийн төлвөөс илүүтэй давуу эрэмбээр харуулна.
+const LIFECYCLE_OVERLAY: Record<string, { label: string; cls: string; dot: boolean }> = {
+    pre_order: { label: 'Урьдчилсан захиалга', cls: 'bg-[color-mix(in_oklab,var(--warning)_28%,transparent)] text-[var(--warning)]', dot: true },
+    coming_soon: { label: 'Удахгүй ирнэ', cls: 'bg-[color-mix(in_oklab,var(--brand-violet-500)_32%,transparent)] text-white', dot: true },
+    discontinued: { label: 'Зогссон', cls: 'bg-[color-mix(in_oklab,var(--destructive)_28%,transparent)] text-[var(--destructive)]', dot: false },
+    draft: { label: 'Ноорог', cls: 'bg-black/40 text-white/70', dot: false },
+};
 
 // Unused but kept for API parity
 void useCreateProduct;
@@ -52,7 +62,7 @@ export default function ProductsPage() {
 
     const [searchQuery, setSearchQuery] = useState('');
     // Энгийн шүүлтүүр — нөөц/идэвхийн төлвөөр клиент талд шүүнэ
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'out'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'out' | 'pre_order'>('all');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
@@ -200,6 +210,7 @@ export default function ProductsPage() {
             case 'active': return p.is_active;
             case 'inactive': return !p.is_active;
             case 'out': return p.type === 'physical' && available <= 0;
+            case 'pre_order': return p.status === 'pre_order';
             default: return true;
         }
     });
@@ -311,6 +322,7 @@ export default function ProductsPage() {
                 >
                     <option value="all">Бүгд</option>
                     <option value="active">Идэвхтэй</option>
+                    <option value="pre_order">Урьдчилсан захиалга</option>
                     <option value="inactive">Идэвхгүй</option>
                     <option value="out">Дууссан</option>
                 </select>
@@ -381,11 +393,13 @@ export default function ProductsPage() {
                                         <p className="font-semibold text-[13.5px] text-foreground tracking-[-0.01em] line-clamp-1">
                                             {product.name}
                                         </p>
-                                        {!product.is_active && (
+                                        {product.status && product.status !== 'active' ? (
+                                            <ProductStatusBadge status={product.status} className="shrink-0" />
+                                        ) : !product.is_active ? (
                                             <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-white/50">
                                                 {t.products.inactiveStatus}
                                             </span>
-                                        )}
+                                        ) : null}
                                         {(product.discount_percent || 0) > 0 && (
                                             <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[var(--destructive)] text-white font-semibold">
                                                 -{product.discount_percent}%
@@ -480,7 +494,12 @@ export default function ProductsPage() {
                                     )}
                                     {/* Status badge (top-left) */}
                                     <div className="absolute top-2.5 left-2.5">
-                                        {!product.is_active ? (
+                                        {product.status && LIFECYCLE_OVERLAY[product.status] ? (
+                                            <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold backdrop-blur-sm', LIFECYCLE_OVERLAY[product.status].cls)}>
+                                                {LIFECYCLE_OVERLAY[product.status].dot && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
+                                                {LIFECYCLE_OVERLAY[product.status].label}
+                                            </span>
+                                        ) : !product.is_active ? (
                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-black/40 text-white/70 backdrop-blur-sm">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
                                                 {t.products.inactiveStatus}

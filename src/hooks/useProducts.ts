@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 
 export interface ProductVariant {
@@ -21,6 +22,10 @@ export interface Product {
     reserved_stock: number | null;
     discount_percent: number | null;
     is_active: boolean;
+    // Lifecycle status (draft | active | pre_order | coming_soon | discontinued)
+    status?: 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued';
+    available_from?: string | null;
+    pre_order_eta?: string | null;
     type: 'physical' | 'service' | 'appointment';
     colors: string[];
     sizes: string[];
@@ -53,7 +58,7 @@ export function useProducts() {
                     'x-shop-id': shopId || ''
                 }
             });
-            if (!res.ok) throw new Error('Failed to fetch products');
+            if (!res.ok) throw new Error('Бүтээгдэхүүн ачаалахад алдаа гарлаа');
             const data: ProductsResponse = await res.json();
             return data.products;
         },
@@ -76,7 +81,7 @@ export function useCreateProduct() {
             });
             if (!res.ok) {
                 const error = await res.json();
-                throw new Error(error.details?.join(', ') || 'Failed to create product');
+                throw new Error(error.details?.join(', ') || error.error || 'Бүтээгдэхүүн үүсгэхэд алдаа гарлаа');
             }
             return res.json();
         },
@@ -102,7 +107,7 @@ export function useUpdateProduct() {
             });
             if (!res.ok) {
                 const error = await res.json();
-                throw new Error(error.details?.join(', ') || 'Failed to update product');
+                throw new Error(error.details?.join(', ') || error.error || 'Бүтээгдэхүүн шинэчлэхэд алдаа гарлаа');
             }
             return res.json();
         },
@@ -124,11 +129,14 @@ export function useDeleteProduct() {
                     'x-shop-id': shopId || ''
                 }
             });
-            if (!res.ok) throw new Error('Failed to delete product');
+            if (!res.ok) throw new Error('Бүтээгдэхүүн устгахад алдаа гарлаа');
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Бүтээгдэхүүн устгахад алдаа гарлаа');
         },
     });
 }

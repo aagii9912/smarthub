@@ -51,20 +51,21 @@ export async function GET(request: NextRequest) {
             // 1. Current Period Orders (for Revenue & Status)
             supabase
                 .from('orders')
-                .select('id, total_amount, status, created_at')
+                .select('id, total_amount, status, payment_status, payment_method, created_at')
                 .eq('shop_id', shopId)
                 .gte('created_at', periodStart.toISOString()),
 
-            // 2. Previous Period Orders (only revenue statuses)
+            // 2. Previous Period Orders (revenue = paid orders, same
+            //    definition as /api/dashboard/stats)
             supabase
                 .from('orders')
                 .select('total_amount')
                 .eq('shop_id', shopId)
                 .gte('created_at', prevPeriodStart.toISOString())
                 .lt('created_at', periodStart.toISOString())
-                .in('status', ['confirmed', 'processing', 'shipped', 'delivered']),
+                .eq('payment_status', 'paid'),
 
-            // 3. Order Items (for Best Sellers)
+            // 3. Order Items (for Best Sellers — paid orders only)
             supabase
                 .from('order_items')
                 .select(`
@@ -72,11 +73,11 @@ export async function GET(request: NextRequest) {
                     unit_price,
                     product_id,
                     products (id, name, images, price),
-                    orders!inner (shop_id, status, created_at)
+                    orders!inner (shop_id, status, payment_status, created_at)
                 `)
                 .eq('orders.shop_id', shopId)
                 .gte('orders.created_at', periodStart.toISOString())
-                .in('orders.status', ['confirmed', 'processing', 'shipped', 'delivered']),
+                .eq('orders.payment_status', 'paid'),
 
             // 4. Customer Counts
             supabase
@@ -106,16 +107,33 @@ export async function GET(request: NextRequest) {
         const newCustomers = newCustomersResponse.count || 0;
         const vipCustomers = vipCustomersResponse.count || 0;
 
-        // Process Revenue (Filter for valid statuses)
-        const validOrders = allPeriodOrders.filter(o =>
-            ['confirmed', 'processing', 'shipped', 'delivered'].includes(o.status)
-        );
+        // Process Revenue — only paid orders count as revenue, matching
+        // /api/dashboard/stats so both screens show the same number.
+        const validOrders = allPeriodOrders.filter(o => o.payment_status === 'paid');
 
         const totalRevenue = validOrders.reduce((sum, order) =>
             sum + Number(order.total_amount), 0);
 
         const orderCount = validOrders.length;
         const avgOrderValue = orderCount > 0 ? Math.round(totalRevenue / orderCount) : 0;
+
+        // Revenue transparency — breakdown by payment status & method.
+        // All from allPeriodOrders (no extra query). "Нийт орлого" stays paid-only;
+        // these fields let the UI disclose the rest (COD / pending / etc.).
+        const paymentBreakdown = { paid: 0, pending: 0, failed: 0, refunded: 0 };
+        const paymentCounts = { paid: 0, pending: 0, failed: 0, refunded: 0 };
+        let codTotal = 0;
+        let prepaidTotal = 0;
+        allPeriodOrders.forEach(o => {
+            const ps = (o.payment_status ?? 'pending') as keyof typeof paymentBreakdown;
+            if (ps in paymentBreakdown) {
+                paymentBreakdown[ps] += Number(o.total_amount);
+                paymentCounts[ps] += 1;
+            }
+            if (o.payment_method === 'cod') codTotal += Number(o.total_amount);
+            else prepaidTotal += Number(o.total_amount);
+        });
+        const grossOrderValue = allPeriodOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
 
         // Process Previous Period Revenue
         const prevRevenue = prevPeriodOrders.reduce((sum, order) =>
@@ -213,6 +231,13 @@ export async function GET(request: NextRequest) {
                 avgOrderValue,
                 growth: revenueGrowth,
                 prevPeriodTotal: prevRevenue,
+                grossTotal: grossOrderValue,
+                unpaidTotal: grossOrderValue - totalRevenue,
+                totalOrderCount: allPeriodOrders.length,
+                paymentBreakdown,
+                paymentCounts,
+                codTotal,
+                prepaidTotal,
             },
             bestSellers: bestSellersWithPercent,
             chartData: revenueChartData,
