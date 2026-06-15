@@ -78,6 +78,32 @@ export function mapShopProductsToAI(products: ShopProductRow[] | null | undefine
     });
 }
 
+/**
+ * Build short variant labels for the customer-image-upload quick reply
+ * (webhook route.ts → "📏 ..." line).
+ *
+ * Shape note: `matchedProduct` at that call site is an {@link AIProduct} (it
+ * comes from `shop.products`, which `mapShopProductsToAI` produces), so
+ * `variants` here is `AIProductVariant[]` (flat `color`/`size`) — NOT the DB
+ * `ProductVariant` (`options`) shape. Reading `v.options` would not type-check.
+ *
+ * But `mapShopProductsToAI` currently sets `variants: undefined` and the webhook
+ * shop query only fetches `products(*)` (not `product_variants`), so `variants`
+ * is always `undefined` at that call site. We therefore fall back to the
+ * product's `colors`/`sizes` arrays, which ARE loaded, so the label actually
+ * renders. If variants ever get populated, they take precedence.
+ */
+export function buildVariantLabels(
+    product: Pick<AIProduct, 'variants' | 'colors' | 'sizes'>,
+): string[] {
+    if (product.variants && product.variants.length > 0) {
+        return product.variants
+            .map((v) => [v.color, v.size].filter(Boolean).join(' ').trim())
+            .filter(Boolean);
+    }
+    return [...(product.colors ?? []), ...(product.sizes ?? [])].filter(Boolean);
+}
+
 export interface ShopWithProducts {
     id: string;
     user_id?: string | null;

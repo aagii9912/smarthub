@@ -4,6 +4,7 @@ import { detectIntent } from '@/lib/ai/intent-detector';
 import { shouldReplyToComment } from '@/lib/ai/comment-detector';
 import { logger } from '@/lib/utils/logger';
 import { routeToAI, analyzeProductImageWithPlan, getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
+import type { PlanType } from '@/lib/ai/AIRouter';
 import { getUserBilling } from '@/lib/billing/getUserBilling';
 import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import * as Sentry from '@sentry/nextjs';
@@ -21,6 +22,7 @@ import {
     buildNotifySettings,
     buildPaymentConfig,
     buildCrossCuttingConfig,
+    buildVariantLabels,
     generateFallbackResponse,
     processAIResponse,
     replyToComment,
@@ -98,14 +100,117 @@ interface WebhookEntry {
     messaging?: Array<{
         sender: { id: string };
         message?: {
+            mid?: string;
             text?: string;
+            // Page-ийн өөрийн илгээсэн мессежийн цуурай (message_echoes
+            // subscribe хийсэн үед ирнэ). true бол боловсруулахгүй — эс бол
+            // бот өөртэйгөө ярина.
+            is_echo?: boolean;
             attachments?: Array<{
                 type: string;
                 payload?: { url?: string };
             }>;
+            // reply_to нь хоёр өөр зүйл агуулж болно:
+            //  • story — ЗӨВХӨН Instagram. Дэлгүүрийн story-д хариулахад аль
+            //    story болохыг заана. `url` нь story-ийн зураг (богино
+            //    хугацаатай CDN линк) — vision matcher-аар бараа сэргээнэ.
+            //    Facebook Messenger ЭНЭ талбарыг ИЛГЭЭДЭГГҮЙ (Meta баримт +
+            //    community thread 137663329229763). resolveStoryProductContext.
+            //  • mid/is_self_reply — Facebook Messenger дээр thread доторх
+            //    тодорхой мессеж эш татахад ирдэг (story биш).
+            reply_to?: {
+                story?: { id?: string; url?: string };
+                mid?: string;
+                is_self_reply?: boolean;
+            };
         };
         postback?: { payload?: string };
     }>;
+}
+
+/**
+ * Vision тааруулалтыг бараа болгон "баталгаажуулахаас" өмнө шаардах хамгийн бага
+ * confidence. Захиалга үүсгэх урсгал нь дахин баталгаажуулдаг тул дунд зэргийн
+ * босго. Image-to-image тааруулалт сайжирвал энэ босгыг өсгөж болно (телеметри
+ * дээр үндэслэн). Story болон customer-upload хоёр зам нэг босго хуваалцана.
+ */
+const STORY_MATCH_MIN_CONFIDENCE = 0.45;
+
+/**
+ * Story-reply → бүтээгдэхүүн тодорхойлогч.
+ *
+ * Instagram-д хэрэглэгч дэлгүүрийн story-д хариулахад текст ("авъя") дангаараа
+ * ямар бараа болохыг заадаггүй. Webhook payload-н `message.reply_to.story.url`
+ * нь тухайн story-ийн зураг тул түүнийг одоо байгаа vision matcher
+ * (`analyzeProductImageWithPlan`)-аар дамжуулж барааг сэргээнэ.
+ *
+ * Буцаалт: AI message-д залгах монгол хэлний нэмэлт контекст мөр. Бараа олдвол
+ * түүгээр үргэлжлүүлэхийг, олдоогүй бол аль бараа болохыг тодруулахыг AI-д
+ * хэлнэ. Vision боломжгүй (lite багц) эсвэл алдаа гарвал хоосон тэмдэгт буцаана
+ * — энэ үед хэвийн (контекстгүй) урсгалаар явна.
+ */
+async function resolveStoryProductContext(
+    storyImageUrl: string,
+    shop: ShopWithProducts,
+    planType: PlanType,
+): Promise<string> {
+    if (!shop.products || shop.products.length === 0) return '';
+
+    try {
+        // image_url/images-ийг дамжуулснаар vision image-to-image тааруулна
+        // (зөвхөн нэр/тайлбараар бус). Зураггүй бараа нэрээр танигдана.
+        const productsForAnalysis = shop.products.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description || undefined,
+            image_url: p.image_url || undefined,
+            images: p.images || undefined,
+        }));
+
+        const analysis = await analyzeProductImageWithPlan(
+            storyImageUrl,
+            productsForAnalysis,
+            planType,
+            shop.id,
+        );
+
+        // Vision found a confident match — name the product for the AI. We still
+        // require a modest confidence so a wrong guess doesn't push the customer
+        // toward ordering the wrong item (the order flow re-confirms regardless).
+        if ((analysis.matchedProductId || analysis.matchedProduct) && analysis.confidence >= STORY_MATCH_MIN_CONFIDENCE) {
+            // matchedProductId байвал яг ID-аар (найдвартай), үгүй бол нэрээр
+            // substring-аар сэргээнэ.
+            const matched = analysis.matchedProductId
+                ? shop.products.find(p => p.id === analysis.matchedProductId)
+                : shop.products.find(p =>
+                    p.name.toLowerCase().includes(analysis.matchedProduct!.toLowerCase()) ||
+                    analysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
+                );
+            // ID-г каталогаас олж чадаагүй (model hallucination / хуучин ID) ба
+            // нэр ч байхгүй бол `name` нь null болно. Тийм үед "null" гэдэг
+            // үгийг AI контекст руу шахахгүйгээр доорх тодруулга руу унана
+            // (customer-upload зам шиг хамгаалалт).
+            const name = matched?.name || analysis.matchedProduct;
+            if (name) {
+                logger.info(`[${shop.name}] Story reply matched product`, {
+                    matched: name,
+                    matchedId: analysis.matchedProductId,
+                    confidence: analysis.confidence,
+                });
+                return `\n\n[Систем: Хэрэглэгч "${name}" бүтээгдэхүүний story зурагт хариулж байна. Энэ бараагаар үргэлжлүүлэн тусал.]`;
+            }
+        }
+
+        // Story reply detected but no usable match — still tell the AI it was a
+        // story reply so it asks which item instead of answering blind.
+        logger.info(`[${shop.name}] Story reply but no product matched`, {
+            confidence: analysis.confidence,
+        });
+        return `\n\n[Систем: Хэрэглэгч story зурагт хариулж байна (бараа автоматаар танигдсангүй). Аль бараа болохыг эелдэгээр тодруул.]`;
+    } catch (err) {
+        logger.warn('Story product resolution failed', { error: String(err), shopId: shop.id });
+        return '';
+    }
 }
 
 // Verify webhook (GET request from Facebook)
@@ -286,6 +391,12 @@ export async function POST(request: NextRequest) {
             for (const event of entry.messaging || []) {
                 const senderId = event.sender.id;
 
+                // Page-ийн өөрийн илгээсэн мессежийн цуурайг алгасна (эс бол бот
+                // өөрийн гаргасан хариултанд дахин хариулна).
+                if (event.message?.is_echo) {
+                    continue;
+                }
+
                 // Handle text messages
                 if (event.message?.text) {
                     const userMessage = event.message.text;
@@ -339,12 +450,40 @@ export async function POST(request: NextRequest) {
                         continue;
                     }
 
+                    // STORY REPLY (ЗӨВХӨН Instagram): хэрэглэгч дэлгүүрийн story-д
+                    // хариулсан бол (ж: "авъя") текст дангаараа ямар бараа болохыг
+                    // заадаггүй. Story зургийг vision matcher-аар таниж барааг
+                    // сэргээгээд AI message-д контекст болгон залгана.
+                    //
+                    // ⚠️ `reply_to.story` бол Instagram-ийн талбар. Facebook
+                    // Messenger үүнийг ИЛГЭЭДЭГГҮЙ (Meta баримт + community thread
+                    // 137663329229763) — FB дээр story-д хариулахад ямар ч story
+                    // мэдээлэлгүй энгийн message ирдэг. Тиймээс platform guard
+                    // тавьж, FB дээр дэмий vision дуудлага хийхээс сэргийлнэ.
+                    //
+                    // ХАМРАХ ХҮРЭЭ: энэ блок тексттэй (`event.message.text`)
+                    // story хариултыг л боловсруулна — "авъя" гэх мэт түгээмэл
+                    // тохиолдол. Зөвхөн emoji/стикер reaction-ээр story-д хариулах
+                    // нь одоохондоо энд орохгүй (дараагийн алхамд).
+                    let storyContextNote = '';
+                    const storyReply = event.message?.reply_to?.story;
+                    if (platform === 'instagram' && storyReply?.url) {
+                        const storyPlanType = getPlanTypeFromSubscription({
+                            plan: billing?.plan || shop.subscription_plan || undefined,
+                            status: billing?.status || shop.subscription_status || undefined,
+                        });
+                        logger.info(`[${shop.name}] Story reply detected — resolving product`, {
+                            storyId: storyReply.id,
+                        });
+                        storyContextNote = await resolveStoryProductContext(storyReply.url, shop, storyPlanType);
+                    }
+
                     // === REALTIME AI PROCESSING ===
                     try {
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
                         const response = await routeToAI(
-                            userMessage,
+                            userMessage + storyContextNote,
                             {
                                 shopId: shop.id,
                                 userId: shop.user_id || undefined,
@@ -425,8 +564,13 @@ export async function POST(request: NextRequest) {
                             });
                         }
 
-                        // Save to chat history
-                        await saveChatHistory(shop.id, customer.id, userMessage, aiText, intent.intent);
+                        // Save to chat history. Story reply бол inbox дээр
+                        // дэлгүүрт ойлгомжтой байхаар тэмдэглэнэ (AI-д очсон
+                        // контекст тэмдэглэгээг хадгалахгүй, зөвхөн жижиг маркер).
+                        const savedUserMessage = storyContextNote
+                            ? `[Story-д хариулсан] ${userMessage}`
+                            : userMessage;
+                        await saveChatHistory(shop.id, customer.id, savedUserMessage, aiText, intent.intent);
                         await incrementMessageCount(customer.id);
 
                         logger.success(`[${shop.name}] AI response sent to ${senderId}`);
@@ -496,6 +640,8 @@ export async function POST(request: NextRequest) {
                                     id: p.id,
                                     name: p.name,
                                     description: p.description || undefined,
+                                    image_url: p.image_url || undefined,
+                                    images: p.images || undefined,
                                 }));
 
                                 // Analyze the image
@@ -508,24 +654,24 @@ export async function POST(request: NextRequest) {
 
                                 let responseMessage = '';
 
-                                if (imageAnalysis.matchedProduct) {
-                                    const matchedProduct = shop.products.find(p =>
-                                        p.name.toLowerCase().includes(imageAnalysis.matchedProduct!.toLowerCase()) ||
-                                        imageAnalysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
-                                    );
+                                // Confidence босго (story замтай ижил). Өмнө нь
+                                // ямар ч non-null match-ийг үнэ/үлдэгдэлтэй
+                                // зэрэг харуулдаг байсан нь буруу бараа санал
+                                // болгох эрсдэлтэй байв. Босгоос доош бол доорх
+                                // тайлбар/тодруулга руу унана.
+                                if ((imageAnalysis.matchedProductId || imageAnalysis.matchedProduct) && imageAnalysis.confidence >= STORY_MATCH_MIN_CONFIDENCE) {
+                                    const matchedProduct = imageAnalysis.matchedProductId
+                                        ? shop.products.find(p => p.id === imageAnalysis.matchedProductId)
+                                        : shop.products.find(p =>
+                                            p.name.toLowerCase().includes(imageAnalysis.matchedProduct!.toLowerCase()) ||
+                                            imageAnalysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
+                                        );
 
                                     if (matchedProduct) {
-                                        let sizeInfo = '';
-                                        if (matchedProduct.variants && Array.isArray(matchedProduct.variants)) {
-                                            const variantLabels = matchedProduct.variants
-                                                .map((v) =>
-                                                    [v.color, v.size].filter(Boolean).join(' ')
-                                                )
-                                                .filter(Boolean);
-                                            if (variantLabels.length > 0) {
-                                                sizeInfo = `\n📏 ${variantLabels.join(', ')}`;
-                                            }
-                                        }
+                                        const variantLabels = buildVariantLabels(matchedProduct);
+                                        const sizeInfo = variantLabels.length > 0
+                                            ? `\n📏 ${variantLabels.join(', ')}`
+                                            : '';
                                         responseMessage = `🏷️ ${matchedProduct.name}\n💰 ${matchedProduct.price?.toLocaleString()}₮\n📦 ${matchedProduct.stock} ширхэг${sizeInfo}`;
                                     }
                                 }
