@@ -24,6 +24,13 @@ interface ProductLite {
     price: number;
 }
 
+interface FbStory {
+    id: string;
+    media_type: string | null;
+    created_time: string | null;
+    permalink: string | null;
+}
+
 const labelCls = 'block text-[11px] font-medium text-white/45 uppercase tracking-[0.08em] mb-1.5';
 const inputCls =
     'w-full px-3 py-2.5 border border-white/[0.08] rounded-lg text-[13px] text-foreground bg-white/[0.02] focus:outline-none focus:border-[var(--border-accent)] focus:bg-white/[0.04] transition-colors placeholder:text-white/30';
@@ -41,6 +48,12 @@ export default function StoryProductLinksPage() {
     const [storyMediaId, setStoryMediaId] = useState('');
     const [mediaUrl, setMediaUrl] = useState('');
     const [activeHours, setActiveHours] = useState(24);
+
+    // FB story picker
+    const [fbStories, setFbStories] = useState<FbStory[]>([]);
+    const [fbStoriesLoaded, setFbStoriesLoaded] = useState(false);
+    const [loadingStories, setLoadingStories] = useState(false);
+    const [selectedFbStoryId, setSelectedFbStoryId] = useState<string | null>(null);
 
     function authHeaders(extra?: Record<string, string>): Record<string, string> {
         const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') : null;
@@ -88,6 +101,40 @@ export default function StoryProductLinksPage() {
         setMediaUrl('');
         setActiveHours(24);
         setPlatform('instagram');
+        setFbStories([]);
+        setFbStoriesLoaded(false);
+        setSelectedFbStoryId(null);
+    }
+
+    async function loadFbStories() {
+        setLoadingStories(true);
+        try {
+            const res = await fetch('/api/dashboard/story-product-links/fb-stories', { headers: authHeaders() });
+            const json = await res.json();
+            setFbStories((json.stories || []) as FbStory[]);
+            setFbStoriesLoaded(true);
+            if (!json.available) {
+                toast.message('Story татаж чадсангүй — доор гараар цаг оруулна уу');
+            }
+        } catch {
+            toast.error('Story татахад алдаа гарлаа');
+            setFbStoriesLoaded(true);
+        } finally {
+            setLoadingStories(false);
+        }
+    }
+
+    // Сонгосон story дуусах хүртэлх цагийг (creation_time + 24ц) тооцож
+    // active_hours-д тавина (1..168 хооронд).
+    function selectFbStory(s: FbStory) {
+        setSelectedFbStoryId(s.id);
+        if (s.created_time) {
+            const expiresMs = new Date(s.created_time).getTime() + 24 * 3600 * 1000;
+            const hoursLeft = Math.ceil((expiresMs - Date.now()) / 3600000);
+            if (Number.isFinite(hoursLeft)) {
+                setActiveHours(Math.max(1, Math.min(168, hoursLeft || 24)));
+            }
+        }
     }
 
     async function handleCreate(e: React.FormEvent) {
@@ -233,23 +280,79 @@ export default function StoryProductLinksPage() {
                         </>
                     )}
 
-                    {/* FB: active pin hours */}
+                    {/* FB: story picker + active pin hours */}
                     {platform === 'facebook' && (
-                        <div>
-                            <label className={labelCls}>Идэвхтэй хугацаа (цаг)</label>
-                            <input
-                                type="number"
-                                min={1}
-                                max={168}
-                                className={inputCls}
-                                value={activeHours}
-                                onChange={e => setActiveHours(Math.max(1, Math.min(168, Number(e.target.value) || 1)))}
-                            />
-                            <p className="mt-1 text-[11px] text-white/35">
-                                Facebook story ID өгдөггүй тул энэ хугацаанд ирэх FB зурвасуудад энэ барааг зөөлөн
-                                контекст болгож өгнө. Story дуусахад тааруулж тохируулна уу (ихэвчлэн 24 цаг).
-                            </p>
-                        </div>
+                        <>
+                            <div>
+                                <label className={labelCls}>Facebook story сонгох</label>
+                                {!fbStoriesLoaded ? (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        onClick={loadFbStories}
+                                        loading={loadingStories}
+                                        leftIcon={<ImageIcon className="w-4 h-4" />}
+                                    >
+                                        Story-нуудаа татах
+                                    </Button>
+                                ) : fbStories.length > 0 ? (
+                                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                                        {fbStories.map(s => (
+                                            <button
+                                                key={s.id}
+                                                type="button"
+                                                onClick={() => selectFbStory(s)}
+                                                className={cn(
+                                                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left text-[12px] transition-colors',
+                                                    selectedFbStoryId === s.id
+                                                        ? 'border-[var(--border-accent)] bg-white/[0.06]'
+                                                        : 'border-white/[0.08] hover:bg-white/[0.03]'
+                                                )}
+                                            >
+                                                <span>{s.media_type === 'VIDEO' ? '🎬' : '🖼️'}</span>
+                                                <span className="flex-1 text-white/70 truncate">
+                                                    {s.created_time ? new Date(s.created_time).toLocaleString('mn-MN') : 'Story'}
+                                                </span>
+                                                {s.permalink && (
+                                                    <a
+                                                        href={s.permalink}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        onClick={e => e.stopPropagation()}
+                                                        className="text-violet-300 text-[11px] shrink-0"
+                                                    >
+                                                        Харах
+                                                    </a>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-[12px] text-white/40">
+                                        Идэвхтэй story олдсонгүй (эсвэл эрх хүрэхгүй). Доор гараар цаг оруулна уу.
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className={labelCls}>Идэвхтэй хугацаа (цаг)</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={168}
+                                    className={inputCls}
+                                    value={activeHours}
+                                    onChange={e => {
+                                        setActiveHours(Math.max(1, Math.min(168, Number(e.target.value) || 1)));
+                                        setSelectedFbStoryId(null);
+                                    }}
+                                />
+                                <p className="mt-1 text-[11px] text-white/35">
+                                    Story сонгоход дуусах хүртэлх хугацаа автоматаар тавигдана. Facebook story ID-г Meta
+                                    өгдөггүй тул энэ хугацаанд ирэх FB зурвасуудад энэ барааг зөөлөн контекст болгож өгнө.
+                                </p>
+                            </div>
+                        </>
                     )}
 
                     <div className="flex justify-end gap-2 pt-1">
