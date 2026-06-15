@@ -29,6 +29,7 @@ import {
     ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
 import { getMatchingAutomation, executeAutomation } from '@/lib/services/CommentAutomationService';
+import { getStoryLinkByMediaId, getActiveFbPin, upsertVisionAutoLink } from '@/lib/services/StoryProductLinkService';
 import crypto from 'crypto';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN;
@@ -136,29 +137,51 @@ interface WebhookEntry {
  */
 const STORY_MATCH_MIN_CONFIDENCE = 0.45;
 
+/** AI message-д залгах "бараа таарлаа" контекст мөр. */
+function storyMatchedNote(name: string): string {
+    return `\n\n[Систем: Хэрэглэгч "${name}" бүтээгдэхүүний story зурагт хариулж байна. Энэ бараагаар үргэлжлүүлэн тусал.]`;
+}
+
 /**
- * Story-reply → бүтээгдэхүүн тодорхойлогч.
+ * Story-reply → бүтээгдэхүүн тодорхойлогч (Instagram).
  *
- * Instagram-д хэрэглэгч дэлгүүрийн story-д хариулахад текст ("авъя") дангаараа
- * ямар бараа болохыг заадаггүй. Webhook payload-н `message.reply_to.story.url`
- * нь тухайн story-ийн зураг тул түүнийг одоо байгаа vision matcher
- * (`analyzeProductImageWithPlan`)-аар дамжуулж барааг сэргээнэ.
+ * Дараалал:
+ *  1) Registry (story_product_links)-д story_media_id-аар ШУУД хайна — бүх багцад
+ *     (lite ч), vision-гүй, story зураг хугацаа дууссаны дараа ч ажиллана.
+ *  2) Олдохгүй бол vision image-to-image тааруулна (`analyzeProductImageWithPlan`).
+ *  3) Vision итгэлтэй тааруулбал тухайн story-г бараатай нь registry-д бичнэ
+ *     (read-through cache) — дараагийн хариулт үнэгүй, deterministic болно.
  *
- * Буцаалт: AI message-д залгах монгол хэлний нэмэлт контекст мөр. Бараа олдвол
- * түүгээр үргэлжлүүлэхийг, олдоогүй бол аль бараа болохыг тодруулахыг AI-д
- * хэлнэ. Vision боломжгүй (lite багц) эсвэл алдаа гарвал хоосон тэмдэгт буцаана
- * — энэ үед хэвийн (контекстгүй) урсгалаар явна.
+ * Буцаалт: AI message-д залгах монгол контекст мөр. Олдохгүй бол "аль бараа вэ?"
+ * гэж асуухыг AI-д хэлнэ. Vision боломжгүй (lite) эсвэл алдаа гарвал хоосон
+ * тэмдэгт буцаана — энэ үед хэвийн (контекстгүй) урсгалаар явна.
  */
 async function resolveStoryProductContext(
     storyImageUrl: string,
     shop: ShopWithProducts,
     planType: PlanType,
+    storyMediaId?: string | null,
 ): Promise<string> {
     if (!shop.products || shop.products.length === 0) return '';
 
+    // 1) Registry deterministic lookup (бүх багцад, vision-гүй).
+    if (storyMediaId) {
+        try {
+            const link = await getStoryLinkByMediaId(shop.id, storyMediaId);
+            const product = link && shop.products.find(p => p.id === link.product_id);
+            if (product) {
+                logger.info(`[${shop.name}] Story reply registry hit`, {
+                    storyMediaId, product: product.name, source: link.source,
+                });
+                return storyMatchedNote(product.name);
+            }
+        } catch (e) {
+            logger.warn('Story registry lookup failed', { error: String(e), shopId: shop.id });
+        }
+    }
+
+    // 2) Vision fallback (image-to-image — барааны жинхэнэ зурагтай харьцуулна).
     try {
-        // image_url/images-ийг дамжуулснаар vision image-to-image тааруулна
-        // (зөвхөн нэр/тайлбараар бус). Зураггүй бараа нэрээр танигдана.
         const productsForAnalysis = shop.products.map(p => ({
             id: p.id,
             name: p.name,
@@ -174,35 +197,38 @@ async function resolveStoryProductContext(
             shop.id,
         );
 
-        // Vision found a confident match — name the product for the AI. We still
-        // require a modest confidence so a wrong guess doesn't push the customer
-        // toward ordering the wrong item (the order flow re-confirms regardless).
+        // Итгэлтэй тааруулалт — баталгаажуулах урсгал дахин шалгадаг тул дунд
+        // зэргийн босго хангалттай.
         if ((analysis.matchedProductId || analysis.matchedProduct) && analysis.confidence >= STORY_MATCH_MIN_CONFIDENCE) {
-            // matchedProductId байвал яг ID-аар (найдвартай), үгүй бол нэрээр
-            // substring-аар сэргээнэ.
             const matched = analysis.matchedProductId
                 ? shop.products.find(p => p.id === analysis.matchedProductId)
                 : shop.products.find(p =>
                     p.name.toLowerCase().includes(analysis.matchedProduct!.toLowerCase()) ||
                     analysis.matchedProduct!.toLowerCase().includes(p.name.toLowerCase())
                 );
-            // ID-г каталогаас олж чадаагүй (model hallucination / хуучин ID) ба
-            // нэр ч байхгүй бол `name` нь null болно. Тийм үед "null" гэдэг
-            // үгийг AI контекст руу шахахгүйгээр доорх тодруулга руу унана
-            // (customer-upload зам шиг хамгаалалт).
+            // ID-г каталогаас олж чадаагүй (hallucination / хуучин ID) ба нэр ч
+            // байхгүй бол `name` null — "null"-ийг AI руу шахахгүй, доош унана.
             const name = matched?.name || analysis.matchedProduct;
             if (name) {
-                logger.info(`[${shop.name}] Story reply matched product`, {
+                logger.info(`[${shop.name}] Story reply vision match`, {
                     matched: name,
                     matchedId: analysis.matchedProductId,
                     confidence: analysis.confidence,
                 });
-                return `\n\n[Систем: Хэрэглэгч "${name}" бүтээгдэхүүний story зурагт хариулж байна. Энэ бараагаар үргэлжлүүлэн тусал.]`;
+                // 3) Read-through cache — story id ба бодит бараа байвал бичнэ.
+                if (storyMediaId && matched) {
+                    upsertVisionAutoLink({
+                        shopId: shop.id,
+                        productId: matched.id,
+                        storyMediaId,
+                        mediaUrl: storyImageUrl,
+                        confidence: analysis.confidence,
+                    }).catch(() => {});
+                }
+                return storyMatchedNote(name);
             }
         }
 
-        // Story reply detected but no usable match — still tell the AI it was a
-        // story reply so it asks which item instead of answering blind.
         logger.info(`[${shop.name}] Story reply but no product matched`, {
             confidence: analysis.confidence,
         });
@@ -475,7 +501,25 @@ export async function POST(request: NextRequest) {
                         logger.info(`[${shop.name}] Story reply detected — resolving product`, {
                             storyId: storyReply.id,
                         });
-                        storyContextNote = await resolveStoryProductContext(storyReply.url, shop, storyPlanType);
+                        storyContextNote = await resolveStoryProductContext(storyReply.url, shop, storyPlanType, storyReply.id);
+                    }
+
+                    // FB ACTIVE STORY PIN: Facebook webhook story id өгдөггүй тул
+                    // эзэн "одоогийн story = бараа X" гэж тэмдэглэсэн бол
+                    // (active_until хүчинтэй) FB DM-д ЗӨӨЛӨН контекст өгнө — AI
+                    // шаардвал тухайн бараагаар тусална, үгүй бол ердийнхөөрөө.
+                    // Soft hint тул буруу бараа албадан санал болгох эрсдэлгүй.
+                    if (platform === 'messenger' && !storyContextNote) {
+                        try {
+                            const pin = await getActiveFbPin(shop.id);
+                            const pinned = pin && shop.products.find(p => p.id === pin.product_id);
+                            if (pinned) {
+                                logger.info(`[${shop.name}] FB active story pin context`, { product: pinned.name });
+                                storyContextNote = `\n\n[Систем: Дэлгүүрийн одоогийн идэвхтэй story нь "${pinned.name}". Хэрэв хэрэглэгчийн мессеж энэ бараатай холбоотой бол түүгээр тусал; үгүй бол ердийнхөөрөө хариул.]`;
+                            }
+                        } catch (e) {
+                            logger.warn('FB active pin lookup failed', { error: String(e), shopId: shop.id });
+                        }
                     }
 
                     // === REALTIME AI PROCESSING ===

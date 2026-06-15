@@ -237,6 +237,31 @@ export interface CommentAutomation {
 }
 
 // ============================================
+// STORY → PRODUCT REGISTRY
+// ============================================
+export type StoryLinkPlatform = 'facebook' | 'instagram';
+export type StoryLinkSource = 'manual' | 'vision_auto' | 'cron_auto';
+
+export interface StoryProductLink {
+    id: string;
+    shop_id: string;
+    product_id: string;
+    platform: StoryLinkPlatform;
+    /** IG: reply_to.story.id (deterministic key). FB: null (no story id available). */
+    story_media_id: string | null;
+    source: StoryLinkSource;
+    confidence: number | null;
+    media_url: string | null;
+    caption: string | null;
+    /** FB active-pin window: DMs before this time map to product_id. Null for IG rows. */
+    active_until: string | null;
+    created_at: string;
+    updated_at: string;
+    // Joined (dashboard list convenience)
+    product?: Pick<Product, 'id' | 'name' | 'image_url' | 'price'>;
+}
+
+// ============================================
 // DASHBOARD STATS
 // ============================================
 export interface DashboardStats {

@@ -8,7 +8,14 @@ import type { ChatContext, ChatMessage, ChatResponse, AIProduct } from '@/types/
  * Vision analysis result
  */
 export interface VisionResult {
+    /** Тохирсон барааны нэр (хуучин зан төлөв — нэрээр substring тааруулна). */
     matchedProduct: string | null;
+    /**
+     * Тохирсон барааны ID. Image-to-image тааруулалт ажиллах үед vision яг
+     * энэ ID-г буцаадаг тул substring reconciliation хэрэггүй болно. Хэрэв
+     * боломжгүй бол null — энэ үед `matchedProduct` (нэр) рүү fallback хийнэ.
+     */
+    matchedProductId?: string | null;
     confidence: number;
     description: string;
     isReceipt?: boolean;

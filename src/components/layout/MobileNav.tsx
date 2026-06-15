@@ -32,6 +32,7 @@ import {
     Settings,
     CreditCard,
     Box,
+    Images,
     X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,7 @@ const MORE_ITEMS: MoreItem[] = [
     { nameKey: 'customers', fallback: 'Харилцагч', href: '/dashboard/customers', icon: Users },
     { nameKey: 'aiSettings', fallback: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
     { nameKey: 'commentMgmt', fallback: 'Comment', href: '/dashboard/comment-automation', icon: MessageSquareMore },
+    { nameKey: 'storyLinks', fallback: 'Story холбоос', href: '/dashboard/story-product-links', icon: Images },
     { nameKey: 'cart', fallback: 'Сагс', href: '/dashboard/cart', icon: ShoppingCart },
     { nameKey: 'paymentAudit', fallback: 'Audit', href: '/dashboard/payment-audit', icon: Shield },
     { nameKey: 'complaints', fallback: 'Гомдол', href: '/dashboard/complaints', icon: AlertTriangle },

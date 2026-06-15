@@ -716,18 +716,19 @@ export async function routeToAI(
 
 /**
  * Analyze product image using vision (plan-dependent)
- * Uses Gemini 2.5 Flash for vision analysis
+ * Uses gemini-3.1-flash-lite for vision analysis
  *
  * `shopId` is optional for backward compatibility, but callers should pass it
  * so vision tokens get attributed to the right shop in the breakdown.
  */
 export async function analyzeProductImageWithPlan(
     imageUrl: string,
-    products: Array<{ id: string; name: string; description?: string }>,
+    products: Array<{ id: string; name: string; description?: string; image_url?: string | null; images?: string[] }>,
     planType: PlanType = 'starter',
     shopId?: string
 ): Promise<{
     matchedProduct: string | null;
+    matchedProductId?: string | null;
     confidence: number;
     description: string;
     isReceipt?: boolean;
@@ -738,6 +739,7 @@ export async function analyzeProductImageWithPlan(
     if (!planConfig.features.vision) {
         return {
             matchedProduct: null,
+            matchedProductId: null,
             confidence: 0,
             description: 'Image analysis is not available on your current plan.',
         };
@@ -751,11 +753,13 @@ export async function analyzeProductImageWithPlan(
 
         if (!geminiVision.isAvailable()) {
             logger.warn('Gemini not available for vision');
-            return { matchedProduct: null, confidence: 0, description: 'Vision API тохируулагдаагүй байна.' };
+            return { matchedProduct: null, matchedProductId: null, confidence: 0, description: 'Vision API тохируулагдаагүй байна.' };
         }
 
-        logger.info('Using Gemini 2.5 Flash for vision analysis...');
-        // GeminiProvider.analyzeImage only uses id, name, description from products
+        logger.info(`Using ${visionModel} for vision analysis...`);
+        // analyzeImage image-to-image тааруулалт хийдэг тул бараа бүрийн
+        // image_url/images-ийг дамжуулна (байгаа бол). Зураггүй бараа нэрээр
+        // танигдана.
         const result = await geminiVision.analyzeImage(imageUrl, products as unknown as import('@/types/ai').AIProduct[]);
 
         if (shopId && result.tokensUsed && result.tokensUsed > 0) {
@@ -778,7 +782,7 @@ export async function analyzeProductImageWithPlan(
             code: err.code,
             imageUrl: imageUrl.substring(0, 100) + '...',
         });
-        return { matchedProduct: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
+        return { matchedProduct: null, matchedProductId: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
     }
 }
 

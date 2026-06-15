@@ -240,6 +240,7 @@ export const mn = {
     complaints: 'Гомдол',
     aiSettings: 'AI Тохиргоо',
     commentMgmt: 'Comment Удирдлага',
+    storyLinks: 'Story холбоос',
     cart: 'Сагс',
     inbox: 'Inbox',
     reports: 'Тайлан',

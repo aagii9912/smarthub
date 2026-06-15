@@ -242,6 +242,7 @@ export const en: Translations = {
     complaints: 'Complaints',
     aiSettings: 'AI Settings',
     commentMgmt: 'Comments',
+    storyLinks: 'Story links',
     cart: 'Cart',
     inbox: 'Inbox',
     reports: 'Reports',

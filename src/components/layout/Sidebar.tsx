@@ -37,6 +37,7 @@ import {
     ChevronDown,
     Crown,
     Sparkles,
+    Images,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -67,6 +68,7 @@ const INSIGHTS: NavLink[] = [
     { nameKey: 'reports', href: '/dashboard/reports', icon: LineChart, feature: 'crm_analytics' },
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot },
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore },
+    { nameKey: 'storyLinks', href: '/dashboard/story-product-links', icon: Images },
     { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
     { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
