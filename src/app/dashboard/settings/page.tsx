@@ -180,11 +180,13 @@ function SettingsContent() {
         ub_delivery_fee: string;
         province_delivery_fee: string;
         province_delivery_note: string;
+        delivery_schedule_note: string;
     }>({
         free_delivery_threshold: '',
         ub_delivery_fee: '',
         province_delivery_fee: '',
         province_delivery_note: '',
+        delivery_schedule_note: '',
     });
     const [fbConnected, setFbConnected] = useState(false);
     const [igConnected, setIgConnected] = useState(false);
@@ -245,6 +247,8 @@ function SettingsContent() {
                             dp.province_delivery_fee == null ? '' : String(dp.province_delivery_fee),
                         province_delivery_note:
                             typeof dp.province_delivery_note === 'string' ? dp.province_delivery_note : '',
+                        delivery_schedule_note:
+                            typeof dp.delivery_schedule_note === 'string' ? dp.delivery_schedule_note : '',
                     });
                 }
             }
@@ -1023,6 +1027,23 @@ function SettingsContent() {
                     />
                 </div>
 
+                <div className="mt-4">
+                    <label className={labelCls}>🕒 Хүргэлт гарах хугацаа (заавал биш)</label>
+                    <textarea
+                        rows={2}
+                        maxLength={500}
+                        value={deliveryPolicy.delivery_schedule_note}
+                        onChange={(e) =>
+                            setDeliveryPolicy((p) => ({ ...p, delivery_schedule_note: e.target.value }))
+                        }
+                        className={inputCls}
+                        placeholder="Жишээ: Өмнөх өдрийн 17:00 цагаас өмнө баталгаажсан захиалга маргааш өдрийн 11:00 цагаас хүргэлтэд гарна."
+                    />
+                    <p className="text-[10.5px] text-white/35 mt-1 tracking-[-0.01em]">
+                        AI хэрэглэгчдэд хүргэлт хэзээ гарахыг энэ тайлбараар хэлнэ.
+                    </p>
+                </div>
+
                 <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
                     <Button
                         variant="primary"
@@ -1034,6 +1055,7 @@ function SettingsContent() {
                                 ub_delivery_fee: num(deliveryPolicy.ub_delivery_fee) ?? 0,
                                 province_delivery_fee: num(deliveryPolicy.province_delivery_fee) ?? 0,
                                 province_delivery_note: deliveryPolicy.province_delivery_note.trim() || null,
+                                delivery_schedule_note: deliveryPolicy.delivery_schedule_note.trim() || null,
                             };
                             for (const [k, v] of Object.entries(payload)) {
                                 if (typeof v === 'number' && v < 0) {

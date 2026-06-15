@@ -27,6 +27,7 @@ interface ShopProductRow {
     sizes?: string[] | null;
     delivery_type?: string | null;
     delivery_fee?: number | string | null;
+    delivery_note?: string | null;
     is_active?: boolean | null;
     // Lifecycle (#8/#9/#10) — added in migration 20260428220000
     status?: 'draft' | 'active' | 'pre_order' | 'coming_soon' | 'discontinued' | null;
@@ -65,6 +66,7 @@ export function mapShopProductsToAI(products: ShopProductRow[] | null | undefine
             sizes: p.sizes && p.sizes.length > 0 ? p.sizes : undefined,
             delivery_type: deliveryType,
             delivery_fee: p.delivery_fee ? Number(p.delivery_fee) : undefined,
+            delivery_note: p.delivery_note ?? null,
             variants: undefined,
             // Lifecycle (#8/#9/#10).
             status: p.status ?? undefined,

@@ -87,6 +87,8 @@ export interface AIProduct {
     unit?: string;
     delivery_type?: 'included' | 'paid' | 'pickup_only';
     delivery_fee?: number;
+    /** Тухайн бараанд онцлох хүргэлтийн хугацааны тайлбар (заавал биш). */
+    delivery_note?: string | null;
     colors?: string[];
     sizes?: string[];
     variants?: AIProductVariant[];
@@ -240,6 +242,9 @@ export interface ChatContext {
         ub_delivery_fee?: number | null;
         province_delivery_fee?: number | null;
         province_delivery_note?: string | null;
+        // Хүргэлт гарах хугацааны тайлбар (ж: "17:00-аас өмнө баталгаажсан
+        // захиалга маргааш 11:00-д хүргэлтэд гарна"). AI хэрэглэгчид хэлнэ.
+        delivery_schedule_note?: string | null;
     };
     // Business-type-specific operations data (`shops.business_setup_data`).
     // Schema is per-type — see `OPERATIONS_CONFIG` and `*SetupData`

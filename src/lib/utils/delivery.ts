@@ -11,6 +11,8 @@ export interface DeliveryPolicy {
     ub_delivery_fee?: number | null;
     province_delivery_fee?: number | null;
     province_delivery_note?: string | null;
+    /** Хүргэлт гарах хугацааны тайлбар (бүх захиалгад үйлчилнэ). */
+    delivery_schedule_note?: string | null;
 }
 
 const PROVINCE_KEYWORDS = [

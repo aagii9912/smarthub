@@ -334,9 +334,11 @@ export async function PATCH(request: NextRequest) {
           obj[key] = n;
         }
       }
-      if (obj.province_delivery_note !== undefined && obj.province_delivery_note !== null) {
-        if (typeof obj.province_delivery_note !== 'string' || obj.province_delivery_note.length > 500) {
-          return NextResponse.json({ error: 'delivery_policy.province_delivery_note must be a string up to 500 chars' }, { status: 400 });
+      for (const noteKey of ['province_delivery_note', 'delivery_schedule_note']) {
+        if (obj[noteKey] !== undefined && obj[noteKey] !== null) {
+          if (typeof obj[noteKey] !== 'string' || (obj[noteKey] as string).length > 500) {
+            return NextResponse.json({ error: `delivery_policy.${noteKey} must be a string up to 500 chars` }, { status: 400 });
+          }
         }
       }
     }

@@ -94,6 +94,7 @@ export async function POST(request: Request) {
     if (validData.availableFrom !== undefined) lifecycleExtras.available_from = validData.availableFrom;
     if (validData.preOrderEta !== undefined) lifecycleExtras.pre_order_eta = validData.preOrderEta;
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
+    if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
 
     let { data, error } = await supabase
       .from('products')
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error && /column .+ does not exist/i.test(error.message || '')) {
+    if (error && (error.code === 'PGRST204' || /column .+ does not exist/i.test(error.message || '') || /could not find the .+ column/i.test(error.message || ''))) {
       logger.warn('Product insert: retrying without lifecycle extras (migration not applied)', {
         error: error.message,
       });
@@ -209,6 +210,7 @@ export async function PATCH(request: Request) {
     if (validData.availableFrom !== undefined) lifecycleExtras.available_from = validData.availableFrom;
     if (validData.preOrderEta !== undefined) lifecycleExtras.pre_order_eta = validData.preOrderEta;
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
+    if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
 
     let { data, error } = await supabase
       .from('products')
@@ -217,7 +219,7 @@ export async function PATCH(request: Request) {
       .select()
       .single();
 
-    if (error && /column .+ does not exist/i.test(error.message || '')) {
+    if (error && (error.code === 'PGRST204' || /column .+ does not exist/i.test(error.message || '') || /could not find the .+ column/i.test(error.message || ''))) {
       logger.warn('Product update: retrying without lifecycle extras (migration not applied)', {
         error: error.message,
       });

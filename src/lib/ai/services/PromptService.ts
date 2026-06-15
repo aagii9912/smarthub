@@ -247,6 +247,9 @@ export function buildProductsInfo(products: ChatContext['products']): string {
         } else {
             deliveryInfo = `\n  🚚 Хүргэлт: Үнэгүй`;
         }
+        if (p.delivery_note?.trim()) {
+            deliveryInfo += `\n  🕒 Хүргэлт гарах хугацаа: ${p.delivery_note.trim()}`;
+        }
 
         return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${colorsInfo}${sizesInfo}${desc}${deliveryInfo}`;
     }).join('\n');
@@ -428,8 +431,9 @@ function buildDeliveryPolicySection(context: ChatContext): string {
     const provFee = Number(dp.province_delivery_fee ?? 0);
     const threshold = dp.free_delivery_threshold == null ? null : Number(dp.free_delivery_threshold);
     const note = dp.province_delivery_note?.trim() || null;
+    const schedule = dp.delivery_schedule_note?.trim() || null;
 
-    if (ubFee <= 0 && provFee <= 0 && threshold == null && !note) return '';
+    if (ubFee <= 0 && provFee <= 0 && threshold == null && !note && !schedule) return '';
 
     const lines: string[] = [];
     if (threshold != null && Number.isFinite(threshold) && threshold > 0) {
@@ -443,6 +447,9 @@ function buildDeliveryPolicySection(context: ChatContext): string {
     }
     if (note) {
         lines.push(`• Тайлбар: ${note}`);
+    }
+    if (schedule) {
+        lines.push(`• Хүргэлт гарах хугацаа: ${schedule}`);
     }
 
     return `\n=== ХҮРГЭЛТИЙН БОДЛОГО (МАШ ЧУХАЛ — ЗОХИОХ ХОРИОТОЙ) ===

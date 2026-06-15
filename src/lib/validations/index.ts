@@ -82,6 +82,9 @@ export const createProductSchema = z.object({
     // Delivery configuration
     deliveryType: deliveryTypeSchema.optional().default('included'),
     deliveryFee: z.number().min(0).optional().default(0),
+    // Per-product delivery timing note (заавал биш). Shop-level бодлогоос дээгүүр
+    // тухайн бараанд онцлох хүргэлтийн хугацааны тайлбар.
+    deliveryNote: z.string().max(500).optional().nullable(),
     // Appointment-specific fields
     durationMinutes: z.number().int().min(15).max(480).optional().nullable(),
     // Mongolian short weekday labels — the values ProductForm's checkboxes submit
