@@ -88,7 +88,6 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
     // Variant State
     const [hasVariants, setHasVariants] = useState(product?.has_variants || false);
-    const [optionGroups, setOptionGroups] = useState<{ name: string, values: string[] }[]>([]);
     const [variants, setVariants] = useState<FormVariant[]>(
         (product?.variants || []).map(v => ({
             name: v.name,
@@ -120,50 +119,27 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         }
     }, [product]);
 
-    // Сонголтын бүлгүүд (Өнгө/Хэмжээ/Төрөл) өөрчлөгдөх бүрд хувилбаруудыг
-    // АВТОМАТААР дахин үүсгэнэ — тусдаа "Хувилбар үүсгэх" товч дарах шаардлагагүй.
-    // Бүх бүлэг нэр + дор хаяж нэг утгатай үед л ажиллана. Гараар оруулсан
-    // үлдэгдэл/үнийг options-оор тааруулж хадгална.
-    useEffect(() => {
-        const valid = optionGroups.length > 0 && optionGroups.every(g => g.name.trim() && g.values.length > 0);
-        if (!valid) return;
-
-        const cartesian = (groups: typeof optionGroups, prefix: Record<string, string> = {}): Record<string, string>[] => {
-            if (groups.length === 0) return [prefix];
-            const [first, ...rest] = groups;
-            return first.values.flatMap(value => cartesian(rest, { ...prefix, [first.name.trim()]: value }));
-        };
-
-        const combos = cartesian(optionGroups);
-        setVariants(prev => combos.map(options => {
-            const existing = prev.find(v => JSON.stringify(v.options) === JSON.stringify(options));
-            return existing ?? {
-                name: Object.values(options).join(' / '),
-                options,
-                price: product?.price || 0,
-                stock: 0,
-                is_active: true,
-            };
-        }));
-    }, [optionGroups, product?.price]);
-
-    // Түргэн сонголт: нэг товшилтоор нэрлэгдсэн (заримд нь утгатай) бүлэг нэмнэ
-    const VARIANT_PRESETS: { label: string; name: string; values: string[] }[] = [
-        { label: '🎨 Өнгө', name: 'Өнгө', values: [] },
-        { label: '📏 Хэмжээ', name: 'Хэмжээ', values: ['S', 'M', 'L', 'XL'] },
-        { label: '📦 Төрөл', name: 'Төрөл', values: [] },
-    ];
-
-    const addPreset = (preset: { name: string; values: string[] }) => {
-        setOptionGroups(prev =>
-            prev.some(g => g.name.trim().toLowerCase() === preset.name.toLowerCase())
-                ? prev
-                : [...prev, { name: preset.name, values: preset.values }]
-        );
+    // Шинэ хувилбар нэмэх — нэрлээд ард нь үнэ/тоо ширхэгийг шууд бичнэ
+    const addVariant = () => {
+        setVariants(prev => [...prev, {
+            name: '',
+            options: {},
+            price: product?.price || 0,
+            stock: 0,
+            is_active: true,
+        }]);
     };
 
-    const addOptionGroup = () => {
-        setOptionGroups([...optionGroups, { name: '', values: [] }]);
+    const updateVariantName = (idx: number, name: string) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[idx] = { ...next[idx], name };
+            return next;
+        });
+    };
+
+    const removeVariant = (idx: number) => {
+        setVariants(prev => prev.filter((_, i) => i !== idx));
     };
 
     // Хувилбаруудын нийт үлдэгдэл (физик бараанд тоо ширхэгийн нийлбэр харуулна)
@@ -184,22 +160,6 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             return next;
         });
     };
-
-    const updateOptionGroup = (index: number, field: 'name' | 'values', value: any) => {
-        const newGroups = [...optionGroups];
-        if (field === 'values') {
-            // value is string (comma separated)
-            newGroups[index].values = value.split(',').map((s: string) => s.trim()).filter(Boolean);
-        } else {
-            newGroups[index].name = value;
-        }
-        setOptionGroups(newGroups);
-    };
-
-    const removeOptionGroup = (index: number) => {
-        setOptionGroups(optionGroups.filter((_, i) => i !== index));
-    };
-
 
     useEffect(() => {
         if (product) {
@@ -646,9 +606,9 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                         checked={hasVariants}
                                         onChange={(e) => {
                                             setHasVariants(e.target.checked);
-                                            // Асаахад эхний бүлгийг бэлэн харуулна — хэрэглэгч шууд бичиж эхэлнэ
-                                            if (e.target.checked && optionGroups.length === 0) {
-                                                setOptionGroups([{ name: '', values: [] }]);
+                                            // Асаахад эхний хувилбарыг бэлэн харуулна — хэрэглэгч шууд бичиж эхэлнэ
+                                            if (e.target.checked && variants.length === 0) {
+                                                addVariant();
                                             }
                                         }}
                                         className="w-4 h-4 text-violet-500 rounded bg-[#151040] border-white/[0.2] focus:ring-violet-500"
@@ -660,7 +620,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                             {hasVariants ? (
                                 <div className="space-y-5">
                                     <p className="text-[11px] text-white/40 leading-relaxed -mt-1">
-                                        Төрөл, хэмжээ, өнгө бүрийн <strong className="text-white/70">тоо ширхэг (үлдэгдэл)</strong> болон үнийг тусад нь оруулна. Сонголтоо нэмэхэд хувилбарууд <strong className="text-white/70">автоматаар</strong> үүснэ.
+                                        Хувилбар бүрийг (ж: <strong className="text-white/70">Улаан / S</strong>) нэрлээд ард нь <strong className="text-white/70">үнэ, тоо ширхэг</strong>-ийг шууд бичнэ. Шинээр нэмэхдээ доорх <strong className="text-white/70">Хувилбар нэмэх</strong> товчийг дарна.
                                     </p>
 
                                     {/* Нийт нөөцийн дээд хязгаар — хувилбаруудын нийлбэр үүнээс хэтрэхгүй */}
@@ -685,77 +645,30 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                             )}
                                         </div>
                                     )}
-                                    {/* Түргэн сонголтын товчнууд */}
-                                    <div className="flex flex-wrap gap-2">
-                                        {VARIANT_PRESETS.map((preset) => {
-                                            const added = optionGroups.some(g => g.name.trim().toLowerCase() === preset.name.toLowerCase());
-                                            return (
-                                                <button
-                                                    key={preset.name}
-                                                    type="button"
-                                                    onClick={() => addPreset(preset)}
-                                                    disabled={added}
-                                                    className={`px-3 py-1.5 rounded-lg text-[11.5px] font-medium border transition-all ${added
-                                                        ? 'border-violet-500/30 bg-violet-500/[0.08] text-violet-300 cursor-default'
-                                                        : 'border-white/[0.08] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/[0.15]'}`}
-                                                >
-                                                    {added ? '✓ ' : '+ '}{preset.label}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="p-4 bg-[#151040]/50 rounded-xl border border-white/[0.04] space-y-4">
-                                        {optionGroups.map((group, idx) => (
-                                            <div key={idx} className="flex gap-2 items-start">
-                                                <div className="w-1/3">
-                                                    <Input
-                                                        name={`option_name_${idx}`}
-                                                        label={idx === 0 ? "Сонголтын нэр (Ж: Өнгө/Багц)" : ""}
-                                                        value={group.name}
-                                                        onChange={(e) => updateOptionGroup(idx, 'name', e.target.value)}
-                                                        placeholder="Өнгө"
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <Input
-                                                        name={`option_values_${idx}`}
-                                                        label={idx === 0 ? "Утгууд (Таслалаар зааглана)" : ""}
-                                                        value={group.values.join(', ')}
-                                                        onChange={(e) => updateOptionGroup(idx, 'values', e.target.value)}
-                                                        placeholder="Улаан, Хар, Цагаан"
-                                                    />
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeOptionGroup(idx)}
-                                                    className={`p-2 rounded-md bg-white/[0.02] text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors ${idx === 0 ? 'mt-6' : 'mt-1'}`}
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <div className="flex gap-2 pt-2">
-                                            <Button type="button" variant="secondary" size="sm" onClick={addOptionGroup} className="text-[11px] px-3">
-                                                <Plus className="w-3 h-3 mr-1.5 bg-white/20 rounded-full" /> Сонголт нэмэх
-                                            </Button>
-                                        </div>
-                                    </div>
-
                                     {variants.length > 0 && (
                                         <div className="border border-white/[0.08] rounded-xl overflow-hidden shadow-sm">
                                             <table className="w-full text-left">
                                                 <thead className="bg-[#151040]/80 border-b border-white/[0.04]">
                                                     <tr>
-                                                        <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em]">Хувилбар</th>
+                                                        <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em]">Хувилбар (нэр)</th>
                                                         <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em]">Үнэ (₮)</th>
-                                                        {productType === 'physical' && <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em] w-20">Үлдэгдэл</th>}
+                                                        {productType === 'physical' && <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em] w-20">Тоо ширхэг</th>}
                                                         <th className="px-4 py-2.5 text-[10px] uppercase font-semibold text-white/30 tracking-[0.05em] text-center w-16">Идэвхтэй</th>
+                                                        <th className="px-2 py-2.5 w-10"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-white/[0.04]">
                                                     {variants.map((variant, idx) => (
                                                         <tr key={idx} className="hover:bg-white/[0.01]">
-                                                            <td className="px-4 py-3 text-[12px] font-medium text-white/80">{variant.name}</td>
+                                                            <td className="px-4 py-3">
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full min-w-[140px] bg-[#0A0220] px-2 py-1.5 border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none transition-all"
+                                                                    value={variant.name}
+                                                                    onChange={(e) => updateVariantName(idx, e.target.value)}
+                                                                    placeholder="Ж: Улаан / S"
+                                                                />
+                                                            </td>
                                                             <td className="px-4 py-3">
                                                                 <input
                                                                     type="number"
@@ -792,12 +705,27 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                                                     className="rounded flex-shrink-0 mx-auto w-3.5 h-3.5 bg-[#0A0220] border-white/[0.2] text-violet-500 focus:ring-violet-500/50 cursor-pointer"
                                                                 />
                                                             </td>
+                                                            <td className="px-2 py-3 text-center">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeVariant(idx)}
+                                                                    aria-label="Хувилбар устгах"
+                                                                    className="p-1.5 rounded-md text-white/25 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
                                         </div>
                                     )}
+
+                                    {/* Хувилбар нэмэх */}
+                                    <Button type="button" variant="secondary" size="sm" onClick={addVariant} className="text-[11px] px-3">
+                                        <Plus className="w-3 h-3 mr-1.5 bg-white/20 rounded-full" /> Хувилбар нэмэх
+                                    </Button>
 
                                     {variants.length > 0 && productType === 'physical' && (
                                         <div className="flex items-center justify-between px-4 py-2.5 bg-[#151040]/40 rounded-lg border border-white/[0.04]">
