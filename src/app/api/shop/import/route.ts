@@ -7,6 +7,18 @@ import { logger } from '@/lib/utils/logger';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_EXTENSIONS = ['xlsx', 'xls', 'csv', 'docx'];
 
+/**
+ * True when a Supabase/PostgREST error is "column not found" — either the
+ * column genuinely doesn't exist yet (staged migration) or PostgREST's schema
+ * cache is stale (PGRST204). Lets the import retry without the optional column.
+ */
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+    if (!error) return false;
+    if (error.code === 'PGRST204') return true;
+    const msg = error.message || '';
+    return /column .+ does not exist/i.test(msg) || /could not find the .+ column/i.test(msg);
+}
+
 // GET - Сүүлийн импортын түүх (audit)
 export async function GET() {
     try {
@@ -127,7 +139,7 @@ export async function POST(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        // Prepare products for database
+        // Base columns present in every shop's products table.
         const productsToInsert = products.map((p: GroupedProduct) => ({
             shop_id: shop.id,
             name: p.name,
@@ -135,7 +147,6 @@ export async function POST(request: NextRequest) {
             description: p.description || null,
             stock: p.stock ?? 0,
             type: p.type || 'physical',
-            unit: p.unit || (p.type === 'service' ? 'захиалга' : 'ширхэг'),
             colors: p.colors || [],
             sizes: p.sizes || [],
             images: p.image_url ? [p.image_url] : [],
@@ -143,13 +154,31 @@ export async function POST(request: NextRequest) {
             is_active: true
         }));
 
-        // Insert products
-        const { data: insertedProducts, error } = await supabase
+        // `unit` lives behind a staged migration (20260612120000_fix_products_unit_drift)
+        // that some live DBs may not have applied yet. Insert it when available, but
+        // retry without it on a missing-column / stale-schema-cache error so import
+        // never hard-fails at the confirm step.
+        const productsWithUnit = productsToInsert.map((row, i) => ({
+            ...row,
+            unit: products[i].unit || (products[i].type === 'service' ? 'захиалга' : 'ширхэг'),
+        }));
+
+        let { data: insertedProducts, error } = await supabase
             .from('products')
-            .insert(productsToInsert)
+            .insert(productsWithUnit)
             .select();
 
+        if (error && isMissingColumnError(error)) {
+            logger.warn('Import: products insert retrying without "unit" (column missing / schema cache stale)', {
+                error: error.message,
+            });
+            const retry = await supabase.from('products').insert(productsToInsert).select();
+            insertedProducts = retry.data;
+            error = retry.error;
+        }
+
         if (error) throw error;
+        if (!insertedProducts) throw new Error('Бүтээгдэхүүн хадгалагдсангүй');
 
         // Хувилбаруудыг бичнэ — нөөцийн нийлбэрийг trigger эцэг рүү автоматаар нэгтгэнэ
         // (PostgREST inserted мөрүүдийг оруулсан дарааллаар нь буцаадаг тул индексээр тааруулна)
