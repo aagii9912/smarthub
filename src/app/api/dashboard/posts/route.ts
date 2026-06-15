@@ -21,11 +21,15 @@ export async function GET(request: NextRequest) {
         }
 
         const supabase = supabaseAdmin();
+        // SECURITY: scope by user_id. supabaseAdmin() uses the service role and
+        // BYPASSES RLS, so without this an authenticated user could pass any
+        // shop's id and read its Facebook/Instagram access tokens + posts (IDOR).
         const { data: shop } = await supabase
             .from('shops')
             .select('facebook_page_id, facebook_page_access_token, instagram_business_account_id, instagram_access_token')
             .eq('id', shopId)
-            .single();
+            .eq('user_id', userId)
+            .maybeSingle();
 
         if (!shop) {
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 });

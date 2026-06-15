@@ -118,14 +118,17 @@ export async function PATCH(request: NextRequest) {
 // Delete customer
 export async function DELETE(request: NextRequest) {
   try {
+    // SECURITY: resolve the shop ONLY via getAuthUserShop(), which scopes the
+    // x-shop-id header by user_id. The previous raw-header fallback let any
+    // caller delete another shop's customer (and its chat history / cart items /
+    // complaints) by spoofing the header — these deletes run on the service-role
+    // client, which bypasses RLS. Mirrors GET/PATCH above.
     const authShop = await getAuthUserShop();
     if (!authShop) {
-      // Fallback: x-shop-id header
-      const shopId = request.headers.get('x-shop-id');
-      if (!shopId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const shopId = authShop?.id || request.headers.get('x-shop-id')!;
+    const shopId = authShop.id;
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('id');
 

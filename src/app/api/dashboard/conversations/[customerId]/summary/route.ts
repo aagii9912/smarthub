@@ -5,7 +5,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { formatMemoryForPrompt, type CustomerMemory } from '@/lib/ai/tools/memory';
 import { persistTokenUsage } from '@/lib/ai/tokenUsage';
 import { logger } from '@/lib/utils/logger';
-import { headers } from 'next/headers';
 
 const SUMMARY_MODEL = 'gemini-3.1-flash-lite';
 const HISTORY_LIMIT = 30;
@@ -26,11 +25,14 @@ interface ComplaintRow {
     description: string;
 }
 
+// SECURITY: resolve the shop ONLY via getAuthUserShop(), which scopes the
+// x-shop-id header by user_id. The previous raw-header fallback let any caller
+// read another shop's customer + chat history (and write an AI summary / burn
+// that shop's token quota) by spoofing the header — these queries run on the
+// service-role client, which bypasses RLS.
 async function resolveShopId(): Promise<string | null> {
     const authShop = await getAuthUserShop();
-    if (authShop) return authShop.id;
-    const headerList = await headers();
-    return headerList.get('x-shop-id');
+    return authShop?.id ?? null;
 }
 
 function buildSummaryPrompt(args: {

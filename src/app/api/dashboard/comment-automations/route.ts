@@ -10,17 +10,32 @@ import {
 } from '@/lib/services/CommentAutomationService';
 
 /**
- * Helper: get shop ID for authenticated user
+ * Helper: resolve the shop for the authenticated user (x-shop-id header, else
+ * first active shop). Mirrors the story-product-links route.
  */
 async function getShopId(request: NextRequest): Promise<string | null> {
     const userId = await getAuthUser();
     if (!userId) return null;
 
-    const shopId = request.headers.get('x-shop-id');
-    if (shopId) return shopId;
-
-    // Fallback: get first active shop
     const supabase = supabaseAdmin();
+
+    // SECURITY: the x-shop-id header is attacker-controllable. All DB ops here
+    // run through CommentAutomationService on the service-role client, which
+    // BYPASSES RLS, so we MUST verify the header shop belongs to this user
+    // before trusting it — otherwise any authenticated user could read/create/
+    // update/delete another shop's automations by spoofing the header (IDOR).
+    const headerShopId = request.headers.get('x-shop-id');
+    if (headerShopId) {
+        const { data } = await supabase
+            .from('shops')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('id', headerShopId)
+            .maybeSingle();
+        return data?.id ?? null; // null → caller returns 401
+    }
+
+    // Fallback (no header): first active shop owned by the user.
     const { data } = await supabase
         .from('shops')
         .select('id')

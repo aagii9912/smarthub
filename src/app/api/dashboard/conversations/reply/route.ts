@@ -3,31 +3,20 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendTextMessage, sendTaggedMessage } from '@/lib/facebook/messenger';
 import { logger } from '@/lib/utils/logger';
-import { headers } from 'next/headers';
 
 export async function POST(request: NextRequest) {
     try {
-        // Step 1: Authenticate
-        let shopId: string | null = null;
-
+        // Step 1: Authenticate.
+        // SECURITY: resolve the shop ONLY via getAuthUserShop(), which scopes
+        // the x-shop-id header by user_id. The previous raw-header fallback let
+        // any caller send a DM AS another shop (and read/write that shop's
+        // customers + chat history) by spoofing the header — these ops run on
+        // the service-role client, which bypasses RLS.
         const authShop = await getAuthUserShop();
-
-        if (authShop) {
-            shopId = authShop.id;
-        } else {
-            // Fallback: use x-shop-id header directly (for custom auth sessions)
-            const headerList = await headers();
-            const headerShopId = headerList.get('x-shop-id');
-            if (headerShopId) {
-                logger.info('Reply API: using x-shop-id header fallback', { shopId: headerShopId });
-                shopId = headerShopId;
-            }
-        }
-
-        if (!shopId) {
-            logger.error('Reply API: No auth - getAuthUserShop returned null and no x-shop-id header');
+        if (!authShop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const shopId = authShop.id;
 
         const { customerId, message, aiPauseMode } = await request.json();
 
