@@ -98,6 +98,12 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             is_active: v.is_active
         }))
     );
+    // Хувилбартай барааны нийт нөөцийн дээд хязгаар (макс.). Хувилбаруудын
+    // үлдэгдлийн нийлбэр үүнээс хэтрэхгүй. Засах үед одоогийн нийлбэрээр эхэлнэ.
+    const [maxStock, setMaxStock] = useState<string>(() => {
+        const sum = (product?.variants || []).reduce((s, v) => s + (v.stock || 0), 0);
+        return sum > 0 ? String(sum) : '';
+    });
 
     // Initial load of variants if editing
     useEffect(() => {
@@ -162,6 +168,22 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
 
     // Хувилбаруудын нийт үлдэгдэл (физик бараанд тоо ширхэгийн нийлбэр харуулна)
     const variantsTotalStock = variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    const maxStockNum = maxStock.trim() === '' ? null : Math.max(0, Number(maxStock) || 0);
+    const stockRemaining = maxStockNum == null ? null : maxStockNum - variantsTotalStock;
+
+    // Хувилбарын үлдэгдлийг өөрчлөхөд нийт макс хязгаараас хэтрэхгүй болгож таслана
+    const setVariantStock = (idx: number, raw: number) => {
+        setVariants(prev => {
+            const next = [...prev];
+            let value = Math.max(0, Math.floor(Number.isFinite(raw) ? raw : 0));
+            if (maxStockNum != null) {
+                const others = prev.reduce((s, v, i) => s + (i === idx ? 0 : Number(v.stock) || 0), 0);
+                value = Math.min(value, Math.max(0, maxStockNum - others));
+            }
+            next[idx] = { ...next[idx], stock: value };
+            return next;
+        });
+    };
 
     const updateOptionGroup = (index: number, field: 'name' | 'values', value: any) => {
         const newGroups = [...optionGroups];
@@ -264,6 +286,12 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
         }
         setFieldErrors(errors);
         if (Object.keys(errors).length > 0) return;
+
+        // Хувилбартай бараанд нийт нөөцийн макс хязгаараас хэтэрсэн эсэхийг шалгана
+        if (productType === 'physical' && hasVariants && maxStockNum != null && variantsTotalStock > maxStockNum) {
+            toast.error(`Хувилбаруудын нийт үлдэгдэл (${variantsTotalStock}) нийт нөөцөөс (${maxStockNum}) хэтэрсэн байна`);
+            return;
+        }
 
         setSaving(true);
 
@@ -634,6 +662,29 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                     <p className="text-[11px] text-white/40 leading-relaxed -mt-1">
                                         Төрөл, хэмжээ, өнгө бүрийн <strong className="text-white/70">тоо ширхэг (үлдэгдэл)</strong> болон үнийг тусад нь оруулна. Сонголтоо нэмэхэд хувилбарууд <strong className="text-white/70">автоматаар</strong> үүснэ.
                                     </p>
+
+                                    {/* Нийт нөөцийн дээд хязгаар — хувилбаруудын нийлбэр үүнээс хэтрэхгүй */}
+                                    {productType === 'physical' && (
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            <label className="text-[12px] text-white/70">Нийт нөөц (макс.):</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                value={maxStock}
+                                                onChange={(e) => setMaxStock(e.target.value)}
+                                                placeholder="Ж: 20"
+                                                className="w-28 bg-[#0A0220] px-3 py-1.5 border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none tabular-nums"
+                                            />
+                                            {maxStockNum != null && (
+                                                <span className="text-[11.5px] tabular-nums">
+                                                    <span className="text-white/45">Хуваарилсан {variantsTotalStock}/{maxStockNum}</span>
+                                                    <span className={stockRemaining! < 0 ? 'text-[var(--destructive)] ml-2' : 'text-white/45 ml-2'}>
+                                                        · Үлдсэн {stockRemaining}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                     {/* Түргэн сонголтын товчнууд */}
                                     <div className="flex flex-wrap gap-2">
                                         {VARIANT_PRESETS.map((preset) => {
@@ -721,13 +772,11 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                                                 <td className="px-4 py-3">
                                                                     <input
                                                                         type="number"
+                                                                        min={0}
+                                                                        max={maxStockNum ?? undefined}
                                                                         className="w-16 bg-[#0A0220] px-2 py-1.5 border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none tabular-nums text-center transition-all"
                                                                         value={variant.stock}
-                                                                        onChange={(e) => {
-                                                                            const newVar = [...variants];
-                                                                            newVar[idx].stock = Number(e.target.value);
-                                                                            setVariants(newVar);
-                                                                        }}
+                                                                        onChange={(e) => setVariantStock(idx, Number(e.target.value))}
                                                                     />
                                                                 </td>
                                                             )}
@@ -754,7 +803,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                                         <div className="flex items-center justify-between px-4 py-2.5 bg-[#151040]/40 rounded-lg border border-white/[0.04]">
                                             <span className="text-[11px] text-white/45">{variants.length} хувилбар</span>
                                             <span className="text-[12px] font-semibold text-white/80 tabular-nums">
-                                                Нийт үлдэгдэл: {variantsTotalStock} ширхэг
+                                                Нийт үлдэгдэл: {variantsTotalStock}{maxStockNum != null ? ` / ${maxStockNum}` : ''} ширхэг
                                             </span>
                                         </div>
                                     )}
