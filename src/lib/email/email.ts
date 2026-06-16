@@ -455,44 +455,71 @@ export async function sendTeamInviteEmail(params: {
 
     const html = `
 <!DOCTYPE html>
-<html>
+<html lang="mn">
 <head>
     <meta charset="UTF-8">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.55; color: #1f2937; background: #f3f4f6; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; padding: 24px; }
-        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 28px 24px; text-align: center; }
-        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-        .body { padding: 28px 24px; }
-        .role-badge { display: inline-block; background: #eef2ff; color: #4f46e5; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
-        .cta { display: inline-block; background: #4f46e5; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin: 20px 0; }
-        .muted { color: #6b7280; font-size: 13px; }
-        .footer { padding: 18px 24px; font-size: 11px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>${shopName} — Багийн урилга</title>
 </head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="header">
-                <h1>🎉 Та <strong>${shopName}</strong>-д урилаа</h1>
-            </div>
-            <div class="body">
-                <p>Сайн байна уу,</p>
-                <p><strong>${inviterName}</strong> таныг <strong>${shopName}</strong> дэлгүүрийн багт
-                <span class="role-badge">${roleLabels[role] || role}</span> эрхээр урьж байна.</p>
-                <p>Доорх товчийг дарж урилгыг хүлээн авч, дэлгүүрийн dashboard руу нэвтэрнэ үү.</p>
-                <p style="text-align:center;">
-                    <a href="${inviteUrl}" class="cta">Урилгыг хүлээн авах →</a>
-                </p>
-                <p class="muted">Энэ урилга 7 хоногийн дотор хүчинтэй. Хэрэв та энэ урилгыг хүлээгээгүй бол
-                энэ имэйлийг үл хэрэгсэнэ үү.</p>
-            </div>
-            <div class="footer">
-                Энэ имэйл нь Syncly-ээс илгээгдсэн
-            </div>
-        </div>
-    </div>
+<body style="margin:0; padding:0; background-color:#f3f4f6; -webkit-font-smoothing:antialiased;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0;">${inviterName} таныг ${shopName} багт урьж байна.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+        <tr>
+            <td align="center" style="padding:32px 16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(17,24,39,0.06);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color:#4f46e5; background-image:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%); padding:36px 32px; text-align:center;">
+                            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:13px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.75);">Syncly</div>
+                            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:22px; font-weight:700; color:#ffffff; margin-top:10px; line-height:1.3;">🎉 Та багт урилаа</div>
+                        </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:32px 32px 8px 32px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; color:#1f2937; font-size:15px; line-height:1.6;">
+                            <p style="margin:0 0 16px 0;">Сайн байна уу,</p>
+                            <p style="margin:0 0 20px 0;"><strong>${inviterName}</strong> таныг <strong>${shopName}</strong> дэлгүүрийн багт дараах эрхээр урьж байна:</p>
+                            <p style="margin:0 0 24px 0; text-align:center;">
+                                <span style="display:inline-block; background-color:#eef2ff; color:#4f46e5; padding:8px 18px; border-radius:999px; font-size:14px; font-weight:700;">${roleLabels[role] || role}</span>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Bulletproof button -->
+                    <tr>
+                        <td align="center" style="padding:0 32px 8px 32px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center" style="border-radius:10px; background-color:#4f46e5;">
+                                        <a href="${inviteUrl}" target="_blank" style="display:inline-block; padding:15px 36px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:15px; font-weight:700; color:#ffffff; text-decoration:none; border-radius:10px;">Урилгыг хүлээн авах →</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Fallback link -->
+                    <tr>
+                        <td style="padding:16px 32px 24px 32px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                            <p style="margin:0 0 6px 0; color:#6b7280; font-size:12px;">Товч ажиллахгүй бол доорх холбоосыг хөтчдөө хуулж тавина уу:</p>
+                            <p style="margin:0; word-break:break-all;"><a href="${inviteUrl}" target="_blank" style="color:#4f46e5; font-size:12px; text-decoration:underline;">${inviteUrl}</a></p>
+                        </td>
+                    </tr>
+                    <!-- Note -->
+                    <tr>
+                        <td style="padding:0 32px 28px 32px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                            <p style="margin:0; color:#9ca3af; font-size:12px; line-height:1.5;">⏳ Энэ урилга <strong>7 хоног</strong> хүчинтэй. Хэрэв та энэ урилгыг хүлээгээгүй бол энэ имэйлийг үл хэрэгсэнэ үү.</p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:18px 32px; background-color:#fafafa; border-top:1px solid #f0f0f0; text-align:center; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+                            <p style="margin:0; color:#9ca3af; font-size:11px;">Энэ имэйл нь <strong style="color:#6b7280;">Syncly</strong>-ээс илгээгдсэн · <a href="https://www.syncly.mn" style="color:#9ca3af; text-decoration:underline;">syncly.mn</a></p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
     `;
