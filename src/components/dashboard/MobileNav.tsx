@@ -23,11 +23,14 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { itemNoun } from '@/lib/dashboard/archetypes';
 
 export function MobileNav() {
     const pathname = usePathname();
     const router = useRouter();
     const { t } = useLanguage();
+    const agent = useActiveShopAgent();
     const [showMore, setShowMore] = useState(false);
 
     const tabs = [
@@ -37,7 +40,7 @@ export function MobileNav() {
     ];
 
     const moreItems = [
-        { name: t.sidebar.products, href: '/dashboard/products', icon: Package },
+        { name: agent.businessType ? itemNoun(agent.businessType) : t.sidebar.products, href: '/dashboard/products', icon: Package },
         { name: t.sidebar.customers, href: '/dashboard/customers', icon: Users },
         { name: t.sidebar.complaints, href: '/dashboard/complaints', icon: AlertTriangle },
         { name: t.sidebar.cart, href: '/dashboard/cart', icon: ShoppingCart },
