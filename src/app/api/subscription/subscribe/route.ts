@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
+import { requirePermission, ForbiddenError } from '@/lib/auth/membership';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoiceDetailed } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
@@ -28,13 +28,8 @@ interface SubscribeConsent {
 
 export async function POST(request: NextRequest) {
     try {
-        const shop = await getAuthUserShop();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const userId = await getAuthUser();
+        // RBAC: захиалгын багц/төлбөр зөвхөн дэлгүүрийн эзэнд.
+        const { shop, userId } = await requirePermission('billing:manage');
 
         const body = await request.json();
         const { plan_id, billing_cycle = 'monthly', consent } = body as {
@@ -239,6 +234,9 @@ export async function POST(request: NextRequest) {
             });
         }
     } catch (error: unknown) {
+        if (error instanceof ForbiddenError) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
         logger.error('Subscribe error:', { error: error instanceof Error ? error.message : String(error) });
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Failed to subscribe' },

@@ -84,6 +84,42 @@ export interface Shop {
     age_confirmed?: boolean;
     marketing_consent?: boolean;
     marketing_consent_at?: string | null;
+    // RBAC: нэвтэрсэн хэрэглэгчийн энэ дэлгүүр дэх эрх (API-аас буцаана, DB багана биш)
+    role?: ShopRole;
+}
+
+// ============================================
+// RBAC — SHOP MEMBERS (Team)
+// ============================================
+export type ShopRole = 'owner' | 'admin' | 'staff';
+export type ShopMemberStatus = 'pending' | 'active' | 'revoked';
+
+/** Эрхийн зөвшөөрлүүд. Унших эрх бүх role-д нээлттэй тул зөвхөн эмзэг үйлдлүүдийг жагсаав. */
+export type Permission =
+    | 'orders:write'
+    | 'products:write'
+    | 'inbox:write'
+    | 'customers:export'
+    | 'ai:write'
+    | 'settings:write'
+    | 'team:manage'
+    | 'billing:manage'
+    | 'shop:delete';
+
+export interface ShopMember {
+    id: string;
+    shop_id: string;
+    user_id: string | null;
+    email: string;
+    role: ShopRole;
+    status: ShopMemberStatus;
+    invite_token?: string | null;
+    invited_by: string | null;
+    invited_at: string;
+    expires_at: string;
+    accepted_at: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 // ============================================
