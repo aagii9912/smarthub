@@ -5,7 +5,36 @@ import { getStartOfPeriod } from '@/lib/utils/date';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_CONFIGS } from '@/lib/utils/rate-limiter';
 import { apiError } from '@/lib/utils/api-response';
 import { logger } from '@/lib/utils/logger';
+import { resolveArchetype } from '@/lib/dashboard/archetypes';
 import * as Sentry from '@sentry/nextjs';
+
+interface RelatedName { name: string | null; phone?: string | null }
+
+interface AppointmentsBlock {
+  stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number };
+  series: number[];
+  statusBreakdown: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
+  upcoming: Array<{
+    id: string;
+    scheduled_at: string;
+    duration_minutes: number;
+    status: string;
+    customers: RelatedName | RelatedName[] | null;
+    products: RelatedName | RelatedName[] | null;
+  }>;
+}
+
+interface LeadsBlock {
+  stats: { newLeads: number; qualified: number; converted: number; conversionRate: number };
+  recent: Array<{
+    id: string;
+    name: string | null;
+    phone: string | null;
+    created_at: string;
+    total_orders: number | null;
+    is_vip: boolean | null;
+  }>;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +65,7 @@ export async function GET(request: NextRequest) {
     if (!authShop) {
       return NextResponse.json({
         shop: null,
+        archetype: 'commerce',
         stats: {
           todayOrders: 0,
           pendingOrders: 0,
@@ -75,6 +105,7 @@ export async function GET(request: NextRequest) {
 
     // 🚀 Бүх query-г зэрэгцүүлэн ажиллуулах (Promise.all)
     const [
+      shopMetaResult,
       periodOrdersListResult,
       prevPeriodOrdersResult,
       pendingOrdersResult,
@@ -83,6 +114,13 @@ export async function GET(request: NextRequest) {
       recentChatsResult,
       lowStockResult,
     ] = await Promise.all([
+      // Shop-ийн AI agent capabilities + business_type (dashboard архетип тодорхойлоход)
+      supabase
+        .from('shops')
+        .select('ai_agent_capabilities, business_type')
+        .eq('id', shopId)
+        .single(),
+
       // Захиалгууд (period — цаг/огноогоор bucket хийхэд хэрэгтэй)
       supabase
         .from('orders')
@@ -259,8 +297,109 @@ export async function GET(request: NextRequest) {
     // Хариулаагүй харилцагчийн тоо
     const unansweredCount = activeConversations.filter(c => !c.isAnswered).length;
 
+    // ─── Dashboard архетип (capability-аар жолоодогдоно) ───
+    const shopMeta = shopMetaResult.data as
+      | { ai_agent_capabilities?: string[] | null; business_type?: string | null }
+      | null;
+    const archetype = resolveArchetype(shopMeta?.ai_agent_capabilities);
+
+    // Архетип-тусгай нэмэлт блокууд (зөвхөн тухайн архетипд query явуулна)
+    let appointments: AppointmentsBlock | undefined;
+    let leads: LeadsBlock | undefined;
+
+    if (archetype === 'booking') {
+      const [periodApptResult, upcomingApptResult] = await Promise.all([
+        // Period доторх уулзалтууд (series + статусын задаргаа)
+        supabase
+          .from('appointments')
+          .select('scheduled_at, status')
+          .eq('shop_id', shopId)
+          .gte('scheduled_at', periodStart.toISOString()),
+
+        // Удахгүй болох уулзалтууд (цуцлагдаагүй)
+        supabase
+          .from('appointments')
+          .select('id, scheduled_at, duration_minutes, status, customers (name, phone), products (name)')
+          .eq('shop_id', shopId)
+          .gte('scheduled_at', now.toISOString())
+          .neq('status', 'cancelled')
+          .order('scheduled_at', { ascending: true })
+          .limit(8),
+      ]);
+
+      const periodAppts = periodApptResult.data || [];
+      const apptSeries = Array.from({ length: bucketCount }, () => 0);
+      const statusBreakdown = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };
+      periodAppts.forEach((a) => {
+        const tt = new Date(a.scheduled_at).getTime();
+        const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((tt - periodStart.getTime()) / bucketMs)));
+        apptSeries[idx] += 1;
+        if (a.status && a.status in statusBreakdown) {
+          statusBreakdown[a.status as keyof typeof statusBreakdown] += 1;
+        }
+      });
+
+      const terminal = statusBreakdown.completed + statusBreakdown.no_show;
+      const noShowRate = terminal > 0 ? Math.round((statusBreakdown.no_show / terminal) * 100) : 0;
+
+      appointments = {
+        stats: {
+          periodCount: periodAppts.length,
+          upcomingCount: (upcomingApptResult.data || []).length,
+          completedCount: statusBreakdown.completed,
+          noShowRate,
+        },
+        series: apptSeries,
+        statusBreakdown,
+        upcoming: upcomingApptResult.data || [],
+      };
+    } else if (archetype === 'lead') {
+      const [periodLeadsResult, qualifiedResult, convertedResult, recentLeadsResult] = await Promise.all([
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .gte('created_at', periodStart.toISOString()),
+        // Утастай = qualified lead
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .gte('created_at', periodStart.toISOString())
+          .not('phone', 'is', null),
+        // Захиалга өгсөн = converted
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .gte('created_at', periodStart.toISOString())
+          .gt('total_orders', 0),
+        supabase
+          .from('customers')
+          .select('id, name, phone, created_at, total_orders, is_vip')
+          .eq('shop_id', shopId)
+          .order('created_at', { ascending: false })
+          .limit(8),
+      ]);
+
+      const newLeads = periodLeadsResult.count || 0;
+      const converted = convertedResult.count || 0;
+      leads = {
+        stats: {
+          newLeads,
+          qualified: qualifiedResult.count || 0,
+          converted,
+          conversionRate: newLeads > 0 ? Math.round((converted / newLeads) * 100) : 0,
+        },
+        recent: recentLeadsResult.data || [],
+      };
+    }
+
     return NextResponse.json({
       shop: { id: authShop.id, name: authShop.name },
+      archetype,
+      appointments,
+      leads,
       stats: {
         todayOrders: periodOrders || 0,
         pendingOrders: pendingOrders || 0,
