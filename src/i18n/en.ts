@@ -483,6 +483,30 @@ export const en: Translations = {
     leadBadgeQualified: 'Contacted',
     leadBadgeNew: 'New',
     leadFunnelTitle: 'Lead funnel',
+    // ─── Deep vertical widgets ───
+    // Commerce: cart funnel
+    cartFunnelTitle: 'Cart funnel',
+    cartActive: 'Active carts',
+    cartConverted: 'Converted',
+    cartAbandoned: 'Abandoned',
+    cartConversionRate: 'Conversion',
+    noCartData: 'No cart data',
+    // Booking: peak hours / weekday
+    peakHoursTitle: 'Peak hours',
+    peakHoursSubtitle: 'Appointment distribution by hour',
+    weekdayTitle: 'Weekday load',
+    peakHourLabel: 'Busiest',
+    noSlotData: 'No appointment data',
+    // Lead: source attribution / follow-up
+    leadSourceTitle: 'Source',
+    sourceMessenger: 'Messenger',
+    sourceInstagram: 'Instagram',
+    sourceOther: 'Other',
+    followUpTitle: 'Awaiting follow-up',
+    followUpSubtitle: 'Contacted leads with no order yet',
+    noFollowUp: 'No follow-up needed',
+    lastContact: 'Last contact',
+    weekdaysShort: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
   },
 
   // ─── Orders Page ───

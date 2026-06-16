@@ -486,6 +486,30 @@ export const mn = {
     leadBadgeQualified: 'Холбогдсон',
     leadBadgeNew: 'Шинэ',
     leadFunnelTitle: 'Lead-ийн юүлүүр',
+    // ─── Гүн вертикал widget ───
+    // Commerce: cart funnel
+    cartFunnelTitle: 'Сагсны юүлүүр',
+    cartActive: 'Идэвхтэй сагс',
+    cartConverted: 'Захиалга болсон',
+    cartAbandoned: 'Орхигдсон',
+    cartConversionRate: 'Хөрвүүлэлт',
+    noCartData: 'Сагсны мэдээлэл алга',
+    // Booking: peak hours / weekday
+    peakHoursTitle: 'Ачаалалтай цагууд',
+    peakHoursSubtitle: 'Цаг захиалгын тархалт (цагаар)',
+    weekdayTitle: 'Гарагийн ачаалал',
+    peakHourLabel: 'Хамгийн ачаалалтай',
+    noSlotData: 'Цаг захиалгын мэдээлэл алга',
+    // Lead: source attribution / follow-up
+    leadSourceTitle: 'Эх сурвалж',
+    sourceMessenger: 'Messenger',
+    sourceInstagram: 'Instagram',
+    sourceOther: 'Бусад',
+    followUpTitle: 'Follow-up хүлээж буй',
+    followUpSubtitle: 'Холбогдоод захиалга өгөөгүй lead-үүд',
+    noFollowUp: 'Follow-up шаардлагагүй',
+    lastContact: 'Сүүлд холбогдсон',
+    weekdaysShort: ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Бя'],
   },
 
   // ─── Orders Page ───

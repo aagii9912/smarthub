@@ -6,7 +6,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { KPI } from '@/components/ui/KPI';
-import { ChartBar } from '@/components/ui/ChartBar';
 import { CalendarClock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -22,6 +21,7 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
+import { PeakHoursCard, WeekdayLoadCard } from './widgets';
 
 const STATUS_TONE: Record<string, string> = {
     pending: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
@@ -220,22 +220,18 @@ export function BookingDashboardView() {
                     </motion.div>
                 </motion.div>
 
-                {/* ─── Appointment volume chart ─── */}
-                <motion.div variants={containerVariants} initial="hidden" animate="show">
+                {/* ─── Peak hours + weekday load ─── */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5"
+                >
+                    <motion.div variants={itemVariants} className="lg:col-span-2">
+                        <PeakHoursCard data={appt} />
+                    </motion.div>
                     <motion.div variants={itemVariants}>
-                        <div className="card-outlined p-5">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="text-[15px] font-semibold text-foreground">{t.dashboard.apptChart}</div>
-                                <div className="text-[11px] text-muted-foreground">{t.dashboard.hourlyRange}</div>
-                            </div>
-                            {series.length === 0 || series.every((v) => v === 0) ? (
-                                <div className="h-[140px] flex items-center justify-center text-[12px] text-muted-foreground">
-                                    {t.dashboard.noAppointmentsDesc}
-                                </div>
-                            ) : (
-                                <ChartBar data={series} height={140} />
-                            )}
-                        </div>
+                        <WeekdayLoadCard data={appt} />
                     </motion.div>
                 </motion.div>
             </div>

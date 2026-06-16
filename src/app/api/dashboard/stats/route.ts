@@ -11,8 +11,10 @@ import * as Sentry from '@sentry/nextjs';
 interface RelatedName { name: string | null; phone?: string | null }
 
 interface AppointmentsBlock {
-  stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number };
+  stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null };
   series: number[];
+  byHour: number[];
+  byWeekday: number[];
   statusBreakdown: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
   upcoming: Array<{
     id: string;
@@ -26,6 +28,7 @@ interface AppointmentsBlock {
 
 interface LeadsBlock {
   stats: { newLeads: number; qualified: number; converted: number; conversionRate: number };
+  bySource: { messenger: number; instagram: number; other: number };
   recent: Array<{
     id: string;
     name: string | null;
@@ -34,6 +37,17 @@ interface LeadsBlock {
     total_orders: number | null;
     is_vip: boolean | null;
   }>;
+  followUp: {
+    count: number;
+    items: Array<{ id: string; name: string | null; phone: string | null; last_contact_at: string | null }>;
+  };
+}
+
+interface CartFunnelBlock {
+  active: number;
+  converted: number;
+  abandoned: number;
+  conversionRate: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -306,6 +320,7 @@ export async function GET(request: NextRequest) {
     // Архетип-тусгай нэмэлт блокууд (зөвхөн тухайн архетипд query явуулна)
     let appointments: AppointmentsBlock | undefined;
     let leads: LeadsBlock | undefined;
+    let cartFunnel: CartFunnelBlock | undefined;
 
     if (archetype === 'booking') {
       const [periodApptResult, upcomingApptResult] = await Promise.all([
@@ -329,11 +344,16 @@ export async function GET(request: NextRequest) {
 
       const periodAppts = periodApptResult.data || [];
       const apptSeries = Array.from({ length: bucketCount }, () => 0);
+      const byHour = Array.from({ length: 24 }, () => 0); // цагийн слотын алдартай байдал
+      const byWeekday = Array.from({ length: 7 }, () => 0); // Ня=0 … Бя=6
       const statusBreakdown = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };
       periodAppts.forEach((a) => {
-        const tt = new Date(a.scheduled_at).getTime();
+        const d = new Date(a.scheduled_at);
+        const tt = d.getTime();
         const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((tt - periodStart.getTime()) / bucketMs)));
         apptSeries[idx] += 1;
+        byHour[d.getHours()] += 1;
+        byWeekday[d.getDay()] += 1;
         if (a.status && a.status in statusBreakdown) {
           statusBreakdown[a.status as keyof typeof statusBreakdown] += 1;
         }
@@ -341,6 +361,8 @@ export async function GET(request: NextRequest) {
 
       const terminal = statusBreakdown.completed + statusBreakdown.no_show;
       const noShowRate = terminal > 0 ? Math.round((statusBreakdown.no_show / terminal) * 100) : 0;
+      // Хамгийн ачаалалтай цаг (популяр слот)
+      const peakHour = byHour.some((v) => v > 0) ? byHour.indexOf(Math.max(...byHour)) : null;
 
       appointments = {
         stats: {
@@ -348,50 +370,96 @@ export async function GET(request: NextRequest) {
           upcomingCount: (upcomingApptResult.data || []).length,
           completedCount: statusBreakdown.completed,
           noShowRate,
+          peakHour,
         },
         series: apptSeries,
+        byHour,
+        byWeekday,
         statusBreakdown,
         upcoming: upcomingApptResult.data || [],
       };
     } else if (archetype === 'lead') {
-      const [periodLeadsResult, qualifiedResult, convertedResult, recentLeadsResult] = await Promise.all([
+      // Follow-up: утастай ч захиалгагүй, сүүлд холбогдсоноос 24ц өнгөрсөн lead-үүд
+      const followUpCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+      const [periodLeadListResult, recentLeadsResult, followUpListResult, followUpCountResult] = await Promise.all([
+        // Period доторх lead-үүд (newLeads / qualified / converted / source-ийг JS-д тооцоход)
         supabase
           .from('customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('shop_id', shopId)
-          .gte('created_at', periodStart.toISOString()),
-        // Утастай = qualified lead
-        supabase
-          .from('customers')
-          .select('*', { count: 'exact', head: true })
+          .select('platform, phone, total_orders')
           .eq('shop_id', shopId)
           .gte('created_at', periodStart.toISOString())
-          .not('phone', 'is', null),
-        // Захиалга өгсөн = converted
-        supabase
-          .from('customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('shop_id', shopId)
-          .gte('created_at', periodStart.toISOString())
-          .gt('total_orders', 0),
+          .limit(2000),
+        // Сүүлийн lead-үүд (нэрээр харуулах)
         supabase
           .from('customers')
           .select('id, name, phone, created_at, total_orders, is_vip')
           .eq('shop_id', shopId)
           .order('created_at', { ascending: false })
           .limit(8),
+        // Follow-up дараалал
+        supabase
+          .from('customers')
+          .select('id, name, phone, last_contact_at')
+          .eq('shop_id', shopId)
+          .not('phone', 'is', null)
+          .eq('total_orders', 0)
+          .lt('last_contact_at', followUpCutoff)
+          .order('last_contact_at', { ascending: true })
+          .limit(6),
+        supabase
+          .from('customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .not('phone', 'is', null)
+          .eq('total_orders', 0)
+          .lt('last_contact_at', followUpCutoff),
       ]);
 
-      const newLeads = periodLeadsResult.count || 0;
-      const converted = convertedResult.count || 0;
+      const periodLeadList = periodLeadListResult.data || [];
+      const newLeads = periodLeadList.length;
+      const qualified = periodLeadList.filter((l) => !!l.phone).length;
+      const converted = periodLeadList.filter((l) => (l.total_orders ?? 0) > 0).length;
+      const bySource = { messenger: 0, instagram: 0, other: 0 };
+      periodLeadList.forEach((l) => {
+        if (l.platform === 'messenger') bySource.messenger += 1;
+        else if (l.platform === 'instagram') bySource.instagram += 1;
+        else bySource.other += 1;
+      });
+
       leads = {
         stats: {
           newLeads,
-          qualified: qualifiedResult.count || 0,
+          qualified,
           converted,
           conversionRate: newLeads > 0 ? Math.round((converted / newLeads) * 100) : 0,
         },
+        bySource,
         recent: recentLeadsResult.data || [],
+        followUp: {
+          count: followUpCountResult.count || 0,
+          items: followUpListResult.data || [],
+        },
+      };
+    } else if (archetype === 'commerce') {
+      // Cart funnel — period доторх сагсны төлвийн задаргаа
+      const { data: periodCarts } = await supabase
+        .from('carts')
+        .select('status')
+        .eq('shop_id', shopId)
+        .gte('created_at', periodStart.toISOString())
+        .limit(5000);
+
+      const carts = periodCarts || [];
+      const activeCarts = carts.filter((c) => c.status === 'active').length;
+      const convertedCarts = carts.filter((c) => c.status === 'checked_out').length;
+      const abandonedCarts = carts.filter((c) => c.status === 'expired').length;
+      const totalCarts = carts.length;
+      cartFunnel = {
+        active: activeCarts,
+        converted: convertedCarts,
+        abandoned: abandonedCarts,
+        conversionRate: totalCarts > 0 ? Math.round((convertedCarts / totalCarts) * 100) : 0,
       };
     }
 
@@ -400,6 +468,7 @@ export async function GET(request: NextRequest) {
       archetype,
       appointments,
       leads,
+      cartFunnel,
       stats: {
         todayOrders: periodOrders || 0,
         pendingOrders: pendingOrders || 0,

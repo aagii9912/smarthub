@@ -21,6 +21,7 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
+import { LeadSourceCard, FollowUpCard } from './widgets';
 
 /**
  * Lead archetype — for shops whose AI agent has the `lead_capture` capability
@@ -209,6 +210,21 @@ export function LeadDashboardView() {
                                 ))}
                             </div>
                         </div>
+                    </motion.div>
+                </motion.div>
+
+                {/* ─── Source attribution + follow-up queue ─── */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5"
+                >
+                    <motion.div variants={itemVariants}>
+                        <LeadSourceCard data={lead} />
+                    </motion.div>
+                    <motion.div variants={itemVariants} className="lg:col-span-2">
+                        <FollowUpCard data={lead} />
                     </motion.div>
                 </motion.div>
             </div>

@@ -65,8 +65,10 @@ export interface UpcomingAppointment {
 }
 
 export interface AppointmentsBlock {
-    stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number };
+    stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null };
     series: number[];
+    byHour: number[];
+    byWeekday: number[];
     statusBreakdown: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
     upcoming: UpcomingAppointment[];
 }
@@ -80,9 +82,25 @@ export interface RecentLead {
     is_vip: boolean | null;
 }
 
+export interface FollowUpLead {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    last_contact_at: string | null;
+}
+
 export interface LeadsBlock {
     stats: { newLeads: number; qualified: number; converted: number; conversionRate: number };
+    bySource: { messenger: number; instagram: number; other: number };
     recent: RecentLead[];
+    followUp: { count: number; items: FollowUpLead[] };
+}
+
+export interface CartFunnelBlock {
+    active: number;
+    converted: number;
+    abandoned: number;
+    conversionRate: number;
 }
 
 interface DashboardData {
@@ -90,6 +108,7 @@ interface DashboardData {
     archetype?: DashboardArchetype;
     appointments?: AppointmentsBlock;
     leads?: LeadsBlock;
+    cartFunnel?: CartFunnelBlock;
     prevStats?: PrevStats;
     trend?: DashboardTrend;
     series?: DashboardSeries;

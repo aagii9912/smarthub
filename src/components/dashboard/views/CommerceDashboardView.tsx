@@ -28,6 +28,7 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
+import { CartFunnelCard } from './widgets';
 
 type OrderFilter = 'all' | 'pending' | 'paid';
 
@@ -52,6 +53,7 @@ export function CommerceDashboardView() {
     const recentOrders = data?.recentOrders || [];
     const activeConversations = data?.activeConversations || [];
     const lowStockProducts = data?.lowStockProducts || [];
+    const cartFunnel = data?.cartFunnel;
 
     const firstName = useMemo(() => {
         const raw = user?.fullName || shop?.name || '';
@@ -443,6 +445,13 @@ export function CommerceDashboardView() {
                                 </div>
                             </div>
                         </div>
+                    </motion.div>
+                </motion.div>
+
+                {/* ─── Cart funnel ─── */}
+                <motion.div variants={containerVariants} initial="hidden" animate="show">
+                    <motion.div variants={itemVariants}>
+                        <CartFunnelCard data={cartFunnel} />
                     </motion.div>
                 </motion.div>
             </div>
