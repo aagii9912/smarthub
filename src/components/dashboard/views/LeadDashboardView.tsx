@@ -21,7 +21,7 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
-import { LeadSourceCard, FollowUpCard } from './widgets';
+import { LeadSourceCard, FollowUpCard, SecondarySections } from './widgets';
 
 /**
  * Lead archetype — for shops whose AI agent has the `lead_capture` capability
@@ -227,6 +227,9 @@ export function LeadDashboardView() {
                         <FollowUpCard data={lead} />
                     </motion.div>
                 </motion.div>
+
+                {/* ─── Hybrid: secondary capability blocks ─── */}
+                <SecondarySections data={data} primary="lead" />
             </div>
         </PullToRefresh>
     );

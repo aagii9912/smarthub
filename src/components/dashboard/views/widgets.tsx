@@ -1,11 +1,27 @@
 'use client';
 
 import { ChartBar } from '@/components/ui/ChartBar';
+import { Avatar } from '@/components/ui/Avatar';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { formatDelta } from './shared';
+import { formatDelta, formatUpcoming } from './shared';
+import type { DashboardArchetype } from '@/lib/dashboard/archetypes';
+import type { DashboardData } from '@/hooks/useDashboard';
 import type { AppointmentsBlock, CartFunnelBlock, LeadsBlock } from '@/hooks/useDashboard';
-import { Clock3, PhoneCall } from 'lucide-react';
+import { CalendarClock, Clock3, PhoneCall } from 'lucide-react';
+
+const APPT_STATUS_TONE: Record<string, string> = {
+    pending: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
+    confirmed: 'bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)] text-[var(--brand-indigo)]',
+    completed: 'bg-[color-mix(in_oklab,var(--status-success)_18%,transparent)] text-[var(--status-success)]',
+    cancelled: 'bg-[color-mix(in_oklab,var(--status-danger)_18%,transparent)] text-[var(--status-danger)]',
+    no_show: 'bg-white/[0.06] text-white/50',
+};
+
+function pickRelated(rel: { name: string | null } | { name: string | null }[] | null): { name: string | null } | null {
+    if (!rel) return null;
+    return Array.isArray(rel) ? rel[0] ?? null : rel;
+}
 
 /** A labelled horizontal progress bar used by the funnel-style widgets. */
 function Bar({ label, value, pct, tone }: { label: string; value: number | string; pct: number; tone: string }) {
@@ -134,6 +150,82 @@ export function LeadSourceCard({ data }: { data: LeadsBlock | undefined }) {
                     <Bar label={t.dashboard.sourceOther} value={src.other} pct={pct(src.other)} tone="var(--brand-cyan)" />
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Compact upcoming appointments (used as a secondary block on hybrid shops) ───
+export function UpcomingAppointmentsCard({ data }: { data: AppointmentsBlock | undefined }) {
+    const { t } = useLanguage();
+    const upcoming = (data?.upcoming ?? []).slice(0, 5);
+
+    return (
+        <div className="card-outlined p-5 h-full">
+            <div className="flex items-center justify-between mb-4">
+                <div className="text-[15px] font-semibold text-foreground">{t.dashboard.upcomingTitle}</div>
+                {data && data.stats.upcomingCount > 0 && (
+                    <div className="text-[11px] text-muted-foreground tabular-nums">{data.stats.upcomingCount}</div>
+                )}
+            </div>
+            {upcoming.length === 0 ? (
+                <div className="py-8 text-center text-[12px] text-muted-foreground flex flex-col items-center gap-2">
+                    <CalendarClock className="h-5 w-5 text-white/30" strokeWidth={1.5} />
+                    {t.dashboard.noAppointments}
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {upcoming.map((a) => {
+                        const cust = pickRelated(a.customers);
+                        const prod = pickRelated(a.products);
+                        return (
+                            <div key={a.id} className="flex items-center gap-3">
+                                <Avatar size="sm" tone="indigo" fallback={cust?.name || '?'} />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[13px] font-medium text-foreground truncate">{cust?.name || t.dashboard.customer}</div>
+                                    <div className="text-[11px] text-muted-foreground truncate">{prod?.name || '—'}</div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium', APPT_STATUS_TONE[a.status] || APPT_STATUS_TONE.pending)}>
+                                        {new Date(a.scheduled_at).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <div className="text-[10px] text-white/40 mt-0.5">{formatUpcoming(a.scheduled_at)}</div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Hybrid composite — renders compact cards for the capability blocks that are
+ * NOT the shop's primary archetype. A restaurant (commerce primary, also has
+ * booking) gets an "upcoming appointments" card under its orders dashboard.
+ */
+export function SecondarySections({ data, primary }: { data: DashboardData | undefined; primary: DashboardArchetype }) {
+    const { t } = useLanguage();
+    if (!data) return null;
+
+    const cards: React.ReactNode[] = [];
+    if (data.appointments && primary !== 'booking') {
+        cards.push(<UpcomingAppointmentsCard key="appt" data={data.appointments} />);
+    }
+    if (data.leads && primary !== 'lead') {
+        cards.push(<LeadSourceCard key="lead" data={data.leads} />);
+    }
+    if (data.cartFunnel && primary !== 'commerce') {
+        cards.push(<CartFunnelCard key="cart" data={data.cartFunnel} />);
+    }
+    if (cards.length === 0) return null;
+
+    return (
+        <div className="space-y-3">
+            <div className="text-[12px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">{t.dashboard.moreInsights}</div>
+            <div className={cn('grid grid-cols-1 gap-4 md:gap-5', cards.length >= 2 ? 'lg:grid-cols-2' : '')}>
+                {cards}
+            </div>
         </div>
     );
 }

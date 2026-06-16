@@ -103,7 +103,7 @@ export interface CartFunnelBlock {
     conversionRate: number;
 }
 
-interface DashboardData {
+export interface DashboardData {
     stats: DashboardStats;
     archetype?: DashboardArchetype;
     appointments?: AppointmentsBlock;

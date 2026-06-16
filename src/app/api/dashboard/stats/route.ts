@@ -315,14 +315,17 @@ export async function GET(request: NextRequest) {
     const shopMeta = shopMetaResult.data as
       | { ai_agent_capabilities?: string[] | null; business_type?: string | null }
       | null;
-    const archetype = resolveArchetype(shopMeta?.ai_agent_capabilities);
+    const caps = shopMeta?.ai_agent_capabilities ?? [];
+    const archetype = resolveArchetype(caps);
 
-    // Архетип-тусгай нэмэлт блокууд (зөвхөн тухайн архетипд query явуулна)
+    // Capability-driven нэмэлт блокууд. `archetype` нь үндсэн layout-г сонгоно;
+    // олон capability-тай (hybrid) бизнест олон блок зэрэг тооцоологдоно
+    // (ж: ресторан → cartFunnel + appointments).
     let appointments: AppointmentsBlock | undefined;
     let leads: LeadsBlock | undefined;
     let cartFunnel: CartFunnelBlock | undefined;
 
-    if (archetype === 'booking') {
+    if (caps.includes('booking')) {
       const [periodApptResult, upcomingApptResult] = await Promise.all([
         // Period доторх уулзалтууд (series + статусын задаргаа)
         supabase
@@ -378,7 +381,9 @@ export async function GET(request: NextRequest) {
         statusBreakdown,
         upcoming: upcomingApptResult.data || [],
       };
-    } else if (archetype === 'lead') {
+    }
+
+    if (caps.includes('lead_capture')) {
       // Follow-up: утастай ч захиалгагүй, сүүлд холбогдсоноос 24ц өнгөрсөн lead-үүд
       const followUpCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -441,7 +446,9 @@ export async function GET(request: NextRequest) {
           items: followUpListResult.data || [],
         },
       };
-    } else if (archetype === 'commerce') {
+    }
+
+    if (caps.includes('sales')) {
       // Cart funnel — period доторх сагсны төлвийн задаргаа
       const { data: periodCarts } = await supabase
         .from('carts')

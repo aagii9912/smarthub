@@ -510,6 +510,8 @@ export const mn = {
     noFollowUp: 'Follow-up шаардлагагүй',
     lastContact: 'Сүүлд холбогдсон',
     weekdaysShort: ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Бя'],
+    // Hybrid — бусад capability-ийн нэмэлт блокууд
+    moreInsights: 'Бусад үзүүлэлт',
   },
 
   // ─── Orders Page ───

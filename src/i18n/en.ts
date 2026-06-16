@@ -507,6 +507,8 @@ export const en: Translations = {
     noFollowUp: 'No follow-up needed',
     lastContact: 'Last contact',
     weekdaysShort: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+    // Hybrid — secondary capability blocks
+    moreInsights: 'More insights',
   },
 
   // ─── Orders Page ───

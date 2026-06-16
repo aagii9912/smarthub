@@ -21,7 +21,7 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
-import { PeakHoursCard, WeekdayLoadCard } from './widgets';
+import { PeakHoursCard, WeekdayLoadCard, SecondarySections } from './widgets';
 
 const STATUS_TONE: Record<string, string> = {
     pending: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
@@ -234,6 +234,9 @@ export function BookingDashboardView() {
                         <WeekdayLoadCard data={appt} />
                     </motion.div>
                 </motion.div>
+
+                {/* ─── Hybrid: secondary capability blocks ─── */}
+                <SecondarySections data={data} primary="booking" />
             </div>
         </PullToRefresh>
     );
