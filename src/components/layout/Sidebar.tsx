@@ -42,6 +42,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { itemNoun } from '@/lib/dashboard/archetypes';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -108,12 +110,19 @@ function SidebarInner() {
     const { user, shop } = useAuth();
     const { t } = useLanguage();
     const { hasFeature, isPaidPlan, plan } = useFeatures();
+    const agent = useActiveShopAgent();
 
-    const getLabel = (key: string) =>
-        ORDER_CHILD_LABELS[key] ||
-        SYSTEM_LABELS[key] ||
-        (t.sidebar as Record<string, string>)[key] ||
-        key;
+    const getLabel = (key: string) => {
+        // "Бүтээгдэхүүн"-ийг бизнесийн төрлөөр динамик noun болгоно
+        // (Үйлчилгээ / Зар / Сургалт / Меню).
+        if (key === 'products' && agent.businessType) return itemNoun(agent.businessType);
+        return (
+            ORDER_CHILD_LABELS[key] ||
+            SYSTEM_LABELS[key] ||
+            (t.sidebar as Record<string, string>)[key] ||
+            key
+        );
+    };
 
     const isActive = (href: string) => {
         const [base] = href.split('?');

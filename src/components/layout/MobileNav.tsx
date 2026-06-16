@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { itemNoun } from '@/lib/dashboard/archetypes';
 
 interface PillTab {
     id: string;
@@ -76,6 +78,7 @@ const MORE_ITEMS: MoreItem[] = [
 export function MobileNav() {
     const pathname = usePathname();
     const { t } = useLanguage();
+    const agent = useActiveShopAgent();
     const [showMore, setShowMore] = useState(false);
 
     useEffect(() => {
@@ -126,7 +129,10 @@ export function MobileNav() {
                         <div className="grid grid-cols-3 gap-1.5 p-3">
                             {MORE_ITEMS.map((item) => {
                                 const active = isActive(item.href);
-                                const label = (t.sidebar as Record<string, string>)[item.nameKey] || item.fallback;
+                                const label =
+                                    item.nameKey === 'products' && agent.businessType
+                                        ? itemNoun(agent.businessType)
+                                        : (t.sidebar as Record<string, string>)[item.nameKey] || item.fallback;
                                 return (
                                     <Link
                                         key={item.href}

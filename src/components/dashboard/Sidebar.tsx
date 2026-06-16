@@ -20,7 +20,6 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
 import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
-import { itemNoun } from '@/lib/dashboard/archetypes';
 import type { AgentCapability } from '@/lib/ai/agents/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -118,12 +117,7 @@ export function Sidebar() {
     const renderItem = (item: RailItem) => {
         const active = isActive(item.href);
         const locked = isLocked(item);
-        // Бизнесийн төрлөөр "Бүтээгдэхүүн"-ийг динамик noun болгоно
-        // (Үйлчилгээ / Зар / Сургалт / Меню).
-        const label =
-            item.nameKey === 'products' && agent.businessType
-                ? itemNoun(agent.businessType)
-                : getLabel(item.nameKey);
+        const label = getLabel(item.nameKey);
         const Icon = item.icon;
 
         const rowBase = cn(

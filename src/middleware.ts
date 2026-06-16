@@ -5,7 +5,7 @@ import { createSupabaseMiddlewareClient } from '@/lib/supabase-middleware';
 import { checkMiddlewareRateLimit } from '@/lib/utils/rate-limiter';
 
 // Define protected routes
-const protectedPaths = ['/dashboard', '/setup', '/admin'];
+const protectedPaths = ['/dashboard', '/setup', '/admin', '/version1.5'];
 
 // Pages an expired-trial / unpaid user CAN still reach so they have somewhere
 // to upgrade. Everything else under /dashboard bounces to /dashboard/subscription.
