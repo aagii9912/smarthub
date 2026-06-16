@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser, supabaseAdmin } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
+import type { Shop, ShopRole } from '@/types/database';
 
-// GET /api/user/shops - Get all shops for the current user
+const SHOP_FIELDS =
+    'id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, instagram_business_account_id, instagram_username, bank_name, account_number, account_name, register_number, merchant_type, description, ai_emotion, ai_instructions, is_ai_active, subscription_plan';
+
+// GET /api/user/shops - Get all shops the current user can access
+// (эзэмшдэг + active гишүүн болсон дэлгүүрүүд, role-ийн хамт).
 export async function GET() {
     try {
         const userId = await getAuthUser();
@@ -13,21 +18,41 @@ export async function GET() {
 
         const supabase = supabaseAdmin();
 
-        // Sort: most-ready shop first so AuthContext picks a shop the user can
-        // actually use. Without this, a returning user with one finished shop
-        // and one half-finished shop landed on the half-finished one and got
-        // kicked back through the setup wizard (bug #7).
-        const { data: shops, error } = await supabase
+        // 1) Эзэмшдэг дэлгүүрүүд
+        const { data: ownedShops, error: ownedErr } = await supabase
             .from('shops')
-            .select('id, name, owner_name, phone, facebook_page_id, facebook_page_name, is_active, setup_completed, created_at, instagram_business_account_id, instagram_username, bank_name, account_number, account_name, register_number, merchant_type, description, ai_emotion, ai_instructions, is_ai_active, subscription_plan')
+            .select(SHOP_FIELDS)
+            .eq('user_id', userId);
+        if (ownedErr) throw ownedErr;
+
+        // 2) Active гишүүн болсон дэлгүүрүүд (role-ийн хамт)
+        const { data: memberships, error: memberErr } = await supabase
+            .from('shop_members')
+            .select(`role, shops!inner(${SHOP_FIELDS})`)
             .eq('user_id', userId)
-            .order('setup_completed', { ascending: false, nullsFirst: false })
-            .order('is_active', { ascending: false, nullsFirst: false })
-            .order('created_at', { ascending: true });
+            .eq('status', 'active');
+        if (memberErr) throw memberErr;
 
-        if (error) throw error;
+        // Нэгтгэх: эзэмшил давхцвал эзэн role давамгайлна.
+        const byId = new Map<string, Shop & { role: ShopRole }>();
+        for (const s of (ownedShops || []) as Shop[]) {
+            byId.set(s.id, { ...s, role: 'owner' });
+        }
+        for (const m of (memberships || []) as unknown as { role: ShopRole; shops: Shop | Shop[] }[]) {
+            const shop = Array.isArray(m.shops) ? m.shops[0] : m.shops;
+            if (shop && !byId.has(shop.id)) {
+                byId.set(shop.id, { ...shop, role: m.role });
+            }
+        }
 
-        return NextResponse.json({ shops: shops || [] });
+        // Эрэмбэ: setup дууссан → идэвхтэй → хуучин эхэлж (bug #7-тэй ижил).
+        const shops = Array.from(byId.values()).sort((a, b) => {
+            if (!!b.setup_completed !== !!a.setup_completed) return b.setup_completed ? 1 : -1;
+            if (!!b.is_active !== !!a.is_active) return b.is_active ? 1 : -1;
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
+
+        return NextResponse.json({ shops });
     } catch (error: unknown) {
         logger.error('User shops API error:', { error: error });
         return NextResponse.json({ error: 'Failed to fetch shops' }, { status: 500 });

@@ -13,6 +13,19 @@ vi.mock('@/lib/auth/auth', () => ({
     supabaseAdmin: () => mockSupabaseAdmin(),
 }));
 
+// RBAC: PATCH одоо requirePermission('settings:write')-ийг ашигладаг.
+const mockRequirePermission = vi.fn();
+vi.mock('@/lib/auth/membership', () => ({
+    requirePermission: (...args: unknown[]) => mockRequirePermission(...args),
+    ForbiddenError: class ForbiddenError extends Error {
+        status = 403;
+        constructor(message: string) {
+            super(message);
+            this.name = 'ForbiddenError';
+        }
+    },
+}));
+
 vi.mock('@/lib/ai/AIRouter', () => ({
     getPlanTypeFromSubscription: ({ plan }: { plan: string }) => {
         if (plan === 'enterprise') return 'enterprise';
@@ -54,6 +67,9 @@ vi.mock('next/server', async () => {
 });
 
 import { GET, POST, PATCH } from '@/app/api/shop/route';
+import { ForbiddenError } from '@/lib/auth/membership';
+
+const ownerAccess = { shop: { id: 'shop-1', user_id: 'user-123' }, role: 'owner' as const, userId: 'user-123' };
 
 // Helper to create NextRequest
 function createRequest(method: string, body?: unknown, headers?: Record<string, string>) {
@@ -188,17 +204,17 @@ describe('Shop API', () => {
     });
 
     describe('PATCH /api/shop', () => {
-        it('returns 401 when not authenticated', async () => {
-            mockGetClerkUser.mockResolvedValue(null);
+        it('returns 403 when caller lacks settings:write permission', async () => {
+            mockRequirePermission.mockRejectedValue(new ForbiddenError('Эрх хүрэлцэхгүй'));
 
             const request = createRequest('PATCH', { name: 'Updated' });
             const response = await PATCH(request);
 
-            expect(response.status).toBe(401);
+            expect(response.status).toBe(403);
         });
 
         it('returns 404 when shop not found', async () => {
-            mockGetClerkUser.mockResolvedValue('user-123');
+            mockRequirePermission.mockResolvedValue(ownerAccess);
             const chain = createMockChain(null);
             mockSupabaseAdmin.mockReturnValue({ from: () => chain });
 
@@ -211,8 +227,8 @@ describe('Shop API', () => {
         });
 
         it('returns 400 when no valid fields provided', async () => {
-            mockGetClerkUser.mockResolvedValue('user-123');
-            const shop = { id: 'shop-1' };
+            mockRequirePermission.mockResolvedValue(ownerAccess);
+            const shop = { id: 'shop-1', user_id: 'user-123' };
             const chain = createMockChain(shop);
             mockSupabaseAdmin.mockReturnValue({ from: () => chain });
 
@@ -225,8 +241,8 @@ describe('Shop API', () => {
         });
 
         it('sanitizes input fields (SEC-5)', async () => {
-            mockGetClerkUser.mockResolvedValue('user-123');
-            const shop = { id: 'shop-1' };
+            mockRequirePermission.mockResolvedValue(ownerAccess);
+            const shop = { id: 'shop-1', user_id: 'user-123' };
             const updatedShop = { id: 'shop-1', name: 'Updated' };
 
             const selectChain = createMockChain(shop);

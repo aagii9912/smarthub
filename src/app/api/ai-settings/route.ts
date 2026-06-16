@@ -5,8 +5,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
+import { requirePermission, ForbiddenError } from '@/lib/auth/membership';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+
+function forbiddenResponse(error: unknown): NextResponse | null {
+    if (error instanceof ForbiddenError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return null;
+}
 
 // GET - Fetch all AI settings (FAQs, Quick Replies, Slogans, Stats)
 export async function GET(request: NextRequest) {
@@ -150,11 +158,8 @@ export async function GET(request: NextRequest) {
 // POST - Create new FAQ, Quick Reply, or Slogan
 export async function POST(request: NextRequest) {
     try {
-        const shop = await getAuthUserShop();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // RBAC: AI тохиргоо засах эрх (owner / admin).
+        const { shop } = await requirePermission('ai:write');
 
         const body = await request.json();
         const { type, ...data } = body;
@@ -212,6 +217,8 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: created });
     } catch (error: unknown) {
+        const forbidden = forbiddenResponse(error);
+        if (forbidden) return forbidden;
         logger.error('AI Settings POST error:', { error: error });
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
@@ -220,11 +227,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Update FAQ, Quick Reply, or Slogan
 export async function PATCH(request: NextRequest) {
     try {
-        const shop = await getAuthUserShop();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { shop } = await requirePermission('ai:write');
 
         const body = await request.json();
         const { type, id, ...data } = body;
@@ -266,6 +269,8 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: updated });
     } catch (error: unknown) {
+        const forbidden = forbiddenResponse(error);
+        if (forbidden) return forbidden;
         logger.error('AI Settings PATCH error:', { error: error });
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
@@ -274,11 +279,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Remove FAQ, Quick Reply, or Slogan
 export async function DELETE(request: NextRequest) {
     try {
-        const shop = await getAuthUserShop();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { shop } = await requirePermission('ai:write');
 
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type');
@@ -315,6 +316,8 @@ export async function DELETE(request: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (error: unknown) {
+        const forbidden = forbiddenResponse(error);
+        if (forbidden) return forbidden;
         logger.error('AI Settings DELETE error:', { error: error });
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }

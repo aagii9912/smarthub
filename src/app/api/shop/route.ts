@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, supabaseAdmin } from '@/lib/auth/auth';
+import { requirePermission, ForbiddenError } from '@/lib/auth/membership';
 import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
@@ -186,25 +187,18 @@ export async function POST(request: NextRequest) {
 // PATCH - Update shop
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = await getAuthUser();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // RBAC: дэлгүүрийн тохиргоо засах эрх (owner / admin). Staff хориглоно.
+    const { shop: accessShop } = await requirePermission('settings:write');
 
     const body = await request.json();
-    const shopId = request.headers.get('x-shop-id');
     const supabase = supabaseAdmin();
 
-    // Get user's shop (include QPay status + register_number for auto-registration)
-    let query = supabase.from('shops').select('id, name, phone, register_number, qpay_merchant_id, qpay_status').eq('user_id', userId);
-    if (shopId) {
-      query = query.eq('id', shopId);
-    } else {
-      query = query.order('created_at', { ascending: false }).limit(1);
-    }
-
-    const { data: shop } = await query.maybeSingle();
+    // Get the resolved shop (include QPay status + register_number for auto-registration)
+    const { data: shop } = await supabase
+      .from('shops')
+      .select('id, name, phone, register_number, qpay_merchant_id, qpay_status, user_id')
+      .eq('id', accessShop.id)
+      .maybeSingle();
 
     if (!shop) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
@@ -431,7 +425,7 @@ export async function PATCH(request: NextRequest) {
           const { data: existingShopWithMerchant } = await supabase
             .from('shops')
             .select('qpay_merchant_id')
-            .eq('user_id', userId)
+            .eq('user_id', shop.user_id)
             .eq('register_number', registerNumber)
             .not('qpay_merchant_id', 'is', null)
             .neq('id', shop.id)
@@ -464,7 +458,7 @@ export async function PATCH(request: NextRequest) {
           // Get user email from Supabase auth
           let userEmail = '';
           try {
-            const { data: { user } } = await supabase.auth.admin.getUserById(userId);
+            const { data: { user } } = await supabase.auth.admin.getUserById(shop.user_id);
             userEmail = user?.email || '';
           } catch { /* non-critical */ }
 
@@ -526,6 +520,9 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ shop: updatedShop });
   } catch (error: unknown) {
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const errMsg = error instanceof Error ? error.message : (typeof error === 'object' ? JSON.stringify(error) : String(error));
     logger.error('Update shop error:', { error: errMsg });
     return NextResponse.json({ error: errMsg || 'Unknown error' }, { status: 500 });

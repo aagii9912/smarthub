@@ -4,7 +4,8 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { toast } from 'sonner';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import type { User } from '@supabase/supabase-js';
-import type { Shop } from '@/types/database';
+import type { Shop, ShopRole, Permission } from '@/types/database';
+import { roleCan } from '@/lib/auth/permissions';
 import { logger } from '@/lib/utils/logger';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -16,6 +17,10 @@ interface AuthContextType {
   user: { id: string; email: string; fullName: string | null } | null;
   shop: Shop | null;
   shops: Shop[];
+  /** Идэвхтэй дэлгүүр дэх хэрэглэгчийн эрх (owner / admin / staff). */
+  role: ShopRole | null;
+  /** Идэвхтэй дэлгүүрт тухайн зөвшөөрөл байгаа эсэх (UI gating). */
+  can: (perm: Permission) => boolean;
   loading: boolean;
   isSignedIn: boolean;
   refreshShop: () => Promise<void>;
@@ -27,6 +32,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   shop: null,
   shops: [],
+  role: null,
+  can: () => false,
   loading: true,
   isSignedIn: false,
   refreshShop: async () => { },
@@ -175,11 +182,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [isLoaded, isSignedIn, fetchShops, initializeActiveShop]);
 
+  const role: ShopRole | null = shop?.role ?? null;
+  const can = useCallback(
+    (perm: Permission) => (role ? roleCan(role, perm) : false),
+    [role],
+  );
+
   return (
     <AuthContext.Provider value={{
       user,
       shop,
       shops,
+      role,
+      can,
       loading: !isLoaded || loading,
       isSignedIn: isSignedIn || false,
       refreshShop,

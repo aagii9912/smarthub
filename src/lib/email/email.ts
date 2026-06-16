@@ -435,3 +435,71 @@ export async function sendTokenUsageReport(params: {
         html,
     });
 }
+
+/**
+ * Team invite email — дэлгүүрийн эзэн/админ багийн гишүүн урихад илгээнэ.
+ */
+export async function sendTeamInviteEmail(params: {
+    to: string;
+    shopName: string;
+    inviterName: string;
+    role: 'admin' | 'staff';
+    inviteUrl: string;
+}): Promise<boolean> {
+    const { to, shopName, inviterName, role, inviteUrl } = params;
+
+    const roleLabels: Record<string, string> = {
+        admin: 'Админ',
+        staff: 'Ажилтан',
+    };
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.55; color: #1f2937; background: #f3f4f6; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 24px; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 28px 24px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .body { padding: 28px 24px; }
+        .role-badge { display: inline-block; background: #eef2ff; color: #4f46e5; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+        .cta { display: inline-block; background: #4f46e5; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; margin: 20px 0; }
+        .muted { color: #6b7280; font-size: 13px; }
+        .footer { padding: 18px 24px; font-size: 11px; color: #9ca3af; text-align: center; border-top: 1px solid #f3f4f6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>🎉 Та <strong>${shopName}</strong>-д урилаа</h1>
+            </div>
+            <div class="body">
+                <p>Сайн байна уу,</p>
+                <p><strong>${inviterName}</strong> таныг <strong>${shopName}</strong> дэлгүүрийн багт
+                <span class="role-badge">${roleLabels[role] || role}</span> эрхээр урьж байна.</p>
+                <p>Доорх товчийг дарж урилгыг хүлээн авч, дэлгүүрийн dashboard руу нэвтэрнэ үү.</p>
+                <p style="text-align:center;">
+                    <a href="${inviteUrl}" class="cta">Урилгыг хүлээн авах →</a>
+                </p>
+                <p class="muted">Энэ урилга 7 хоногийн дотор хүчинтэй. Хэрэв та энэ урилгыг хүлээгээгүй бол
+                энэ имэйлийг үл хэрэгсэнэ үү.</p>
+            </div>
+            <div class="footer">
+                Энэ имэйл нь Syncly-ээс илгээгдсэн
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    return sendEmail({
+        to,
+        subject: `${shopName} — Та багт урилаа`,
+        html,
+    });
+}
