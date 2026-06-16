@@ -55,15 +55,16 @@ export async function POST(
             .eq('id', userId)
             .maybeSingle();
 
-        await sendTeamInviteEmail({
+        const inviteUrl = `${APP_URL}/invite/${token}`;
+        const emailSent = await sendTeamInviteEmail({
             to: member.email,
             shopName: shop.name,
             inviterName: ownerProfile?.full_name || shop.owner_name || 'Дэлгүүрийн эзэн',
             role: member.role as 'admin' | 'staff',
-            inviteUrl: `${APP_URL}/invite/${token}`,
+            inviteUrl,
         });
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, inviteUrl, emailSent });
     } catch (error) {
         return handleError(error);
     }

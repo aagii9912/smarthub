@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Users, UserPlus, Loader2, Trash2, Mail, Crown } from 'lucide-react';
+import { Users, UserPlus, Loader2, Trash2, Mail, Crown, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,16 @@ interface TeamMember {
     role: ShopRole;
     status: 'pending' | 'active' | 'revoked';
     is_owner: boolean;
+    invite_url?: string | null;
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function shopHeaders(json = false): Record<string, string> {
@@ -74,7 +84,17 @@ export function TeamMembersCard({ currentRole }: { currentRole: ShopRole }) {
             if (!res.ok) {
                 toast.error(data.error || 'Урих үед алдаа гарлаа');
             } else {
-                toast.success('Урилга илгээгдлээ');
+                // Имэйл ажиллахгүй (Resend тохируулаагүй) бол линкийг хуулж,
+                // эзэн гараар хуваалцана.
+                if (data.inviteUrl) await copyToClipboard(data.inviteUrl);
+                if (data.emailSent) {
+                    toast.success('Урилга имэйлээр илгээгдлээ');
+                } else {
+                    toast.success('Урилгын линк хууллаа — урьсан хүнд илгээнэ үү', {
+                        description: data.inviteUrl,
+                        duration: 10000,
+                    });
+                }
                 setInviteEmail('');
                 setInviteRole('staff');
                 await load();
@@ -136,13 +156,32 @@ export function TeamMembersCard({ currentRole }: { currentRole: ShopRole }) {
                 headers: shopHeaders(),
             });
             const data = await res.json();
-            if (!res.ok) toast.error(data.error || 'Дахин илгээхэд алдаа гарлаа');
-            else toast.success('Урилга дахин илгээгдлээ');
+            if (!res.ok) {
+                toast.error(data.error || 'Дахин илгээхэд алдаа гарлаа');
+            } else {
+                if (data.inviteUrl) await copyToClipboard(data.inviteUrl);
+                if (data.emailSent) {
+                    toast.success('Урилга дахин илгээгдлээ');
+                } else {
+                    toast.success('Шинэ урилгын линк хууллаа', {
+                        description: data.inviteUrl,
+                        duration: 10000,
+                    });
+                }
+                await load();
+            }
         } catch {
             toast.error('Дахин илгээхэд алдаа гарлаа');
         } finally {
             setBusyId(null);
         }
+    };
+
+    const handleCopyLink = async (m: TeamMember) => {
+        if (!m.invite_url) return;
+        const ok = await copyToClipboard(m.invite_url);
+        if (ok) toast.success('Урилгын линк хууллаа');
+        else toast.error('Линк хуулж чадсангүй');
     };
 
     const isOwnerViewer = currentRole === 'owner';
@@ -224,6 +263,17 @@ export function TeamMembersCard({ currentRole }: { currentRole: ShopRole }) {
                                         <option value="staff">Ажилтан</option>
                                         {isOwnerViewer && <option value="admin">Админ</option>}
                                     </select>
+                                    {m.status === 'pending' && m.invite_url && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCopyLink(m)}
+                                            disabled={busyId === m.id}
+                                            title="Урилгын линк хуулах"
+                                            className="p-1.5 rounded-md text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+                                        >
+                                            <Link2 className="w-4 h-4" strokeWidth={1.5} />
+                                        </button>
+                                    )}
                                     {m.status === 'pending' && (
                                         <button
                                             type="button"

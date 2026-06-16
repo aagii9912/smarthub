@@ -49,7 +49,7 @@ export async function GET() {
 
         const { data: members, error } = await supabase
             .from('shop_members')
-            .select('id, user_id, email, role, status, invited_at, accepted_at, expires_at')
+            .select('id, user_id, email, role, status, invited_at, accepted_at, expires_at, invite_token')
             .eq('shop_id', shop.id)
             .neq('status', 'revoked')
             .order('invited_at', { ascending: true });
@@ -66,11 +66,17 @@ export async function GET() {
             for (const p of profiles || []) namesById.set(p.id, p.full_name ?? null);
         }
 
-        const memberRows = (members || []).map((m) => ({
-            ...m,
-            name: m.user_id ? namesById.get(m.user_id) ?? null : null,
-            is_owner: false,
-        }));
+        const memberRows = (members || []).map((m) => {
+            const { invite_token, ...rest } = m;
+            return {
+                ...rest,
+                name: m.user_id ? namesById.get(m.user_id) ?? null : null,
+                is_owner: false,
+                // Имэйл ажиллахгүй үед эзэн линкийг гараар хуваалцаж болохын тулд
+                // хүлээгдэж буй гишүүний урилгын линкийг буцаана.
+                invite_url: invite_token ? `${APP_URL}/invite/${invite_token}` : null,
+            };
+        });
 
         return NextResponse.json({
             members: ownerRow ? [ownerRow, ...memberRows] : memberRows,
@@ -138,9 +144,9 @@ export async function POST(request: Request) {
             .single();
         if (error) throw error;
 
-        // Урилгын имэйл (Resend тохируулаагүй бол чимээгүй алгасна).
+        // Урилгын имэйл (Resend тохируулаагүй бол false буцаана).
         const inviteUrl = `${APP_URL}/invite/${token}`;
-        await sendTeamInviteEmail({
+        const emailSent = await sendTeamInviteEmail({
             to: email,
             shopName: shop.name,
             inviterName: ownerProfile?.full_name || shop.owner_name || 'Дэлгүүрийн эзэн',
@@ -148,7 +154,9 @@ export async function POST(request: Request) {
             inviteUrl,
         });
 
-        return NextResponse.json({ member });
+        // inviteUrl-ийг үргэлж буцаана — имэйл ажиллахгүй үед эзэн линкийг
+        // гараар хуваалцаж болно.
+        return NextResponse.json({ member, inviteUrl, emailSent });
     } catch (error) {
         return handleError(error);
     }
