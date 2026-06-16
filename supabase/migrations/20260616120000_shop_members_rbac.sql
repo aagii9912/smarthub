@@ -67,6 +67,8 @@ CREATE TRIGGER shop_members_updated_at
 
 -- ── Helper functions ────────────────────────────────────────────────────
 -- Хэрэглэгчийн нэвтрэх боломжтой бүх дэлгүүрийн id (эзэн + active гишүүн).
+-- ⚠️ shops.user_id нь TEXT төрөлтэй тул auth.uid() (uuid)-ийг ::text болгож харьцуулна.
+-- shop_members.user_id нь UUID тул auth.uid()-тэй шууд харьцуулна.
 CREATE OR REPLACE FUNCTION user_accessible_shop_ids()
 RETURNS SETOF UUID
 LANGUAGE sql
@@ -74,7 +76,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-    SELECT id FROM shops WHERE user_id = auth.uid()
+    SELECT id FROM shops WHERE user_id = auth.uid()::text
     UNION
     SELECT shop_id FROM shop_members
       WHERE user_id = auth.uid() AND status = 'active';
@@ -91,7 +93,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-    SELECT id FROM shops WHERE user_id = auth.uid()
+    SELECT id FROM shops WHERE user_id = auth.uid()::text
     UNION
     SELECT shop_id FROM shop_members
       WHERE user_id = auth.uid() AND status = 'active'
@@ -102,12 +104,13 @@ $$;
 ALTER TABLE shop_members ENABLE ROW LEVEL SECURITY;
 
 -- SELECT: өөрийн гишүүнчлэлийн мөр ЭСВЭЛ эзэмшиж буй дэлгүүрийн гишүүд.
+-- shops.user_id нь TEXT тул auth.uid()::text-ээр харьцуулна.
 DROP POLICY IF EXISTS "shop_members_select" ON shop_members;
 CREATE POLICY "shop_members_select" ON shop_members
     FOR SELECT
     USING (
         user_id = auth.uid()
-        OR shop_id IN (SELECT id FROM shops WHERE user_id = auth.uid())
+        OR shop_id IN (SELECT id FROM shops WHERE user_id = auth.uid()::text)
     );
 
 -- INSERT/UPDATE/DELETE: зөвхөн service-role-оор (API маршрут) дамжина —
