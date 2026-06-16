@@ -19,6 +19,16 @@ export default defineConfig({
                 'src/test/',
                 '**/*.d.ts',
             ],
+            // Regression floor: set just below the current covered-file numbers
+            // (≈53% statements / 54% lines as of this commit). The goal is to
+            // block backsliding, not to be brittle — ratchet these upward as
+            // coverage of middleware, webhooks, and services improves.
+            thresholds: {
+                statements: 50,
+                branches: 45,
+                functions: 48,
+                lines: 50,
+            },
         },
     },
     resolve: {
