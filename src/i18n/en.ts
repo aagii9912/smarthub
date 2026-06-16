@@ -509,6 +509,9 @@ export const en: Translations = {
     weekdaysShort: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
     // Hybrid — secondary capability blocks
     moreInsights: 'More insights',
+    // Reports — archetype tab labels
+    reportTabBooking: 'Appointments',
+    reportTabLead: 'Leads',
   },
 
   // ─── Orders Page ───

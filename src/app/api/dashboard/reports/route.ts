@@ -3,12 +3,58 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
 import { logger } from '@/lib/utils/logger';
+import { resolveArchetype } from '@/lib/dashboard/archetypes';
 import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
 
 interface ReportProduct {
     id: string;
     name: string;
     images?: string[] | null;
+}
+
+interface DailyPoint {
+    date: string;
+    count: number;
+    label: string;
+}
+
+interface AppointmentsReport {
+    total: number;
+    completed: number;
+    noShow: number;
+    cancelled: number;
+    upcoming: number;
+    noShowRate: number;
+    completionRate: number;
+    daily: DailyPoint[];
+    byStatus: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
+}
+
+interface LeadsReport {
+    newLeads: number;
+    qualified: number;
+    converted: number;
+    conversionRate: number;
+    bySource: { messenger: number; instagram: number; other: number };
+    daily: DailyPoint[];
+}
+
+/** Build a zero-filled daily map from periodStart→today, then tally rows by date. */
+function buildDaily(periodStart: Date, rows: Array<{ ts: string }>): DailyPoint[] {
+    const map = new Map<string, number>();
+    const cur = new Date(periodStart);
+    const today = new Date();
+    while (cur <= today) {
+        map.set(cur.toISOString().split('T')[0], 0);
+        cur.setDate(cur.getDate() + 1);
+    }
+    rows.forEach((r) => {
+        const key = new Date(r.ts).toISOString().split('T')[0];
+        if (map.has(key)) map.set(key, (map.get(key) || 0) + 1);
+    });
+    return Array.from(map.entries())
+        .map(([date, count]) => ({ date, count, label: new Date(date).toLocaleDateString('mn-MN', { month: 'short', day: 'numeric' }) }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function GET(request: NextRequest) {
@@ -46,7 +92,8 @@ export async function GET(request: NextRequest) {
             orderItemsResponse,
             totalCustomersResponse,
             newCustomersResponse,
-            vipCustomersResponse
+            vipCustomersResponse,
+            shopMetaResponse
         ] = await Promise.all([
             // 1. Current Period Orders (for Revenue & Status)
             supabase
@@ -97,7 +144,14 @@ export async function GET(request: NextRequest) {
                 .from('customers')
                 .select('*', { count: 'exact', head: true })
                 .eq('shop_id', shopId)
-                .eq('is_vip', true)
+                .eq('is_vip', true),
+
+            // 7. Shop capabilities (archetype-aware report blocks)
+            supabase
+                .from('shops')
+                .select('ai_agent_capabilities')
+                .eq('id', shopId)
+                .single()
         ]);
 
         const allPeriodOrders = allPeriodOrdersResponse.data || [];
@@ -222,9 +276,71 @@ export async function GET(request: NextRequest) {
             }
         });
 
+        // ============================================
+        // ARCHETYPE-AWARE BLOCKS (capability-driven, additive)
+        // ============================================
+        const caps = (shopMetaResponse.data?.ai_agent_capabilities as string[] | null) ?? [];
+        const archetype = resolveArchetype(caps);
+
+        let appointmentsReport: AppointmentsReport | undefined;
+        let leadsReport: LeadsReport | undefined;
+
+        if (caps.includes('booking')) {
+            const { data: appts } = await supabase
+                .from('appointments')
+                .select('scheduled_at, status')
+                .eq('shop_id', shopId)
+                .gte('scheduled_at', periodStart.toISOString());
+            const rows = appts || [];
+            const byStatus = { pending: 0, confirmed: 0, completed: 0, cancelled: 0, no_show: 0 };
+            rows.forEach((a) => {
+                if (a.status && a.status in byStatus) byStatus[a.status as keyof typeof byStatus] += 1;
+            });
+            const terminal = byStatus.completed + byStatus.no_show;
+            appointmentsReport = {
+                total: rows.length,
+                completed: byStatus.completed,
+                noShow: byStatus.no_show,
+                cancelled: byStatus.cancelled,
+                upcoming: byStatus.pending + byStatus.confirmed,
+                noShowRate: terminal > 0 ? Math.round((byStatus.no_show / terminal) * 100) : 0,
+                completionRate: rows.length > 0 ? Math.round((byStatus.completed / rows.length) * 100) : 0,
+                daily: buildDaily(periodStart, rows.map((a) => ({ ts: a.scheduled_at }))),
+                byStatus,
+            };
+        }
+
+        if (caps.includes('lead_capture')) {
+            const { data: leadRows } = await supabase
+                .from('customers')
+                .select('created_at, platform, phone, total_orders')
+                .eq('shop_id', shopId)
+                .gte('created_at', periodStart.toISOString())
+                .limit(5000);
+            const rows = leadRows || [];
+            const bySource = { messenger: 0, instagram: 0, other: 0 };
+            rows.forEach((l) => {
+                if (l.platform === 'messenger') bySource.messenger += 1;
+                else if (l.platform === 'instagram') bySource.instagram += 1;
+                else bySource.other += 1;
+            });
+            const converted = rows.filter((l) => (l.total_orders ?? 0) > 0).length;
+            leadsReport = {
+                newLeads: rows.length,
+                qualified: rows.filter((l) => !!l.phone).length,
+                converted,
+                conversionRate: rows.length > 0 ? Math.round((converted / rows.length) * 100) : 0,
+                bySource,
+                daily: buildDaily(periodStart, rows.map((l) => ({ ts: l.created_at }))),
+            };
+        }
+
         return NextResponse.json({
             period,
             periodStart: periodStart.toISOString(),
+            archetype,
+            appointments: appointmentsReport,
+            leads: leadsReport,
             revenue: {
                 total: totalRevenue,
                 orderCount,

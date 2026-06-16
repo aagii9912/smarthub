@@ -512,6 +512,9 @@ export const mn = {
     weekdaysShort: ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Бя'],
     // Hybrid — бусад capability-ийн нэмэлт блокууд
     moreInsights: 'Бусад үзүүлэлт',
+    // Reports — архетип tab нэр
+    reportTabBooking: 'Цаг захиалга',
+    reportTabLead: 'Lead',
   },
 
   // ─── Orders Page ───

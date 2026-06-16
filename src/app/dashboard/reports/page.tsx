@@ -17,6 +17,9 @@ import { TokenBreakdownCard } from '@/components/dashboard/TokenBreakdownCard';
 import { FeatureGate } from '@/components/FeatureGate';
 import { useReports } from '@/hooks/useReports';
 import { useAIStats } from '@/hooks/useAIStats';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { resolveArchetype } from '@/lib/dashboard/archetypes';
+import { BookingReport, LeadReport } from '@/components/dashboard/OperationsReport';
 import { cn } from '@/lib/utils';
 import {
     RefreshCw,
@@ -33,10 +36,11 @@ import {
     Users,
     Target,
     BarChart3,
+    CalendarClock,
 } from 'lucide-react';
 
 type Period = 'today' | 'week' | 'month' | 'year';
-type ReportTab = 'sales' | 'ai';
+type ReportTab = 'sales' | 'ai' | 'ops';
 
 type IntentTone = 'indigo' | 'violet' | 'cyan' | 'emerald' | 'rose' | 'amber' | 'gold' | 'neutral';
 
@@ -183,35 +187,40 @@ function ReportsPageContent() {
     const router = useRouter();
     const pathname = usePathname();
     const { t } = useLanguage();
+    const agent = useActiveShopAgent();
 
-    // Default tab is now 'ai' — sales is still reachable via ?tab=sales or
-    // the tab switcher.
-    const initialTab: ReportTab = searchParams?.get('tab') === 'sales' ? 'sales' : 'ai';
-    const [activeTab, setActiveTab] = useState<ReportTab>(initialTab);
+    // Booking/Lead shops get an extra archetype-specific "ops" report tab.
+    const archetype = resolveArchetype(agent.capabilities);
+    const opsArchetype: 'booking' | 'lead' | null =
+        !agent.loading && (archetype === 'booking' || archetype === 'lead') ? archetype : null;
+
+    const tabParam = searchParams?.get('tab') ?? null;
+    // Explicit ?tab wins; otherwise default to the ops tab for booking/lead
+    // shops, else the AI report.
+    const resolveTab = (p: string | null, ops: 'booking' | 'lead' | null): ReportTab => {
+        if (p === 'sales') return 'sales';
+        if (p === 'ai') return 'ai';
+        if (p === 'ops' && ops) return 'ops';
+        return ops ? 'ops' : 'ai';
+    };
+
+    const [activeTab, setActiveTab] = useState<ReportTab>(() => resolveTab(tabParam, null));
     const [period, setPeriod] = useState<Period>('month');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [exporting, setExporting] = useState<string | null>(null);
     const [aiRefreshing, setAiRefreshing] = useState(false);
 
-    // Sync tab with URL for deep links — default is now 'ai'
+    // Keep the active tab in sync with the URL + resolved archetype.
     useEffect(() => {
-        const tabParam = searchParams?.get('tab');
-        const normalized: ReportTab = tabParam === 'sales' ? 'sales' : 'ai';
-        if (normalized !== activeTab) {
-            setActiveTab(normalized);
-        }
-    }, [searchParams, activeTab]);
+        setActiveTab(resolveTab(tabParam, opsArchetype));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tabParam, opsArchetype]);
 
     const changeTab = (next: ReportTab) => {
         setActiveTab(next);
         const params = new URLSearchParams(searchParams?.toString() || '');
-        if (next === 'sales') {
-            params.set('tab', 'sales');
-        } else {
-            params.delete('tab');
-        }
-        const query = params.toString();
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        params.set('tab', next);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
     // For AI tab, period is limited to today/week/month (hook supports these)
@@ -271,12 +280,20 @@ function ReportsPageContent() {
               ];
 
     const tabs: { id: ReportTab; label: string; icon: typeof BarChart3 }[] = [
+        ...(opsArchetype
+            ? [{
+                  id: 'ops' as ReportTab,
+                  label: opsArchetype === 'booking' ? t.dashboard.reportTabBooking : t.dashboard.reportTabLead,
+                  icon: opsArchetype === 'booking' ? CalendarClock : Target,
+              }]
+            : []),
         { id: 'ai', label: 'AI тайлан', icon: Sparkles },
         { id: 'sales', label: 'Борлуулалт', icon: BarChart3 },
     ];
 
-    const isLoadingCurrent = activeTab === 'sales' ? salesLoading : aiLoading;
-    const isRefreshing = activeTab === 'sales' ? salesRefetching : aiRefreshing;
+    // 'ops' тайлан нь useReports (sales) өгөгдлийг ашигладаг.
+    const isLoadingCurrent = activeTab === 'ai' ? aiLoading : salesLoading;
+    const isRefreshing = activeTab === 'ai' ? aiRefreshing : salesRefetching;
 
     const maxDaily = Math.max(...(aiData?.dailyMessages || []).map((d) => d.count), 1);
 
@@ -567,6 +584,14 @@ function ReportsPageContent() {
                         </div>
                     </FeatureGate>
                 </>
+            )}
+
+            {/* ─────────── Ops Tab (booking / lead) ─────────── */}
+            {!isLoadingCurrent && activeTab === 'ops' && opsArchetype === 'booking' && (
+                <BookingReport data={salesData?.appointments} />
+            )}
+            {!isLoadingCurrent && activeTab === 'ops' && opsArchetype === 'lead' && (
+                <LeadReport data={salesData?.leads} />
             )}
 
             {/* ─────────── AI Tab ─────────── */}
