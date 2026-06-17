@@ -367,6 +367,17 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                 previousHistory
             );
 
+            // CREDIT/SUBSCRIPTION LIMIT: AI credit дууссан (эсвэл багц
+            // идэвхгүй) бол харилцагч руу дотоод billing мессеж ИЛГЭЭХГҮЙ.
+            // Чимээгүй алгасна; эзэнд AIRouter-ээс push notification очно.
+            if (response.limitReached) {
+                logger.warn('AI credit/subscription limit reached — staying silent to customer', {
+                    shopId: shopData.id,
+                    usage: response.usage,
+                });
+                return;
+            }
+
             aiResponse = response.text;
 
             // Process product images if AI requested

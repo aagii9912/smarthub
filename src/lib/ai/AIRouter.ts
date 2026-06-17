@@ -389,6 +389,34 @@ export async function routeToAI(
             usagePercent: tokenLimitCheck.usagePercent,
         });
 
+        // Notify the shop OWNER that their AI credit is exhausted so they can
+        // top up / upgrade. The end customer must NEVER see this billing text —
+        // the webhook & cron customer channels stay silent whenever
+        // `limitReached` is set (see those guards). The text below is only
+        // surfaced to the owner via the dashboard AI preview endpoint.
+        if (context.shopId) {
+            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const exhaustKey = `credit_exhausted_${context.shopId}_${currentMonth}`;
+            try {
+                const redis = getRedisClient();
+                const alreadyNotified = await redis.get(exhaustKey);
+                if (!alreadyNotified) {
+                    const enabled = await isNotificationEnabled(context.shopId, 'plan_limit');
+                    if (enabled) {
+                        await sendPushNotification(context.shopId, {
+                            title: '🛑 AI credit дууссан',
+                            body: `Энэ сарын AI credit (${creditsUsed.toLocaleString()}/${creditsLimit.toLocaleString()}) дууссан тул AI хариулахаа зогсоосон. План шинэчилж үргэлжлүүлнэ үү.`,
+                            url: '/dashboard/subscription',
+                            tag: `credit-exhausted-${context.shopId}-${currentMonth}`,
+                        });
+                    }
+                    await redis.set(exhaustKey, '1', { ex: 60 * 60 * 24 * 31 }); // 31 days
+                }
+            } catch (err) {
+                logger.error('Failed to send credit-exhausted owner notification', { error: err });
+            }
+        }
+
         return {
             text: `Уучлаарай, та энэ сарын AI credit лимитдээ хүрсэн байна (${creditsUsed.toLocaleString()}/${creditsLimit.toLocaleString()} credits). Илүү их хэрэглэхийг хүсвэл план-аа шинэчлэнэ үү! 📈`,
             limitReached: true,

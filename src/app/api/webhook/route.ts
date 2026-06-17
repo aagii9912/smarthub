@@ -575,6 +575,19 @@ export async function POST(request: NextRequest) {
                             previousHistory
                         );
 
+                        // CREDIT/SUBSCRIPTION LIMIT: AI credit дууссан (эсвэл
+                        // багц идэвхгүй) бол харилцагч руу дотоод billing мессеж
+                        // ИЛГЭЭХГҮЙ. `is_ai_active=false` / admin takeover-тэй
+                        // адил чимээгүй алгасна. Эзэнд push notification-оор
+                        // (AIRouter дотор) мэдэгдэнэ.
+                        if (response.limitReached) {
+                            logger.warn(`[${shop.name}] AI credit/subscription limit reached — staying silent to customer`, {
+                                shopId: shop.id,
+                                usage: response.usage,
+                            });
+                            continue;
+                        }
+
                         // Guard: if AI returned empty, use fallback instead
                         let aiText = response.text;
                         if (!aiText?.trim()) {
@@ -933,6 +946,17 @@ export async function POST(request: NextRequest) {
                                 },
                                 previousHistory
                             );
+
+                            // CREDIT/SUBSCRIPTION LIMIT: дотоод billing мессежийг
+                            // харилцагч руу илгээхгүй чимээгүй алгасна (эзэнд
+                            // AIRouter-ээс push notification очно).
+                            if (response.limitReached) {
+                                logger.warn(`[${shop.name}] AI credit/subscription limit reached on postback — staying silent to customer`, {
+                                    shopId: shop.id,
+                                    usage: response.usage,
+                                });
+                                continue;
+                            }
 
                             let aiText = response.text;
                             if (!aiText?.trim()) {
