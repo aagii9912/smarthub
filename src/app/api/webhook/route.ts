@@ -551,6 +551,8 @@ export async function POST(request: NextRequest) {
                                     plan: billing?.plan || shop.subscription_plan || undefined,
                                     status: billing?.status || shop.subscription_status || undefined,
                                     trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
+                                    // DB-authoritative limit so AI enforcement matches the dashboard.
+                                    tokensLimit: billing?.tokensLimit ?? null,
                                 },
                                 messageCount: customer.message_count || 0,
                                 tokenUsageTotal: billing?.tokensUsed ?? (shop.token_usage_total || 0),
@@ -940,6 +942,8 @@ export async function POST(request: NextRequest) {
                                         plan: billing?.plan || shop.subscription_plan || undefined,
                                         status: billing?.status || shop.subscription_status || undefined,
                                         trialEndsAt: billing?.trialEndsAt || shop.trial_ends_at || undefined,
+                                        // DB-authoritative limit so AI enforcement matches the dashboard.
+                                        tokensLimit: billing?.tokensLimit ?? null,
                                     },
                                     messageCount: customer.message_count || 0,
                                     tokenUsageTotal: billing?.tokensUsed ?? (shop.token_usage_total || 0),

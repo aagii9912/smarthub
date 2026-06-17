@@ -47,6 +47,21 @@ describe('AIRouter', () => {
             expect(getPlanTypeFromSubscription({ plan: 'chatbot', status: 'active' })).toBe('lite');
             expect(getPlanTypeFromSubscription({ plan: 'professional', status: 'active' })).toBe('pro');
         });
+
+        it('should keep the real plan tier for entitled non-active statuses (trial/past_due)', () => {
+            // A paying Pro shop still inside its trial window must NOT collapse to lite.
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'trial' })).toBe('pro');
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'trialing' })).toBe('pro');
+            expect(getPlanTypeFromSubscription({ plan: 'starter', status: 'trialing' })).toBe('starter');
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'past_due' })).toBe('pro');
+            expect(getPlanTypeFromSubscription({ plan: 'enterprise', status: 'pending' })).toBe('enterprise');
+        });
+
+        it('should fall back to lite for unentitled statuses', () => {
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'unpaid' })).toBe('lite');
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'expired_trial' })).toBe('lite');
+            expect(getPlanTypeFromSubscription({ plan: 'pro', status: 'inactive' })).toBe('lite');
+        });
     });
 
     describe('credit helpers', () => {
@@ -125,6 +140,22 @@ describe('AIRouter', () => {
             const result = checkTokenLimit('pro', halfUsed);
             expect(result.usagePercent).toBe(50);
             expect(result.allowed).toBe(true);
+        });
+
+        it('should prefer a valid DB limit override over the hardcoded plan config', () => {
+            // Pro shop whose DB plan limit is the authoritative source.
+            const dbLimit = 21_000_000;
+            const result = checkTokenLimit('pro', 10_000_000, dbLimit);
+            expect(result.limit).toBe(dbLimit);
+            expect(result.allowed).toBe(true);
+            expect(result.remaining).toBe(dbLimit - 10_000_000);
+        });
+
+        it('should ignore an invalid (null/zero/negative) override and use plan config', () => {
+            const cfg = PLAN_CONFIGS.pro.tokensPerMonth;
+            expect(checkTokenLimit('pro', 0, null).limit).toBe(cfg);
+            expect(checkTokenLimit('pro', 0, 0).limit).toBe(cfg);
+            expect(checkTokenLimit('pro', 0, -5).limit).toBe(cfg);
         });
 
         it('should correctly flag thresholds for warnings at 80% and 90%', () => {

@@ -360,6 +360,8 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                         // filtered by isAiAuthorized above.
                         status: billing?.status || shopData.subscription_status || 'unpaid',
                         trialEndsAt: billing?.trialEndsAt || shopData.trial_ends_at || undefined,
+                        // DB-authoritative limit so AI enforcement matches the dashboard.
+                        tokensLimit: billing?.tokensLimit ?? null,
                     },
                     messageCount: customer.message_count || 0,
                     tokenUsageTotal: billing?.tokensUsed ?? (shopData.token_usage_total || 0),

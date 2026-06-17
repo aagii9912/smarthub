@@ -34,6 +34,7 @@ import {
     checkTokenLimit,
     tokensToCredits,
     getCreditsPerMonth,
+    TOKENS_PER_CREDIT,
     AIModel,
 } from './config/plans';
 
@@ -58,6 +59,13 @@ export interface RouterChatContext extends ChatContext {
         plan?: string;
         status?: string;
         trialEndsAt?: string;
+        /**
+         * DB-authoritative token limit for this plan's current period (from
+         * `plans.limits.tokens_per_month` via the billing snapshot). When
+         * present it overrides the hardcoded PLAN_CONFIGS limit so enforcement
+         * matches the dashboard. Null/undefined → fall back to plan config.
+         */
+        tokensLimit?: number | null;
     };
     /** Per-customer message count — analytics only, not billing. */
     messageCount?: number;
@@ -241,6 +249,18 @@ export async function routeToAI(
     const planType = getPlanTypeFromSubscription(context.subscription);
     const planConfig = getPlanConfig(planType);
 
+    // Effective billing limit for THIS shop's current period. Prefer the
+    // DB-authoritative limit threaded from the billing snapshot
+    // (`plans.limits.tokens_per_month`) so the AI enforces exactly what the
+    // dashboard shows; fall back to the hardcoded plan config otherwise. This
+    // prevents "Pro plan but lower-tier credit" mismatches.
+    const subTokensLimit = context.subscription?.tokensLimit;
+    const effectiveTokenLimit =
+        typeof subTokensLimit === 'number' && subTokensLimit > 0
+            ? subTokensLimit
+            : planConfig.tokensPerMonth;
+    const effectiveCreditsLimit = Math.floor(effectiveTokenLimit / TOKENS_PER_CREDIT);
+
     // Defense-in-depth: webhook-н gate-аас гадуур AI Router-руу шууд орж ирвэл
     // (cron, internal call гэх мэт) төлбөргүй хэрэглэгчийг хааж байна.
     const subStatus = context.subscription?.status;
@@ -268,7 +288,7 @@ export async function routeToAI(
                 tokenUsagePercent: 0,
                 creditsUsed: 0,
                 creditsRemaining: 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
@@ -301,7 +321,7 @@ export async function routeToAI(
                 tokenUsagePercent: 0,
                 creditsUsed: 0,
                 creditsRemaining: 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
@@ -323,14 +343,14 @@ export async function routeToAI(
                 model: 'quick-reply',
                 messagesUsed: context.messageCount || 0,
                 tokensUsed: context.tokenUsageTotal || 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
 
     // Check token limit (primary billing)
     const currentTokenUsage = context.tokenUsageTotal || 0;
-    const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage);
+    const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage, effectiveTokenLimit);
 
     // Token Usage Warning Logic
     if (tokenLimitCheck.usagePercent >= 80 && context.shopId) {
@@ -376,7 +396,7 @@ export async function routeToAI(
 
     // Per-customer message count — analytics only, not enforced.
     const messageCount = context.messageCount || 0;
-    const creditsLimit = getCreditsPerMonth(planType);
+    const creditsLimit = effectiveCreditsLimit;
     const creditsUsed = tokensToCredits(currentTokenUsage);
 
     if (!tokenLimitCheck.allowed) {
