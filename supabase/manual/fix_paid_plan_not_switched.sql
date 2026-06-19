@@ -1,85 +1,60 @@
 -- =============================================================================
--- Төлбөр төлсөн боловч багц шилжээгүй захиалгыг ID-гаар шалгаж засах
--- Paid-but-not-switched subscription repair script
+-- Төлбөр төлсөн боловч багц шилжээгүй захиалгыг засах (нэрээр нь автоматаар)
+-- Paid-but-not-switched subscription repair — keyed by SHOP NAME (no UUID edit)
 -- =============================================================================
 --
 -- ХЭРХЭН АШИГЛАХ ВЭ (Supabase → SQL Editor):
---   1) STEP 0-д дэлгүүрийн нэрээ бичээд ажиллуулж shop_id-г ол (эсвэл аль
---      хэдийн мэдэж байгаа бол алгасаад доош shop_id-гаа тавь).
---   2) STEP 1 (диагностик)-ийг ажиллуулж, төлбөр төлчихөөд багц нь
---      шилжээгүй байгаа эсэхийг баталгаажуул.
---   3) STEP 2 (засвар)-ыг ажиллуул. Энэ нь:
---        - subscriptions  → төлсөн план руу active болгоно
---        - shops          → plan_id / subscription_plan / subscription_status
---        - user_profiles  → ижил мэдээллээр тэгшилнэ (features API үүнийг уншдаг)
---        - invoices/payments → paid болгож тэмдэглэнэ
---   4) STEP 3-аар үр дүнг дахин шалга.
---
--- ⚠️  Бүх STEP 2 нь нэг транзакцид (BEGIN/COMMIT) явагдана. Эхлээд ROLLBACK-аар
---     турших боломжтой: COMMIT-ийг ROLLBACK болгоод үр дүнг хараарай.
+--   • Доорх блокуудыг шууд copy/paste хийгээд ажиллуул.
+--   • Дэлгүүрийн нэрийг 'Домбо' гэж бичсэн тул ID гараар солих шаардлагагүй.
+--   • Хэрэв нэр давхцаж байвал доош тайлбарласан "тодорхой нэг дэлгүүр" хувилбарыг
+--     ашиглаж shop_id-г шууд өг.
 -- =============================================================================
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- STEP 0 — Дэлгүүрийг нэрээр нь олж shop_id авах ("Домбо")
+-- STEP 1 — ДИАГНОСТИК (copy → run)
+-- Төлбөр төлсөн эсэх vs одоогийн багцыг харьцуулна.
 -- ─────────────────────────────────────────────────────────────────────────
-SELECT id AS shop_id, user_id, name, plan_id, subscription_plan, subscription_status
-FROM shops
-WHERE name ILIKE '%Домбо%';
-
-
--- ─────────────────────────────────────────────────────────────────────────
--- STEP 1 — ДИАГНОСТИК: төлбөр төлсөн эсэх vs одоогийн багц
---   Доорх :shop_id-г STEP 0-оос гарсан UUID-аар солино уу.
---   (Supabase SQL Editor дээр шууд бичих бол '00000000-...' гэснийг солих.)
--- ─────────────────────────────────────────────────────────────────────────
-WITH params AS (
-    SELECT '00000000-0000-0000-0000-000000000000'::uuid AS shop_id
+WITH target AS (
+    SELECT id AS shop_id, user_id
+    FROM shops
+    WHERE name ILIKE '%Домбо%'
 )
 SELECT
-    s.id              AS shop_id,
-    s.name            AS shop_name,
-    s.user_id         AS shop_user_id,
-    s.subscription_plan      AS shop_current_plan,
+    s.name                   AS shop_name,
+    s.subscription_plan      AS shop_current_plan,    -- одоогийн багц
     s.subscription_status    AS shop_current_status,
-    p.id              AS payment_id,
-    p.status          AS payment_status,
-    p.amount,
-    p.subscription_plan_slug AS paid_plan_slug,   -- ← хэрэглэгчийн ТӨЛСӨН план
-    p.paid_at,
-    p.qpay_invoice_id,
-    sub.id            AS subscription_id,
-    sub_plan.slug     AS subscription_plan_slug,   -- ← одоогийн subscription дахь план
-    sub.status        AS subscription_status
-FROM shops s
-JOIN params pr ON pr.shop_id = s.id
+    p.status                 AS payment_status,
+    p.subscription_plan_slug AS paid_plan_slug,        -- ТӨЛСӨН план
+    p.amount, p.paid_at, p.qpay_invoice_id,
+    pl.slug                  AS subscription_plan_slug, -- subscription дахь план
+    sub.status               AS subscription_status
+FROM target t
+JOIN shops s ON s.id = t.shop_id
 LEFT JOIN payments p
-       ON p.shop_id = s.id
-      AND p.payment_type = 'subscription'
+       ON p.shop_id = t.shop_id AND p.payment_type = 'subscription'
 LEFT JOIN subscriptions sub
-       ON sub.user_id = s.user_id
+       ON sub.user_id = t.user_id
       AND sub.status IN ('active','trialing','pending','past_due')
-LEFT JOIN plans sub_plan ON sub_plan.id = sub.plan_id
+LEFT JOIN plans pl ON pl.id = sub.plan_id
 ORDER BY p.created_at DESC NULLS LAST;
--- Хэрэв payment_status='paid' ба paid_plan_slug нь shop_current_plan-аас
--- ӨӨР бол → багц шилжээгүй гэсэн үг. STEP 2-оор зас.
+-- payment_status='paid' атлаа paid_plan_slug ≠ shop_current_plan бол → STEP 2.
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- STEP 2 — ЗАСВАР
---   :shop_id болон сонгох төлсөн төлбөрийг тодорхойлно.
---   Default: тухайн дэлгүүрийн ХАМГИЙН СҮҮЛИЙН 'paid' subscription payment.
+-- STEP 2 — ЗАСВАР (copy → run). Бүгд нэг транзакцид.
+-- Туршихыг хүсвэл хамгийн доорх COMMIT-ийг ROLLBACK болго.
 -- ─────────────────────────────────────────────────────────────────────────
 BEGIN;
 
 WITH target AS (
-    -- 👇 Энд shop_id-гаа тавь
-    SELECT '00000000-0000-0000-0000-000000000000'::uuid AS shop_id
+    SELECT id AS shop_id, user_id
+    FROM shops
+    WHERE name ILIKE '%Домбо%'
+    LIMIT 1
 ),
 paid_payment AS (
-    -- Тухайн дэлгүүрийн хамгийн сүүлийн амжилттай subscription төлбөр.
-    -- Хэрэв тодорхой нэг төлбөр зөв бол доорх WHERE-д
-    --   AND p.id = 'PAYMENT_UUID'  гэж нэмж болно.
+    -- Тухайн дэлгүүрийн хамгийн сүүлийн амжилттай subscription төлбөр
     SELECT p.*
     FROM payments p
     JOIN target t ON t.shop_id = p.shop_id
@@ -92,22 +67,20 @@ paid_payment AS (
 resolved AS (
     SELECT
         t.shop_id,
-        s.user_id           AS user_id,
-        pl.id               AS plan_id,
-        pl.slug             AS plan_slug,
+        s.user_id,
+        pl.id   AS plan_id,
+        pl.slug AS plan_slug,
         COALESCE(pp.metadata->>'billing_cycle', 'monthly') AS billing_cycle,
-        pp.id               AS payment_id,
         pp.metadata->>'invoice_id' AS invoice_id
     FROM target t
-    JOIN shops s        ON s.id = t.shop_id
+    JOIN shops s         ON s.id = t.shop_id
     JOIN paid_payment pp ON pp.shop_id = t.shop_id
     JOIN plans pl        ON pl.slug = pp.subscription_plan_slug
 ),
--- (a) Одоо байгаа нээлттэй subscription-г шинэ план руу шилжүүлэх
 upd_existing AS (
     UPDATE subscriptions sub
-    SET plan_id   = r.plan_id,
-        status    = 'active',
+    SET plan_id = r.plan_id,
+        status  = 'active',
         billing_cycle = r.billing_cycle,
         current_period_start = NOW(),
         current_period_end   = NOW() + (CASE WHEN r.billing_cycle = 'yearly'
@@ -121,7 +94,6 @@ upd_existing AS (
       AND sub.status IN ('active','trialing','pending','past_due')
     RETURNING sub.id
 ),
--- (b) Хэрэв нээлттэй subscription байхгүй бол шинээр үүсгэх
 ins_new AS (
     INSERT INTO subscriptions
         (user_id, shop_id, plan_id, status, billing_cycle,
@@ -135,7 +107,6 @@ ins_new AS (
     WHERE NOT EXISTS (SELECT 1 FROM upd_existing)
     RETURNING id
 ),
--- (c) Тухайн дэлгүүрийн plan-г шинэчлэх (критик write)
 upd_shop AS (
     UPDATE shops s
     SET plan_id = r.plan_id,
@@ -146,7 +117,6 @@ upd_shop AS (
     WHERE s.id = r.shop_id
     RETURNING s.id
 ),
--- (d) Хэрэглэгчийн БҮХ дэлгүүрт планыг тэгшлэх (план нь per-user)
 upd_all_shops AS (
     UPDATE shops s
     SET plan_id = r.plan_id,
@@ -156,7 +126,6 @@ upd_all_shops AS (
     WHERE s.user_id = r.user_id
     RETURNING s.id
 ),
--- (e) user_profiles snapshot (features API үүнийг уншдаг)
 upd_profile AS (
     UPDATE user_profiles up
     SET plan_id = r.plan_id,
@@ -167,7 +136,6 @@ upd_profile AS (
     WHERE up.id = r.user_id
     RETURNING up.id
 ),
--- (f) Холбогдох invoice-г paid болгох
 upd_invoice AS (
     UPDATE invoices i
     SET status = 'paid', paid_at = COALESCE(i.paid_at, NOW())
@@ -185,20 +153,28 @@ SELECT
     (SELECT count(*) FROM upd_invoice)   AS invoices_marked_paid,
     (SELECT plan_slug FROM resolved)     AS switched_to_plan;
 
--- ⚠️ Эхлээд турших бол COMMIT-ийн оронд ROLLBACK ажиллуул.
-COMMIT;
+COMMIT;   -- туршихыг хүсвэл: ROLLBACK;
 
 
 -- ─────────────────────────────────────────────────────────────────────────
--- STEP 3 — Баталгаажуулалт (засварын дараа дахин ажиллуул)
+-- STEP 3 — БАТАЛГААЖУУЛАЛТ (copy → run)
 -- ─────────────────────────────────────────────────────────────────────────
-WITH params AS (
-    SELECT '00000000-0000-0000-0000-000000000000'::uuid AS shop_id
+WITH target AS (
+    SELECT id AS shop_id, user_id FROM shops WHERE name ILIKE '%Домбо%'
 )
-SELECT s.id AS shop_id, s.name, s.subscription_plan, s.subscription_status,
+SELECT s.name, s.subscription_plan, s.subscription_status,
        sub.status AS sub_status, pl.slug AS sub_plan
-FROM shops s
-JOIN params pr ON pr.shop_id = s.id
-LEFT JOIN subscriptions sub ON sub.user_id = s.user_id
+FROM target t
+JOIN shops s ON s.id = t.shop_id
+LEFT JOIN subscriptions sub ON sub.user_id = t.user_id
        AND sub.status IN ('active','trialing','pending','past_due')
 LEFT JOIN plans pl ON pl.id = sub.plan_id;
+
+
+-- =============================================================================
+-- ХУВИЛБАР: тодорхой нэг дэлгүүрийг shop_id-гаар (нэр давхцвал)
+--   Дээрх блок болгонд:
+--     WHERE name ILIKE '%Домбо%'
+--   гэснийг дараахаар сольж ажиллуул:
+--     WHERE id = 'ЭНД-SHOP-UUID-ТАВИНА'::uuid
+-- =============================================================================
