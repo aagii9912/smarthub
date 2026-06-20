@@ -261,6 +261,48 @@ async function handleSubscriptionPayment(
         return { ok: false, reason: 'user_id_required' };
     }
 
+    // ── Step 2.5: Ensure the user_profiles row exists ──
+    // subscriptions.user_id references user_profiles(id). If the handle_new_user
+    // trigger ever missed this user, the subscription upsert below fails the FK
+    // and a PAID customer is silently orphaned (billing stays 'unpaid'). Self-heal
+    // by backfilling a minimal profile from the auth record before activating.
+    const { data: existingProfile } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (!existingProfile) {
+        const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+        const { error: profileError } = await supabase
+            .from('user_profiles')
+            .upsert(
+                {
+                    id: userId,
+                    email: authUser?.user?.email ?? null,
+                    full_name:
+                        (authUser?.user?.user_metadata?.full_name as string | undefined) ??
+                        authUser?.user?.email ??
+                        null,
+                },
+                { onConflict: 'id' }
+            );
+
+        if (profileError) {
+            logger.error('Failed to backfill user_profiles during activation', {
+                user_id: userId,
+                shop_id: resolvedShopId,
+                error: profileError.message,
+            });
+            return { ok: false, reason: 'user_profile_missing' };
+        }
+
+        logger.warn('Backfilled missing user_profiles row during activation', {
+            user_id: userId,
+            shop_id: resolvedShopId,
+        });
+    }
+
     // ── Step 3: Get billing cycle from existing subscription or metadata ──
     const metadata = payment.metadata as Record<string, unknown> || {};
     let billingCycle = (metadata.billing_cycle as string) || 'monthly';
