@@ -578,7 +578,7 @@ export default function PlansPage() {
                                         <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer bg-white">
                                             <input
                                                 type="checkbox"
-                                                checked={formData.features.payment_integration}
+                                                checked={formData.features.payment_integration ?? false}
                                                 onChange={(e) => setFormData({
                                                     ...formData,
                                                     features: { ...formData.features, payment_integration: e.target.checked }
