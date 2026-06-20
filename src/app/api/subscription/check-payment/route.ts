@@ -197,13 +197,17 @@ export async function POST(request: NextRequest) {
                 .maybeSingle();
 
             // 4. Resolve the plan slug in priority order:
-            //    a) subscriptions.plans.slug (existing record)
-            //    b) payments.subscription_plan_slug (set by /subscribe)
+            //    a) payments.subscription_plan_slug (the plan the user just paid
+            //       for in THIS transaction — authoritative)
+            //    b) subscriptions.plans.slug (existing record — only a fallback;
+            //       during an upgrade this still holds the OLD plan because
+            //       /subscribe uses preserveActive and never overwrites the live
+            //       row, so it must NOT take priority over the paid slug)
             //    c) invoice.description substring match (legacy fallback)
             const subscriptionPlanSlug =
                 (subscription as { plans?: { slug?: string } } | null)?.plans?.slug ?? null;
 
-            let resolvedSlug: string | null = subscriptionPlanSlug || paymentPlanSlug;
+            let resolvedSlug: string | null = paymentPlanSlug || subscriptionPlanSlug;
 
             if (!resolvedSlug && invoice?.description) {
                 const desc = invoice.description.toLowerCase();

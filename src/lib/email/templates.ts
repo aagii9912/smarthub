@@ -10,7 +10,7 @@ const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'alerts@smarthub.mn';
+const FROM_EMAIL = process.env.EMAIL_FROM || 'alerts@syncly.mn';
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
     if (!resend) {

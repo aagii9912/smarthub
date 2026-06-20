@@ -360,12 +360,25 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                         // filtered by isAiAuthorized above.
                         status: billing?.status || shopData.subscription_status || 'unpaid',
                         trialEndsAt: billing?.trialEndsAt || shopData.trial_ends_at || undefined,
+                        // DB-authoritative limit so AI enforcement matches the dashboard.
+                        tokensLimit: billing?.tokensLimit ?? null,
                     },
                     messageCount: customer.message_count || 0,
                     tokenUsageTotal: billing?.tokensUsed ?? (shopData.token_usage_total || 0),
                 },
                 previousHistory
             );
+
+            // CREDIT/SUBSCRIPTION LIMIT: AI credit дууссан (эсвэл багц
+            // идэвхгүй) бол харилцагч руу дотоод billing мессеж ИЛГЭЭХГҮЙ.
+            // Чимээгүй алгасна; эзэнд AIRouter-ээс push notification очно.
+            if (response.limitReached) {
+                logger.warn('AI credit/subscription limit reached — staying silent to customer', {
+                    shopId: shopData.id,
+                    usage: response.usage,
+                });
+                return;
+            }
 
             aiResponse = response.text;
 

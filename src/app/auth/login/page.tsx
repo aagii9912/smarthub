@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,6 +17,13 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    // Нэвтэрсний дараа буцах зам (жишээ нь багийн урилга /invite/<token>).
+    // useSearchParams-ийн Suspense шаардлагаас зайлсхийхийн тулд client талд уншина.
+    const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+    useEffect(() => {
+        const r = new URLSearchParams(window.location.search).get('redirect_url');
+        if (r && r.startsWith('/') && !r.startsWith('//')) setRedirectUrl(r);
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,17 +45,20 @@ export default function LoginPage() {
             );
             setLoading(false);
         } else {
-            router.push('/dashboard');
+            router.push(redirectUrl || '/dashboard');
             router.refresh();
         }
     };
 
     const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
         setError('');
+        const callbackUrl = redirectUrl
+            ? `${window.location.origin}/auth/callback?redirect_url=${encodeURIComponent(redirectUrl)}`
+            : `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: callbackUrl,
                 ...(provider === 'facebook' && {
                     scopes: 'pages_show_list,pages_messaging,pages_read_engagement,pages_manage_metadata',
                 }),
@@ -169,7 +179,10 @@ export default function LoginPage() {
 
                     <p className="text-center text-sm text-muted-foreground">
                         {t.auth.noAccount}{' '}
-                        <Link href="/auth/register" className="text-primary hover:text-primary/80 font-medium">
+                        <Link
+                            href={redirectUrl ? `/auth/register?redirect_url=${encodeURIComponent(redirectUrl)}` : '/auth/register'}
+                            className="text-primary hover:text-primary/80 font-medium"
+                        >
                             {t.auth.register}
                         </Link>
                     </p>

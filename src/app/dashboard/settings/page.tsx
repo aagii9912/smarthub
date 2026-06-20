@@ -26,6 +26,8 @@ import { Button } from '@/components/ui/Button';
 import { PageHero } from '@/components/ui/PageHero';
 import { cn } from '@/lib/utils';
 import { useFeatures } from '@/hooks/useFeatures';
+import { useAuth } from '@/contexts/AuthContext';
+import { TeamMembersCard } from '@/components/settings/TeamMembersCard';
 
 interface FacebookPage {
     id: string;
@@ -134,6 +136,7 @@ function ConfirmPanel({
 function SettingsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { role } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -1260,6 +1263,11 @@ function SettingsContent() {
                 </div>
             </div>
 
+            {/* Team members — зөвхөн эзэн/админ удирдана */}
+            {(role === 'owner' || role === 'admin') && (
+                <TeamMembersCard currentRole={role} />
+            )}
+
             {/* Account */}
             <div className="card-outlined p-6">
                 <h3 className="flex items-center gap-2 text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-5">
@@ -1286,7 +1294,8 @@ function SettingsContent() {
                 </div>
             </div>
 
-            {/* Danger Zone */}
+            {/* Danger Zone — зөвхөн дэлгүүрийн эзэн дэлгүүр устгана */}
+            {role !== 'admin' && role !== 'staff' && (
             <div
                 className="rounded-2xl p-6 border"
                 style={{
@@ -1370,6 +1379,7 @@ function SettingsContent() {
                     </div>
                 )}
             </div>
+            )}
         </div>
     );
 }

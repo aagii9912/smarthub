@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,6 +19,12 @@ export default function RegisterPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    // Бүртгэлийн дараа буцах зам (жишээ нь багийн урилга /invite/<token>).
+    const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+    useEffect(() => {
+        const r = new URLSearchParams(window.location.search).get('redirect_url');
+        if (r && r.startsWith('/') && !r.startsWith('//')) setRedirectUrl(r);
+    }, []);
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,8 +45,11 @@ export default function RegisterPage() {
                     full_name: fullName,
                 },
                 // Let the callback's smart routing pick the next step
-                // (new user → /setup, returning user → /dashboard).
-                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                // (new user → /setup, returning user → /dashboard). Багийн
+                // урилгаар ирсэн бол redirect_url-ийг callback руу дамжуулна.
+                emailRedirectTo: redirectUrl
+                    ? `${window.location.origin}/auth/callback?redirect_url=${encodeURIComponent(redirectUrl)}`
+                    : `${window.location.origin}/auth/callback`,
             },
         });
 
@@ -56,11 +65,14 @@ export default function RegisterPage() {
 
     const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
         setError('');
+        const callbackUrl = redirectUrl
+            ? `${window.location.origin}/auth/callback?redirect_url=${encodeURIComponent(redirectUrl)}`
+            : `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOAuth({
             provider,
             options: {
                 // The callback decides /setup vs /dashboard based on shop state.
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: callbackUrl,
                 ...(provider === 'facebook' && { scopes: 'public_profile' }),
             },
         });
@@ -203,7 +215,10 @@ export default function RegisterPage() {
 
                     <p className="text-center text-sm text-muted-foreground">
                         {t.auth.hasAccount}{' '}
-                        <Link href="/auth/login" className="text-primary hover:text-primary/80 font-medium">
+                        <Link
+                            href={redirectUrl ? `/auth/login?redirect_url=${encodeURIComponent(redirectUrl)}` : '/auth/login'}
+                            className="text-primary hover:text-primary/80 font-medium"
+                        >
                             {t.auth.login}
                         </Link>
                     </p>

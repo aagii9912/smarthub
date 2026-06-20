@@ -34,6 +34,7 @@ import {
     checkTokenLimit,
     tokensToCredits,
     getCreditsPerMonth,
+    TOKENS_PER_CREDIT,
     AIModel,
 } from './config/plans';
 
@@ -58,6 +59,13 @@ export interface RouterChatContext extends ChatContext {
         plan?: string;
         status?: string;
         trialEndsAt?: string;
+        /**
+         * DB-authoritative token limit for this plan's current period (from
+         * `plans.limits.tokens_per_month` via the billing snapshot). When
+         * present it overrides the hardcoded PLAN_CONFIGS limit so enforcement
+         * matches the dashboard. Null/undefined → fall back to plan config.
+         */
+        tokensLimit?: number | null;
     };
     /** Per-customer message count — analytics only, not billing. */
     messageCount?: number;
@@ -241,6 +249,18 @@ export async function routeToAI(
     const planType = getPlanTypeFromSubscription(context.subscription);
     const planConfig = getPlanConfig(planType);
 
+    // Effective billing limit for THIS shop's current period. Prefer the
+    // DB-authoritative limit threaded from the billing snapshot
+    // (`plans.limits.tokens_per_month`) so the AI enforces exactly what the
+    // dashboard shows; fall back to the hardcoded plan config otherwise. This
+    // prevents "Pro plan but lower-tier credit" mismatches.
+    const subTokensLimit = context.subscription?.tokensLimit;
+    const effectiveTokenLimit =
+        typeof subTokensLimit === 'number' && subTokensLimit > 0
+            ? subTokensLimit
+            : planConfig.tokensPerMonth;
+    const effectiveCreditsLimit = Math.floor(effectiveTokenLimit / TOKENS_PER_CREDIT);
+
     // Defense-in-depth: webhook-н gate-аас гадуур AI Router-руу шууд орж ирвэл
     // (cron, internal call гэх мэт) төлбөргүй хэрэглэгчийг хааж байна.
     const subStatus = context.subscription?.status;
@@ -268,7 +288,7 @@ export async function routeToAI(
                 tokenUsagePercent: 0,
                 creditsUsed: 0,
                 creditsRemaining: 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
@@ -301,7 +321,7 @@ export async function routeToAI(
                 tokenUsagePercent: 0,
                 creditsUsed: 0,
                 creditsRemaining: 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
@@ -323,14 +343,14 @@ export async function routeToAI(
                 model: 'quick-reply',
                 messagesUsed: context.messageCount || 0,
                 tokensUsed: context.tokenUsageTotal || 0,
-                creditsLimit: getCreditsPerMonth(planType),
+                creditsLimit: effectiveCreditsLimit,
             },
         };
     }
 
     // Check token limit (primary billing)
     const currentTokenUsage = context.tokenUsageTotal || 0;
-    const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage);
+    const tokenLimitCheck = checkTokenLimit(planType, currentTokenUsage, effectiveTokenLimit);
 
     // Token Usage Warning Logic
     if (tokenLimitCheck.usagePercent >= 80 && context.shopId) {
@@ -376,7 +396,7 @@ export async function routeToAI(
 
     // Per-customer message count — analytics only, not enforced.
     const messageCount = context.messageCount || 0;
-    const creditsLimit = getCreditsPerMonth(planType);
+    const creditsLimit = effectiveCreditsLimit;
     const creditsUsed = tokensToCredits(currentTokenUsage);
 
     if (!tokenLimitCheck.allowed) {
@@ -388,6 +408,34 @@ export async function routeToAI(
             creditsLimit,
             usagePercent: tokenLimitCheck.usagePercent,
         });
+
+        // Notify the shop OWNER that their AI credit is exhausted so they can
+        // top up / upgrade. The end customer must NEVER see this billing text —
+        // the webhook & cron customer channels stay silent whenever
+        // `limitReached` is set (see those guards). The text below is only
+        // surfaced to the owner via the dashboard AI preview endpoint.
+        if (context.shopId) {
+            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const exhaustKey = `credit_exhausted_${context.shopId}_${currentMonth}`;
+            try {
+                const redis = getRedisClient();
+                const alreadyNotified = await redis.get(exhaustKey);
+                if (!alreadyNotified) {
+                    const enabled = await isNotificationEnabled(context.shopId, 'plan_limit');
+                    if (enabled) {
+                        await sendPushNotification(context.shopId, {
+                            title: '🛑 AI credit дууссан',
+                            body: `Энэ сарын AI credit (${creditsUsed.toLocaleString()}/${creditsLimit.toLocaleString()}) дууссан тул AI хариулахаа зогсоосон. План шинэчилж үргэлжлүүлнэ үү.`,
+                            url: '/dashboard/subscription',
+                            tag: `credit-exhausted-${context.shopId}-${currentMonth}`,
+                        });
+                    }
+                    await redis.set(exhaustKey, '1', { ex: 60 * 60 * 24 * 31 }); // 31 days
+                }
+            } catch (err) {
+                logger.error('Failed to send credit-exhausted owner notification', { error: err });
+            }
+        }
 
         return {
             text: `Уучлаарай, та энэ сарын AI credit лимитдээ хүрсэн байна (${creditsUsed.toLocaleString()}/${creditsLimit.toLocaleString()} credits). Илүү их хэрэглэхийг хүсвэл план-аа шинэчлэнэ үү! 📈`,

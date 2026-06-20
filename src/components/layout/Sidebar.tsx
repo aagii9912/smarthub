@@ -42,14 +42,20 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { itemNoun } from '@/lib/dashboard/archetypes';
+import { hasRole } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import type { ShopRole } from '@/types/database';
 
 interface NavLink {
     nameKey: string;
     href: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     feature?: string;
+    /** Энэ цэсийг харахад шаардлагатай хамгийн бага эрх (байхгүй бол бүгдэд нээлттэй). */
+    minRole?: ShopRole;
     badge?: number;
     children?: { nameKey: string; href: string; badge?: number }[];
 }
@@ -66,18 +72,18 @@ const WORKSPACE: NavLink[] = [
 /** Tools — secondary surfaces (analytics, AI, automations) */
 const INSIGHTS: NavLink[] = [
     { nameKey: 'reports', href: '/dashboard/reports', icon: LineChart, feature: 'crm_analytics' },
-    { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot },
-    { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore },
+    { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot, minRole: 'admin' },
+    { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore, minRole: 'admin' },
     { nameKey: 'storyLinks', href: '/dashboard/story-product-links', icon: Images },
     { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
-    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield },
+    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield, minRole: 'admin' },
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
 ];
 
 /** Bottom — system utilities. `subscription` carries an inline label since
  *  the existing t.sidebar dict has no key for it. */
 const SYSTEM: NavLink[] = [
-    { nameKey: 'subscription', href: '/dashboard/subscription', icon: Crown },
+    { nameKey: 'subscription', href: '/dashboard/subscription', icon: Crown, minRole: 'owner' },
     { nameKey: 'help', href: '/dashboard/help', icon: HelpCircle },
     { nameKey: 'settings', href: '/dashboard/settings', icon: Settings },
 ];
@@ -105,15 +111,27 @@ export function Sidebar() {
 function SidebarInner() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const { user, shop } = useAuth();
+    const { user, shop, role } = useAuth();
     const { t } = useLanguage();
     const { hasFeature, isPaidPlan, plan } = useFeatures();
+    const agent = useActiveShopAgent();
 
-    const getLabel = (key: string) =>
-        ORDER_CHILD_LABELS[key] ||
-        SYSTEM_LABELS[key] ||
-        (t.sidebar as Record<string, string>)[key] ||
-        key;
+    // minRole-той цэсийг эрх хүрэлцэхгүй бол нуух. role тодорхойгүй үед
+    // (ачааллаж буй / эзэн) бүгдийг харуулна (анивчихаас сэргийлнэ).
+    const visibleByRole = (item: NavLink) =>
+        !item.minRole || !role || hasRole(role, item.minRole);
+
+    const getLabel = (key: string) => {
+        // "Бүтээгдэхүүн"-ийг бизнесийн төрлөөр динамик noun болгоно
+        // (Үйлчилгээ / Зар / Сургалт / Меню).
+        if (key === 'products' && agent.businessType) return itemNoun(agent.businessType);
+        return (
+            ORDER_CHILD_LABELS[key] ||
+            SYSTEM_LABELS[key] ||
+            (t.sidebar as Record<string, string>)[key] ||
+            key
+        );
+    };
 
     const isActive = (href: string) => {
         const [base] = href.split('?');
@@ -193,7 +211,7 @@ function SidebarInner() {
             <nav className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-3">
                 <SectionLabel>{t.sidebar.main}</SectionLabel>
                 <ul className="flex flex-col gap-0.5">
-                    {WORKSPACE.map((item) => (
+                    {WORKSPACE.filter(visibleByRole).map((item) => (
                         <NavItem
                             key={item.nameKey}
                             item={item}
@@ -209,7 +227,7 @@ function SidebarInner() {
                 <div className="mt-5">
                     <SectionLabel>{t.sidebar.tools}</SectionLabel>
                     <ul className="flex flex-col gap-0.5">
-                        {INSIGHTS.map((item) => (
+                        {INSIGHTS.filter(visibleByRole).map((item) => (
                             <NavItem
                                 key={item.nameKey}
                                 item={item}
@@ -225,7 +243,7 @@ function SidebarInner() {
 
                 <div className="mt-5">
                     <ul className="flex flex-col gap-0.5">
-                        {SYSTEM.map((item) => (
+                        {SYSTEM.filter(visibleByRole).map((item) => (
                             <NavItem
                                 key={item.nameKey}
                                 item={item}

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { DashboardArchetype } from '@/lib/dashboard/archetypes';
 
 interface DashboardStats {
     todayOrders: number;
@@ -49,8 +50,65 @@ interface DashboardSeries {
     buckets: string[];
 }
 
-interface DashboardData {
+interface RelatedName {
+    name: string | null;
+    phone?: string | null;
+}
+
+export interface UpcomingAppointment {
+    id: string;
+    scheduled_at: string;
+    duration_minutes: number;
+    status: string;
+    customers: RelatedName | RelatedName[] | null;
+    products: RelatedName | RelatedName[] | null;
+}
+
+export interface AppointmentsBlock {
+    stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null };
+    series: number[];
+    byHour: number[];
+    byWeekday: number[];
+    statusBreakdown: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
+    upcoming: UpcomingAppointment[];
+}
+
+export interface RecentLead {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    created_at: string;
+    total_orders: number | null;
+    is_vip: boolean | null;
+}
+
+export interface FollowUpLead {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    last_contact_at: string | null;
+}
+
+export interface LeadsBlock {
+    stats: { newLeads: number; qualified: number; converted: number; conversionRate: number };
+    bySource: { messenger: number; instagram: number; other: number };
+    recent: RecentLead[];
+    followUp: { count: number; items: FollowUpLead[] };
+}
+
+export interface CartFunnelBlock {
+    active: number;
+    converted: number;
+    abandoned: number;
+    conversionRate: number;
+}
+
+export interface DashboardData {
     stats: DashboardStats;
+    archetype?: DashboardArchetype;
+    appointments?: AppointmentsBlock;
+    leads?: LeadsBlock;
+    cartFunnel?: CartFunnelBlock;
     prevStats?: PrevStats;
     trend?: DashboardTrend;
     series?: DashboardSeries;

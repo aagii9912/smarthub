@@ -285,8 +285,20 @@ export function getPlanTypeFromSubscription(subscription?: {
     plan?: string;
     status?: string;
 }): PlanType {
-    if (!subscription || subscription.status !== 'active') {
+    if (!subscription) {
         return 'lite'; // Default to lite (cheapest plan)
+    }
+
+    // Statuses that entitle a shop to its ACTUAL plan tier. Authorization
+    // (whether the AI runs at all) is enforced separately in AIRouter — here we
+    // only resolve WHICH tier's limits/features/tools apply. A paying Pro shop
+    // that is still inside its trial window ('trial'/'trialing') or temporarily
+    // 'past_due'/'pending' must keep its Pro tier, NOT collapse to lite.
+    // Unknown / unpaid / expired / inactive statuses fall through to lite.
+    const status = subscription.status?.toLowerCase();
+    const entitledStatuses = ['active', 'trial', 'trialing', 'past_due', 'pending'];
+    if (!status || !entitledStatuses.includes(status)) {
+        return 'lite';
     }
 
     const planName = subscription.plan?.toLowerCase();
@@ -353,10 +365,18 @@ export function getCreditsPerMonth(plan: PlanType): number {
  */
 export function checkTokenLimit(
     plan: PlanType,
-    currentTokens: number
+    currentTokens: number,
+    limitOverride?: number | null
 ): { allowed: boolean; remaining: number; limit: number; usagePercent: number } {
     const config = getPlanConfig(plan);
-    const limit = config.tokensPerMonth;
+    // Prefer the DB-authoritative per-plan limit (from `plans.limits.
+    // tokens_per_month`, threaded via the billing snapshot) when provided, so
+    // enforcement always matches what the dashboard shows. Fall back to the
+    // hardcoded plan config when no valid override is supplied.
+    const limit =
+        typeof limitOverride === 'number' && limitOverride > 0
+            ? limitOverride
+            : config.tokensPerMonth;
     const remaining = Math.max(0, limit - currentTokens);
     const usagePercent = limit > 0 ? Math.min(100, Math.round((currentTokens / limit) * 100)) : 0;
 

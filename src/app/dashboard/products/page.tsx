@@ -9,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/dashboard/products/ProductForm';
 import { logger } from '@/lib/utils/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { itemNoun } from '@/lib/dashboard/archetypes';
 import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
 import { ProductStatusBadge } from '@/components/ui/Badge';
@@ -59,6 +61,9 @@ export default function ProductsPage() {
     const queryClient = useQueryClient();
     const { user } = useAuth();
     const { t } = useLanguage();
+    const agent = useActiveShopAgent();
+    // Бизнесийн төрлийн noun (Бараа / Үйлчилгээ / Зар / Сургалт / Меню)
+    const noun = agent.businessType ? itemNoun(agent.businessType) : 'Бүтээгдэхүүн';
 
     const [searchQuery, setSearchQuery] = useState('');
     // Энгийн шүүлтүүр — нөөц/идэвхийн төлвөөр клиент талд шүүнэ
@@ -256,11 +261,11 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             <PageHero
-                eyebrow="Бүтээгдэхүүний каталог"
-                title="Бүтээгдэхүүн"
+                eyebrow="Каталог"
+                title={noun}
                 subtitle={
                     <>
-                        <span className="text-foreground font-medium tabular-nums">{products.length}</span> бүтээгдэхүүн ·
+                        <span className="text-foreground font-medium tabular-nums">{products.length}</span> {noun.toLowerCase()} ·
                         {' '}
                         <span className="text-[var(--success)] font-medium tabular-nums">{activeCount}</span> идэвхтэй
                         {lowStockCount > 0 && (

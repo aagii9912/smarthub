@@ -1,8 +1,39 @@
 import { useQuery } from '@tanstack/react-query';
+import type { DashboardArchetype } from '@/lib/dashboard/archetypes';
 
 type Period = 'today' | 'week' | 'month' | 'year';
 
+export interface ReportDailyPoint {
+    date: string;
+    count: number;
+    label: string;
+}
+
+export interface AppointmentsReport {
+    total: number;
+    completed: number;
+    noShow: number;
+    cancelled: number;
+    upcoming: number;
+    noShowRate: number;
+    completionRate: number;
+    daily: ReportDailyPoint[];
+    byStatus: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
+}
+
+export interface LeadsReport {
+    newLeads: number;
+    qualified: number;
+    converted: number;
+    conversionRate: number;
+    bySource: { messenger: number; instagram: number; other: number };
+    daily: ReportDailyPoint[];
+}
+
 interface ReportsData {
+    archetype?: DashboardArchetype;
+    appointments?: AppointmentsReport;
+    leads?: LeadsReport;
     revenue: {
         total: number;
         orderCount: number;

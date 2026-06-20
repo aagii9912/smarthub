@@ -5,7 +5,7 @@ import { createSupabaseMiddlewareClient } from '@/lib/supabase-middleware';
 import { checkMiddlewareRateLimit } from '@/lib/utils/rate-limiter';
 
 // Define protected routes
-const protectedPaths = ['/dashboard', '/setup', '/admin'];
+const protectedPaths = ['/dashboard', '/setup', '/admin', '/version1.5'];
 
 // Pages an expired-trial / unpaid user CAN still reach so they have somewhere
 // to upgrade. Everything else under /dashboard bounces to /dashboard/subscription.
@@ -164,9 +164,21 @@ export default async function middleware(req: NextRequest) {
                         trialExpired;
 
                     if (blocked) {
-                        const url = new URL('/dashboard/subscription', req.url);
-                        url.searchParams.set('expired', '1');
-                        return NextResponse.redirect(url);
+                        // RBAC: урьсан ажилтан (active гишүүн) өөрийн төлбөргүй —
+                        // эзний багцыг ашигладаг тул хувийн paywall-ийг алгасна.
+                        const { data: membership } = await admin
+                            .from('shop_members')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .eq('status', 'active')
+                            .limit(1)
+                            .maybeSingle();
+
+                        if (!membership) {
+                            const url = new URL('/dashboard/subscription', req.url);
+                            url.searchParams.set('expired', '1');
+                            return NextResponse.redirect(url);
+                        }
                     }
                 }
             }
