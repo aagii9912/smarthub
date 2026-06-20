@@ -34,6 +34,12 @@ export async function GET(request: NextRequest) {
   fbAuthUrl.searchParams.set('scope', permissions);
   fbAuthUrl.searchParams.set('response_type', 'code');
   fbAuthUrl.searchParams.set('state', state);
+  // Force Facebook to re-show the permission + Page-selection screen even if the
+  // user previously granted (or skipped/declined) it. Without this, FB silently
+  // reuses the prior consent, so a user who skipped Page selection the first time
+  // gets stuck in a loop where `/me/accounts` keeps returning 0 pages and the
+  // "no_pages_granted" error repeats. `rerequest` lets them re-pick their Page.
+  fbAuthUrl.searchParams.set('auth_type', 'rerequest');
 
   // Store state and returnTo in cookies for callback verification
   const response = NextResponse.redirect(fbAuthUrl.toString());
