@@ -615,9 +615,13 @@ function SettingsContent() {
                                     key={bt}
                                     type="button"
                                     disabled={saving}
-                                    onClick={() => {
+                                    onClick={async () => {
                                         setBusinessType(bt);
-                                        saveSettings({ business_type: bt });
+                                        await saveSettings({ business_type: bt });
+                                        // useActiveShopAgent нь mount бүрт нэг л татдаг бөгөөд sidebar
+                                        // нь persistent layout-д кэшлэгддэг тул бүх газар шинэ төрлийг
+                                        // уншуулахын тулд бүрэн reload хийнэ (archetype, цэс шинэчлэгдэнэ).
+                                        setTimeout(() => window.location.reload(), 700);
                                     }}
                                     className={cn(
                                         'flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all',
