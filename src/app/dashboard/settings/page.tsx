@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { useFeatures } from '@/hooks/useFeatures';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamMembersCard } from '@/components/settings/TeamMembersCard';
+import { BUSINESS_TYPES, BUSINESS_TYPE_VALUES } from '@/lib/constants/business-types';
 
 interface FacebookPage {
     id: string;
@@ -166,6 +167,7 @@ function SettingsContent() {
         address: '',
         working_hours: '',
     });
+    const [businessType, setBusinessType] = useState<string>('');
     const [bankInfo, setBankInfo] = useState({
         bank_name: '',
         account_name: '',
@@ -220,6 +222,7 @@ function SettingsContent() {
                     address: data.shop.address || '',
                     working_hours: data.shop.working_hours || '',
                 });
+                setBusinessType(data.shop.business_type || '');
                 setBankInfo({
                     bank_name: data.shop.bank_name || '',
                     account_name: data.shop.account_name || '',
@@ -594,6 +597,45 @@ function SettingsContent() {
                         />
                     </div>
                 </div>
+
+                {/* Бизнесийн төрөл — dashboard-ийн харагдацыг (archetype) тодорхойлно.
+                    Сонгомогц шууд хадгална. */}
+                <div className="mt-5 pt-4 border-t border-white/[0.06]">
+                    <label className="block text-[13px] font-medium text-foreground mb-1">Бизнесийн төрөл</label>
+                    <p className="text-[11.5px] text-white/45 mb-3">
+                        Dashboard-ийн харагдац (захиалга / цаг захиалга / lead), цэс, нэр томьёо энэ сонголтоор тодорхойлогдоно.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {BUSINESS_TYPE_VALUES.map((bt) => {
+                            const meta = BUSINESS_TYPES[bt];
+                            const Icon = meta.icon;
+                            const selected = businessType === bt;
+                            return (
+                                <button
+                                    key={bt}
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => {
+                                        setBusinessType(bt);
+                                        saveSettings({ business_type: bt });
+                                    }}
+                                    className={cn(
+                                        'flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all',
+                                        selected
+                                            ? 'border-[var(--brand-indigo)] bg-[color-mix(in_oklab,var(--brand-indigo)_12%,transparent)]'
+                                            : 'border-white/[0.08] bg-white/[0.02] hover:border-white/20',
+                                    )}
+                                >
+                                    <Icon className={cn('h-4 w-4 shrink-0', selected ? 'text-[var(--brand-indigo)]' : 'text-white/50')} strokeWidth={1.6} />
+                                    <div className="min-w-0">
+                                        <div className="text-[12.5px] font-medium text-foreground truncate">{meta.label}</div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 <div className="flex justify-end mt-5 pt-4 border-t border-white/[0.06]">
                     <Button
                         variant="primary"
