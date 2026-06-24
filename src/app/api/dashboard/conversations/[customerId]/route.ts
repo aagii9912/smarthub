@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
-import { headers } from 'next/headers';
 
 interface ChatRow {
     id: string;
@@ -42,11 +41,13 @@ function flattenChats(rows: ChatRow[]): ConversationMessage[] {
     return messages;
 }
 
+// SECURITY: resolve the shop ONLY via getAuthUserShop(), which scopes the
+// x-shop-id header by user_id. The previous raw-header fallback let any caller
+// read another shop's customers, chat history and complaints by spoofing the
+// header (these queries run on the service-role client, which bypasses RLS).
 async function resolveShopId(): Promise<string | null> {
     const authShop = await getAuthUserShop();
-    if (authShop) return authShop.id;
-    const headerList = await headers();
-    return headerList.get('x-shop-id');
+    return authShop?.id ?? null;
 }
 
 export async function GET(

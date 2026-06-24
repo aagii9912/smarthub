@@ -17,17 +17,20 @@ vi.mock('@/lib/auth/auth', () => ({
     getAuthUser: () => getAuthUserMock(),
 }));
 
-// shopId fallback path uses supabaseAdmin().from('shops').select(...).eq().eq().single()
-// Wired so it returns null by default — tests that need it set
-// `shopFallbackResponse` ahead of the call.
-let shopFallbackResponse: { data: unknown; error: unknown } = { data: null, error: null };
+// getShopId resolves the shop via supabaseAdmin().from('shops').select('id')...
+//   - header present: .eq('user_id').eq('id').maybeSingle()  (ownership check)
+//   - no header:      .eq('user_id').eq('is_active').single() (first active)
+// Both terminals return `shopLookupResponse`; tests set it to model whether the
+// requested shop is owned by the user.
+let shopLookupResponse: { data: unknown; error: unknown } = { data: { id: 'shop-1' }, error: null };
 vi.mock('@/lib/supabase', () => ({
     supabaseAdmin: () => {
         const chain: any = {
             from: () => chain,
             select: () => chain,
             eq: () => chain,
-            single: () => Promise.resolve(shopFallbackResponse),
+            single: () => Promise.resolve(shopLookupResponse),
+            maybeSingle: () => Promise.resolve(shopLookupResponse),
         };
         return chain;
     },
@@ -107,7 +110,8 @@ beforeEach(() => {
     createAutomationMock.mockReset();
     updateAutomationMock.mockReset();
     deleteAutomationMock.mockReset();
-    shopFallbackResponse = { data: null, error: null };
+    // Default: the requested shop ('shop-1') is owned by the user.
+    shopLookupResponse = { data: { id: 'shop-1' }, error: null };
 });
 
 // ───────────── GET ─────────────
@@ -130,9 +134,19 @@ describe('GET /api/dashboard/comment-automations', () => {
         expect(res.status).toBe(401);
     });
 
+    it('returns 401 (and does not query automations) when x-shop-id names a shop the user does not own', async () => {
+        // IDOR guard: the ownership lookup finds no matching shop for this user.
+        getAuthUserMock.mockResolvedValue('user-1');
+        shopLookupResponse = { data: null, error: null };
+
+        const res = await GET(buildRequest('GET', { shopHeader: 'victim-shop' }));
+        expect(res.status).toBe(401);
+        expect(getAllAutomationsMock).not.toHaveBeenCalled();
+    });
+
     it('falls back to the user\'s active shop when x-shop-id is missing', async () => {
         getAuthUserMock.mockResolvedValue('user-1');
-        shopFallbackResponse = { data: { id: 'shop-fallback' }, error: null };
+        shopLookupResponse = { data: { id: 'shop-fallback' }, error: null };
         getAllAutomationsMock.mockResolvedValue([]);
 
         const res = await GET(buildRequest('GET'));
