@@ -190,7 +190,7 @@ function ReportsPageContent() {
     const agent = useActiveShopAgent();
 
     // Booking/Lead shops get an extra archetype-specific "ops" report tab.
-    const archetype = resolveArchetype(agent.capabilities);
+    const archetype = resolveArchetype(agent.businessType, agent.capabilities);
     const opsArchetype: 'booking' | 'lead' | null =
         !agent.loading && (archetype === 'booking' || archetype === 'lead') ? archetype : null;
 

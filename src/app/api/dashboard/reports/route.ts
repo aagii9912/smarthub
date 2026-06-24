@@ -3,7 +3,7 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
 import { logger } from '@/lib/utils/logger';
-import { resolveArchetype } from '@/lib/dashboard/archetypes';
+import { resolveArchetype, dashboardBlocks } from '@/lib/dashboard/archetypes';
 import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
 
 interface ReportProduct {
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
             // 7. Shop capabilities (archetype-aware report blocks)
             supabase
                 .from('shops')
-                .select('ai_agent_capabilities')
+                .select('ai_agent_capabilities, business_type')
                 .eq('id', shopId)
                 .single()
         ]);
@@ -277,15 +277,17 @@ export async function GET(request: NextRequest) {
         });
 
         // ============================================
-        // ARCHETYPE-AWARE BLOCKS (capability-driven, additive)
+        // ARCHETYPE-AWARE BLOCKS (business_type-driven, capability fallback, additive)
         // ============================================
         const caps = (shopMetaResponse.data?.ai_agent_capabilities as string[] | null) ?? [];
-        const archetype = resolveArchetype(caps);
+        const businessType = (shopMetaResponse.data?.business_type as string | null) ?? null;
+        const archetype = resolveArchetype(businessType, caps);
+        const blocks = dashboardBlocks(businessType, caps);
 
         let appointmentsReport: AppointmentsReport | undefined;
         let leadsReport: LeadsReport | undefined;
 
-        if (caps.includes('booking')) {
+        if (blocks.booking) {
             const { data: appts } = await supabase
                 .from('appointments')
                 .select('scheduled_at, status')
@@ -310,7 +312,7 @@ export async function GET(request: NextRequest) {
             };
         }
 
-        if (caps.includes('lead_capture')) {
+        if (blocks.lead) {
             const { data: leadRows } = await supabase
                 .from('customers')
                 .select('created_at, platform, phone, total_orders')

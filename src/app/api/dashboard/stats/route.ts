@@ -5,7 +5,7 @@ import { getStartOfPeriod } from '@/lib/utils/date';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_CONFIGS } from '@/lib/utils/rate-limiter';
 import { apiError } from '@/lib/utils/api-response';
 import { logger } from '@/lib/utils/logger';
-import { resolveArchetype } from '@/lib/dashboard/archetypes';
+import { resolveArchetype, dashboardBlocks } from '@/lib/dashboard/archetypes';
 import * as Sentry from '@sentry/nextjs';
 
 interface RelatedName { name: string | null; phone?: string | null }
@@ -311,21 +311,23 @@ export async function GET(request: NextRequest) {
     // Хариулаагүй харилцагчийн тоо
     const unansweredCount = activeConversations.filter(c => !c.isAnswered).length;
 
-    // ─── Dashboard архетип (capability-аар жолоодогдоно) ───
+    // ─── Dashboard архетип (business_type-аар жолоодогдоно, legacy үед capability fallback) ───
     const shopMeta = shopMetaResult.data as
       | { ai_agent_capabilities?: string[] | null; business_type?: string | null }
       | null;
     const caps = shopMeta?.ai_agent_capabilities ?? [];
-    const archetype = resolveArchetype(caps);
+    const businessType = shopMeta?.business_type ?? null;
+    const archetype = resolveArchetype(businessType, caps);
+    const blocks = dashboardBlocks(businessType, caps);
 
-    // Capability-driven нэмэлт блокууд. `archetype` нь үндсэн layout-г сонгоно;
-    // олон capability-тай (hybrid) бизнест олон блок зэрэг тооцоологдоно
-    // (ж: ресторан → cartFunnel + appointments).
+    // business_type-аас үүдэх нэмэлт блокууд. `archetype` нь үндсэн layout-г
+    // сонгоно; hybrid бизнест (ж: ресторан → cartFunnel + appointments) олон
+    // блок зэрэг тооцоологдоно.
     let appointments: AppointmentsBlock | undefined;
     let leads: LeadsBlock | undefined;
     let cartFunnel: CartFunnelBlock | undefined;
 
-    if (caps.includes('booking')) {
+    if (blocks.booking) {
       const [periodApptResult, upcomingApptResult] = await Promise.all([
         // Period доторх уулзалтууд (series + статусын задаргаа)
         supabase
@@ -383,7 +385,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    if (caps.includes('lead_capture')) {
+    if (blocks.lead) {
       // Follow-up: утастай ч захиалгагүй, сүүлд холбогдсоноос 24ц өнгөрсөн lead-үүд
       const followUpCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -448,7 +450,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    if (caps.includes('sales')) {
+    if (blocks.commerce) {
       // Cart funnel — period доторх сагсны төлвийн задаргаа
       const { data: periodCarts } = await supabase
         .from('carts')

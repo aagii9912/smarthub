@@ -21,7 +21,7 @@ export default function DashboardPage() {
         return <DashboardSkeleton />;
     }
 
-    const archetype = resolveArchetype(agent.capabilities);
+    const archetype = resolveArchetype(agent.businessType, agent.capabilities);
 
     switch (archetype) {
         case 'booking':
