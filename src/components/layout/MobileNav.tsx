@@ -194,13 +194,12 @@ export function MobileNav() {
                     )}
                 >
                     {PILL_TABS.map((tab) => {
-                        const active = isActive(tab.href);
+                        // Booking бизнест "Захиалга" pill → "Цаг захиалга" (appointments).
+                        const isBookingOrders = tab.labelKey === 'orders' && archetype === 'booking';
+                        const href = isBookingOrders ? '/dashboard/appointments' : tab.href;
+                        const active = isActive(href);
                         const Icon = tab.icon;
-                        // Booking бизнест "Захиалга" → "Цаг захиалга".
-                        const label =
-                            tab.labelKey === 'orders' && archetype === 'booking'
-                                ? t.dashboard.reportTabBooking
-                                : t.mobileNav[tab.labelKey];
+                        const label = isBookingOrders ? t.dashboard.reportTabBooking : t.mobileNav[tab.labelKey];
                         return (
                             <li
                                 key={tab.id}
@@ -210,7 +209,7 @@ export function MobileNav() {
                                 )}
                             >
                                 <Link
-                                    href={tab.href}
+                                    href={href}
                                     aria-label={label}
                                     aria-current={active ? 'page' : undefined}
                                     className={cn(

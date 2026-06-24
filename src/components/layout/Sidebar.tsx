@@ -39,6 +39,7 @@ import {
     Sparkles,
     Images,
     UserCog,
+    CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -66,7 +67,9 @@ interface NavLink {
 /** Workspace-level navigation — primary day-to-day surfaces */
 const WORKSPACE: NavLink[] = [
     { nameKey: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { nameKey: 'orders', href: '/dashboard/orders', icon: Package },
+    // Commerce/lead → "Захиалга"; booking → "Цаг захиалга" (appointments хуудас).
+    { nameKey: 'orders', href: '/dashboard/orders', icon: Package, archetypes: ['commerce', 'lead'] },
+    { nameKey: 'appointments', href: '/dashboard/appointments', icon: CalendarClock, archetypes: ['booking'] },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
     { nameKey: 'products', href: '/dashboard/products', icon: Box },
     { nameKey: 'staff', href: '/dashboard/staff', icon: UserCog, archetypes: ['booking'] },
@@ -134,8 +137,8 @@ function SidebarInner() {
         // "Бүтээгдэхүүн"-ийг бизнесийн төрлөөр динамик noun болгоно
         // (Үйлчилгээ / Зар / Сургалт / Меню).
         if (key === 'products' && agent.businessType) return itemNoun(agent.businessType);
-        // Booking бизнест "Захиалга" → "Цаг захиалга".
-        if (key === 'orders' && archetype === 'booking') return t.dashboard.reportTabBooking;
+        // Booking бизнесийн "Цаг захиалга" цэс.
+        if (key === 'appointments') return t.dashboard.reportTabBooking;
         return (
             ORDER_CHILD_LABELS[key] ||
             SYSTEM_LABELS[key] ||

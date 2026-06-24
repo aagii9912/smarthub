@@ -55,6 +55,7 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [segment, setSegment] = useState<'all' | 'regular' | 'vip'>('all');
     const [sortBy, setSortBy] = useState('created_at');
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -159,7 +160,16 @@ export default function CustomersPage() {
         }
     }
 
-    const filtered = customers.filter(c => (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.phone || '').includes(searchQuery));
+    // Байнгын үйлчлүүлэгч = 2+ удаа үйлчлүүлсэн эсвэл VIP.
+    const isRegular = (c: Customer) => (c.total_orders ?? 0) >= 2 || c.is_vip;
+    const regularsCount = customers.filter(isRegular).length;
+    const filtered = customers.filter((c) => {
+        const matchesSearch =
+            (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (c.phone || '').includes(searchQuery);
+        const matchesSegment =
+            segment === 'all' || (segment === 'regular' && isRegular(c)) || (segment === 'vip' && c.is_vip);
+        return matchesSearch && matchesSegment;
+    });
     const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('mn-MN') : '-';
     const fmtTime = (d: string | null) => { if (!d) return ''; const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000); if (days === 0) return 'Өнөөдөр'; if (days === 1) return 'Өчигдөр'; if (days < 7) return `${days} өдрийн өмнө`; return fmtDate(d); };
 
@@ -186,6 +196,8 @@ export default function CustomersPage() {
                     <>
                         Нийт <span className="text-foreground font-medium tabular-nums">{customers.length}</span> харилцагч ·
                         {' '}
+                        <span className="text-[var(--status-success)] font-medium tabular-nums">{regularsCount}</span> байнгын ·
+                        {' '}
                         <span className="text-[var(--brand-indigo-400)] font-medium tabular-nums">{newThisWeek}</span> шинэ
                     </>
                 }
@@ -200,6 +212,28 @@ export default function CustomersPage() {
                     </>
                 }
             />
+
+            {/* Segment chips */}
+            <div className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-full p-1 w-fit">
+                {([
+                    { key: 'all', label: 'Бүгд' },
+                    { key: 'regular', label: 'Байнгын' },
+                    { key: 'vip', label: 'VIP' },
+                ] as const).map((s) => (
+                    <button
+                        key={s.key}
+                        onClick={() => setSegment(s.key)}
+                        className={cn(
+                            'px-3.5 py-1.5 rounded-full text-[12px] font-medium tracking-[-0.01em] transition-all',
+                            segment === s.key
+                                ? 'bg-[color-mix(in_oklab,var(--brand-indigo)_22%,transparent)] text-foreground'
+                                : 'text-white/50 hover:text-white/80',
+                        )}
+                    >
+                        {s.label}
+                    </button>
+                ))}
+            </div>
 
             {/* Toolbar */}
             <div className="card-outlined p-4 flex flex-wrap items-center gap-3">
