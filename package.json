@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "test:agent": "./scripts/agent-browser-test.sh"
+    "test:agent": "./scripts/agent-browser-test.sh",
+    "screenshots:dashboard": "playwright test e2e/dashboard-archetypes.spec.ts --project=chromium"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
