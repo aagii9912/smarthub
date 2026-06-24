@@ -196,7 +196,11 @@ export function MobileNav() {
                     {PILL_TABS.map((tab) => {
                         const active = isActive(tab.href);
                         const Icon = tab.icon;
-                        const label = t.mobileNav[tab.labelKey];
+                        // Booking бизнест "Захиалга" → "Цаг захиалга".
+                        const label =
+                            tab.labelKey === 'orders' && archetype === 'booking'
+                                ? t.dashboard.reportTabBooking
+                                : t.mobileNav[tab.labelKey];
                         return (
                             <li
                                 key={tab.id}

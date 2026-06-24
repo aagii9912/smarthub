@@ -64,13 +64,31 @@ export interface UpcomingAppointment {
     products: RelatedName | RelatedName[] | null;
 }
 
+export interface DayAppointment {
+    id: string;
+    scheduled_at: string;
+    duration_minutes: number;
+    status: string;
+    staff_id: string | null;
+    customers: RelatedName | RelatedName[] | null;
+    products: (RelatedName & { category?: string | null }) | (RelatedName & { category?: string | null })[] | null;
+}
+
+export interface ServiceTypeCount {
+    type: string;
+    count: number;
+    minutes: number;
+}
+
 export interface AppointmentsBlock {
-    stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null };
+    stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null; todayCount: number };
     series: number[];
     byHour: number[];
     byWeekday: number[];
     statusBreakdown: { pending: number; confirmed: number; completed: number; cancelled: number; no_show: number };
     upcoming: UpcomingAppointment[];
+    today: DayAppointment[];
+    byService: ServiceTypeCount[];
 }
 
 export interface RecentLead {

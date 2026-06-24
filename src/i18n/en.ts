@@ -513,6 +513,11 @@ export const en: Translations = {
     // Reports — archetype tab labels
     reportTabBooking: 'Appointments',
     reportTabLead: 'Leads',
+    // Booking — day schedule + group by service type
+    todayScheduleTitle: "Today's schedule",
+    todayScheduleSubtitle: "Today's appointments",
+    noAppointmentsToday: 'No appointments today',
+    byServiceTitle: 'By service type',
   },
 
   // ─── Orders Page ───

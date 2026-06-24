@@ -10,8 +10,18 @@ import * as Sentry from '@sentry/nextjs';
 
 interface RelatedName { name: string | null; phone?: string | null }
 
+interface DayAppointment {
+  id: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
+  staff_id: string | null;
+  customers: RelatedName | RelatedName[] | null;
+  products: (RelatedName & { category?: string | null }) | (RelatedName & { category?: string | null })[] | null;
+}
+
 interface AppointmentsBlock {
-  stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null };
+  stats: { periodCount: number; upcomingCount: number; completedCount: number; noShowRate: number; peakHour: number | null; todayCount: number };
   series: number[];
   byHour: number[];
   byWeekday: number[];
@@ -24,6 +34,8 @@ interface AppointmentsBlock {
     customers: RelatedName | RelatedName[] | null;
     products: RelatedName | RelatedName[] | null;
   }>;
+  today: DayAppointment[];
+  byService: Array<{ type: string; count: number; minutes: number }>;
 }
 
 interface LeadsBlock {
@@ -328,7 +340,12 @@ export async function GET(request: NextRequest) {
     let cartFunnel: CartFunnelBlock | undefined;
 
     if (blocks.booking) {
-      const [periodApptResult, upcomingApptResult] = await Promise.all([
+      // Тухайн өдрийн цонх (период шүүлтүүрээс үл хамаарч ҮРГЭЛЖ өнөөдөр) —
+      // календар + төрлөөр нэгтгэхэд.
+      const todayStart = getStartOfPeriod('today');
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const [periodApptResult, upcomingApptResult, todayApptResult] = await Promise.all([
         // Period доторх уулзалтууд (series + статусын задаргаа)
         supabase
           .from('appointments')
@@ -345,6 +362,15 @@ export async function GET(request: NextRequest) {
           .neq('status', 'cancelled')
           .order('scheduled_at', { ascending: true })
           .limit(8),
+
+        // Тухайн өдрийн бүх уулзалт (календар + үйлчилгээний төрлөөр нэгтгэх)
+        supabase
+          .from('appointments')
+          .select('id, scheduled_at, duration_minutes, status, staff_id, customers (name, phone), products (name, category)')
+          .eq('shop_id', shopId)
+          .gte('scheduled_at', todayStart.toISOString())
+          .lt('scheduled_at', todayEnd.toISOString())
+          .order('scheduled_at', { ascending: true }),
       ]);
 
       const periodAppts = periodApptResult.data || [];
@@ -369,6 +395,20 @@ export async function GET(request: NextRequest) {
       // Хамгийн ачаалалтай цаг (популяр слот)
       const peakHour = byHour.some((v) => v > 0) ? byHour.indexOf(Math.max(...byHour)) : null;
 
+      // Тухайн өдрийн уулзалтуудыг үйлчилгээний төрлөөр (category, эс бөгөөс
+      // үйлчилгээний нэр) нэгтгэх.
+      const todayList = todayApptResult.data || [];
+      const serviceMap = new Map<string, { type: string; count: number; minutes: number }>();
+      todayList.forEach((a) => {
+        const prod = Array.isArray(a.products) ? a.products[0] : a.products;
+        const type = (prod?.category || prod?.name || 'Бусад') as string;
+        const cur = serviceMap.get(type) || { type, count: 0, minutes: 0 };
+        cur.count += 1;
+        cur.minutes += Number(a.duration_minutes || 0);
+        serviceMap.set(type, cur);
+      });
+      const byService = Array.from(serviceMap.values()).sort((a, b) => b.count - a.count);
+
       appointments = {
         stats: {
           periodCount: periodAppts.length,
@@ -376,12 +416,15 @@ export async function GET(request: NextRequest) {
           completedCount: statusBreakdown.completed,
           noShowRate,
           peakHour,
+          todayCount: todayList.length,
         },
         series: apptSeries,
         byHour,
         byWeekday,
         statusBreakdown,
         upcoming: upcomingApptResult.data || [],
+        today: todayList,
+        byService,
       };
     }
 

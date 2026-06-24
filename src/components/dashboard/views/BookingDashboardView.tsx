@@ -21,7 +21,8 @@ import {
     DashboardError,
     TimeFilter,
 } from './shared';
-import { PeakHoursCard, WeekdayLoadCard, SecondarySections } from './widgets';
+import { PeakHoursCard, WeekdayLoadCard, SecondarySections, DayScheduleCard, ServiceTypeSummaryCard } from './widgets';
+import { useStaff } from '@/hooks/useStaff';
 
 const STATUS_TONE: Record<string, string> = {
     pending: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
@@ -48,6 +49,13 @@ export function BookingDashboardView() {
 
     const { data, isLoading, isError, refetch, isRefetching } = useDashboard(timeFilter);
     const { data: aiStats } = useAIStats(timeFilter);
+    const { data: staffList = [] } = useStaff();
+
+    const staffById = useMemo(() => {
+        const map: Record<string, { name: string; color: string }> = {};
+        staffList.forEach((s) => (map[s.id] = { name: s.name, color: s.color }));
+        return map;
+    }, [staffList]);
 
     const appt = data?.appointments;
     const stats = appt?.stats || { periodCount: 0, upcomingCount: 0, completedCount: 0, noShowRate: 0 };
@@ -125,6 +133,21 @@ export function BookingDashboardView() {
                     </motion.div>
                     <motion.div variants={itemVariants}>
                         <KPI label={t.dashboard.kpiNoShow} value={stats.periodCount > 0 ? `${stats.noShowRate}%` : '—'} />
+                    </motion.div>
+                </motion.div>
+
+                {/* ─── Тухайн өдрийн календар + үйлчилгээний төрлөөр нэгтгэх ─── */}
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="show"
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5"
+                >
+                    <motion.div variants={itemVariants} className="lg:col-span-2">
+                        <DayScheduleCard data={appt} staffById={staffById} />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <ServiceTypeSummaryCard data={appt} />
                     </motion.div>
                 </motion.div>
 

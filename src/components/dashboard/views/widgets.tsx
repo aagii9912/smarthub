@@ -8,7 +8,20 @@ import { formatDelta, formatUpcoming } from './shared';
 import type { DashboardArchetype } from '@/lib/dashboard/archetypes';
 import type { DashboardData } from '@/hooks/useDashboard';
 import type { AppointmentsBlock, CartFunnelBlock, LeadsBlock } from '@/hooks/useDashboard';
-import { CalendarClock, Clock3, PhoneCall } from 'lucide-react';
+import { CalendarClock, Clock3, PhoneCall, CalendarDays, Layers } from 'lucide-react';
+
+type StaffLite = { name: string; color: string };
+
+function hhmm(iso: string): string {
+    return new Date(iso).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtMinutes(min: number): string {
+    if (min < 60) return `${min}м`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m ? `${h}ц ${m}м` : `${h}ц`;
+}
 
 const APPT_STATUS_TONE: Record<string, string> = {
     pending: 'bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)]',
@@ -263,6 +276,138 @@ export function FollowUpCard({ data }: { data: LeadsBlock | undefined }) {
                             <div className="flex items-center gap-1 text-[11px] text-white/40 shrink-0">
                                 <Clock3 className="h-3 w-3" />
                                 {l.last_contact_at ? formatDelta(l.last_contact_at) : '—'}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Booking: тухайн өдрийн календар (day schedule) ───
+export function DayScheduleCard({
+    data,
+    staffById,
+}: {
+    data: AppointmentsBlock | undefined;
+    staffById?: Record<string, StaffLite>;
+}) {
+    const { t } = useLanguage();
+    const items = data?.today ?? [];
+
+    // Цагийн муж: өгөгдлөөс үүсгэх (default 9–20).
+    const hours = items.map((a) => new Date(a.scheduled_at).getHours());
+    const startHour = Math.min(9, ...(hours.length ? hours : [9]));
+    const endHour = Math.max(20, ...(hours.length ? hours.map((h) => h + 1) : [20]));
+    const rows: number[] = [];
+    for (let h = startHour; h <= endHour; h++) rows.push(h);
+
+    const apptsInHour = (h: number) => items.filter((a) => new Date(a.scheduled_at).getHours() === h);
+
+    return (
+        <div className="card-outlined overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-[var(--brand-indigo)]" strokeWidth={1.75} />
+                    <div>
+                        <div className="text-[15px] font-semibold text-foreground">{t.dashboard.todayScheduleTitle}</div>
+                        <div className="text-[12px] text-muted-foreground mt-0.5">{t.dashboard.todayScheduleSubtitle}</div>
+                    </div>
+                </div>
+                <span className="text-[12px] text-muted-foreground tabular-nums">{items.length}</span>
+            </div>
+            {items.length === 0 ? (
+                <div className="px-5 py-16 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
+                    <CalendarDays className="h-5 w-5 text-white/30" strokeWidth={1.5} />
+                    {t.dashboard.noAppointmentsToday}
+                </div>
+            ) : (
+                <div className="max-h-[460px] overflow-y-auto divide-y divide-border/40">
+                    {rows.map((h) => {
+                        const inHour = apptsInHour(h);
+                        return (
+                            <div key={h} className="flex gap-3 px-5 py-2 min-h-[44px]">
+                                <span className="w-12 shrink-0 text-[11px] font-mono text-white/40 pt-1.5 tabular-nums">
+                                    {String(h).padStart(2, '0')}:00
+                                </span>
+                                <div className="flex-1 min-w-0 space-y-1.5 py-1">
+                                    {inHour.length === 0 ? (
+                                        <div className="h-px bg-white/[0.03] mt-2.5" />
+                                    ) : (
+                                        inHour.map((a) => {
+                                            const cust = pickRelated(a.customers);
+                                            const prod = pickRelated(a.products);
+                                            const st = a.staff_id ? staffById?.[a.staff_id] : undefined;
+                                            return (
+                                                <div
+                                                    key={a.id}
+                                                    className="flex items-center gap-2.5 rounded-lg bg-white/[0.03] border border-border/60 px-3 py-2"
+                                                    style={st ? { borderLeftColor: st.color, borderLeftWidth: 3 } : undefined}
+                                                >
+                                                    <span className="text-[11px] font-mono text-foreground tabular-nums shrink-0">{hhmm(a.scheduled_at)}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[13px] font-medium text-foreground truncate">{prod?.name || t.dashboard.colService}</div>
+                                                        <div className="text-[11px] text-muted-foreground truncate">
+                                                            {cust?.name || t.dashboard.customer}
+                                                            {st ? ` · ${st.name}` : ''}
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[10px] text-white/40 shrink-0">{a.duration_minutes}{t.dashboard.minutesShort}</span>
+                                                    <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[10px] font-medium shrink-0', APPT_STATUS_TONE[a.status] || APPT_STATUS_TONE.pending)}>
+                                                        {STATUS_LABELS_MN[a.status] || a.status}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+const STATUS_LABELS_MN: Record<string, string> = {
+    pending: 'Хүлээгдэж',
+    confirmed: 'Баталгаажсан',
+    completed: 'Дууссан',
+    cancelled: 'Цуцалсан',
+    no_show: 'Ирээгүй',
+};
+
+// ─── Booking: өдрийн ажлыг үйлчилгээний төрлөөр нэгтгэх ───
+export function ServiceTypeSummaryCard({ data }: { data: AppointmentsBlock | undefined }) {
+    const { t } = useLanguage();
+    const rows = data?.byService ?? [];
+    const max = Math.max(1, ...rows.map((r) => r.count));
+
+    return (
+        <div className="card-outlined p-5 h-full">
+            <div className="flex items-center gap-2 mb-4">
+                <Layers className="h-4 w-4 text-[var(--brand-violet-500)]" strokeWidth={1.75} />
+                <div className="text-[15px] font-semibold text-foreground">{t.dashboard.byServiceTitle}</div>
+            </div>
+            {rows.length === 0 ? (
+                <div className="py-8 text-center text-[12px] text-muted-foreground">{t.dashboard.noAppointmentsToday}</div>
+            ) : (
+                <div className="space-y-3.5">
+                    {rows.map((r) => (
+                        <div key={r.type}>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[12px] text-foreground truncate pr-2">{r.type}</span>
+                                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                                    {r.count} · {fmtMinutes(r.minutes)}
+                                </span>
+                            </div>
+                            <div className="h-2 rounded-full bg-white/[0.05] overflow-hidden">
+                                <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.round((r.count / max) * 100)}%`, backgroundColor: 'var(--brand-violet-500)' }}
+                                />
                             </div>
                         </div>
                     ))}

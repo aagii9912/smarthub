@@ -516,6 +516,11 @@ export const mn = {
     // Reports — архетип tab нэр
     reportTabBooking: 'Цаг захиалга',
     reportTabLead: 'Lead',
+    // Booking — өдрийн календар + үйлчилгээний төрлөөр нэгтгэх
+    todayScheduleTitle: 'Өнөөдрийн хуваарь',
+    todayScheduleSubtitle: 'Тухайн өдрийн цаг захиалга',
+    noAppointmentsToday: 'Өнөөдөр цаг захиалга алга',
+    byServiceTitle: 'Үйлчилгээний төрлөөр',
   },
 
   // ─── Orders Page ───

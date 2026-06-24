@@ -134,6 +134,8 @@ function SidebarInner() {
         // "Бүтээгдэхүүн"-ийг бизнесийн төрлөөр динамик noun болгоно
         // (Үйлчилгээ / Зар / Сургалт / Меню).
         if (key === 'products' && agent.businessType) return itemNoun(agent.businessType);
+        // Booking бизнест "Захиалга" → "Цаг захиалга".
+        if (key === 'orders' && archetype === 'booking') return t.dashboard.reportTabBooking;
         return (
             ORDER_CHILD_LABELS[key] ||
             SYSTEM_LABELS[key] ||
