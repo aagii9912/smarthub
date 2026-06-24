@@ -33,12 +33,13 @@ import {
     CreditCard,
     Box,
     Images,
+    UserCog,
     X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
-import { itemNoun } from '@/lib/dashboard/archetypes';
+import { itemNoun, resolveArchetype, type DashboardArchetype } from '@/lib/dashboard/archetypes';
 
 interface PillTab {
     id: string;
@@ -59,10 +60,13 @@ interface MoreItem {
     fallback: string;
     href: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    /** Зөвхөн эдгээр архетипд харагдана (байхгүй бол бүгдэд). */
+    archetypes?: DashboardArchetype[];
 }
 
 const MORE_ITEMS: MoreItem[] = [
     { nameKey: 'products', fallback: 'Бүтээгдэхүүн', href: '/dashboard/products', icon: Box },
+    { nameKey: 'staff', fallback: 'Ажилтан', href: '/dashboard/staff', icon: UserCog, archetypes: ['booking'] },
     { nameKey: 'customers', fallback: 'Харилцагч', href: '/dashboard/customers', icon: Users },
     { nameKey: 'aiSettings', fallback: 'AI Тохиргоо', href: '/dashboard/ai-settings', icon: Bot },
     { nameKey: 'commentMgmt', fallback: 'Comment', href: '/dashboard/comment-automation', icon: MessageSquareMore },
@@ -98,7 +102,12 @@ export function MobileNav() {
         return pathname === href || (pathname?.startsWith(href + '/') ?? false);
     };
 
-    const isMoreActive = MORE_ITEMS.some((m) => isActive(m.href));
+    // archetype-gated цэсийг шүүх (business_type-аас)
+    const archetype = resolveArchetype(agent.businessType, agent.capabilities);
+    const moreItems = MORE_ITEMS.filter(
+        (m) => !m.archetypes || (!agent.loading && m.archetypes.includes(archetype)),
+    );
+    const isMoreActive = moreItems.some((m) => isActive(m.href));
 
     return (
         <>
@@ -127,7 +136,7 @@ export function MobileNav() {
                             </button>
                         </div>
                         <div className="grid grid-cols-3 gap-1.5 p-3">
-                            {MORE_ITEMS.map((item) => {
+                            {moreItems.map((item) => {
                                 const active = isActive(item.href);
                                 const label =
                                     item.nameKey === 'products' && agent.businessType

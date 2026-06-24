@@ -272,6 +272,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
             const productData: Record<string, unknown> = {
                 name: formData.get('name') as string,
                 description: formData.get('description') as string,
+                category: (formData.get('category') as string)?.trim() || null,
                 price: Number(formData.get('price')),
                 discountPercent: Number(formData.get('discount')) || 0,
                 type: productType,
@@ -364,6 +365,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                         <h3 className="text-[13px] font-semibold text-white/90">Үндсэн мэдээлэл</h3>
                         <Input name="name" label="Нэр" defaultValue={product?.name} required placeholder="Бүтээгдэхүүний нэр" />
+                        <Input name="category" label="Төрөл / ангилал" defaultValue={product?.category || ''} maxLength={80} placeholder={productType === 'physical' ? 'Жишээ: Хувцас, Гутал…' : 'Жишээ: Үс засалт, Маникюр…'} />
                         <Textarea name="description" label="Тайлбар" defaultValue={product?.description || ''} rows={4} maxLength={10000} placeholder="Бүтээгдэхүүн/Үйлчилгээний дэлгэрэнгүй... (хамгийн ихдээ 10,000 тэмдэгт)" />
                     </div>
 

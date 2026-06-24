@@ -69,6 +69,8 @@ export const createProductSchema = z.object({
         .optional()
         .default(0),
     type: productTypeSchema.default('physical'),
+    // Үйлчилгээ/барааны төрөл (ангилал) — дашбордын бүлэглэлд хэрэглэнэ.
+    category: z.string().max(80).optional().nullable(),
     colors: z.array(z.string()).optional().default([]),
     sizes: z.array(z.string()).optional().default([]),
     images: z.array(z.string().url()).optional().default([]),

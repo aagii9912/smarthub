@@ -38,12 +38,13 @@ import {
     Crown,
     Sparkles,
     Images,
+    UserCog,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useFeatures } from '@/hooks/useFeatures';
 import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
-import { itemNoun } from '@/lib/dashboard/archetypes';
+import { itemNoun, resolveArchetype, type DashboardArchetype } from '@/lib/dashboard/archetypes';
 import { hasRole } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,8 @@ interface NavLink {
     feature?: string;
     /** Энэ цэсийг харахад шаардлагатай хамгийн бага эрх (байхгүй бол бүгдэд нээлттэй). */
     minRole?: ShopRole;
+    /** Зөвхөн эдгээр dashboard архетипд харагдана (байхгүй бол бүх архетипд). */
+    archetypes?: DashboardArchetype[];
     badge?: number;
     children?: { nameKey: string; href: string; badge?: number }[];
 }
@@ -66,6 +69,7 @@ const WORKSPACE: NavLink[] = [
     { nameKey: 'orders', href: '/dashboard/orders', icon: Package },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
     { nameKey: 'products', href: '/dashboard/products', icon: Box },
+    { nameKey: 'staff', href: '/dashboard/staff', icon: UserCog, archetypes: ['booking'] },
     { nameKey: 'customers', href: '/dashboard/customers', icon: Users },
 ];
 
@@ -120,6 +124,11 @@ function SidebarInner() {
     // (ачааллаж буй / эзэн) бүгдийг харуулна (анивчихаас сэргийлнэ).
     const visibleByRole = (item: NavLink) =>
         !item.minRole || !role || hasRole(role, item.minRole);
+
+    // archetypes-той цэсийг зөвхөн тухайн архетипд харуулна (business_type-аас).
+    const archetype = resolveArchetype(agent.businessType, agent.capabilities);
+    const visibleByArchetype = (item: NavLink) =>
+        !item.archetypes || (!agent.loading && item.archetypes.includes(archetype));
 
     const getLabel = (key: string) => {
         // "Бүтээгдэхүүн"-ийг бизнесийн төрлөөр динамик noun болгоно
@@ -211,7 +220,7 @@ function SidebarInner() {
             <nav className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-3">
                 <SectionLabel>{t.sidebar.main}</SectionLabel>
                 <ul className="flex flex-col gap-0.5">
-                    {WORKSPACE.filter(visibleByRole).map((item) => (
+                    {WORKSPACE.filter(visibleByRole).filter(visibleByArchetype).map((item) => (
                         <NavItem
                             key={item.nameKey}
                             item={item}
@@ -227,7 +236,7 @@ function SidebarInner() {
                 <div className="mt-5">
                     <SectionLabel>{t.sidebar.tools}</SectionLabel>
                     <ul className="flex flex-col gap-0.5">
-                        {INSIGHTS.filter(visibleByRole).map((item) => (
+                        {INSIGHTS.filter(visibleByRole).filter(visibleByArchetype).map((item) => (
                             <NavItem
                                 key={item.nameKey}
                                 item={item}
@@ -243,7 +252,7 @@ function SidebarInner() {
 
                 <div className="mt-5">
                     <ul className="flex flex-col gap-0.5">
-                        {SYSTEM.filter(visibleByRole).map((item) => (
+                        {SYSTEM.filter(visibleByRole).filter(visibleByArchetype).map((item) => (
                             <NavItem
                                 key={item.nameKey}
                                 item={item}

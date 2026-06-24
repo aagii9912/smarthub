@@ -95,6 +95,7 @@ export async function POST(request: Request) {
     if (validData.preOrderEta !== undefined) lifecycleExtras.pre_order_eta = validData.preOrderEta;
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
     if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
+    if (validData.category !== undefined) lifecycleExtras.category = validData.category;
 
     let { data, error } = await supabase
       .from('products')
@@ -211,6 +212,7 @@ export async function PATCH(request: Request) {
     if (validData.preOrderEta !== undefined) lifecycleExtras.pre_order_eta = validData.preOrderEta;
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
     if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
+    if (validData.category !== undefined) lifecycleExtras.category = validData.category;
 
     let { data, error } = await supabase
       .from('products')

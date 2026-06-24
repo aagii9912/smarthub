@@ -235,6 +235,7 @@ export const mn = {
   sidebar: {
     dashboard: 'Хянах самбар',
     products: 'Бүтээгдэхүүн',
+    staff: 'Ажилтан',
     orders: 'Захиалга',
     customers: 'Харилцагч',
     complaints: 'Гомдол',

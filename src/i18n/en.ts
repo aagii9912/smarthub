@@ -237,6 +237,7 @@ export const en: Translations = {
   sidebar: {
     dashboard: 'Dashboard',
     products: 'Products',
+    staff: 'Staff',
     orders: 'Orders',
     customers: 'Customers',
     complaints: 'Complaints',
