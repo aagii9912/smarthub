@@ -168,13 +168,6 @@ export function Header() {
                                         <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-white/40">
                                             {sub?.planName || 'Үнэгүй багц'}
                                         </span>
-                                        {sub?.trialActive ? (
-                                            <span className="text-[11px] font-medium text-violet-300">
-                                                Туршилт: {sub.remainingText}
-                                            </span>
-                                        ) : sub?.trialExpired ? (
-                                            <span className="text-[11px] font-medium text-red-400">Туршилт дууссан</span>
-                                        ) : null}
                                     </div>
 
                                     <button

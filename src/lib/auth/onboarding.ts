@@ -3,10 +3,10 @@
  *
  * Ensures a `user_profiles` row exists for every authenticated user.
  *
- * The 3-day Lite trial is now opt-in via the setup wizard's plan-selection
- * step (`POST /api/subscription/start-trial`). New users land at /setup and
- * choose between starting a trial or paying for a plan. This function no
- * longer creates a subscription — it only provisions the profile row.
+ * New users land at /setup and pick a plan — the free Lite tier (instant
+ * activation) or a paid plan. (The 3-day trial was retired when Lite became
+ * free.) This function does not create a subscription — it only provisions the
+ * profile row.
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
@@ -25,8 +25,9 @@ export interface ProvisionResult {
  * Ensure the user has a `user_profiles` row.
  *
  * Idempotent: safe to call on every login. The function name is preserved
- * for call-site compatibility, but trial creation now happens explicitly via
- * the start-trial endpoint. Returns the existing subscription metadata if any.
+ * for call-site compatibility, but it no longer creates any subscription —
+ * plan selection happens in the setup wizard. Returns the existing
+ * subscription metadata if any.
  *
  * Never throws. Failures are logged but never block sign-in.
  */

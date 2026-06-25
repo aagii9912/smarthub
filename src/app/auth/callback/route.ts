@@ -7,7 +7,7 @@ import { logger } from '@/lib/utils/logger';
  * OAuth callback handler.
  *
  * Exchanges the auth code for a session, then:
- *   1. Provisions a 3-day Lite trial for first-time users (idempotent).
+ *   1. Ensures a `user_profiles` row exists for first-time users (idempotent).
  *   2. Routes the user to the right next step:
  *        - explicit `redirect_url` query param wins (used by email-verify links).
  *        - else, decide based on shop state (no shops → /setup, ready shop → /dashboard).
@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
             // Always provision the user_profiles row. Failure here must not
-            // block sign-in. Trial subscription itself is now opt-in via the
-            // setup wizard — this call only ensures the profile exists.
+            // block sign-in. Plan selection happens in the setup wizard — this
+            // call only ensures the profile exists.
             await provisionNewUserTrial(user.id, user.email ?? null);
 
             // Only auto-route when caller didn't pin a destination via

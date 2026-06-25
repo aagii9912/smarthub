@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import {
     Crown, Rocket, Building2, Sparkles,
-    CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone, Gift, Clock
+    CreditCard, X, Loader2, ArrowRight, CheckCircle2, Smartphone
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,10 +97,6 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
     const [ageConfirmed, setAgeConfirmed] = useState(false);
     const [marketingConsent, setMarketingConsent] = useState(false);
     const [consentError, setConsentError] = useState('');
-    const [trialState, setTrialState] = useState<'available' | 'active' | 'used' | 'unknown'>('unknown');
-    const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
-    const [trialLoading, setTrialLoading] = useState(false);
-    const [trialError, setTrialError] = useState('');
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const { t } = useLanguage();
     const { refreshShop } = useAuth();
@@ -183,93 +179,6 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
             }
         };
     }, []);
-
-    // Determine the user's current trial state once on mount.
-    useEffect(() => {
-        let active = true;
-        const fetchTrialState = async () => {
-            try {
-                const res = await fetch('/api/subscription/current');
-                if (!res.ok) {
-                    if (active) setTrialState('available');
-                    return;
-                }
-                const data = await res.json();
-                const subStatus = data?.subscription?.status as string | undefined;
-                const shopStatus = data?.shop_status?.subscription_status as string | undefined;
-                const endsAt = (data?.subscription?.trial_ends_at as string | undefined)
-                    ?? (data?.shop_status?.trial_ends_at as string | undefined)
-                    ?? null;
-
-                if (!active) return;
-
-                if (subStatus === 'trialing' || shopStatus === 'trial' || shopStatus === 'trialing') {
-                    setTrialState('active');
-                    setTrialEndsAt(endsAt);
-                } else if (
-                    subStatus === 'active' ||
-                    shopStatus === 'active' ||
-                    shopStatus === 'expired_trial' ||
-                    subStatus === 'expired' ||
-                    subStatus === 'canceled'
-                ) {
-                    // Already on a paid plan, or trial was previously used.
-                    setTrialState('used');
-                } else {
-                    setTrialState('available');
-                }
-            } catch {
-                if (active) setTrialState('available');
-            }
-        };
-        fetchTrialState();
-        return () => {
-            active = false;
-        };
-    }, []);
-
-    const trialDaysRemaining = (() => {
-        if (!trialEndsAt) return null;
-        const diffMs = new Date(trialEndsAt).getTime() - Date.now();
-        if (Number.isNaN(diffMs) || diffMs <= 0) return 0;
-        return Math.max(1, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
-    })();
-
-    const handleStartTrial = async () => {
-        if (!allRequiredConsents) {
-            setConsentError(t.setup.subscription.consent.errorRequired);
-            if (typeof window !== 'undefined') {
-                document.getElementById('consent-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            return;
-        }
-        setConsentError('');
-        setTrialError('');
-        setTrialLoading(true);
-        try {
-            const res = await fetch('/api/subscription/start-trial', { method: 'POST' });
-            const data = await res.json();
-            if (!res.ok) {
-                setTrialError(data?.error || 'Туршилт эхлүүлэхэд алдаа гарлаа.');
-                if (data?.code === 'subscription_exists') setTrialState('active');
-                else if (data?.code === 'trial_already_used') setTrialState('used');
-                return;
-            }
-            await refreshShop();
-            setTrialState('active');
-            setTrialEndsAt(data?.trial_ends_at ?? null);
-            onComplete();
-        } catch (err) {
-            logger.error('start-trial error', { error: err });
-            setTrialError('Сүлжээний алдаа. Дахин оролдоно уу.');
-        } finally {
-            setTrialLoading(false);
-        }
-    };
-
-    const handleContinueWithTrial = () => {
-        onComplete();
-    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('mn-MN').format(amount) + '₮';
@@ -588,69 +497,6 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                         <div className="text-sm font-semibold text-violet-900">{promotion!.name}</div>
                         {promotion!.description && (
                             <div className="text-xs text-violet-700 mt-0.5">{promotion!.description}</div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Trial Card */}
-            {trialState !== 'unknown' && (
-                <div className={`rounded-2xl border p-5 ${trialState === 'used'
-                    ? 'border-gray-200 bg-gray-50 opacity-70'
-                    : 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50'
-                    }`}>
-                    <div className="flex items-start gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${trialState === 'used' ? 'bg-gray-200' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
-                            }`}>
-                            {trialState === 'active' ? (
-                                <Clock className="w-5 h-5 text-white" />
-                            ) : (
-                                <Gift className={`w-5 h-5 ${trialState === 'used' ? 'text-gray-500' : 'text-white'}`} />
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-base font-semibold text-gray-900">
-                                3 хоног үнэгүй туршаад үзэх
-                            </h3>
-                            {trialState === 'active' && (
-                                <p className="text-sm text-emerald-700 mt-1">
-                                    Туршилт идэвхтэй
-                                    {trialDaysRemaining !== null && trialDaysRemaining > 0 && (
-                                        <> — {trialDaysRemaining} хоног үлдсэн</>
-                                    )}
-                                </p>
-                            )}
-                            {trialState === 'available' && (
-                                <p className="text-sm text-gray-600 mt-1">
-                                    Картын мэдээлэл хэрэггүй. 3 хоногийн дараа автоматаар зогсоно.
-                                </p>
-                            )}
-                            {trialState === 'used' && (
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Та өмнө нь туршилт ашигласан байна. Доорх төлбөртэй планаас сонгоно уу.
-                                </p>
-                            )}
-                            {trialError && (
-                                <p className="text-xs text-red-600 mt-2">{trialError}</p>
-                            )}
-                        </div>
-                        {trialState === 'available' && (
-                            <Button
-                                onClick={handleStartTrial}
-                                disabled={trialLoading}
-                                className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-700"
-                            >
-                                {trialLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Эхлүүлэх'}
-                            </Button>
-                        )}
-                        {trialState === 'active' && (
-                            <Button
-                                onClick={handleContinueWithTrial}
-                                variant="secondary"
-                                className="flex-shrink-0"
-                            >
-                                Үргэлжлүүлэх
-                            </Button>
                         )}
                     </div>
                 </div>

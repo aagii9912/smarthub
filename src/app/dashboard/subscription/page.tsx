@@ -12,7 +12,6 @@ import {
     Loader2,
     X,
     Sparkles,
-    Clock,
     AlertTriangle,
     Gift,
 } from 'lucide-react';
@@ -383,30 +382,6 @@ export default function SubscriptionPage() {
 
     const currentPrice = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
 
-    const subStatus = shopStatus?.subscription_status;
-    const trialEndsAt = shopStatus?.trial_ends_at ? new Date(shopStatus.trial_ends_at) : null;
-    // shops хүснэгт 'trial', subscriptions/user_profiles 'trialing' гэж
-    // хадгалдаг — хоёуланг нь хүлээж авна (useSubscriptionStatus-тэй ижил).
-    const isTrialing = subStatus === 'trial' || subStatus === 'trialing';
-    const trialActive = isTrialing && trialEndsAt && trialEndsAt > new Date();
-    const trialExpired =
-        subStatus === 'expired_trial' ||
-        subStatus === 'expired' ||
-        (isTrialing && trialEndsAt && trialEndsAt <= new Date());
-
-    let trialRemainingText = '';
-    if (trialActive && trialEndsAt) {
-        const diffMs = trialEndsAt.getTime() - Date.now();
-        const totalHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
-        const days = Math.floor(totalHours / 24);
-        const hours = totalHours % 24;
-        if (days > 0) {
-            trialRemainingText = `${days} хоног ${hours} цаг`;
-        } else {
-            trialRemainingText = `${totalHours} цаг`;
-        }
-    }
-
     return (
         <div className="space-y-6">
             <PageHero
@@ -421,41 +396,6 @@ export default function SubscriptionPage() {
                 }
             />
 
-            {trialActive && (
-                <div className="card-outlined p-4 border-l-4" style={{ borderLeftColor: 'var(--brand-violet-500)' }}>
-                    <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in oklab, var(--brand-violet-500) 18%, transparent)' }}>
-                            <Clock className="w-4 h-4" style={{ color: 'var(--brand-violet-500)' }} strokeWidth={1.5} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
-                                Туршилтын хугацаа дуусахад {trialRemainingText} үлдлээ
-                            </p>
-                            <p className="text-[12px] text-white/55 mt-0.5">
-                                Дуусахаас өмнө багц сонгож, AI-аа үргэлжлүүлэн ашиглаарай.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {trialExpired && (
-                <div className="card-outlined p-4 border-l-4" style={{ borderLeftColor: 'var(--destructive)' }}>
-                    <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'color-mix(in oklab, var(--destructive) 18%, transparent)' }}>
-                            <AlertTriangle className="w-4 h-4" style={{ color: 'var(--destructive)' }} strokeWidth={1.5} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-semibold text-foreground tracking-[-0.01em]">
-                                Туршилтын хугацаа дууссан байна
-                            </p>
-                            <p className="text-[12px] text-white/55 mt-0.5">
-                                AI түр зогссон. Үргэлжлүүлэхийн тулд багц сонгож төлбөр төлнө үү.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Current Plan */}
             <div className="card-featured p-6">

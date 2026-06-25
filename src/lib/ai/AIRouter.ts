@@ -293,38 +293,8 @@ export async function routeToAI(
         };
     }
 
-    // Trial expiry gate — block AI when trial period is over and user hasn't paid.
-    // 'expired_trial' status нь дээрх authorize gate-аар хаагддаг тул энд зөвхөн
-    // 'trial'/'trialing' статус хугацаагаа хэтрүүлсэн тохиолдлыг шалгана.
-    const trialEndsAt = context.subscription?.trialEndsAt;
-    const trialExpired =
-        (subStatus === 'trial' || subStatus === 'trialing') &&
-        !!trialEndsAt &&
-        new Date(trialEndsAt) < new Date();
-
-    if (trialExpired) {
-        logger.warn('Trial expired — blocking AI', {
-            shopId: context.shopId,
-            plan: planType,
-            status: subStatus,
-            trialEndsAt,
-        });
-        return {
-            text: 'Туршилтын хугацаа дууссан байна. Үргэлжлүүлэхийн тулд багц сонгоно уу. 🛒',
-            limitReached: true,
-            usage: {
-                plan: planType,
-                model: planConfig.model,
-                messagesUsed: context.messageCount || 0,
-                tokensUsed: context.tokenUsageTotal || 0,
-                tokensRemaining: 0,
-                tokenUsagePercent: 0,
-                creditsUsed: 0,
-                creditsRemaining: 0,
-                creditsLimit: effectiveCreditsLimit,
-            },
-        };
-    }
+    // (3 хоногийн trial болиулсан — trial-expiry gate устгасан. Lite одоо үнэгүй
+    //  active план тул бүх authorized хэрэглэгч хязгаараа хүртэл AI ашиглана.)
 
     // Deterministic quick-reply / trigger matching (#7). If the customer's
     // message matches a configured trigger keyword, return that canned response

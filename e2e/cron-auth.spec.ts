@@ -18,7 +18,7 @@ import { test, expect } from '@playwright/test';
 const CRON_ROUTES = [
     '/api/cron/process-messages',
     '/api/cron/check-payments',
-    '/api/cron/check-trial-expiry',
+    '/api/cron/reset-token-pools',
     '/api/cron/cleanup-orders',
     '/api/cron/weekly-token-report',
 ];

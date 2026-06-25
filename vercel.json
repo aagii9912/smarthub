@@ -25,7 +25,7 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/cron/check-trial-expiry",
+      "path": "/api/cron/reset-token-pools",
       "schedule": "0 1 * * *"
     },
     {

@@ -2,14 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { getPlanConfig, type PlanType } from '@/lib/ai/config/plans';
 
 /**
- * Derived trial + token-usage status for the current shop, sourced from
- * /api/subscription/current (which reads the shops table). Used by the global
- * TrialStatusBanner (#1/#2) so trial countdown + token usage stay visible.
+ * Derived token-usage (credit) status for the current shop, sourced from
+ * /api/subscription/current (which reads the shops table). Drives the credit
+ * meter in the dashboard Header.
  *
- * Status note: the shops table stores `subscription_status = 'trial'` (legacy
- * enum) while the subscriptions table / user_profiles use `'trialing'`. The cron
- * sets `'expired_trial'` on expiry. We treat both trial spellings as active and
- * both expired spellings as ended, matching lib/billing/isAiAuthorized.ts.
+ * Note: the 3-day trial was retired when Lite became free. The trialActive /
+ * trialExpired fields are kept for backward compatibility but are no-ops now
+ * that no subscription carries a trial status.
  */
 export interface SubscriptionStatus {
     subStatus: string | null;
