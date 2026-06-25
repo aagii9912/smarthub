@@ -103,11 +103,78 @@ export async function POST(request: NextRequest) {
             ? plan.price_yearly
             : plan.price_monthly;
 
-        // Free plans are not available — all users must pay
+        // Free plan (e.g. Lite freemium) → instant activation, no payment.
+        // Mirrors the paid activation in /api/subscription/check-payment but
+        // skips the QPay invoice entirely since there is nothing to charge.
         if (amount === 0) {
+            const periodStart = new Date();
+            const periodEnd = new Date(periodStart);
+            periodEnd.setMonth(periodEnd.getMonth() + (billing_cycle === 'yearly' ? 12 : 1));
+
+            // Upsert subscription as active (keyed by user_id — subscriptions
+            // has only a PARTIAL unique index, so .upsert(onConflict) is unusable).
+            if (userId) {
+                const { error: freeSubError } = await upsertUserSubscription(supabase, {
+                    user_id: userId,
+                    shop_id: shop.id,
+                    plan_id: plan.id,
+                    status: 'active',
+                    billing_cycle,
+                    current_period_start: periodStart.toISOString(),
+                    current_period_end: periodEnd.toISOString(),
+                    period_anchor_at: periodStart.toISOString(),
+                    tokens_used_in_period: 0,
+                });
+
+                if (freeSubError) {
+                    logger.error('Failed to activate free subscription', {
+                        shop_id: shop.id,
+                        error: freeSubError.message,
+                    });
+                    return NextResponse.json(
+                        { error: 'Үнэгүй план идэвхжүүлэхэд алдаа гарлаа. Дахин оролдоно уу.' },
+                        { status: 500 }
+                    );
+                }
+
+                // Mirror onto the user_profiles snapshot (middleware paywall reads this).
+                await supabase
+                    .from('user_profiles')
+                    .update({
+                        plan_id: plan.id,
+                        subscription_plan: plan.slug,
+                        subscription_status: 'active',
+                    })
+                    .eq('id', userId);
+            }
+
+            // Mirror onto every shop the user owns so per-shop reads see the
+            // active free plan immediately. Clear trial markers and complete
+            // setup, matching the paid-activation write.
+            await supabase
+                .from('shops')
+                .update({
+                    plan_id: plan.id,
+                    subscription_plan: plan.slug,
+                    subscription_status: 'active',
+                    setup_completed: true,
+                })
+                .eq('user_id', userId || shop.id);
+
+            logger.success('Free subscription activated', {
+                shop_id: shop.id,
+                user_id: userId,
+                plan_slug: plan.slug,
+            });
+
             return NextResponse.json({
-                error: 'Үнэгүй план байхгүй байна. Төлбөртэй план сонгоно уу.',
-            }, { status: 400 });
+                plan_slug: plan.slug,
+                plan_name: plan.name,
+                amount: 0,
+                free: true,
+                payment_required: false,
+                message: `${plan.name} план үнэгүй идэвхжлээ 🎉`,
+            });
         }
 
         // Create invoice for paid plan (billing history)

@@ -473,11 +473,13 @@ export default function SubscriptionPage() {
                     </div>
                     <div className="text-left md:text-right">
                         <p className="text-[26px] font-semibold text-foreground tabular-nums tracking-[-0.02em]">
-                            ₮{currentPrice.toLocaleString()}
+                            {currentPrice > 0 ? `₮${currentPrice.toLocaleString()}` : 'Үнэгүй'}
                         </p>
-                        <p className="text-[11px] text-white/45 tracking-[-0.01em]">
-                            {billingCycle === 'monthly' ? '/сар' : '/жил'}
-                        </p>
+                        {currentPrice > 0 && (
+                            <p className="text-[11px] text-white/45 tracking-[-0.01em]">
+                                {billingCycle === 'monthly' ? '/сар' : '/жил'}
+                            </p>
+                        )}
                     </div>
                 </div>
                 {/* Usage Bars */}
@@ -709,10 +711,16 @@ export default function SubscriptionPage() {
                                 {p.name}
                             </h4>
                             <p className="text-[26px] font-semibold text-foreground mt-2 tabular-nums tracking-[-0.02em]">
-                                ₮{price.toLocaleString()}
-                                <span className="text-[12px] font-normal text-white/45 ml-0.5">
-                                    /{billingCycle === 'monthly' ? 'сар' : 'жил'}
-                                </span>
+                                {price > 0 ? (
+                                    <>
+                                        ₮{price.toLocaleString()}
+                                        <span className="text-[12px] font-normal text-white/45 ml-0.5">
+                                            /{billingCycle === 'monthly' ? 'сар' : 'жил'}
+                                        </span>
+                                    </>
+                                ) : (
+                                    'Үнэгүй'
+                                )}
                             </p>
                             {promoApplies && (
                                 <p className="text-[11.5px] mt-1 font-medium" style={{ color: 'var(--brand-violet-500)' }}>

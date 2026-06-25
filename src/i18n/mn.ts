@@ -206,6 +206,7 @@ export const mn = {
       recommended: 'Санал болгох',
       perMonth: 'сар',
       perYear: 'жил',
+      free: 'Үнэгүй',
       contactUs: 'Тохиролцоно',
       chooseLater: 'Дараа сонгох →',
       payment: 'Төлбөр төлөх',

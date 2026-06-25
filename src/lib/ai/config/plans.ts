@@ -5,7 +5,7 @@
  *   1 credit = 1000 tokens (see TOKENS_PER_CREDIT)
  *
  * Strategy: Tiered Gemini models per plan
- * - Lite: Gemini 3.1 Flash Lite - ₮89,000/сар - 5,000 credits (Chatbot only)
+ * - Lite: Gemini 3.1 Flash Lite - ҮНЭГҮЙ - 1,000 credits (Freemium — хэрэглэгч татах)
  * - Starter: Gemini 3.1 Flash Lite - ₮149,000/сар - 8,500 credits
  * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 21,000 credits (better tool calling)
  * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100,000 credits
@@ -81,12 +81,12 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         provider: 'gemini',
         model: 'gemini-3.1-flash-lite',
         maxTokens: 300,
-        tokensPerMonth: 5_000_000,    // ~5M tokens/month ≈ 5,000 credits
+        tokensPerMonth: 1_000_000,    // ~1M tokens/month ≈ 1,000 credits (free tier)
         maxShops: 1,
         maxProducts: 20,
         price: {
-            monthly: { mnt: 89000, usd: 26 },
-            yearly: { mnt: 890000, usd: 262 },
+            monthly: { mnt: 0, usd: 0 }, // Free (freemium tier)
+            yearly: { mnt: 0, usd: 0 },
         },
         features: {
             // AI Core

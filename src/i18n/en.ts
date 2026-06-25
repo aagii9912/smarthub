@@ -208,6 +208,7 @@ export const en: Translations = {
       recommended: 'Recommended',
       perMonth: 'mo',
       perYear: 'yr',
+      free: 'Free',
       contactUs: 'Contact us',
       chooseLater: 'Choose later →',
       payment: 'Make Payment',

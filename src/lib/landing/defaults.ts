@@ -113,24 +113,21 @@ export const defaultLandingContent: LandingContent = {
         ],
         lite: {
             tag: "LITE",
-            desc: "Бүтээгдэхүүн танилцуулах",
+            desc: "Үнэгүй эхлэх",
             accent: "warm",
             credit: {
                 icon: "⚡",
-                headline: "5,000 AI credit/сар",
+                headline: "1,000 AI credit/сар",
                 lines: ["1 Facebook/Instagram хуудас", "Тусгай борлуулагч Agent (Basic)"],
             },
             price: {
-                monthly: { value: "₮89,000", per: "/сар" },
-                annual: { value: "₮890,000", strike: "₮1,068,000", per: "/жил" },
+                monthly: { value: "Үнэгүй", per: "" },
+                annual: { value: "Үнэгүй", per: "" },
             },
-            cta: { text: "Эхлэх", href: "/auth/register?plan=lite" },
-            save: {
-                annual: "₮178,000 хэмнэнэ — 2 сар үнэгүй",
-            },
+            cta: { text: "Үнэгүй эхлэх", href: "/auth/register?plan=lite" },
             features: [
                 { kind: "ok", text: "1 Facebook/Instagram хуудас" },
-                { kind: "ok", text: "5,000 AI credit/сар" },
+                { kind: "ok", text: "1,000 AI credit/сар" },
                 { kind: "ok", text: "Тусгай борлуулагч Agent (Basic)" },
                 { kind: "no", text: "Зураг таних (Vision)" },
                 { kind: "no", text: "QPay холболт" },
@@ -222,7 +219,7 @@ export const defaultLandingContent: LandingContent = {
 
     comparison: [
         { name: "Facebook/Instagram хуудас", lite: "1", starter: "1", pro: "3", enterprise: "Хязгааргүй" },
-        { name: "Сарын AI credit", lite: "5,000", starter: "8,500", pro: "21,000", enterprise: "100,000" },
+        { name: "Сарын AI credit", lite: "1,000", starter: "8,500", pro: "21,000", enterprise: "100,000" },
         { name: "Тусгай борлуулагч Agent", lite: true, starter: true, pro: true, enterprise: true },
         { name: "Зураг таних (Vision)", lite: false, starter: true, pro: true, enterprise: true },
         { name: "Сагс — Сагс нэмэх/устгах", lite: false, starter: true, pro: true, enterprise: true },

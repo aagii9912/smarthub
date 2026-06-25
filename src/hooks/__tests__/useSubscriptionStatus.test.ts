@@ -100,11 +100,11 @@ describe('deriveSubscriptionStatus (#1/#2)', () => {
         expect(
             deriveSubscriptionStatus({ plan: { limits: { tokens: 5000 } }, usage: { tokens: 10 } }, NOW).tokensMax,
         ).toBe(5000);
-        // A plan with empty limits → config fallback (slug defaults to 'lite' = 5M tokens).
+        // A plan with empty limits → config fallback (slug defaults to 'lite' = 1M tokens).
         expect(
             deriveSubscriptionStatus({ plan: { limits: {} }, shop_status: { subscription_status: 'active' } }, NOW)
                 .tokensMax,
-        ).toBe(5_000_000);
+        ).toBe(1_000_000);
         // No plan at all → 0.
         expect(deriveSubscriptionStatus({ shop_status: { subscription_status: 'unpaid' } }, NOW).tokensMax).toBe(0);
     });

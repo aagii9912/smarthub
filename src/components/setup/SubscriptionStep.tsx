@@ -378,15 +378,28 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
         }
         setConsentError('');
         setSelectedPlan(planSlug);
+
+        // Free tier (Lite) — activate instantly, skip the QPay payment modal.
+        // selectedPlan state is async, so pass the slug explicitly.
+        const planObj = plans.find(p => p.slug === planSlug);
+        const planPrice = billingPeriod === 'monthly' ? planObj?.price_monthly : planObj?.price_yearly;
+        if (planObj && (planPrice || 0) === 0) {
+            void handleSubscribe(planSlug);
+            return;
+        }
+
         setPaymentInfo(null);
         setPaymentStatus('idle');
         setPollingError('');
         setShowPaymentModal(true);
     };
 
-    // Create subscription invoice and get real QR
-    const handleSubscribe = async () => {
-        if (!selectedPlan) return;
+    // Create subscription invoice and get real QR (or instantly activate a free plan).
+    // `planOverride` is a slug string when called directly for the free tier;
+    // modal button onClick handlers pass a React event, which is ignored.
+    const handleSubscribe = async (planOverride?: string) => {
+        const planToUse = typeof planOverride === 'string' ? planOverride : selectedPlan;
+        if (!planToUse) return;
         setSubscribing(true);
         setPollingError('');
 
@@ -395,7 +408,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    plan_id: selectedPlan,
+                    plan_id: planToUse,
                     billing_cycle: billingPeriod,
                     consent: {
                         terms_accepted: termsAccepted,
@@ -436,7 +449,9 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                     setPaymentStatus('error');
                 }
             } else {
-                // Free plan (shouldn't happen given current backend but handle gracefully)
+                // Free plan (e.g. Lite) activated instantly — no payment needed.
+                // Refresh shop context so AuthContext sees the active plan, then advance.
+                await refreshShop();
                 onComplete();
             }
         } catch (err) {
@@ -516,7 +531,11 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
         );
     }
 
-    const filteredPlans = plans.filter(plan => plan.slug !== 'free' && (plan.price_monthly || 0) > 0);
+    // Show self-serve plans: the free Lite tier + paid Starter/Pro. Exclude the
+    // dead legacy 'free' slug and Enterprise (contact-sales, price 0 ≠ self-serve).
+    const filteredPlans = plans.filter(
+        plan => plan.slug !== 'free' && plan.slug !== 'enterprise'
+    );
     const selected = plans.find(p => p.slug === selectedPlan);
 
     const promoActiveForCycle =
@@ -692,7 +711,8 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                                             <span className="text-gray-500 text-sm">/{billingPeriod === 'monthly' ? t.setup.subscription.perMonth : t.setup.subscription.perYear}</span>
                                         </>
                                     ) : (
-                                        <span className="text-lg font-bold text-gray-900">{t.setup.subscription.contactUs}</span>
+                                        // Self-serve free tier (Lite) — Enterprise is filtered out above.
+                                        <span className="text-lg font-bold text-emerald-600">{t.setup.subscription.free}</span>
                                     )}
                                 </div>
 
@@ -853,7 +873,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                                 </Button>
                                 <Button
                                     className="flex-1"
-                                    onClick={handleSubscribe}
+                                    onClick={() => handleSubscribe()}
                                     disabled={subscribing}
                                 >
                                     {subscribing ? (
@@ -962,7 +982,7 @@ export function SubscriptionStep({ onComplete }: SubscriptionStepProps) {
                                     </Button>
                                     <Button
                                         className="flex-1"
-                                        onClick={handleSubscribe}
+                                        onClick={() => handleSubscribe()}
                                         disabled={subscribing}
                                     >
                                         {subscribing ? (
