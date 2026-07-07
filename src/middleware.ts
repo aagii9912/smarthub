@@ -30,12 +30,15 @@ const publicPaths = [
     '/pay',
     '/api/checkout',
     '/checkout',
+    // Гуравдагч талын public API — cookie-auth биш, API key-ээр баталгаажна.
+    '/api/v1',
     '/privacy',
     '/terms',
 ];
 
-// AI/Chat routes (strict rate limit)
-const aiPaths = ['/api/chat', '/api/ai'];
+// AI/Chat routes (strict rate limit). `/api/v1` (public AI чат) мөн энд —
+// route дотор нэмэлт per-key rate limit хийгддэг.
+const aiPaths = ['/api/chat', '/api/ai', '/api/v1'];
 
 // Webhook routes (relaxed rate limit)
 const webhookPaths = ['/api/webhook', '/api/subscription/webhook', '/api/payment/webhook'];

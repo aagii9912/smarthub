@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { useFeatures } from '@/hooks/useFeatures';
 import { useAuth } from '@/contexts/AuthContext';
 import { TeamMembersCard } from '@/components/settings/TeamMembersCard';
+import { ApiKeysCard } from '@/components/settings/ApiKeysCard';
 import { BUSINESS_TYPES, BUSINESS_TYPE_VALUES } from '@/lib/constants/business-types';
 
 interface FacebookPage {
@@ -1313,6 +1314,9 @@ function SettingsContent() {
             {(role === 'owner' || role === 'admin') && (
                 <TeamMembersCard currentRole={role} />
             )}
+
+            {/* API түлхүүрүүд — зөвхөн эзэн/админ (settings:write) удирдана */}
+            {(role === 'owner' || role === 'admin') && <ApiKeysCard />}
 
             {/* Account */}
             <div className="card-outlined p-6">
