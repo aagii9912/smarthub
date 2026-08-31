@@ -102,6 +102,80 @@ describe('PromptService', () => {
             expect(result).toContain('Хар');
             expect(result).toContain('Цагаан');
         });
+
+        // Үл хөдлөх / авто зарт нөөц гэж байхгүй. stock=null → availableStock 0
+        // болж, AI байр бүрийг "Дууссан" гэж танилцуулдаг байсан.
+        describe('listing catalog (realestate_auto)', () => {
+            const listing = [{
+                id: '1',
+                name: 'ХУД 2 өрөө байр',
+                price: 250000000,
+                stock: null as unknown as number,
+            }];
+
+            it('never calls a listing sold out', () => {
+                const result = buildProductsInfo(listing, 'realestate_auto');
+                expect(result).toContain('[ЗАР]');
+                expect(result).toContain('ХУД 2 өрөө байр');
+                expect(result).toContain('250,000,000₮');
+                expect(result).not.toContain('Дууссан');
+                expect(result).not.toContain('ширхэг');
+            });
+
+            it('does not promise delivery on a property', () => {
+                const result = buildProductsInfo(listing, 'realestate_auto');
+                expect(result).not.toContain('Хүргэлт');
+            });
+
+            it('renders a 0 price as negotiable rather than free', () => {
+                const result = buildProductsInfo(
+                    [{ id: '2', name: 'Гэр хороолол байшин', price: 0, stock: null as unknown as number }],
+                    'realestate_auto',
+                );
+                expect(result).toContain('Үнэ тохиролцоно');
+                expect(result).not.toContain('0₮');
+            });
+
+            it('gives the AI the structured facts a buyer asks about', () => {
+                const result = buildProductsInfo(
+                    [{
+                        id: '3',
+                        name: 'Зайсан 2 өрөө',
+                        price: 250000000,
+                        stock: null as unknown as number,
+                        attributes: {
+                            kind: 'realestate',
+                            rooms: 2,
+                            area_m2: 78,
+                            district: 'ХУД',
+                            floor: 5,
+                            total_floors: 12,
+                        },
+                    }],
+                    'realestate_auto',
+                );
+                expect(result).toContain('Өрөөний тоо: 2');
+                expect(result).toContain('Талбай: 78 м²');
+                expect(result).toContain('Дүүрэг / хот: ХУД');
+                expect(result).toContain('Давхар: 5 / 12');
+            });
+
+            it('renders a listing with no attributes as a plain line', () => {
+                const result = buildProductsInfo(
+                    [{ id: '4', name: 'Гараж', price: 30000000, stock: null as unknown as number, attributes: {} }],
+                    'realestate_auto',
+                );
+                expect(result).toContain('[ЗАР] Гараж');
+                expect(result).not.toContain('Өрөөний тоо');
+            });
+
+            it('leaves the commerce rendering untouched without a business type', () => {
+                const result = buildProductsInfo([{ id: '1', name: 'Цүнх', price: 50000, stock: 0 }]);
+                expect(result).toContain('[БАРАА]');
+                expect(result).toContain('Дууссан');
+                expect(result).toContain('Хүргэлт');
+            });
+        });
     });
 
     describe('buildCustomInstructions', () => {

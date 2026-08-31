@@ -29,6 +29,7 @@ import {
     PlanType,
     getPlanConfig,
     getPlanTypeFromSubscription,
+    normalizePlanSlug,
     isToolEnabledForPlan,
     getEnabledToolsForPlan,
     checkTokenLimit,
@@ -225,7 +226,7 @@ async function loadPlanEnabledToolsOverride(slug: string | undefined | null): Pr
         const { data, error } = await supabase
             .from('plans')
             .select('enabled_tools')
-            .eq('slug', slug)
+            .eq('slug', normalizePlanSlug(slug)!)
             .maybeSingle();
         if (error || !data?.enabled_tools || !Array.isArray(data.enabled_tools) || data.enabled_tools.length === 0) {
             return null;
@@ -513,6 +514,9 @@ export async function routeToAI(
                 customerName: context.customerName,
                 products: context.products,
                 notifySettings: context.notifySettings,
+                // Lets shared handlers branch on the shop's archetype instead of
+                // assuming commerce (see ToolExecutionContext.capabilities).
+                capabilities: agentCapabilities,
                 // Per-reply set so the cart handler can ignore Gemini-side
                 // duplicate add_to_cart firings within one chat turn.
                 addToCartKeys: new Set<string>(),
@@ -809,6 +813,7 @@ export type { PlanType, AIModel } from './config/plans';
 export {
     getPlanConfig,
     getPlanTypeFromSubscription,
+    normalizePlanSlug,
     getEnabledToolsForPlan,
     tokensToCredits,
     creditsToTokens,

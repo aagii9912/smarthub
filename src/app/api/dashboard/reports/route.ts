@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getStartOfPeriod } from '@/lib/utils/date';
 import { logger } from '@/lib/utils/logger';
 import { resolveArchetype, dashboardBlocks } from '@/lib/dashboard/archetypes';
+import { isWonLead, isClosedLead } from '@/lib/dashboard/leadStages';
 import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
 
 interface ReportProduct {
@@ -35,7 +36,13 @@ interface LeadsReport {
     qualified: number;
     converted: number;
     conversionRate: number;
-    bySource: { messenger: number; instagram: number; other: number };
+    /** Утас авч чадсан хувь — брокерийн хувьд бодитоор хөдөлдөг гол тоо. */
+    phoneCaptureRate: number;
+    /** Утастай ч 24 цаг холбогдоогүй, хаагдаагүй сонирхогчдын тоо. */
+    followUpBacklog: number;
+    /** Дүрэмд ороогүй ч утас үлдээсэн сэтгэгдлүүд — алдсан боломж. */
+    missedComments: number;
+    bySource: { messenger: number; instagram: number; other: number; comment: number };
     daily: DailyPoint[];
 }
 
@@ -312,28 +319,70 @@ export async function GET(request: NextRequest) {
             };
         }
 
+        // Хаалт нь main-ий business_type-д суурилсан dashboardBlocks; их бие нь
+        // жинхэнэ лидийн үзүүлэлтүүд (total_orders прокси биш).
         if (blocks.lead) {
-            const { data: leadRows } = await supabase
-                .from('customers')
-                .select('created_at, platform, phone, total_orders')
-                .eq('shop_id', shopId)
-                .gte('created_at', periodStart.toISOString())
-                .limit(5000);
-            const rows = leadRows || [];
-            const bySource = { messenger: 0, instagram: 0, other: 0 };
+            const followUpCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const [leadRowsResult, commentLeadsResult, followUpResult] = await Promise.all([
+                supabase
+                    .from('customers')
+                    .select('created_at, platform, phone, tags')
+                    .eq('shop_id', shopId)
+                    .gte('created_at', periodStart.toISOString())
+                    .limit(5000),
+                // Пост / live сэтгэгдлээс барьсан лидүүд. Эдгээр нь өөрийн Тайлан
+                // таб дээрээ л харагддаг байсан тул нэг долоо хоногийн тухай хоёр
+                // самбар өөр өөр хариулт өгдөг байв.
+                supabase
+                    .from('comment_leads')
+                    .select('created_at, platform, extracted_phone, capture_type')
+                    .eq('shop_id', shopId)
+                    .gte('created_at', periodStart.toISOString())
+                    .limit(5000),
+                // Хариу хүлээж буй ачаалал: утастай ч 24 цаг холбогдоогүй.
+                supabase
+                    .from('customers')
+                    .select('tags')
+                    .eq('shop_id', shopId)
+                    .not('phone', 'is', null)
+                    .or(`last_contact_at.is.null,last_contact_at.lt.${followUpCutoff}`)
+                    .limit(2000),
+            ]);
+
+            const rows = leadRowsResult.data || [];
+            const commentRows = commentLeadsResult.data || [];
+            const bySource = { messenger: 0, instagram: 0, other: 0, comment: 0 };
             rows.forEach((l) => {
                 if (l.platform === 'messenger') bySource.messenger += 1;
                 else if (l.platform === 'instagram') bySource.instagram += 1;
                 else bySource.other += 1;
             });
-            const converted = rows.filter((l) => (l.total_orders ?? 0) > 0).length;
+            bySource.comment = commentRows.length;
+
+            // A lead shop writes no orders, so the old `total_orders > 0` test
+            // could never be true. The won marker is a tag — see
+            // lib/dashboard/leadStages.
+            const converted = rows.filter((l) => isWonLead(l.tags)).length;
+            const newLeads = rows.length + commentRows.length;
+            const qualified =
+                rows.filter((l) => !!l.phone).length +
+                commentRows.filter((c) => !!c.extracted_phone).length;
+
             leadsReport = {
-                newLeads: rows.length,
-                qualified: rows.filter((l) => !!l.phone).length,
+                newLeads,
+                qualified,
                 converted,
-                conversionRate: rows.length > 0 ? Math.round((converted / rows.length) * 100) : 0,
+                conversionRate: newLeads > 0 ? Math.round((converted / newLeads) * 100) : 0,
+                // Хамгийн үнэн зөв, өнөөдөр бодитоор хөдөлдөг үзүүлэлт: хэдэн
+                // сонирхогчийн утсыг авч чадсан бэ.
+                phoneCaptureRate: newLeads > 0 ? Math.round((qualified / newLeads) * 100) : 0,
+                followUpBacklog: (followUpResult.data || []).filter((l) => !isClosedLead(l.tags)).length,
+                missedComments: commentRows.filter((c) => c.capture_type === 'missed').length,
                 bySource,
-                daily: buildDaily(periodStart, rows.map((l) => ({ ts: l.created_at }))),
+                daily: buildDaily(periodStart, [
+                    ...rows.map((l) => ({ ts: l.created_at })),
+                    ...commentRows.map((c) => ({ ts: c.created_at as string })),
+                ]),
             };
         }
 

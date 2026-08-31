@@ -6,7 +6,15 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMIT_CONFIGS } from '@/lib/u
 import { apiError } from '@/lib/utils/api-response';
 import { logger } from '@/lib/utils/logger';
 import { resolveArchetype, dashboardBlocks } from '@/lib/dashboard/archetypes';
+import { isWonLead, isClosedLead } from '@/lib/dashboard/leadStages';
 import * as Sentry from '@sentry/nextjs';
+
+/**
+ * How many follow-up candidates we pull before filtering closed leads in JS.
+ * Bounded so one shop's backlog can't blow up the dashboard query; the UI shows
+ * "500+" when the scan is saturated.
+ */
+const FOLLOW_UP_SCAN_LIMIT = 500;
 
 interface RelatedName { name: string | null; phone?: string | null }
 
@@ -48,10 +56,18 @@ interface LeadsBlock {
     created_at: string;
     total_orders: number | null;
     is_vip: boolean | null;
+    tags: string[] | null;
   }>;
   followUp: {
     count: number;
-    items: Array<{ id: string; name: string | null; phone: string | null; last_contact_at: string | null }>;
+    countCapped: boolean;
+    items: Array<{
+      id: string;
+      name: string | null;
+      phone: string | null;
+      last_contact_at: string | null;
+      tags: string[] | null;
+    }>;
   };
 }
 
@@ -429,53 +445,55 @@ export async function GET(request: NextRequest) {
     }
 
     if (blocks.lead) {
-      // Follow-up: утастай ч захиалгагүй, сүүлд холбогдсоноос 24ц өнгөрсөн lead-үүд
+      // Follow-up: утастай, хаагдаагүй, сүүлд холбогдсоноос 24ц өнгөрсөн (эсвэл
+      // огт холбогдоогүй) lead-үүд.
       const followUpCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-      const [periodLeadListResult, recentLeadsResult, followUpListResult, followUpCountResult] = await Promise.all([
+      const [periodLeadListResult, recentLeadsResult, followUpPoolResult] = await Promise.all([
         // Period доторх lead-үүд (newLeads / qualified / converted / source-ийг JS-д тооцоход)
         supabase
           .from('customers')
-          .select('platform, phone, total_orders')
+          .select('platform, phone, tags')
           .eq('shop_id', shopId)
           .gte('created_at', periodStart.toISOString())
           .limit(2000),
         // Сүүлийн lead-үүд (нэрээр харуулах)
         supabase
           .from('customers')
-          .select('id, name, phone, created_at, total_orders, is_vip')
+          .select('id, name, phone, created_at, total_orders, is_vip, tags')
           .eq('shop_id', shopId)
           .order('created_at', { ascending: false })
           .limit(8),
-        // Follow-up дараалал
+        // Follow-up дараалал. Won/Lost шүүлтийг JS-д хийнэ — `tags` NULL байвал
+        // PostgREST-ийн `not.cs` мөрийг бүхэлд нь хаядаг тул SQL-д шүүх аюултай.
+        // Огт холбогдоогүй (last_contact_at IS NULL) lead-үүд ХАМГИЙН чухал нь
+        // болохоор эхэнд нь гарна — хуучин `.lt()` тэднийг бүрмөсөн хаядаг байв.
         supabase
           .from('customers')
-          .select('id, name, phone, last_contact_at')
+          .select('id, name, phone, last_contact_at, tags')
           .eq('shop_id', shopId)
           .not('phone', 'is', null)
           .eq('total_orders', 0)
-          .lt('last_contact_at', followUpCutoff)
-          .order('last_contact_at', { ascending: true })
-          .limit(6),
-        supabase
-          .from('customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('shop_id', shopId)
-          .not('phone', 'is', null)
-          .eq('total_orders', 0)
-          .lt('last_contact_at', followUpCutoff),
+          .or(`last_contact_at.is.null,last_contact_at.lt.${followUpCutoff}`)
+          .order('last_contact_at', { ascending: false, nullsFirst: true })
+          .limit(FOLLOW_UP_SCAN_LIMIT),
       ]);
 
       const periodLeadList = periodLeadListResult.data || [];
       const newLeads = periodLeadList.length;
       const qualified = periodLeadList.filter((l) => !!l.phone).length;
-      const converted = periodLeadList.filter((l) => (l.total_orders ?? 0) > 0).length;
+      // A broker never writes an `orders` row, so total_orders can never move.
+      // The won marker lives on `customers.tags` (see lib/dashboard/leadStages).
+      const converted = periodLeadList.filter((l) => isWonLead(l.tags)).length;
       const bySource = { messenger: 0, instagram: 0, other: 0 };
       periodLeadList.forEach((l) => {
         if (l.platform === 'messenger') bySource.messenger += 1;
         else if (l.platform === 'instagram') bySource.instagram += 1;
         else bySource.other += 1;
       });
+
+      // Хаагдсан (Хөрвүүлсэн / Татгалзсан) lead дараалалд үлдэх ёсгүй.
+      const followUpOpen = (followUpPoolResult.data || []).filter((l) => !isClosedLead(l.tags));
 
       leads = {
         stats: {
@@ -487,8 +505,10 @@ export async function GET(request: NextRequest) {
         bySource,
         recent: recentLeadsResult.data || [],
         followUp: {
-          count: followUpCountResult.count || 0,
-          items: followUpListResult.data || [],
+          count: followUpOpen.length,
+          // Тоолол FOLLOW_UP_SCAN_LIMIT-ээр таслагдсан эсэх (UI "500+" гэж үзүүлнэ).
+          countCapped: (followUpPoolResult.data || []).length >= FOLLOW_UP_SCAN_LIMIT,
+          items: followUpOpen.slice(0, 6),
         },
       };
     }

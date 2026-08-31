@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { ListingAttributes } from '@/lib/constants/listing-attributes';
 
 
 export interface ProductVariant {
@@ -44,6 +45,10 @@ export interface Product {
     start_time: string | null;
     end_time: string | null;
     max_bookings_per_day: number | null;
+    /** Зарын бүтэцлэгдсэн шинж чанар (зөвхөн realestate_auto). */
+    attributes?: ListingAttributes | Record<string, never> | null;
+    /** Per-product AI training note. */
+    ai_instructions?: string | null;
 }
 
 interface ProductsResponse {
@@ -87,8 +92,11 @@ export function useCreateProduct() {
             }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (result: { warning?: string }) => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
+            // Сервер зарим багана тавигдаагүй гэж мэдэгдвэл чимээгүй өнгөрөхгүй —
+            // брокер бүх зүйл хадгалагдсан гэж бодох ёсгүй.
+            if (result?.warning) toast.warning(result.warning);
         },
     });
 }
@@ -113,8 +121,11 @@ export function useUpdateProduct() {
             }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (result: { warning?: string }) => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
+            // Сервер зарим багана тавигдаагүй гэж мэдэгдвэл чимээгүй өнгөрөхгүй —
+            // брокер бүх зүйл хадгалагдсан гэж бодох ёсгүй.
+            if (result?.warning) toast.warning(result.warning);
         },
     });
 }

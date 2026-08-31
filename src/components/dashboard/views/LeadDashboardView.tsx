@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useAIStats } from '@/hooks/useAIStats';
+import { isWonLead } from '@/lib/dashboard/leadStages';
 import { cn } from '@/lib/utils';
 import {
     AVATAR_TONES,
@@ -69,8 +70,10 @@ export function LeadDashboardView() {
 
     const aiConvCount = aiStats?.totalConversations ?? data?.activeConversations.length ?? 0;
 
-    const badgeFor = (l: { total_orders: number | null; phone: string | null }) => {
-        if ((l.total_orders ?? 0) > 0) {
+    // A lead shop writes no orders, so `total_orders` can never mark a lead as
+    // converted — the won marker is a tag (lib/dashboard/leadStages).
+    const badgeFor = (l: { tags: string[] | null; phone: string | null }) => {
+        if (isWonLead(l.tags)) {
             return { label: t.dashboard.leadBadgeConverted, cls: 'bg-[color-mix(in_oklab,var(--status-success)_18%,transparent)] text-[var(--status-success)]' };
         }
         if (l.phone) {
@@ -224,7 +227,7 @@ export function LeadDashboardView() {
                         <LeadSourceCard data={lead} />
                     </motion.div>
                     <motion.div variants={itemVariants} className="lg:col-span-2">
-                        <FollowUpCard data={lead} />
+                        <FollowUpCard data={lead} onRefresh={() => refetch()} />
                     </motion.div>
                 </motion.div>
 

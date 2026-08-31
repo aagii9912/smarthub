@@ -40,6 +40,52 @@ export const productTypeSchema = z.enum(['physical', 'service', 'appointment']);
 
 export const deliveryTypeSchema = z.enum(['included', 'paid', 'pickup_only']);
 
+/**
+ * Structured listing attributes for `business_type = 'realestate_auto'`.
+ *
+ * Discriminated on `kind` so a property can never be saved with car fields and
+ * vice versa — `.strict()` rejects the cross-contamination outright instead of
+ * silently storing it. Every attribute itself is optional: a broker posting a
+ * half-known listing must still be able to save it.
+ *
+ * Field list mirrors `LISTING_ATTRIBUTE_FIELDS` in
+ * `src/lib/constants/listing-attributes.ts` — keep the two in step.
+ */
+const realestateAttributesSchema = z
+    .object({
+        kind: z.literal('realestate'),
+        rooms: z.number().int().min(0).max(30).optional().nullable(),
+        area_m2: z.number().min(0).max(100000).optional().nullable(),
+        district: z.string().max(80).optional().nullable(),
+        khoroo: z.string().max(120).optional().nullable(),
+        floor: z.number().int().min(-5).max(200).optional().nullable(),
+        total_floors: z.number().int().min(0).max(200).optional().nullable(),
+        built_year: z.number().int().min(1900).max(2100).optional().nullable(),
+        is_furnished: z.boolean().optional().nullable(),
+        mortgage_available: z.boolean().optional().nullable(),
+    })
+    .strict();
+
+const autoAttributesSchema = z
+    .object({
+        kind: z.literal('auto'),
+        make: z.string().max(60).optional().nullable(),
+        model: z.string().max(80).optional().nullable(),
+        year: z.number().int().min(1900).max(2100).optional().nullable(),
+        mileage_km: z.number().int().min(0).max(3000000).optional().nullable(),
+        engine_cc: z.number().int().min(0).max(20000).optional().nullable(),
+        transmission: z.string().max(40).optional().nullable(),
+        fuel: z.string().max(40).optional().nullable(),
+        steering: z.string().max(40).optional().nullable(),
+        color: z.string().max(40).optional().nullable(),
+    })
+    .strict();
+
+export const listingAttributesSchema = z.discriminatedUnion('kind', [
+    realestateAttributesSchema,
+    autoAttributesSchema,
+]);
+
 // Variant rows sent by the product form (FormVariant). Persisted to the
 // product_variants table by the products API route (#6).
 export const productVariantInputSchema = z.object({
@@ -55,8 +101,12 @@ export const createProductSchema = z.object({
         .min(1, 'Нэр оруулна уу')
         .max(100, 'Нэр хэт урт байна'),
     description: z.string().max(10000, 'Тайлбар 10000 тэмдэгтээс хэтрэхгүй').optional().nullable(),
+    // 0 = "Үнэ тохиролцоно". Үл хөдлөх / авто зарын багагүй хэсэг нь ил үнэгүй
+    // тавигддаг; `.positive()` байхад брокер ийм зарыг огт хадгалж чаддаггүй
+    // байсан (client талд нь оруулахыг зөвшөөрдөг мөртлөө сервер 400 буцаадаг).
+    // buildProductsInfo 0-г "Үнэ тохиролцоно" гэж уншина.
     price: z.number()
-        .positive('Үнэ 0-ээс их байх ёстой')
+        .min(0, 'Үнэ сөрөг байж болохгүй')
         .max(999999999, 'Үнэ хэт их байна'),
     stock: z.number()
         .int('Тоо ширхэг бүхэл тоо байх ёстой')
@@ -81,6 +131,10 @@ export const createProductSchema = z.object({
     preOrderEta: z.string().datetime().optional().nullable(),
     // Per-product AI training note (#2)
     aiInstructions: z.string().max(500).optional().nullable(),
+    // Structured listing attributes (realestate_auto only). `null` clears them.
+    // The DB only checks `kind`; the real shape is enforced here so adding a
+    // field never needs a migration. See lib/constants/listing-attributes.ts.
+    attributes: listingAttributesSchema.optional().nullable(),
     // Delivery configuration
     deliveryType: deliveryTypeSchema.optional().default('included'),
     deliveryFee: z.number().min(0).optional().default(0),

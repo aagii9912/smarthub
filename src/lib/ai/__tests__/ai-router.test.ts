@@ -182,9 +182,14 @@ describe('AIRouter', () => {
             const tools = getEnabledToolsForPlan('lite');
             expect(tools).toContain('show_product_image');
             expect(tools).toContain('collect_contact_info');
+            // Non-transactional tools a lead agent cannot work without.
+            expect(tools).toContain('request_human_support');
+            expect(tools).toContain('remember_preference');
+            // The paid line stays at the transactional set.
             expect(tools).not.toContain('add_to_cart');
             expect(tools).not.toContain('checkout');
-            expect(tools.length).toBe(2);
+            expect(tools).not.toContain('create_order');
+            expect(tools.length).toBe(5);
         });
 
         it('should return correct tools for starter', () => {

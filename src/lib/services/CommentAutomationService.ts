@@ -14,6 +14,7 @@ import { logger } from '@/lib/utils/logger';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import { captureException } from '@/lib/monitoring/errorMonitoring';
+import { extractMongolianPhone, phoneLookupVariants } from '@/lib/utils/phone';
 import type { CommentAutomation } from '@/types/database';
 
 export type { CommentAutomation } from '@/types/database';
@@ -122,6 +123,30 @@ export function matchKeywords(
         }
     }
     return false;
+}
+
+/**
+ * Return the original (un-normalised) keyword that matched the comment, for
+ * display in the lead report ("which trigger fired"). Mirrors matchKeywords'
+ * logic but returns the keyword instead of a boolean. `null` if none matched.
+ */
+export function findMatchedKeyword(
+    comment: string,
+    keywords: string[],
+    matchType: 'contains' | 'exact'
+): string | null {
+    const normalizedComment = comment.toLowerCase().trim();
+    for (const keyword of keywords) {
+        const normalizedKeyword = keyword.toLowerCase().trim();
+        if (!normalizedKeyword) continue;
+
+        const matched =
+            matchType === 'exact'
+                ? normalizedComment === normalizedKeyword
+                : normalizedComment.includes(normalizedKeyword);
+        if (matched) return keyword;
+    }
+    return null;
 }
 
 /**
@@ -305,6 +330,165 @@ export async function executeAutomation(
     // creates a proper customer + chat_history row.
 
     return result;
+}
+
+/**
+ * Turn a phone-bearing comment into a real `customers` row so it shows up in the
+ * lead dashboard, the customers list and the lead report — all three read
+ * `customers`, which comment capture never wrote to. Before this, a broker's 40
+ * comment leads existed only on the Тайлан tab and could not be searched,
+ * tagged or called from the CRM.
+ *
+ * Deliberately keyed on the **phone**, not on `from.id`: a Facebook comment
+ * carries a Page-scoped ASID that is not the Messenger PSID, so writing it into
+ * `customers.facebook_id` would collide with the row the messaging webhook
+ * creates when the same person later DMs. `facebook_id` is left null and the
+ * messaging path keeps owning that key.
+ *
+ * Returns the customer id, or null when there is nothing to link.
+ */
+async function linkCommentLeadToCustomer(params: {
+    shopId: string;
+    phone: string;
+    name: string | null;
+    platform: 'facebook' | 'instagram';
+    dmSent: boolean;
+}): Promise<string | null> {
+    const supabase = supabaseAdmin();
+    // Equality over the plausible stored shapes, NOT `LIKE '%digits'`: this runs
+    // in the webhook hot path (every phone-bearing comment during a live), a
+    // leading wildcard can never use an index, and it would also miss a number
+    // stored as "976-9911-2233". Backed by idx_customers_shop_phone.
+    const variants = phoneLookupVariants(params.phone);
+    const { data: existingRows } = await supabase
+        .from('customers')
+        .select('id, name')
+        .eq('shop_id', params.shopId)
+        .in('phone', variants.length > 0 ? variants : [params.phone])
+        .limit(1);
+    const existing = existingRows?.[0];
+
+    // A DM we sent is a real outbound contact — it should reset the follow-up
+    // clock. A comment we merely observed is not.
+    const contactedAt = params.dmSent ? new Date().toISOString() : null;
+
+    if (existing?.id) {
+        const patch: Record<string, string> = {};
+        if (!existing.name && params.name) patch.name = params.name;
+        if (contactedAt) patch.last_contact_at = contactedAt;
+        if (Object.keys(patch).length > 0) {
+            await supabase.from('customers').update(patch).eq('id', existing.id);
+        }
+        return existing.id;
+    }
+
+    const { data: created, error } = await supabase
+        .from('customers')
+        .insert({
+            shop_id: params.shopId,
+            name: params.name,
+            phone: params.phone,
+            platform: params.platform === 'instagram' ? 'instagram' : 'messenger',
+            tags: ['Сэтгэгдэл'],
+            last_contact_at: contactedAt,
+        })
+        .select('id')
+        .single();
+
+    if (error) {
+        logger.warn('Failed to create customer from comment lead', { error: error.message });
+        return null;
+    }
+    return created?.id ?? null;
+}
+
+/**
+ * Log one captured comment into `comment_leads` for the lead report. Extracts a
+ * Mongolian phone number from the comment text (the "авна 99XXXXXX" pattern) and
+ * records the source (live vs post) and whether the DM / reply were delivered.
+ *
+ * `captureType`:
+ *   - 'automation' — a rule matched and DM'd the commenter; pass that automation
+ *     so we can store its id + which keyword fired.
+ *   - 'missed' — the commenter left a phone but NO rule matched, so the shop
+ *     never engaged them. Pass `automation: null`.
+ *
+ * `linkCustomer` — when true and the comment carried a phone, also upsert a
+ * `customers` row and store its id on the lead. Callers pass this for
+ * lead-archetype shops (үл хөдлөх / авто / сургалт), where the comment IS the
+ * lead; a commerce shop's customer record is still owned by the messaging path.
+ *
+ * Best-effort: idempotent on `comment_id` (webhook retries) and never throws —
+ * a logging failure must not break comment handling.
+ */
+export async function recordCommentLead(params: {
+    shopId: string;
+    automation: CommentAutomation | null;
+    captureType: 'automation' | 'missed';
+    platform: 'facebook' | 'instagram';
+    sourceType: 'post' | 'live';
+    postId: string | null;
+    commentId: string;
+    commenterId: string | null;
+    commenterName: string | null;
+    commentText: string;
+    dmSent: boolean;
+    replySent: boolean;
+    linkCustomer?: boolean;
+}): Promise<void> {
+    try {
+        const supabase = supabaseAdmin();
+        const extractedPhone = extractMongolianPhone(params.commentText);
+        const matchedKeyword = params.automation
+            ? findMatchedKeyword(
+                  params.commentText,
+                  params.automation.trigger_keywords,
+                  params.automation.match_type
+              )
+            : null;
+
+        let customerId: string | null = null;
+        if (params.linkCustomer && extractedPhone) {
+            customerId = await linkCommentLeadToCustomer({
+                shopId: params.shopId,
+                phone: extractedPhone,
+                name: params.commenterName,
+                platform: params.platform,
+                dmSent: params.dmSent,
+            });
+        }
+
+        const { error } = await supabase
+            .from('comment_leads')
+            .upsert(
+                {
+                    shop_id: params.shopId,
+                    automation_id: params.automation?.id ?? null,
+                    capture_type: params.captureType,
+                    platform: params.platform,
+                    source_type: params.sourceType,
+                    post_id: params.postId,
+                    comment_id: params.commentId,
+                    commenter_id: params.commenterId,
+                    commenter_name: params.commenterName,
+                    comment_text: params.commentText,
+                    extracted_phone: extractedPhone,
+                    matched_keyword: matchedKeyword,
+                    dm_sent: params.dmSent,
+                    reply_sent: params.replySent,
+                    customer_id: customerId,
+                },
+                { onConflict: 'comment_id', ignoreDuplicates: true }
+            );
+
+        if (error) {
+            logger.error('Failed to record comment lead', { error: error.message, commentId: params.commentId });
+        }
+    } catch (err) {
+        logger.warn('recordCommentLead threw', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+    }
 }
 
 /**

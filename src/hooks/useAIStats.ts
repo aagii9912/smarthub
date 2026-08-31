@@ -57,14 +57,18 @@ interface AIStats {
     };
 }
 
-const fetcher = (url: string) => fetch(url).then(res => {
-    if (!res.ok) throw new Error('Failed to fetch AI stats');
-    return res.json();
-});
+// Same x-shop-id contract as useDashboard — without it a multi-shop owner reads
+// AI numbers from an arbitrary shop. Ownership is verified server-side.
+const fetcher = ([url, shopId]: [string, string | null]) =>
+    fetch(url, { headers: { 'x-shop-id': shopId || '' } }).then(res => {
+        if (!res.ok) throw new Error('Failed to fetch AI stats');
+        return res.json();
+    });
 
 export function useAIStats(period: string = 'month') {
+    const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') : null;
     const { data, error, isLoading, mutate } = useSWR<AIStats>(
-        `/api/dashboard/ai-stats?period=${period}`,
+        [`/api/dashboard/ai-stats?period=${period}`, shopId],
         fetcher,
         {
             revalidateOnFocus: false,

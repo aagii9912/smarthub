@@ -71,6 +71,23 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
         }
 
+        // An explicit `null` in `operations` means "clear this answer". The
+        // per-business schemas are strict and typed, so pull the nulls out
+        // before validation and apply them as deletions during the merge below.
+        // Omitting the key instead would be indistinguishable from "unchanged",
+        // which is exactly why a cleared field used to silently come back.
+        const clearedOperationKeys: string[] = [];
+        const rawOps = (rawBody as Record<string, unknown> | null)?.operations;
+        if (rawOps && typeof rawOps === 'object' && !Array.isArray(rawOps)) {
+            const opsRecord = rawOps as Record<string, unknown>;
+            for (const [k, v] of Object.entries(opsRecord)) {
+                if (v === null) {
+                    clearedOperationKeys.push(k);
+                    delete opsRecord[k];
+                }
+            }
+        }
+
         const parsed = aiSettingsConfigPatchSchema.safeParse(rawBody);
         if (!parsed.success) {
             return NextResponse.json(
@@ -135,7 +152,11 @@ export async function PATCH(request: NextRequest) {
             const { business_type: _omit, ...rest } = patch.operations;
             void _omit;
             const existing = (current.business_setup_data ?? {}) as Record<string, unknown>;
-            update.business_setup_data = { ...existing, ...rest };
+            // Merge so untouched sibling keys survive, then apply the explicit
+            // clears collected before validation.
+            const merged: Record<string, unknown> = { ...existing, ...rest };
+            for (const k of clearedOperationKeys) delete merged[k];
+            update.business_setup_data = merged;
         }
 
         // ── working_hours_structured ──

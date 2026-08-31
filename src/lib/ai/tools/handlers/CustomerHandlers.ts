@@ -14,6 +14,17 @@ import type {
 } from '../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../services/ToolExecutor';
 
+/**
+ * Does this shop's agent actually sell? Absent capabilities means an
+ * unmigrated shop, which historically was sales-only — keep that default so
+ * commerce behaviour is untouched.
+ */
+function sellsDirectly(context: ToolExecutionContext): boolean {
+    const caps = context.capabilities;
+    if (!caps || caps.length === 0) return true;
+    return caps.includes('sales');
+}
+
 export async function executeCollectContact(
     args: CollectContactArgs,
     context: ToolExecutionContext
@@ -47,11 +58,15 @@ export async function executeCollectContact(
 
     logger.info('Contact info saved to CRM:', { data: updateData });
 
+    const isSalesShop = sellsDirectly(context);
+
     if (context.notifySettings?.contact !== false) {
         await sendPushNotification(context.shopId, {
-            title: '📍 Хаяг мэдээлэл ирлээ',
+            title: isSalesShop ? '📍 Хаяг мэдээлэл ирлээ' : '🎯 Шинэ сонирхогч',
             body: `${name || 'Хэрэглэгч'} мэдээллээ үлдээлээ: ${phone || ''} ${address || ''}`,
-            url: `/dashboard/customers/${context.customerId}`,
+            // /dashboard/customers/[id] does not exist — the only per-customer
+            // page is the inbox thread.
+            url: `/dashboard/inbox/${context.customerId}`,
             tag: `contact-${context.customerId}`
         });
     }
@@ -61,6 +76,22 @@ export async function executeCollectContact(
     if (phone) savedParts.push(`📱 ${phone}`);
     if (address) savedParts.push(`📍 ${address}`);
     if (name) savedParts.push(`👤 ${name}`);
+
+    // A lead agent (үл хөдлөх, авто, сургалт) has no create_order in its tool
+    // list, so ordering it to call one either makes the model invent an order
+    // confirmation for an apartment or — when it returns no text — leaks this
+    // internal instruction verbatim into the customer's Messenger thread.
+    if (!isSalesShop) {
+        return {
+            success: true,
+            message: `Мэдээлэл хадгалагдлаа. Дараагийн алхам: хэрэглэгчид баярлалаа гэж хэлээд менежер удахгүй холбогдоно гэдгийг мэдэгд. Захиалга бүртгэх гэж бүү оролд. Хэрэглэгчийн өгсөн утсыг "бизнесийн утас" мэт буруу бүү танилцуул.\n${savedParts.join('\n')}`,
+            data: {
+                phone: phone || null,
+                address: address || null,
+                next_action: 'handoff',
+            },
+        };
+    }
 
     return {
         success: true,
@@ -123,7 +154,8 @@ export async function executeRequestSupport(
         await sendPushNotification(context.shopId, {
             title: '🔴 Хүн холбогдох хүсэлт!',
             body: `${context.customerName || 'Хэрэглэгч'}: ${reason || 'Тодорхойгүй шалтгаан'}`,
-            url: `/dashboard/chat?customer=${context.customerId}`,
+            // /dashboard/chat does not exist — the inbox thread is the real page.
+            url: `/dashboard/inbox/${context.customerId}`,
             tag: `support-${context.customerId}`,
             actions: [
                 { action: 'view', title: 'Харах' },
@@ -151,7 +183,7 @@ export async function executeRequestSupport(
                     shopName: shop.name,
                     customerName: context.customerName || 'Тодорхойгүй',
                     reason: reason || 'Шалтгаан тодорхойгүй',
-                    dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://syncly.mn'}/dashboard/chat?customer=${context.customerId}`,
+                    dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://syncly.mn'}/dashboard/inbox/${context.customerId}`,
                 }).catch((err: Error) => logger.warn('Support email failed:', { error: err.message }));
             }
         }
@@ -182,11 +214,15 @@ export async function executeRequestSupport(
     // Without a configured business phone we can't surface a Залгах button
     // and the AI tends to invent an apology that echoes the *customer's*
     // phone back as the contact number. Fail explicitly so the AI falls
-    // back to creating the order itself.
+    // back to a next step it can actually perform — registering the order for
+    // a commerce shop, or taking the prospect's number for a lead shop (which
+    // has no create_order tool to fall back to).
     if (!shopPhoneE164) {
         return {
             success: false,
-            error: 'Дэлгүүрийн утас тохируулагдаагүй. AI: request_human_support бүү дахин дууд. Харин create_order ашиглан захиалгыг шууд бүртгэ. Хэрэглэгчийн өгсөн утсыг бизнесийн холбоо барих утас гэж бүү танилцуул.',
+            error: sellsDirectly(context)
+                ? 'Дэлгүүрийн утас тохируулагдаагүй. AI: request_human_support бүү дахин дууд. Харин create_order ашиглан захиалгыг шууд бүртгэ. Хэрэглэгчийн өгсөн утсыг бизнесийн холбоо барих утас гэж бүү танилцуул.'
+                : 'Дэлгүүрийн утас тохируулагдаагүй. AI: request_human_support бүү дахин дууд. Харин collect_contact_info ашиглан хэрэглэгчийн утсыг аваад менежер эргэж холбогдоно гэж хэл. Хэрэглэгчийн өгсөн утсыг бизнесийн холбоо барих утас гэж бүү танилцуул.',
         };
     }
 

@@ -45,7 +45,7 @@ interface PillTab {
     id: string;
     href: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-    labelKey: 'home' | 'orders' | 'inbox' | 'reports';
+    labelKey: 'home' | 'orders' | 'inbox' | 'reports' | 'customers';
 }
 
 const PILL_TABS: PillTab[] = [
@@ -193,7 +193,12 @@ export function MobileNav() {
                         'min-w-[320px]',
                     )}
                 >
-                    {PILL_TABS.map((tab) => {
+                    {PILL_TABS.map((rawTab) => {
+                        // Лид дэлгүүрийн Захиалгын хуудас мөнхөд хоосон;
+                        // брокерын бодит ажлын талбар бол Харилцагч.
+                        const tab: PillTab = rawTab.labelKey === 'orders' && archetype === 'lead'
+                            ? { id: 'customers', href: '/dashboard/customers', icon: Users, labelKey: 'customers' }
+                            : rawTab;
                         // Booking бизнест "Захиалга" pill → "Цаг захиалга" (appointments).
                         const isBookingOrders = tab.labelKey === 'orders' && archetype === 'booking';
                         const href = isBookingOrders ? '/dashboard/appointments' : tab.href;

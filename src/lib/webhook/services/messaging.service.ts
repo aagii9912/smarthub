@@ -41,7 +41,10 @@ export async function processAIResponse(
     response: { text: string; imageAction?: { type: 'single' | 'confirm'; products: Array<{ name: string; price: number; imageUrl: string; galleryUrls?: string[]; description?: string }> } },
     senderId: string,
     pageAccessToken: string,
-    authType?: IgAuthType
+    authType?: IgAuthType,
+    // Lead shops get a "Холбоо барих" CTA instead of "Захиалах" — they have no
+    // order tool to honour the latter. See sendImageGallery({ leadMode }).
+    leadMode = false,
 ): Promise<void> {
     const { imageAction } = response;
 
@@ -75,6 +78,7 @@ export async function processAIResponse(
                     products: galleryProducts,
                     pageAccessToken,
                     confirmMode: false,
+                    leadMode,
                     authType,
                 });
             } else {
@@ -83,6 +87,7 @@ export async function processAIResponse(
                     products: imageAction.products,
                     pageAccessToken,
                     confirmMode: imageAction.type === 'confirm',
+                    leadMode,
                     authType,
                 });
             }
@@ -106,14 +111,18 @@ export async function replyToComment(
     const replyMessage = generateCommentReply(shopName, pageUsername || undefined);
 
     try {
+        // Meta Graph API expects the page access token in the URL query string
+        // for POST /{comment-id}/comments, not in the JSON body — the body form
+        // silently produces an OAuthException. CommentAutomationService already
+        // learned this; this fallback path (used by every shop outside the
+        // automation whitelist) had never been back-ported.
         const response = await fetch(
-            `https://graph.facebook.com/v21.0/${commentId}/comments`,
+            `https://graph.facebook.com/v21.0/${commentId}/comments?access_token=${encodeURIComponent(pageAccessToken)}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: replyMessage,
-                    access_token: pageAccessToken,
                 }),
             }
         );

@@ -37,6 +37,13 @@ export const BUSINESS_TYPE_ARCHETYPE: Record<BusinessType, DashboardArchetype> =
  * Resolve the primary dashboard archetype from a shop's `business_type`.
  * Falls back to AI agent capabilities when business_type is unset (legacy
  * shops), then to `commerce` as a last resort.
+ *
+ * In the capability fallback `lead_capture` outranks `booking`: for a
+ * үл хөдлөх / авто broker a viewing is a STEP inside the lead pipeline, not the
+ * business itself, so a legacy shop that switches on үзлэг товлох must not have
+ * its lead dashboard swapped for a clinic's appointment dashboard. Shops that
+ * do carry a business_type never reach this branch — realestate_auto maps
+ * straight to 'lead' above.
  */
 export function resolveArchetype(
     businessType: BusinessType | string | null | undefined,
@@ -45,8 +52,8 @@ export function resolveArchetype(
     if (isBusinessType(businessType)) return BUSINESS_TYPE_ARCHETYPE[businessType];
     const caps = capabilities ?? [];
     if (caps.includes('sales')) return 'commerce';
-    if (caps.includes('booking')) return 'booking';
     if (caps.includes('lead_capture')) return 'lead';
+    if (caps.includes('booking')) return 'booking';
     return 'commerce';
 }
 

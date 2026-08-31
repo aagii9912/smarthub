@@ -25,6 +25,16 @@ describe('resolveArchetype (business_type-driven)', () => {
         expect(resolveArchetype('service', ['sales'])).toBe('booking');
     });
 
+    // Үл хөдлөхийн зуучид үзлэг товлох нь лидийн жимийн НЭГ АЛХАМ болохоос
+    // бизнес нь биш. Fallback дотор booking түрүүлбэл business_type-гүй хуучин
+    // дэлгүүр үзлэг асаамагц эмнэлгийн самбар руу шилжинэ.
+    it('keeps the lead dashboard for a legacy broker who also books viewings', () => {
+        expect(resolveArchetype(null, ['lead_capture', 'booking'])).toBe('lead');
+        expect(resolveArchetype(null, ['booking', 'lead_capture', 'information'])).toBe('lead');
+        // business_type байвал fallback хүртэл ч хүрэхгүй.
+        expect(resolveArchetype('realestate_auto', ['booking'])).toBe('lead');
+    });
+
     it('falls back to capabilities when business_type is unset (legacy shops)', () => {
         expect(resolveArchetype(null, ['booking', 'information'])).toBe('booking');
         expect(resolveArchetype(null, ['lead_capture'])).toBe('lead');

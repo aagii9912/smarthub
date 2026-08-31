@@ -108,8 +108,12 @@ export function BookingReport({ data }: { data: AppointmentsReport | undefined }
 // ─── Lead report (realestate_auto / education) ───
 export function LeadReport({ data }: { data: LeadsReport | undefined }) {
     const { t } = useLanguage();
-    const r = data || { newLeads: 0, qualified: 0, converted: 0, conversionRate: 0, bySource: { messenger: 0, instagram: 0, other: 0 }, daily: [] };
-    const srcTotal = r.bySource.messenger + r.bySource.instagram + r.bySource.other;
+    const r = data || {
+        newLeads: 0, qualified: 0, converted: 0, conversionRate: 0,
+        phoneCaptureRate: 0, followUpBacklog: 0, missedComments: 0,
+        bySource: { messenger: 0, instagram: 0, other: 0, comment: 0 }, daily: [],
+    };
+    const srcTotal = r.bySource.messenger + r.bySource.instagram + r.bySource.other + r.bySource.comment;
     const srcPct = (v: number) => (srcTotal > 0 ? Math.round((v / srcTotal) * 100) : 0);
 
     return (
@@ -117,9 +121,28 @@ export function LeadReport({ data }: { data: LeadsReport | undefined }) {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <StatCard icon={Users} label={t.dashboard.kpiNewLeads} value={r.newLeads} tone="var(--brand-indigo)" featured />
                 <StatCard icon={PhoneCall} label={t.dashboard.kpiQualified} value={r.qualified} tone="var(--status-success)" />
+                {/* Утас авалтын хувь нь брокерийн хувьд бодитоор хөдөлдөг тоо;
+                    хаалтын тоо гараар тэмдэглэгдсэн "Хөрвүүлсэн" tag-аас гарна. */}
+                <StatCard icon={Target} label={t.dashboard.kpiPhoneCaptureRate} value={`${r.phoneCaptureRate}%`} tone="var(--gold)" />
                 <StatCard icon={TrendingUp} label={t.dashboard.kpiConverted} value={r.converted} tone="var(--brand-cyan)" />
-                <StatCard icon={Target} label={t.dashboard.kpiLeadConversion} value={`${r.conversionRate}%`} tone="var(--gold)" />
             </div>
+
+            {(r.followUpBacklog > 0 || r.missedComments > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {r.followUpBacklog > 0 && (
+                        <div className="card-outlined px-5 py-4">
+                            <div className="text-[12px] text-muted-foreground">{t.dashboard.followUpBacklogLabel}</div>
+                            <div className="text-[22px] font-semibold text-[var(--gold)] tabular-nums mt-1">{r.followUpBacklog}</div>
+                        </div>
+                    )}
+                    {r.missedComments > 0 && (
+                        <div className="card-outlined px-5 py-4">
+                            <div className="text-[12px] text-muted-foreground">{t.dashboard.missedCommentsLabel}</div>
+                            <div className="text-[22px] font-semibold text-[var(--status-danger)] tabular-nums mt-1">{r.missedComments}</div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 card-outlined p-5">
@@ -138,6 +161,7 @@ export function LeadReport({ data }: { data: LeadsReport | undefined }) {
                         <div className="space-y-4">
                             <Bar label={t.dashboard.sourceMessenger} value={r.bySource.messenger} pct={srcPct(r.bySource.messenger)} tone="var(--brand-indigo)" />
                             <Bar label={t.dashboard.sourceInstagram} value={r.bySource.instagram} pct={srcPct(r.bySource.instagram)} tone="var(--brand-violet-500)" />
+                            <Bar label={t.dashboard.sourceComment} value={r.bySource.comment} pct={srcPct(r.bySource.comment)} tone="var(--gold)" />
                             <Bar label={t.dashboard.sourceOther} value={r.bySource.other} pct={srcPct(r.bySource.other)} tone="var(--brand-cyan)" />
                         </div>
                     )}

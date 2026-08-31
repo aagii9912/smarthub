@@ -113,6 +113,13 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
         enabledTools: [
             'show_product_image',
             'collect_contact_info',
+            // Non-transactional and cheap. Without these a lead agent (үл
+            // хөдлөх / авто) cannot hand a prospect to a human or remember the
+            // budget/location it just asked for — the paid differentiation for
+            // this tier is the cart/checkout/order set, not these.
+            'request_human_support',
+            'remember_preference',
+            'log_complaint',
         ],
     },
 
@@ -159,6 +166,9 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
             'show_product_image',
             'collect_contact_info',
             'check_order_status',
+            'request_human_support',
+            'remember_preference',
+            'log_complaint',
         ],
     },
 
@@ -317,6 +327,24 @@ export function getPlanTypeFromSubscription(subscription?: {
     }
 
     return 'lite'; // Default to lite
+}
+
+/**
+ * Canonicalize a raw plan slug to the lowercase value stored in `plans.slug`
+ * after the 20260620140000 normalization (lite | starter | pro | enterprise).
+ *
+ * Two historical drifts are folded out here so any `.eq('slug', …)` lookup hits
+ * the row regardless of where the value came from (invoice text, a cached
+ * frontend slug, a legacy denormalized snapshot):
+ *   - casing drift   — 'Starter' → 'starter'
+ *   - naming drift    — 'professional' → 'pro' (the code's canonical PlanType)
+ *
+ * Pass-through for null/empty so callers can keep their own truthiness guards.
+ */
+export function normalizePlanSlug(slug: string | null | undefined): string | null {
+    if (!slug) return null;
+    const s = slug.trim().toLowerCase();
+    return s === 'professional' ? 'pro' : s;
 }
 
 /**

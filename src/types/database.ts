@@ -272,6 +272,38 @@ export interface CommentAutomation {
     updated_at: string;
 }
 
+export type CommentLeadSourceType = 'post' | 'live';
+export type CommentLeadStatus = 'new' | 'contacted' | 'converted';
+/** automation = a rule matched & DM'd; missed = phone left but no rule matched. */
+export type CommentLeadCaptureType = 'automation' | 'missed';
+
+/**
+ * One row per comment captured by a comment automation. Powers the
+ * lead-collection report (live vs post, phones captured, funnel-to-order).
+ * See migration 20260629120000_comment_leads.sql.
+ */
+export interface CommentLead {
+    id: string;
+    shop_id: string;
+    automation_id: string | null;
+    platform: 'facebook' | 'instagram';
+    source_type: CommentLeadSourceType;
+    capture_type: CommentLeadCaptureType;
+    post_id: string | null;
+    comment_id: string;
+    commenter_id: string | null;
+    commenter_name: string | null;
+    comment_text: string | null;
+    extracted_phone: string | null;
+    matched_keyword: string | null;
+    dm_sent: boolean;
+    reply_sent: boolean;
+    customer_id: string | null;
+    order_id: string | null;
+    status: CommentLeadStatus;
+    created_at: string;
+}
+
 // ============================================
 // STORY → PRODUCT REGISTRY
 // ============================================

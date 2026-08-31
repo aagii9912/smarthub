@@ -1,12 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Upload, Box, Layers, Calendar, Plus, X, Trash2 } from 'lucide-react';
 import { Product, ProductVariant, useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import {
+    LISTING_ATTRIBUTE_FIELDS,
+    LISTING_KIND_LABELS,
+    LISTING_KINDS,
+    defaultListingKind,
+    listingKindOf,
+    type AttributeField,
+    type ListingAttributes,
+    type ListingKind,
+} from '@/lib/constants/listing-attributes';
 
 interface ProductFormProps {
     product?: Product | null;
@@ -23,6 +35,59 @@ interface FormVariant {
     is_active: boolean;
 }
 
+/**
+ * Stored attributes → flat form state. Everything becomes a string (or boolean
+ * for checkboxes) so the inputs stay controlled; `buildAttributes` converts back.
+ */
+function readAttributeValues(attributes: unknown): Record<string, string | boolean> {
+    const kind = listingKindOf(attributes);
+    if (!kind) return {};
+    const data = attributes as Record<string, unknown>;
+    const out: Record<string, string | boolean> = {};
+    for (const field of LISTING_ATTRIBUTE_FIELDS[kind]) {
+        const v = data[field.key];
+        if (v === null || v === undefined) continue;
+        out[field.key] = field.kind === 'boolean' ? Boolean(v) : String(v);
+    }
+    return out;
+}
+
+/**
+ * Form state → the payload the API validates. Blank fields are omitted rather
+ * than sent as null, so a half-filled listing stores only what the broker knows.
+ * Returns null when nothing at all was entered — the API reads that as "clear".
+ */
+function buildAttributes(
+    kind: ListingKind,
+    values: Record<string, string | boolean>,
+): ListingAttributes | null {
+    const out: Record<string, unknown> = { kind };
+    let filled = 0;
+
+    for (const field of LISTING_ATTRIBUTE_FIELDS[kind]) {
+        const raw = values[field.key];
+        if (field.kind === 'boolean') {
+            if (raw === true) {
+                out[field.key] = true;
+                filled += 1;
+            }
+            continue;
+        }
+        const text = typeof raw === 'string' ? raw.trim() : '';
+        if (!text) continue;
+        if (field.kind === 'number') {
+            const n = Number(text);
+            if (!Number.isFinite(n)) continue;
+            out[field.key] = n;
+        } else {
+            out[field.key] = text;
+        }
+        filled += 1;
+    }
+
+    return filled > 0 ? (out as unknown as ListingAttributes) : null;
+}
+
 export default function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) {
     const createProduct = useCreateProduct();
     const updateProduct = useUpdateProduct();
@@ -32,6 +97,32 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     // "Бараа" tab and default new entries to "Үйлчилгээ" so neither stock
     // nor delivery sections appear.
     const isServiceBusiness = shop?.business_type === 'service' || shop?.business_type === 'beauty';
+
+    // Үл хөдлөх / авто бол каталог нь ЗАР — нэг байр бол нэг байр. Үлдэгдэл ч,
+    // хүргэлт ч утгагүй; AI тал нь аль хэдийн зассан (buildProductsInfo), энд
+    // маягтын талбаруудыг нуух ёстой. Үнэ 0 = «Үнэ тохиролцоно».
+    const isListingBusiness = shop?.business_type === 'realestate_auto';
+
+    // ── Зарын бүтэцлэгдсэн шинж чанар (өрөө/м²/дүүрэг · марк/он/гүйлт) ──
+    // Хадгалагдсан зар өөрийн `kind`-ыг авчирна; шинэ зар дэлгүүрийн
+    // `business_setup_data.category`-оос анхдагчаа авна ('both' үед брокер
+    // өөрөө сонгоно).
+    const { listingCategory } = useActiveShopAgent();
+    const storedKind = listingKindOf(product?.attributes);
+    const [listingKind, setListingKind] = useState<ListingKind>(
+        storedKind ?? defaultListingKind(listingCategory),
+    );
+    const [attributeValues, setAttributeValues] = useState<Record<string, string | boolean>>(() =>
+        readAttributeValues(product?.attributes),
+    );
+
+    // `listingCategory` нь async ирдэг тул ЗӨВХӨН шинэ зар дээр, брокер гар
+    // хүрээгүй байхад анхдагчийг нэг удаа тааруулна.
+    const kindTouched = useRef(false);
+    useEffect(() => {
+        if (kindTouched.current || storedKind || !listingCategory) return;
+        setListingKind(defaultListingKind(listingCategory));
+    }, [listingCategory, storedKind]);
 
     const [saving, setSaving] = useState(false);
     // Талбар бүрийн validation алдаа — alert-ийн оронд талбарын доор улаанаар харуулна
@@ -291,7 +382,13 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                 aiInstructions: aiInstructions.trim() || null,
             };
 
-            if (productType === 'physical' && !hasVariants) {
+            if (isListingBusiness) {
+                // Зар нөөцгүй. 0 биш null — 0 бол «дууссан» гэсэн утгатай
+                // болчихно (buildProductsInfo-г үз).
+                productData.stock = null;
+                // null = цэвэрлэ. Сервер `{}` болгож бичнэ.
+                productData.attributes = buildAttributes(listingKind, attributeValues);
+            } else if (productType === 'physical' && !hasVariants) {
                 productData.stock = Number(formData.get('stock'));
             } else {
                 productData.stock = 0; // Calculated from variants or not applicable
@@ -373,10 +470,19 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                         <h3 className="text-[13px] font-semibold text-white/90">Үнэ болон Хямдрал</h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <Input name="price" label="Үнэ (₮)" type="number" min={0} defaultValue={product?.price} required placeholder="0" error={fieldErrors.price} />
+                            <Input
+                                name="price"
+                                label={isListingBusiness ? 'Үнэ (₮) — 0 бол «тохиролцоно»' : 'Үнэ (₮)'}
+                                type="number"
+                                min={0}
+                                defaultValue={product?.price}
+                                required
+                                placeholder="0"
+                                error={fieldErrors.price}
+                            />
                             <Input name="discount" label="Хямдрал (%)" type="number" min={0} max={100} defaultValue={product?.discount_percent || ''} placeholder="0" error={fieldErrors.discount} />
                         </div>
-                        {productType === 'physical' && !hasVariants && (
+                        {productType === 'physical' && !hasVariants && !isListingBusiness && (
                             <div className="pt-1">
                                 <Input name="stock" label="Үлдэгдэл тоо (Stock)" type="number" min={0} defaultValue={product?.stock || ''} placeholder="0" error={fieldErrors.stock} />
                             </div>
@@ -450,6 +556,115 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                         )}
                     </div>
 
+                    {/* ─── Зарын шинж чанар (зөвхөн үл хөдлөх / авто) ─── */}
+                    {isListingBusiness && (
+                        <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-4">
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div>
+                                    <h3 className="text-[13px] font-semibold text-white/90">Зарын мэдээлэл</h3>
+                                    <p className="text-[10.5px] text-white/40 mt-0.5">
+                                        AI эдгээрийг хэрэглэгчид яг байгаагаар нь хэлнэ. Мэдэхгүй талбарыг хоосон орхи.
+                                    </p>
+                                </div>
+                                {/* 'both' чиглэлтэй дэлгүүрт зар бүр өөрийн төрөлтэй. */}
+                                <div className="flex gap-1.5">
+                                    {LISTING_KINDS.map((k) => (
+                                        <button
+                                            key={k}
+                                            type="button"
+                                            onClick={() => {
+                                                kindTouched.current = true;
+                                                setListingKind(k);
+                                                // Утгыг НЭ цэвэрлэ. Хоёр багц
+                                                // нэг ч түлхүүр хуваалцдаггүй
+                                                // бөгөөд buildAttributes зөвхөн
+                                                // сонгосон төрлийн талбарыг
+                                                // уншдаг тул холилдох аюулгүй.
+                                                // Цэвэрлэвэл алдаж дарсан
+                                                // брокер хадгалагдсан зарынхаа
+                                                // мэдээллийг бүрмөсөн алдана.
+                                            }}
+                                            className={cn(
+                                                'px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors',
+                                                listingKind === k
+                                                    ? 'border-violet-500/60 bg-violet-500/15 text-white'
+                                                    : 'border-white/[0.1] bg-white/[0.02] text-white/55 hover:text-white/80',
+                                            )}
+                                        >
+                                            {LISTING_KIND_LABELS[k]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {LISTING_ATTRIBUTE_FIELDS[listingKind].map((field: AttributeField) => {
+                                    const value = attributeValues[field.key];
+                                    const setValue = (v: string | boolean) =>
+                                        setAttributeValues((prev) => ({ ...prev, [field.key]: v }));
+
+                                    if (field.kind === 'boolean') {
+                                        return (
+                                            <label
+                                                key={field.key}
+                                                className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-[#0A0220] border border-white/[0.1] cursor-pointer"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={value === true}
+                                                    onChange={(e) => setValue(e.target.checked)}
+                                                    className="h-4 w-4 accent-violet-500"
+                                                />
+                                                <span className="text-[12px] text-white/80">{field.label}</span>
+                                            </label>
+                                        );
+                                    }
+
+                                    return (
+                                        <div key={field.key}>
+                                            <label className="block text-[11px] font-medium text-white/50 uppercase tracking-[0.05em] mb-1.5">
+                                                {field.label}
+                                                {field.unit ? ` (${field.unit})` : ''}
+                                            </label>
+                                            {field.kind === 'select' ? (
+                                                <select
+                                                    value={typeof value === 'string' ? value : ''}
+                                                    onChange={(e) => setValue(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-[#0A0220] border border-white/[0.1] rounded-md text-[12px] text-white focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none"
+                                                >
+                                                    <option value="">—</option>
+                                                    {(field.options ?? []).map((o) => (
+                                                        <option key={o} value={o}>{o}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    type={field.kind === 'number' ? 'number' : 'text'}
+                                                    // step-гүй бол HTML-ийн анхдагч step=1 хүчинтэй болж
+                                                    // 78.5 м² нь stepMismatch болон submit-ыг ЧИМЭЭГҮЙ
+                                                    // хаадаг. area_m2 бол сервер талд бүхэл тоо биш
+                                                    // байхыг зөвшөөрсөн цорын ганц талбар.
+                                                    step={field.kind === 'number' ? (field.step ?? 1) : undefined}
+                                                    inputMode={
+                                                        field.kind !== 'number'
+                                                            ? undefined
+                                                            : field.step === 'any' ? 'decimal' : 'numeric'
+                                                    }
+                                                    min={field.min}
+                                                    max={field.max}
+                                                    placeholder={field.placeholder}
+                                                    value={typeof value === 'string' ? value : ''}
+                                                    onChange={(e) => setValue(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-[#0A0220] border border-white/[0.1] rounded-md text-[12px] text-white placeholder:text-white/25 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 outline-none"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Per-product AI training (#2) */}
                     <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-3">
                         <h3 className="text-[13px] font-semibold text-white/90">
@@ -474,8 +689,8 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
                         </p>
                     </div>
 
-                    {/* Delivery Settings Card - physical products only */}
-                    {productType === 'physical' && (
+                    {/* Delivery Settings Card - physical products only (never a listing) */}
+                    {productType === 'physical' && !isListingBusiness && (
                         <div className="bg-[#0F0B2E] p-5 rounded-xl border border-white/[0.08] space-y-5">
                             <h3 className="text-[13px] font-semibold text-white/90">🚚 Хүргэлтийн тохиргоо</h3>
 

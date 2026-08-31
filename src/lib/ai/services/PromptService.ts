@@ -24,6 +24,7 @@ import { formatMemoryForPrompt } from '../tools/memory';
 import { buildRolePromptRules, getRoleTitle, getRoleGoalLine } from '../agents/registry';
 import type { AgentRole, AgentCapability } from '../agents/types';
 import type { BusinessType } from '@/lib/constants/business-types';
+import { formatListingAttributes } from '@/lib/constants/listing-attributes';
 
 /**
  * Emotion prompts for AI personality - Enhanced for natural feel
@@ -146,18 +147,40 @@ const HUMAN_LIKE_PATTERNS = `
 `;
 
 /**
- * Build product information string for prompt
+ * Business types whose catalog holds *listings* (үл хөдлөх байр, автомашин),
+ * not stocked goods. A listing has no inventory count and no delivery: one flat
+ * is one flat. Describing it with commerce语 made the agent announce every
+ * apartment as "(Дууссан)" — stock is null → availableStock 0 → sold out — and
+ * promise "🚚 Хүргэлт: Үнэгүй" on a house.
  */
-export function buildProductsInfo(products: ChatContext['products']): string {
+function isListingCatalog(businessType?: BusinessType): boolean {
+    return businessType === 'realestate_auto';
+}
+
+/**
+ * Build product information string for prompt.
+ *
+ * `businessType` switches the vocabulary between a stocked catalog and a
+ * listing catalog; omitting it keeps the original commerce rendering.
+ */
+export function buildProductsInfo(
+    products: ChatContext['products'],
+    businessType?: BusinessType,
+): string {
+    const listingMode = isListingCatalog(businessType);
+    const emptyLabel = listingMode
+        ? '- Одоогоор зар бүртгэгдээгүй байна'
+        : '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+
     if (!products || products.length === 0) {
-        return '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+        return emptyLabel;
     }
 
     // Hide drafts and discontinued items from the AI altogether.
     const visible = products.filter(p => p.status !== 'draft' && p.status !== 'discontinued');
 
     if (visible.length === 0) {
-        return '- Одоогоор бүтээгдэхүүн бүртгэгдээгүй байна';
+        return emptyLabel;
     }
 
     const formatEta = (iso?: string | null): string => {
@@ -208,8 +231,9 @@ export function buildProductsInfo(products: ChatContext['products']): string {
             stockDisplay = isService ? 'Захиалга дүүрсэн' : 'Дууссан';
         }
 
-        const typeLabel =
-            p.status === 'coming_soon' ? '[УДАХГҮЙ ИРНЭ]'
+        const typeLabel = listingMode
+            ? '[ЗАР]'
+            : p.status === 'coming_soon' ? '[УДАХГҮЙ ИРНЭ]'
                 : p.status === 'pre_order' ? '[УРЬДЧИЛСАН ЗАХИАЛГА]'
                     : isService ? '[ҮЙЛЧИЛГЭЭ]' : '[БАРАА]';
 
@@ -221,7 +245,10 @@ export function buildProductsInfo(products: ChatContext['products']): string {
 
         const priceDisplay = hasDiscount
             ? `🔥${discountedPrice.toLocaleString()}₮ (-${p.discount_percent}% ХЯМДРАЛ! Жинхэнэ үнэ: ${p.price.toLocaleString()}₮)`
-            : `${p.price.toLocaleString()}₮`;
+            // 0 is the agreed "ярилцаж тохирно" marker — brokers list plenty of
+            // properties without a public price. Rendering it as "0₮" made the
+            // agent quote a free apartment.
+            : p.price > 0 ? `${p.price.toLocaleString()}₮` : 'Үнэ тохиролцоно';
 
         const variantInfo = p.variants && p.variants.length > 0
             ? `\n  Хувилбарууд: ${p.variants.map(v => `${v.color || ''} ${v.size || ''} (${v.stock > 0 ? `${v.stock}${unit}` : 'Дууссан'})`).join(', ')}`
@@ -238,17 +265,38 @@ export function buildProductsInfo(products: ChatContext['products']): string {
         // Include description for AI context
         const desc = p.description ? `\n  Тайлбар: ${p.description}` : '';
 
-        // Delivery info
+        // Delivery info. A listing is never delivered, so the whole clause is
+        // dropped for listing catalogs rather than defaulting to "free".
         let deliveryInfo = '';
-        if (p.delivery_type === 'paid' && p.delivery_fee) {
-            deliveryInfo = `\n  🚚 Хүргэлт: ${p.delivery_fee.toLocaleString()}₮`;
-        } else if (p.delivery_type === 'pickup_only') {
-            deliveryInfo = `\n  📍 Зөвхөн очиж авна`;
-        } else {
-            deliveryInfo = `\n  🚚 Хүргэлт: Үнэгүй`;
+        if (!listingMode) {
+            if (p.delivery_type === 'paid' && p.delivery_fee) {
+                deliveryInfo = `\n  🚚 Хүргэлт: ${p.delivery_fee.toLocaleString()}₮`;
+            } else if (p.delivery_type === 'pickup_only') {
+                deliveryInfo = `\n  📍 Зөвхөн очиж авна`;
+            } else {
+                deliveryInfo = `\n  🚚 Хүргэлт: Үнэгүй`;
+            }
+            if (p.delivery_note?.trim()) {
+                deliveryInfo += `\n  🕒 Хүргэлт гарах хугацаа: ${p.delivery_note.trim()}`;
+            }
         }
-        if (p.delivery_note?.trim()) {
-            deliveryInfo += `\n  🕒 Хүргэлт гарах хугацаа: ${p.delivery_note.trim()}`;
+
+        // A listing has no inventory: "(Дууссан)" on every apartment came from
+        // stock=null. Status still matters, so keep it when the owner set one.
+        if (listingMode) {
+            const listingState =
+                p.status === 'coming_soon' ? ' (Удахгүй зарлагдана)'
+                    : p.status === 'pre_order' ? ' (Урьдчилсан захиалга)'
+                        : '';
+            // Structured facts a buyer actually asks about — өрөө, м², дүүрэг,
+            // давхар / марк, он, гүйлт. Labels come from the same table the
+            // product form renders, so what the broker typed and what the AI
+            // reads back can never drift apart.
+            const attrLines = formatListingAttributes(p.attributes);
+            const attrs = attrLines.length > 0
+                ? `\n  ${attrLines.join('\n  ')}`
+                : '';
+            return `- ${typeLabel} ${p.name}: ${priceDisplay}${listingState}${attrs}${desc}`;
         }
 
         return `- ${typeLabel} ${p.name}: ${priceDisplay} (${stockDisplay})${variantInfo}${colorsInfo}${sizesInfo}${desc}${deliveryInfo}`;
@@ -934,7 +982,7 @@ ${parts.join('\n')}\n`;
 
 export function buildSystemPrompt(context: ChatContext): string {
     const emotionStyle = EMOTION_PROMPTS[context.aiEmotion || 'friendly'];
-    const productsInfo = buildProductsInfo(context.products);
+    const productsInfo = buildProductsInfo(context.products, context.businessType);
     // Description sharing now respects the owner's per-field toggle.
     const allowDescription = context.aiShareFlags?.description ?? true;
     const shopInfo = allowDescription && context.shopDescription

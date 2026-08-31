@@ -68,7 +68,9 @@ interface NavLink {
 const WORKSPACE: NavLink[] = [
     { nameKey: 'dashboard', href: '/dashboard', icon: LayoutDashboard },
     // Commerce/lead → "Захиалга"; booking → "Цаг захиалга" (appointments хуудас).
-    { nameKey: 'orders', href: '/dashboard/orders', icon: Package, archetypes: ['commerce', 'lead'] },
+    // Лид дэлгүүрт (үл хөдлөх / авто, сургалт) захиалга үүсгэх tool ч, UI ч
+    // байдаггүй тул энэ хуудас мөнхөд хоосон — commerce-д л харуулна.
+    { nameKey: 'orders', href: '/dashboard/orders', icon: Package, archetypes: ['commerce'] },
     { nameKey: 'appointments', href: '/dashboard/appointments', icon: CalendarClock, archetypes: ['booking'] },
     { nameKey: 'inbox', href: '/dashboard/inbox', icon: Inbox },
     { nameKey: 'products', href: '/dashboard/products', icon: Box },
@@ -82,8 +84,8 @@ const INSIGHTS: NavLink[] = [
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot, minRole: 'admin' },
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore, minRole: 'admin' },
     { nameKey: 'storyLinks', href: '/dashboard/story-product-links', icon: Images },
-    { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system' },
-    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield, minRole: 'admin' },
+    { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system', archetypes: ['commerce'] },
+    { nameKey: 'paymentAudit', href: '/dashboard/payment-audit', icon: Shield, minRole: 'admin', archetypes: ['commerce'] },
     { nameKey: 'complaints', href: '/dashboard/complaints', icon: AlertTriangle },
 ];
 

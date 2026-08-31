@@ -35,6 +35,8 @@ interface ShopProductRow {
     pre_order_eta?: string | null;
     // Per-product AI training (#2)
     ai_instructions?: string | null;
+    // Structured listing attributes — added in migration 20260831130000.
+    attributes?: Record<string, unknown> | null;
 }
 
 export function mapShopProductsToAI(products: ShopProductRow[] | null | undefined): AIProduct[] {
@@ -74,6 +76,9 @@ export function mapShopProductsToAI(products: ShopProductRow[] | null | undefine
             pre_order_eta: p.pre_order_eta ?? null,
             // Per-product AI training (#2)
             ai_instructions: p.ai_instructions ?? null,
+            // Structured listing attributes (realestate_auto). Absent until the
+            // migration lands, which `buildProductsInfo` handles as "no data".
+            attributes: p.attributes ?? null,
         };
     });
 }

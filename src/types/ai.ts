@@ -100,6 +100,12 @@ export interface AIProduct {
     pre_order_eta?: string | null;
     /** Per-product AI training note (#2). Concatenated with shop-level. */
     ai_instructions?: string | null;
+    /**
+     * Structured listing attributes for realestate_auto shops — өрөө / м² /
+     * дүүрэг / давхар, эсвэл марк / он / гүйлт. Rendered into the prompt by
+     * `buildProductsInfo`. `{}` (or absent) for every other business type.
+     */
+    attributes?: Record<string, unknown> | null;
 }
 
 export interface AIProductVariant {

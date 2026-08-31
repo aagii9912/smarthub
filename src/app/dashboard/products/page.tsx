@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Package, X, Upload, FileSpreadsheet, Search, LayoutGrid, List, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, Product } from '@/hooks/useProducts';
+import { summariseListingAttributes } from '@/lib/constants/listing-attributes';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import ProductForm from '@/components/dashboard/products/ProductForm';
@@ -411,6 +412,14 @@ export default function ProductsPage() {
                                             </span>
                                         )}
                                     </div>
+                                    {/* Зарын гол шинж чанар — брокер жагсаалтаас
+                                        нэг харцаар "2 өрөө · 78 м² · ХУД" гэж
+                                        танихад л хангалттай. */}
+                                    {summariseListingAttributes(product.attributes) ? (
+                                        <p className="text-[11.5px] text-[var(--brand-indigo-400)] mt-0.5 line-clamp-1">
+                                            {summariseListingAttributes(product.attributes)}
+                                        </p>
+                                    ) : null}
                                     {product.description && (
                                         <p className="text-[11.5px] text-white/40 mt-0.5 line-clamp-1">
                                             {product.description}

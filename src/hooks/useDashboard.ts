@@ -98,6 +98,8 @@ export interface RecentLead {
     created_at: string;
     total_orders: number | null;
     is_vip: boolean | null;
+    /** Lead stage markers — see lib/dashboard/leadStages. */
+    tags: string[] | null;
 }
 
 export interface FollowUpLead {
@@ -105,13 +107,14 @@ export interface FollowUpLead {
     name: string | null;
     phone: string | null;
     last_contact_at: string | null;
+    tags: string[] | null;
 }
 
 export interface LeadsBlock {
     stats: { newLeads: number; qualified: number; converted: number; conversionRate: number };
     bySource: { messenger: number; instagram: number; other: number };
     recent: RecentLead[];
-    followUp: { count: number; items: FollowUpLead[] };
+    followUp: { count: number; countCapped?: boolean; items: FollowUpLead[] };
 }
 
 export interface CartFunnelBlock {

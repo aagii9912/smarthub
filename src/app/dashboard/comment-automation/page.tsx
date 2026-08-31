@@ -25,6 +25,7 @@ import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import CommentAutomationReport from '@/components/dashboard/CommentAutomationReport';
 
 function isShopEnabled(shopId: string | null): boolean {
     if (!shopId) return false;
@@ -120,6 +121,7 @@ function CommentAutomationActive() {
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [view, setView] = useState<'rules' | 'report'>('rules');
 
     // Form state
     const [name, setName] = useState('');
@@ -282,30 +284,32 @@ function CommentAutomationActive() {
             title={c.pageTitle}
             subtitle={c.subtitle}
             actions={
-                <>
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
-                        <Zap className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
-                        <span className="font-medium tabular-nums tracking-[-0.01em]">
-                            {automations.length} {c.countSuffix}
-                        </span>
-                    </div>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                            resetForm();
-                            setShowForm(true);
-                        }}
-                        leftIcon={<Plus className="w-3.5 h-3.5" />}
-                    >
-                        {c.newAutomation}
-                    </Button>
-                </>
+                view === 'rules' ? (
+                    <>
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-[12px] text-white/70">
+                            <Zap className="w-3.5 h-3.5 text-[var(--brand-indigo-400)]" strokeWidth={1.5} />
+                            <span className="font-medium tabular-nums tracking-[-0.01em]">
+                                {automations.length} {c.countSuffix}
+                            </span>
+                        </div>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                                resetForm();
+                                setShowForm(true);
+                            }}
+                            leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        >
+                            {c.newAutomation}
+                        </Button>
+                    </>
+                ) : undefined
             }
         />
     );
 
-    if (loading) {
+    if (loading && view === 'rules') {
         return (
             <div className="space-y-6">
                 <div className="h-24 card-outlined animate-pulse" />
@@ -320,6 +324,32 @@ function CommentAutomationActive() {
         <div className="space-y-6">
             {header}
 
+            {/* Tabs: rules vs lead report */}
+            <div className="inline-flex rounded-lg border border-white/[0.08] bg-white/[0.02] p-0.5">
+                <button
+                    onClick={() => setView('rules')}
+                    className={cn(
+                        'px-4 py-1.5 text-[13px] rounded-md transition-colors tracking-[-0.01em]',
+                        view === 'rules' ? 'bg-white/[0.08] text-foreground' : 'text-white/45 hover:text-white/70'
+                    )}
+                >
+                    Дүрэм
+                </button>
+                <button
+                    onClick={() => setView('report')}
+                    className={cn(
+                        'px-4 py-1.5 text-[13px] rounded-md transition-colors tracking-[-0.01em]',
+                        view === 'report' ? 'bg-white/[0.08] text-foreground' : 'text-white/45 hover:text-white/70'
+                    )}
+                >
+                    Тайлан
+                </button>
+            </div>
+
+            {view === 'report' ? (
+                <CommentAutomationReport shopId={shopId} />
+            ) : (
+            <>
             {/* How it works */}
             {automations.length === 0 && !showForm && (
                 <div className="card-outlined p-10 md:p-14 flex flex-col items-center text-center">
@@ -903,6 +933,8 @@ function CommentAutomationActive() {
                         />
                     ))}
                 </div>
+            )}
+            </>
             )}
         </div>
     );

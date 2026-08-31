@@ -43,3 +43,13 @@ debug.log
 test_pay.html
 test_payment_data.json
 test-db.js
+
+# test artifacts (Playwright / e2e)
+/test-results
+/e2e-screenshots
+/playwright-report
+# Playwright storageState — contains live Supabase session tokens
+/playwright/.auth
+
+# Supabase CLI local state (linked project ref, version cache)
+/supabase/.temp

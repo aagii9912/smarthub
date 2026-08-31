@@ -53,12 +53,33 @@ export async function executeBookAppointment(
         .eq('type', 'appointment')
         .eq('is_active', true);
 
-    const product = (products as AppointmentProduct[] | null)?.find(p =>
-        p.name.toLowerCase().includes(product_name.toLowerCase())
-    );
+    const matchName = (list: AppointmentProduct[] | null | undefined) =>
+        list?.find(p => p.name.toLowerCase().includes(product_name.toLowerCase()));
+
+    let product = matchName(products as AppointmentProduct[] | null);
+
+    // Лид дэлгүүр (үл хөдлөх / авто): үзлэг товлох зүйл нь тусдаа «цаг
+    // захиалгын үйлчилгээ» биш, ЗАР өөрөө. type='appointment' гэж хатуу
+    // шүүсэн тул брокер өөрийн байрандаа үзлэг товлож огт чаддаггүй байсан.
+    // Доорх бүх шалгалт (өдөр, ажлын цаг, багтаамж) NULL багана дээр
+    // алгасагддаг тул зар шууд ажиллана.
+    const isLeadShop = (context.capabilities ?? []).includes('lead_capture');
+    if (!product && isLeadShop) {
+        const { data: listings } = await supabase
+            .from('products')
+            .select('id, name, type, duration_minutes, available_days, start_time, end_time, max_bookings_per_day')
+            .eq('shop_id', context.shopId)
+            .eq('is_active', true);
+        product = matchName(listings as AppointmentProduct[] | null);
+    }
 
     if (!product) {
-        return { success: false, error: `"${product_name}" нэртэй цаг захиалгын үйлчилгээ олдсонгүй.` };
+        return {
+            success: false,
+            error: isLeadShop
+                ? `"${product_name}" нэртэй зар олдсонгүй.`
+                : `"${product_name}" нэртэй цаг захиалгын үйлчилгээ олдсонгүй.`,
+        };
     }
 
     // Validate the timestamp

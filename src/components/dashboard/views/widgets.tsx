@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ChartBar } from '@/components/ui/ChartBar';
 import { Avatar } from '@/components/ui/Avatar';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -243,9 +244,33 @@ export function SecondarySections({ data, primary }: { data: DashboardData | und
     );
 }
 
-export function FollowUpCard({ data }: { data: LeadsBlock | undefined }) {
+export function FollowUpCard({ data, onRefresh }: { data: LeadsBlock | undefined; onRefresh?: () => void }) {
     const { t } = useLanguage();
-    const followUp = data?.followUp || { count: 0, items: [] };
+    const followUp = data?.followUp || { count: 0, countCapped: false, items: [] };
+    // Rows the broker has just handled, hidden optimistically until the next
+    // refetch so the queue visibly drains as they work through it.
+    const [handled, setHandled] = useState<string[]>([]);
+
+    // A phone call is invisible to the platform, so the same lead came back
+    // into this queue every 24h forever. Recording it is what lets the queue
+    // actually empty.
+    const markContacted = async (id: string) => {
+        setHandled((prev) => [...prev, id]);
+        try {
+            const res = await fetch('/api/dashboard/customers', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, contacted: true }),
+            });
+            if (!res.ok) throw new Error('failed');
+            onRefresh?.();
+        } catch {
+            setHandled((prev) => prev.filter((x) => x !== id));
+        }
+    };
+
+    const items = followUp.items.filter((l) => !handled.includes(l.id));
+    const remaining = Math.max(followUp.count - handled.length, 0);
 
     return (
         <div className="card-outlined p-5 h-full">
@@ -254,28 +279,47 @@ export function FollowUpCard({ data }: { data: LeadsBlock | undefined }) {
                     <div className="text-[15px] font-semibold text-foreground">{t.dashboard.followUpTitle}</div>
                     <div className="text-[12px] text-muted-foreground mt-0.5">{t.dashboard.followUpSubtitle}</div>
                 </div>
-                {followUp.count > 0 && (
+                {remaining > 0 && (
                     <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-lg text-[12px] font-semibold bg-[color-mix(in_oklab,var(--gold)_20%,transparent)] text-[var(--gold)] tabular-nums">
-                        {followUp.count}
+                        {remaining}{followUp.countCapped ? '+' : ''}
                     </span>
                 )}
             </div>
-            {followUp.items.length === 0 ? (
+            {items.length === 0 ? (
                 <div className="py-8 text-center text-[12px] text-muted-foreground">{t.dashboard.noFollowUp}</div>
             ) : (
                 <div className="space-y-3">
-                    {followUp.items.map((l) => (
+                    {items.map((l) => (
                         <div key={l.id} className="flex items-center gap-3">
                             <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', 'bg-[color-mix(in_oklab,var(--gold)_15%,transparent)] text-[var(--gold)]')}>
                                 <PhoneCall className="h-3.5 w-3.5" strokeWidth={1.75} />
                             </span>
                             <div className="flex-1 min-w-0">
                                 <div className="text-[13px] font-medium text-foreground truncate">{l.name || t.dashboard.customer}</div>
-                                <div className="text-[11px] text-muted-foreground tabular-nums">{l.phone || '—'}</div>
+                                {l.phone ? (
+                                    <a
+                                        href={`tel:${l.phone}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-[11px] text-[var(--brand-indigo)] hover:underline tabular-nums"
+                                    >
+                                        {l.phone}
+                                    </a>
+                                ) : (
+                                    <div className="text-[11px] text-muted-foreground tabular-nums">—</div>
+                                )}
                             </div>
-                            <div className="flex items-center gap-1 text-[11px] text-white/40 shrink-0">
-                                <Clock3 className="h-3 w-3" />
-                                {l.last_contact_at ? formatDelta(l.last_contact_at) : '—'}
+                            <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1 text-[11px] text-white/40">
+                                    <Clock3 className="h-3 w-3" />
+                                    {l.last_contact_at ? formatDelta(l.last_contact_at) : '—'}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => markContacted(l.id)}
+                                    className="rounded-md px-2 py-1 text-[11px] font-medium text-white/60 bg-white/[0.06] hover:bg-white/[0.12] hover:text-foreground transition-colors"
+                                >
+                                    {t.dashboard.followUpMarkContacted}
+                                </button>
                             </div>
                         </div>
                     ))}

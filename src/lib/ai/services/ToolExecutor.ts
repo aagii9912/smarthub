@@ -31,6 +31,7 @@ import type {
     CancelAppointmentArgs,
     ToolName,
 } from '../tools/definitions';
+import type { AgentCapability } from '../agents/types';
 
 // Handler imports — re-exported for backward compatibility
 export { executeCreateOrder, executeCancelOrder, executeUpdateOrder, executeCheckOrderStatus, executeCheckout, executeCheckDeliveryStatus } from '../tools/handlers/OrderHandlers';
@@ -98,6 +99,14 @@ export interface ToolExecutionContext {
     customerName?: string;
     products: ChatContext['products'];
     notifySettings?: ChatContext['notifySettings'];
+    /**
+     * The shop's active agent capabilities, as resolved by AIRouter. Handlers
+     * shared between archetypes need this to avoid steering the model toward a
+     * tool it was never given — e.g. `collect_contact_info` must not tell a
+     * үл хөдлөх lead agent to register an order. Absent → assume sales, which
+     * preserves the historical commerce-only behaviour.
+     */
+    capabilities?: AgentCapability[];
     /**
      * Set of `${productId}|${sortedVariantSpecsJSON}` keys that already had
      * an `add_to_cart` succeed during this AIRouter reply. Lets the cart

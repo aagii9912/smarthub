@@ -372,6 +372,7 @@ export async function sendImageGallery({
     products,
     pageAccessToken,
     confirmMode = false,
+    leadMode = false,
     authType,
 }: {
     recipientId: string;
@@ -383,6 +384,12 @@ export async function sendImageGallery({
     }>;
     pageAccessToken: string;
     confirmMode?: boolean; // If true, shows "Энэ үү?" selection mode
+    /**
+     * Lead shops (үл хөдлөх / авто) have no create_order tool, so an "Захиалах"
+     * button is a dead end — the prospect taps it and the agent has nothing to
+     * do. Swap it for the action that actually moves a broker's deal forward.
+     */
+    leadMode?: boolean;
     authType?: IgAuthType;
 }) {
     // Facebook allows max 10 elements in carousel
@@ -390,7 +397,8 @@ export async function sendImageGallery({
 
     const elements = limitedProducts.map((product) => ({
         title: product.name,
-        subtitle: `${product.price.toLocaleString()}₮${product.description ? `\n${product.description}` : ''}`,
+        // 0 = "Үнэ тохиролцоно" — see createProductSchema / buildProductsInfo.
+        subtitle: `${product.price > 0 ? `${product.price.toLocaleString()}₮` : 'Үнэ тохиролцоно'}${product.description ? `\n${product.description}` : ''}`,
         image_url: product.imageUrl,
         buttons: confirmMode
             ? [
@@ -401,11 +409,17 @@ export async function sendImageGallery({
                 },
             ]
             : [
-                {
-                    type: 'postback',
-                    title: 'Захиалах 🛒',
-                    payload: `ORDER_${product.name}`,
-                },
+                leadMode
+                    ? {
+                        type: 'postback',
+                        title: '📞 Холбоо барих',
+                        payload: `CONTACT_${product.name}`,
+                    }
+                    : {
+                        type: 'postback',
+                        title: 'Захиалах 🛒',
+                        payload: `ORDER_${product.name}`,
+                    },
                 {
                     type: 'postback',
                     title: 'Дэлгэрэнгүй',

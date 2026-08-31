@@ -7,29 +7,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getAuthUser } from '@/lib/auth/auth';
+import { getAuthUserShop } from '@/lib/auth/auth';
 import { pickOne, type OrderItemRow } from '@/types/supabase-helpers';
 import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
     try {
-        const userId = await getAuthUser();
-        if (!userId) {
+        // Resolve via getAuthUserShop() so the export follows the shop the user
+        // has actually selected. The old `.eq('user_id').single()` ignored
+        // x-shop-id entirely and errored outright for anyone owning more than
+        // one shop, returning "Shop not found".
+        const shop = await getAuthUserShop();
+        if (!shop) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const supabase = supabaseAdmin();
-
-        // Get user's shop
-        const { data: shop } = await supabase
-            .from('shops')
-            .select('id, name')
-            .eq('user_id', userId)
-            .single();
-
-        if (!shop) {
-            return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
-        }
 
         const searchParams = request.nextUrl.searchParams;
         const type = searchParams.get('type') || 'orders';
@@ -64,16 +57,26 @@ export async function GET(request: NextRequest) {
             }
 
             case 'customers': {
-                const { data: customers } = await supabase
+                // `vip_status` does not exist on this table — the column is
+                // `is_vip`. PostgREST rejected the whole select, the error was
+                // swallowed, and the broker downloaded a header-only CSV.
+                const { data: customers, error: customersError } = await supabase
                     .from('customers')
-                    .select('id, name, phone, email, vip_status, created_at, message_count')
+                    .select('id, name, phone, email, is_vip, created_at, message_count, platform, tags, last_contact_at')
                     .eq('shop_id', shop.id)
                     .order('message_count', { ascending: false })
                     .limit(5000);
 
-                csvContent = 'Customer ID,Name,Phone,Email,VIP,Messages,Joined\n';
+                if (customersError) {
+                    logger.error('Customer export query failed', { error: customersError.message });
+                    return NextResponse.json({ error: 'Export failed' }, { status: 500 });
+                }
+
+                csvContent = 'Customer ID,Name,Phone,Email,VIP,Messages,Source,Tags,Last contact,Joined\n';
+                const csvCell = (s: string | null | undefined) => `"${(s || '').replace(/"/g, '""')}"`;
                 (customers || []).forEach(c => {
-                    csvContent += `${c.id},"${c.name || ''}",${c.phone || ''},${c.email || ''},${c.vip_status ? 'Yes' : 'No'},${c.message_count || 0},${c.created_at}\n`;
+                    const tags = Array.isArray(c.tags) ? c.tags.join(' | ') : '';
+                    csvContent += `${c.id},${csvCell(c.name)},${c.phone || ''},${c.email || ''},${c.is_vip ? 'Yes' : 'No'},${c.message_count || 0},${c.platform || ''},${csvCell(tags)},${c.last_contact_at || ''},${c.created_at}\n`;
                 });
                 filename = `syncly-customers.csv`;
                 break;

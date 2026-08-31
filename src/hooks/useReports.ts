@@ -26,7 +26,13 @@ export interface LeadsReport {
     qualified: number;
     converted: number;
     conversionRate: number;
-    bySource: { messenger: number; instagram: number; other: number };
+    /** Утас авч чадсан хувь. */
+    phoneCaptureRate: number;
+    /** Утастай ч 24 цаг холбогдоогүй, хаагдаагүй сонирхогчид. */
+    followUpBacklog: number;
+    /** Дүрэмд ороогүй ч утас үлдээсэн сэтгэгдлүүд. */
+    missedComments: number;
+    bySource: { messenger: number; instagram: number; other: number; comment: number };
     daily: ReportDailyPoint[];
 }
 
@@ -78,10 +84,16 @@ interface ReportsData {
 }
 
 export function useReports(period: Period = 'month') {
+    // Without x-shop-id the reports API falls back to an arbitrary owned shop,
+    // so a multi-shop owner read tabs derived from shop A over numbers from
+    // shop B. Mirrors useDashboard; ownership is still verified server-side.
+    const shopId = typeof window !== 'undefined' ? localStorage.getItem('smarthub_active_shop_id') : null;
     return useQuery({
-        queryKey: ['reports', period],
+        queryKey: ['reports', shopId, period],
         queryFn: async (): Promise<ReportsData> => {
-            const res = await fetch(`/api/dashboard/reports?period=${period}`);
+            const res = await fetch(`/api/dashboard/reports?period=${period}`, {
+                headers: { 'x-shop-id': shopId || '' },
+            });
             if (!res.ok) throw new Error('Failed to fetch reports');
             return res.json();
         },

@@ -23,16 +23,23 @@ import { PageHero } from '@/components/ui/PageHero';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { LEAD_STAGE_TAGS, LEAD_WON_TAG, LEAD_LOST_TAG } from '@/lib/dashboard/leadStages';
+import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { resolveArchetype } from '@/lib/dashboard/archetypes';
 
 interface Customer {
     id: string; name: string | null; phone: string | null; email: string | null;
     address: string | null; notes: string | null; tags: string[]; total_orders: number;
-    total_spent: number; is_vip: boolean; created_at: string;
+    total_spent: number; is_vip: boolean; created_at: string; last_contact_at?: string | null;
     orders?: Array<{ id: string; status: string; total_amount: number; created_at: string }>;
     chat_history?: Array<{ message: string; response: string; created_at: string }>;
 }
 
-const TAGS = ['VIP', 'New', 'Lead', 'Inactive', 'Problem', 'Regular'];
+// The first six are the original e-commerce set; LEAD_STAGE_TAGS append the
+// pipeline stages a broker moves a lead through. "Хөрвүүлсэн" is the marker the
+// lead dashboard and the lead report count as converted — without a way to set
+// it here, those numbers could never move off zero.
+const TAGS = ['VIP', 'New', 'Lead', 'Inactive', 'Problem', 'Regular', ...LEAD_STAGE_TAGS];
 
 const TONES: Array<'indigo' | 'violet' | 'emerald' | 'amber' | 'rose' | 'cyan'> = [
     'indigo',
@@ -52,6 +59,11 @@ function toneFor(id: string) {
 }
 
 export default function CustomersPage() {
+    // Лид дэлгүүрт (үл хөдлөх / авто) Захиалга, Нийт орлого баганууд мөнхөд 0
+    // байдаг — тэднийг үе шат / сүүлд холбогдсоноор солино.
+    const agent = useActiveShopAgent();
+    const isLeadShop = !agent.loading && resolveArchetype(agent.businessType, agent.capabilities) === 'lead';
+
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -64,6 +76,10 @@ export default function CustomersPage() {
     const [saving, setSaving] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', phone: '', email: '', address: '', notes: '' });
     const [showTagMenu, setShowTagMenu] = useState(false);
+    // Гараар лид нэмэх (утсаар / танилаараа ирсэн сонирхогч).
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [newForm, setNewForm] = useState({ name: '', phone: '', notes: '' });
+    const [creating, setCreating] = useState(false);
 
     const fetchCustomers = useCallback(async () => {
         try {
@@ -104,6 +120,29 @@ export default function CustomersPage() {
             logger.error('Хэрэглэгчийн алдаа', { error: e });
             toast.error(e instanceof Error ? e.message : 'Хадгалахад алдаа гарлаа');
         } finally { setSaving(false); }
+    }
+
+    async function createCustomer() {
+        if (!newForm.name.trim() && !newForm.phone.trim()) {
+            toast.error('Нэр эсвэл утас оруулна уу');
+            return;
+        }
+        setCreating(true);
+        try {
+            const res = await fetch('/api/dashboard/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-shop-id': localStorage.getItem('smarthub_active_shop_id') || '' },
+                body: JSON.stringify(newForm),
+            });
+            const data = await res.json().catch(() => ({} as { error?: string }));
+            if (!res.ok) throw new Error(data.error || 'Хадгалахад алдаа гарлаа');
+            setIsCreateOpen(false);
+            toast.success('Харилцагч нэмэгдлээ');
+            fetchCustomers();
+        } catch (e) {
+            logger.error('Харилцагч үүсгэх алдаа', { error: e });
+            toast.error(e instanceof Error ? e.message : 'Хадгалахад алдаа гарлаа');
+        } finally { setCreating(false); }
     }
 
     async function deleteCustomer(id: string, name: string | null) {
@@ -173,6 +212,15 @@ export default function CustomersPage() {
     const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('mn-MN') : '-';
     const fmtTime = (d: string | null) => { if (!d) return ''; const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000); if (days === 0) return 'Өнөөдөр'; if (days === 1) return 'Өчигдөр'; if (days < 7) return `${days} өдрийн өмнө`; return fmtDate(d); };
 
+    /** Хамгийн сүүлд тавигдсан үе шатны tag (жагсаалтын дарааллаар). */
+    const stageOf = (tags: string[] | null | undefined) => {
+        const list = Array.isArray(tags) ? tags : [];
+        for (let i = LEAD_STAGE_TAGS.length - 1; i >= 0; i--) {
+            if (list.includes(LEAD_STAGE_TAGS[i])) return LEAD_STAGE_TAGS[i];
+        }
+        return null;
+    };
+
     const newThisWeek = customers.filter((c) => {
         const d = new Date(c.created_at);
         return Date.now() - d.getTime() < 7 * 86400000;
@@ -203,10 +251,20 @@ export default function CustomersPage() {
                 }
                 actions={
                     <>
-                        <Button variant="ghost" size="md" leftIcon={<Download className="h-4 w-4" strokeWidth={1.5} />}>
+                        <Button
+                            variant="ghost"
+                            size="md"
+                            leftIcon={<Download className="h-4 w-4" strokeWidth={1.5} />}
+                            onClick={() => window.open('/api/dashboard/export?type=customers', '_blank')}
+                        >
                             Экспорт
                         </Button>
-                        <Button variant="primary" size="md" leftIcon={<Plus className="h-4 w-4" strokeWidth={1.8} />}>
+                        <Button
+                            variant="primary"
+                            size="md"
+                            leftIcon={<Plus className="h-4 w-4" strokeWidth={1.8} />}
+                            onClick={() => { setNewForm({ name: '', phone: '', notes: '' }); setIsCreateOpen(true); }}
+                        >
                             Шинэ харилцагч
                         </Button>
                     </>
@@ -295,10 +353,23 @@ export default function CustomersPage() {
                                 <p className="text-[11.5px] text-white/45 tabular-nums mt-0.5">{c.phone || '-'}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[13.5px] font-semibold text-foreground tabular-nums">
-                                    ₮{Number(c.total_spent || 0).toLocaleString()}
-                                </p>
-                                <p className="text-[10.5px] text-white/30 mt-0.5">{c.total_orders || 0} захиалга</p>
+                                {isLeadShop ? (
+                                    <>
+                                        <p className="text-[12px] font-medium text-foreground">
+                                            {stageOf(c.tags) || 'Шинэ'}
+                                        </p>
+                                        <p className="text-[10.5px] text-white/30 mt-0.5">
+                                            {fmtTime(c.last_contact_at ?? c.created_at)}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-[13.5px] font-semibold text-foreground tabular-nums">
+                                            ₮{Number(c.total_spent || 0).toLocaleString()}
+                                        </p>
+                                        <p className="text-[10.5px] text-white/30 mt-0.5">{c.total_orders || 0} захиалга</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -313,9 +384,15 @@ export default function CustomersPage() {
                             <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Харилцагч</th>
                             <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Утас</th>
                             <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Зэрэг</th>
-                            <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Захиалга</th>
-                            <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Нийт орлого</th>
-                            <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Сүүлд</th>
+                            {isLeadShop ? (
+                                <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]" colSpan={2}>Тэмдэглэгээ</th>
+                            ) : (
+                                <>
+                                    <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Захиалга</th>
+                                    <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">Нийт орлого</th>
+                                </>
+                            )}
+                            <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">{isLeadShop ? 'Сүүлд холбогдсон' : 'Сүүлд'}</th>
                             <th className="px-5 py-3" />
                         </tr>
                     </thead>
@@ -348,7 +425,20 @@ export default function CustomersPage() {
                                         </span>
                                     </td>
                                     <td className="px-5 py-3.5">
-                                        {c.is_vip ? (
+                                        {isLeadShop ? (
+                                            <span className={cn(
+                                                'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium',
+                                                stageOf(c.tags) === LEAD_WON_TAG
+                                                    ? 'text-[var(--success)] bg-[color-mix(in_oklab,var(--success)_18%,transparent)]'
+                                                    : stageOf(c.tags) === LEAD_LOST_TAG
+                                                        ? 'text-white/40 bg-white/[0.06]'
+                                                        : stageOf(c.tags)
+                                                            ? 'text-[var(--brand-indigo-400)] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)]'
+                                                            : 'text-white/55 bg-white/[0.06]',
+                                            )}>
+                                                {stageOf(c.tags) || 'Шинэ'}
+                                            </span>
+                                        ) : c.is_vip ? (
                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-[var(--brand-indigo-400)] bg-[color-mix(in_oklab,var(--brand-indigo)_18%,transparent)]">
                                                 <Crown className="w-3 h-3" strokeWidth={1.8} />
                                                 VIP
@@ -363,18 +453,35 @@ export default function CustomersPage() {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-5 py-3.5 text-right">
-                                        <span className="text-[13px] text-white/70 tabular-nums">{c.total_orders || 0}</span>
-                                    </td>
-                                    <td className="px-5 py-3.5 text-right">
-                                        <span className="font-semibold text-[13.5px] text-foreground tabular-nums">
-                                            ₮{Number(c.total_spent || 0).toLocaleString()}
-                                        </span>
-                                    </td>
+                                    {isLeadShop ? (
+                                        <td className="px-5 py-3.5" colSpan={2}>
+                                            <div className="flex flex-wrap gap-1">
+                                                {(c.tags || []).filter((tg) => !LEAD_STAGE_TAGS.includes(tg as never)).slice(0, 3).map((tg) => (
+                                                    <span key={tg} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] text-white/55 bg-white/[0.06]">
+                                                        {tg}
+                                                    </span>
+                                                ))}
+                                                {(c.notes || '').trim() && (
+                                                    <span className="text-[11.5px] text-white/40 truncate max-w-[220px]">{c.notes}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    ) : (
+                                        <>
+                                            <td className="px-5 py-3.5 text-right">
+                                                <span className="text-[13px] text-white/70 tabular-nums">{c.total_orders || 0}</span>
+                                            </td>
+                                            <td className="px-5 py-3.5 text-right">
+                                                <span className="font-semibold text-[13.5px] text-foreground tabular-nums">
+                                                    ₮{Number(c.total_spent || 0).toLocaleString()}
+                                                </span>
+                                            </td>
+                                        </>
+                                    )}
                                     <td className="px-5 py-3.5">
                                         <div className="flex items-center gap-1.5 text-[11.5px] text-white/45">
                                             <Clock className="w-3 h-3 text-white/25" strokeWidth={1.5} />
-                                            {fmtTime(c.created_at)}
+                                            {fmtTime(isLeadShop ? (c.last_contact_at ?? c.created_at) : c.created_at)}
                                         </div>
                                     </td>
                                     <td className="px-5 py-3.5 text-right">
@@ -662,6 +769,69 @@ export default function CustomersPage() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── Шинэ харилцагч / лид ─── */}
+            {isCreateOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                    onClick={() => setIsCreateOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-md card-outlined bg-[#0d0d14] p-5 space-y-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-[15px] font-semibold text-foreground">Шинэ харилцагч</h2>
+                            <button
+                                type="button"
+                                onClick={() => setIsCreateOpen(false)}
+                                className="text-white/40 hover:text-foreground transition-colors"
+                                aria-label="Хаах"
+                            >
+                                <X className="h-4 w-4" strokeWidth={1.8} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mb-1.5">Нэр</label>
+                                <input
+                                    className={inputCls}
+                                    value={newForm.name}
+                                    onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
+                                    placeholder="Болд"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mb-1.5">Утас</label>
+                                <input
+                                    className={inputCls}
+                                    value={newForm.phone}
+                                    onChange={(e) => setNewForm({ ...newForm, phone: e.target.value })}
+                                    placeholder="99112233"
+                                    inputMode="tel"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10.5px] font-semibold text-muted-foreground uppercase tracking-[0.08em] mb-1.5">Тэмдэглэл</label>
+                                <textarea
+                                    className={cn(inputCls, 'h-20 py-2 resize-none')}
+                                    value={newForm.notes}
+                                    onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })}
+                                    placeholder="ХУД, 2 өрөө, 200 сая хүртэл"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1">
+                            <Button variant="ghost" size="md" onClick={() => setIsCreateOpen(false)}>Болих</Button>
+                            <Button variant="primary" size="md" onClick={createCustomer} disabled={creating}>
+                                {creating ? 'Хадгалж байна...' : 'Хадгалах'}
+                            </Button>
                         </div>
                     </div>
                 </div>

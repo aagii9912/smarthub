@@ -3,6 +3,7 @@ import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createProductSchema, updateProductSchema, parseWithErrors } from '@/lib/validations';
 import { logger } from '@/lib/utils/logger';
+import { writeWithOptionalColumns } from '@/lib/utils/optional-columns';
 
 export async function GET() {
   try {
@@ -96,24 +97,27 @@ export async function POST(request: Request) {
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
     if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
     if (validData.category !== undefined) lifecycleExtras.category = validData.category;
+    // Structured listing attributes ride in the same side-bag: the column lands
+    // in a separate migration, and a broker must be able to save a зар before
+    // that deploy reaches production.
+    if (validData.attributes !== undefined) {
+      lifecycleExtras.attributes = validData.attributes ?? {};
+    }
 
-    let { data, error } = await supabase
-      .from('products')
-      .insert([{ ...baseInsert, ...lifecycleExtras }])
-      .select()
-      .single();
+    // Retry drops ONLY the column the DB says is missing. Dropping the whole
+    // bag meant one un-deployed column (e.g. `attributes`) also discarded
+    // `status` — a draft listing silently went live to the AI.
+    const { data, error, droppedColumns } = await writeWithOptionalColumns<Record<string, unknown> & { id: string }>(
+      async (payload) => await supabase.from('products').insert([payload]).select().single(),
+      baseInsert,
+      lifecycleExtras,
+    );
 
-    if (error && (error.code === 'PGRST204' || /column .+ does not exist/i.test(error.message || '') || /could not find the .+ column/i.test(error.message || ''))) {
-      logger.warn('Product insert: retrying without lifecycle extras (migration not applied)', {
-        error: error.message,
+    if (droppedColumns.length > 0) {
+      logger.warn('Product insert: some optional columns are not deployed yet', {
+        droppedColumns,
+        shopId,
       });
-      const retry = await supabase
-        .from('products')
-        .insert([baseInsert])
-        .select()
-        .single();
-      data = retry.data;
-      error = retry.error;
     }
 
     if (error) throw error;
@@ -139,7 +143,14 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ product: data });
+    return NextResponse.json({
+      product: data,
+      // Тавигдаагүй багана байвал брокерт хэлнэ — 200 буцаагаад чимээгүй
+      // алдчихвал тэр хадгалагдсан гэж итгэнэ.
+      ...(droppedColumns.length > 0
+        ? { warning: `Зарим талбар хадгалагдсангүй (өгөгдлийн сан шинэчлэгдээгүй): ${droppedColumns.join(', ')}` }
+        : {}),
+    });
   } catch (error: unknown) {
     logger.error('Product create error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
@@ -213,26 +224,23 @@ export async function PATCH(request: Request) {
     if (validData.aiInstructions !== undefined) lifecycleExtras.ai_instructions = validData.aiInstructions;
     if (validData.deliveryNote !== undefined) lifecycleExtras.delivery_note = validData.deliveryNote;
     if (validData.category !== undefined) lifecycleExtras.category = validData.category;
+    // `null` from the client clears the attributes back to `{}` (the column is
+    // NOT NULL), rather than leaving a stale set behind.
+    if (validData.attributes !== undefined) {
+      lifecycleExtras.attributes = validData.attributes ?? {};
+    }
 
-    let { data, error } = await supabase
-      .from('products')
-      .update({ ...dbUpdates, ...lifecycleExtras })
-      .eq('id', id)
-      .select()
-      .single();
+    const { data, error, droppedColumns } = await writeWithOptionalColumns<Record<string, unknown> & { id: string }>(
+      async (payload) => await supabase.from('products').update(payload).eq('id', id).select().single(),
+      dbUpdates,
+      lifecycleExtras,
+    );
 
-    if (error && (error.code === 'PGRST204' || /column .+ does not exist/i.test(error.message || '') || /could not find the .+ column/i.test(error.message || ''))) {
-      logger.warn('Product update: retrying without lifecycle extras (migration not applied)', {
-        error: error.message,
+    if (droppedColumns.length > 0) {
+      logger.warn('Product update: some optional columns are not deployed yet', {
+        droppedColumns,
+        productId: id,
       });
-      const retry = await supabase
-        .from('products')
-        .update(dbUpdates)
-        .eq('id', id)
-        .select()
-        .single();
-      data = retry.data;
-      error = retry.error;
     }
 
     if (error) throw error;
@@ -263,7 +271,12 @@ export async function PATCH(request: Request) {
       }
     }
 
-    return NextResponse.json({ product: data });
+    return NextResponse.json({
+      product: data,
+      ...(droppedColumns.length > 0
+        ? { warning: `Зарим талбар хадгалагдсангүй (өгөгдлийн сан шинэчлэгдээгүй): ${droppedColumns.join(', ')}` }
+        : {}),
+    });
   } catch (error: unknown) {
     logger.error('Product update error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });

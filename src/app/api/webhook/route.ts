@@ -28,7 +28,10 @@ import {
     replyToComment,
     ShopWithProducts,
 } from '@/lib/webhook/WebhookService';
-import { getMatchingAutomation, executeAutomation } from '@/lib/services/CommentAutomationService';
+import { getMatchingAutomation, executeAutomation, recordCommentLead, isShopWhitelisted } from '@/lib/services/CommentAutomationService';
+import { extractMongolianPhone } from '@/lib/utils/phone';
+import { getCustomerMemory } from '@/lib/ai/tools/memory';
+import { resolveArchetype } from '@/lib/dashboard/archetypes';
 import { getStoryLinkByMediaId, getActiveFbPin, upsertVisionAutoLink } from '@/lib/services/StoryProductLinkService';
 import crypto from 'crypto';
 
@@ -92,10 +95,23 @@ interface WebhookEntry {
             item?: string;
             message?: string;
             text?: string;
+            // Facebook Page feed-comment shape.
             comment_id?: string;
             media_id?: string;
             post_id?: string;
-            from?: { id: string; name?: string };
+            // Instagram `comments` / `live_comments` shape. Meta names the same
+            // three things differently here: the comment id is `id`, the post is
+            // `media.id`, and the commenter carries `username` rather than `name`.
+            // Reading only the FB names dropped every IG comment on the floor.
+            id?: string;
+            media?: { id?: string };
+            from?: { id: string; name?: string; username?: string };
+            // Best-effort live-broadcast hints Meta sometimes attaches to a
+            // feed-comment payload (used to tag a lead as live vs post).
+            is_live?: boolean;
+            live_video_id?: string;
+            video?: { live_status?: string };
+            post?: { status_type?: string };
         };
     }>;
     messaging?: Array<{
@@ -353,26 +369,50 @@ export async function POST(request: NextRequest) {
                 continue;
             }
 
-            // Process comment events (Facebook feed + Instagram comments)
+            // Process comment events (Facebook feed + Instagram comments).
+            // Instagram delivers live-broadcast comments on a separate
+            // `live_comments` field; treat it as a comment too so live shopping
+            // gets the same automation + lead capture as normal posts.
             for (const change of entry.changes || []) {
                 const isFbComment = platform === 'messenger' && change.field === 'feed' && change.value?.item === 'comment';
                 const isIgComment = platform === 'instagram' && change.field === 'comments';
+                const isIgLiveComment = platform === 'instagram' && change.field === 'live_comments';
 
-                if (isFbComment || isIgComment) {
+                if (isFbComment || isIgComment || isIgLiveComment) {
                     const commentData = change.value;
                     const commentMessage = commentData?.message || commentData?.text || '';
-                    const commentId = commentData?.comment_id;
-                    const postId = commentData?.post_id || commentData?.media_id || null;
+                    // Facebook and Instagram name these fields differently — read
+                    // both shapes, FB first so existing Page behaviour is unchanged.
+                    const commentId = commentData?.comment_id ?? commentData?.id;
+                    const postId = commentData?.post_id ?? commentData?.media_id ?? commentData?.media?.id ?? null;
                     const senderId = commentData?.from?.id;
+                    const commenterName = commentData?.from?.name ?? commentData?.from?.username ?? null;
 
                     // Don't reply to own comments (from page)
                     if (senderId === accountId || !commentId) continue;
 
                     const currentPlatform = platform === 'instagram' ? 'instagram' as const : 'facebook' as const;
 
-                    logger.info(`[${shop.name}] New ${currentPlatform} comment received`, {
+                    // Best-effort live detection: IG live_comments is authoritative;
+                    // for FB we look for live hints Meta sometimes includes on the
+                    // feed-comment payload. Defaults to 'post' when unknown.
+                    const isFbLiveHint = Boolean(
+                        commentData?.is_live ||
+                        commentData?.live_video_id ||
+                        commentData?.video?.live_status ||
+                        commentData?.post?.status_type === 'live_video'
+                    );
+                    const sourceType: 'post' | 'live' = (isIgLiveComment || isFbLiveHint) ? 'live' : 'post';
+
+                    // For a lead shop (үл хөдлөх, авто, сургалт) the comment IS
+                    // the lead, so promote a phone-bearing comment into a real
+                    // customers row. A commerce shop keeps its customer record
+                    // owned by the messaging path.
+                    const linkCustomer = resolveArchetype(shop.business_type, shop.ai_agent_capabilities) === 'lead';
+
+                    logger.info(`[${shop.name}] New ${currentPlatform} ${sourceType} comment received`, {
                         commentMessage,
-                        senderName: commentData?.from?.name,
+                        senderName: commenterName,
                         postId,
                     });
 
@@ -386,14 +426,54 @@ export async function POST(request: NextRequest) {
 
                     if (automation) {
                         logger.info(`[${shop.name}] Comment automation matched: "${automation.name}"`);
-                        await executeAutomation(
+                        const autoResult = await executeAutomation(
                             automation,
                             senderId!,
                             commentId,
                             accessToken,
                             currentPlatform
                         );
+
+                        // Log the captured lead for the comment-automation report.
+                        // Best-effort: never throws, idempotent on comment_id.
+                        await recordCommentLead({
+                            shopId: shop.id,
+                            automation,
+                            captureType: 'automation',
+                            platform: currentPlatform,
+                            sourceType,
+                            postId,
+                            commentId,
+                            commenterId: senderId ?? null,
+                            commenterName,
+                            commentText: commentMessage,
+                            dmSent: autoResult.dmSent,
+                            replySent: autoResult.replySent,
+                            linkCustomer,
+                        });
                         continue; // Automation handled, skip default comment reply
+                    }
+
+                    // No automation matched. Capture a "missed lead" when the
+                    // commenter left a phone number anyway — the shop never DM'd
+                    // them, but the number is a real opportunity to chase. Gated
+                    // to whitelisted shops (same gate as automation matching).
+                    if (isShopWhitelisted(shop.id) && extractMongolianPhone(commentMessage)) {
+                        await recordCommentLead({
+                            shopId: shop.id,
+                            automation: null,
+                            captureType: 'missed',
+                            platform: currentPlatform,
+                            sourceType,
+                            postId,
+                            commentId,
+                            commenterId: senderId ?? null,
+                            commenterName,
+                            commentText: commentMessage,
+                            dmSent: false,
+                            replySent: false,
+                            linkCustomer,
+                        });
                     }
 
                     // 2. Fallback: existing product-related comment reply (Facebook only)
@@ -524,6 +604,9 @@ export async function POST(request: NextRequest) {
 
                     // === REALTIME AI PROCESSING ===
                     try {
+                        // Lead shops have no order tool, so the product carousel
+                        // must not offer "Захиалах" (see sendImageGallery).
+                        const isLeadShop = resolveArchetype(shop.business_type, shop.ai_agent_capabilities) === 'lead';
                         const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
                         const response = await routeToAI(
@@ -542,6 +625,11 @@ export async function POST(request: NextRequest) {
                                 customKnowledge: shop.custom_knowledge || undefined,
                                 products: shop.products,
                                 customerName: customer.name || undefined,
+                                // remember_preference-ээр хадгалсан төсөв /
+                                // байршил / өрөөний тоо. Үүнийг дамжуулаагүй
+                                // тул AI санаж авсан бүхнээ дараагийн мессежид
+                                // мартаад дахин асуудаг байсан.
+                                customerMemory: (await getCustomerMemory(customer.id)) ?? undefined,
                                 orderHistory: customer.total_orders || 0,
                                 faqs: aiFeatures.faqs,
                                 quickReplies: aiFeatures.quickReplies,
@@ -611,7 +699,7 @@ export async function POST(request: NextRequest) {
                         });
 
                         // Process product images if AI requested
-                        await processAIResponse(response, senderId, accessToken, igAuthType);
+                        await processAIResponse(response, senderId, accessToken, igAuthType, isLeadShop);
 
                         // Send action buttons if AI returned them
                         if (response.actions && response.actions.length > 0) {
@@ -791,6 +879,12 @@ export async function POST(request: NextRequest) {
                     } else if (payload.startsWith('ORDER_')) {
                         const productName = payload.replace('ORDER_', '');
                         userMessage = `${productName} захиалах`;
+                    } else if (payload.startsWith('CONTACT_')) {
+                        // Lead-shop carousel CTA (see sendImageGallery leadMode).
+                        // Phrased so the agent goes straight for the phone number
+                        // rather than trying to register an order it cannot make.
+                        const productName = payload.replace('CONTACT_', '');
+                        userMessage = `${productName}-ийг сонирхож байна, менежертэй холбогдмоор байна`;
                     } else if (payload.startsWith('DETAILS_')) {
                         const productName = payload.replace('DETAILS_', '');
                         userMessage = `${productName}-ийн талаар дэлгэрэнгүй хэлж өгнө үү`;
@@ -899,6 +993,7 @@ export async function POST(request: NextRequest) {
                             continue;
                         }
                         try {
+                            const isLeadShop = resolveArchetype(shop.business_type, shop.ai_agent_capabilities) === 'lead';
                             const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
 
                             const billing = pbBilling;
@@ -919,6 +1014,11 @@ export async function POST(request: NextRequest) {
                                     customKnowledge: shop.custom_knowledge || undefined,
                                     products: shop.products,
                                     customerName: customer.name || undefined,
+                                // remember_preference-ээр хадгалсан төсөв /
+                                // байршил / өрөөний тоо. Үүнийг дамжуулаагүй
+                                // тул AI санаж авсан бүхнээ дараагийн мессежид
+                                // мартаад дахин асуудаг байсан.
+                                customerMemory: (await getCustomerMemory(customer.id)) ?? undefined,
                                     orderHistory: customer.total_orders || 0,
                                     notifySettings: buildNotifySettings(shop),
                                     // AI info-sharing controls (#5b/#5c).
@@ -974,7 +1074,7 @@ export async function POST(request: NextRequest) {
                                 authType: igAuthType,
                             });
 
-                            await processAIResponse(response, senderId, accessToken, igAuthType);
+                            await processAIResponse(response, senderId, accessToken, igAuthType, isLeadShop);
 
                             // Send action buttons if AI returned them
                             if (response.actions && response.actions.length > 0) {

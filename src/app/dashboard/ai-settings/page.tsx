@@ -443,7 +443,12 @@ function AdvancedSettings({ initialTab, onBack }: AdvancedSettingsProps = {}) {
         setBusinessSetupData((prev) => {
             const next = { ...prev };
             if (value === undefined || value === null || value === '') {
-                delete next[key];
+                // Explicit null, NOT delete. business_setup_data is merged
+                // server-side ({...existing, ...incoming}), so an omitted key
+                // means "leave it alone" — clearing a field silently restored
+                // the old value and the AI kept quoting a policy the shop had
+                // already deleted. The API removes null-valued keys.
+                next[key] = null;
             } else {
                 next[key] = value;
             }

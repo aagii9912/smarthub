@@ -29,13 +29,13 @@ export const APPOINTMENT_TOOLS: ToolDefinition[] = [
             },
             required: ['product_name', 'scheduled_at']
         },
-        capabilities: ['booking']
+        capabilities: ['booking', 'lead_capture']
     },
     {
         name: 'list_appointments',
         description: 'List the customer\'s upcoming appointments at this shop. Use when they ask "what appointments do I have", "миний цаг", etc.',
         parameters: { type: 'object', properties: {}, required: [] },
-        capabilities: ['booking']
+        capabilities: ['booking', 'lead_capture']
     },
     {
         name: 'cancel_appointment',
@@ -47,6 +47,6 @@ export const APPOINTMENT_TOOLS: ToolDefinition[] = [
             },
             required: []
         },
-        capabilities: ['booking']
+        capabilities: ['booking', 'lead_capture']
     }
 ];

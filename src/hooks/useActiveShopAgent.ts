@@ -8,6 +8,12 @@ interface ActiveShopAgent {
     role: AgentRole;
     capabilities: AgentCapability[];
     businessType: BusinessType | null;
+    /**
+     * `business_setup_data.category` for a realestate_auto shop:
+     * 'realestate' | 'auto' | 'both'. Decides which attribute field set a NEW
+     * listing defaults to. Null for every other business type.
+     */
+    listingCategory: 'realestate' | 'auto' | 'both' | null;
     name: string | null;
     isActive: boolean;
     loading: boolean;
@@ -17,10 +23,17 @@ const DEFAULT: ActiveShopAgent = {
     role: 'sales',
     capabilities: ['sales'],
     businessType: null,
+    listingCategory: null,
     name: null,
     isActive: true,
     loading: true,
 };
+
+function readListingCategory(setup: unknown): ActiveShopAgent['listingCategory'] {
+    if (!setup || typeof setup !== 'object' || Array.isArray(setup)) return null;
+    const c = (setup as Record<string, unknown>).category;
+    return c === 'realestate' || c === 'auto' || c === 'both' ? c : null;
+}
 
 /**
  * Hook to read the current shop's AI agent role + capabilities.
@@ -51,6 +64,7 @@ export function useActiveShopAgent(): ActiveShopAgent {
                         (s.ai_agent_capabilities as AgentCapability[]) ||
                         ['sales'],
                     businessType: (s.business_type as BusinessType) || null,
+                    listingCategory: readListingCategory(s.business_setup_data),
                     name: (s.ai_agent_name as string) || null,
                     isActive: s.is_ai_active !== false,
                     loading: false,

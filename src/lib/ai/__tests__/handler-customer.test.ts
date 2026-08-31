@@ -146,6 +146,37 @@ describe('CustomerHandlers', () => {
             expect(result.data).toMatchObject({ next_action: 'create_order' });
             expect(result.message).toContain('create_order');
         });
+
+        // Үл хөдлөх / авто / сургалтын агент create_order tool-гүй. Түүнд
+        // "create_order дууд" гэж хэлбэл эсвэл байрны захиалга зохиож бичнэ,
+        // эсвэл энэ дотоод заавар шууд хэрэглэгч рүү мессежээр явчихдаг.
+        it('does not push a lead-capture shop toward create_order', async () => {
+            const leadCtx = createMockContext({ capabilities: ['lead_capture', 'information'] });
+
+            const result = await executeCollectContact({ phone: '99001122' }, leadCtx);
+
+            expect(result.success).toBe(true);
+            expect(result.data).toMatchObject({ next_action: 'handoff' });
+            expect(result.message).not.toContain('create_order');
+            expect(result.message).toContain('менежер');
+        });
+
+        it('keeps the commerce nudge for a booking+sales hybrid', async () => {
+            const hybridCtx = createMockContext({ capabilities: ['sales', 'booking'] });
+
+            const result = await executeCollectContact({ phone: '99001122' }, hybridCtx);
+
+            expect(result.data).toMatchObject({ next_action: 'create_order' });
+        });
+
+        it('links the push at a route that exists', async () => {
+            await executeCollectContact({ phone: '99001122' }, ctx);
+
+            expect(vi.mocked(sendPushNotification)).toHaveBeenCalledWith(
+                'shop-test-001',
+                expect.objectContaining({ url: '/dashboard/inbox/cust-test-001' }),
+            );
+        });
     });
 
     // ─── request_human_support ───────────────────────────────────

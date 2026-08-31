@@ -193,18 +193,22 @@ function ReportsPageContent() {
     const archetype = resolveArchetype(agent.businessType, agent.capabilities);
     const opsArchetype: 'booking' | 'lead' | null =
         !agent.loading && (archetype === 'booking' || archetype === 'lead') ? archetype : null;
+    // Only a selling shop gets the sales report. Resolved after the agent loads
+    // so a lead shop never flashes the tab (resolveArchetype defaults to
+    // 'commerce' while capabilities are still unknown).
+    const salesTabVisible = !agent.loading && archetype === 'commerce';
 
     const tabParam = searchParams?.get('tab') ?? null;
     // Explicit ?tab wins; otherwise default to the ops tab for booking/lead
     // shops, else the AI report.
-    const resolveTab = (p: string | null, ops: 'booking' | 'lead' | null): ReportTab => {
-        if (p === 'sales') return 'sales';
+    const resolveTab = (p: string | null, ops: 'booking' | 'lead' | null, allowSales: boolean): ReportTab => {
+        if (p === 'sales' && allowSales) return 'sales';
         if (p === 'ai') return 'ai';
         if (p === 'ops' && ops) return 'ops';
         return ops ? 'ops' : 'ai';
     };
 
-    const [activeTab, setActiveTab] = useState<ReportTab>(() => resolveTab(tabParam, null));
+    const [activeTab, setActiveTab] = useState<ReportTab>(() => resolveTab(tabParam, null, false));
     const [period, setPeriod] = useState<Period>('month');
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     const [exporting, setExporting] = useState<string | null>(null);
@@ -212,9 +216,9 @@ function ReportsPageContent() {
 
     // Keep the active tab in sync with the URL + resolved archetype.
     useEffect(() => {
-        setActiveTab(resolveTab(tabParam, opsArchetype));
+        setActiveTab(resolveTab(tabParam, opsArchetype, salesTabVisible));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tabParam, opsArchetype]);
+    }, [tabParam, opsArchetype, salesTabVisible]);
 
     const changeTab = (next: ReportTab) => {
         setActiveTab(next);
@@ -288,7 +292,12 @@ function ReportsPageContent() {
               }]
             : []),
         { id: 'ai', label: 'AI тайлан', icon: Sparkles },
-        { id: 'sales', label: 'Борлуулалт', icon: BarChart3 },
+        // A lead shop (үл хөдлөх, авто, сургалт) writes no orders, so the whole
+        // sales tab is zero-filled — and its fallback insight told the broker
+        // their sales were "хэвийн". Show it only where selling happens.
+        ...(salesTabVisible
+            ? [{ id: 'sales' as ReportTab, label: 'Борлуулалт', icon: BarChart3 }]
+            : []),
     ];
 
     // 'ops' тайлан нь useReports (sales) өгөгдлийг ашигладаг.
