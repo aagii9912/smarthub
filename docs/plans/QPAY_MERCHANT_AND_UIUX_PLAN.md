@@ -133,6 +133,7 @@
 | Үндсэн өнгөний "үнэн" | **3 зөрчилтэй**: docs `#4f46e5` (индиго), brand tokens `#FA5D29` (улбар шар), `globals.css` `#4A7CE7` (цэнхэр); код бодитоор **violet** ашигладаг | `docs/design/UI_UX_DESIGN_SYSTEM.md`, `skills/brand-identity/resources/design-tokens.json`, `src/app/globals.css` |
 | Hard-coded өнгө vs токен | **2755 : 794** (`text-gray-900` ×172, `ring-violet-500` ×90, `bg-violet-600` ×43) | `src/**/*.tsx` |
 | Dark mode | `.dark` класс-д суурилсан ч toggle байхгүй; dashboard shell `dark`-ыг хүчээр тавьдаг → 111 light токен үхмэл | `src/components/dashboard/DashboardLayoutShell.tsx` |
+| Dark-only класс (light-д эвдэрнэ) | `text-white/*` 869, `bg-white/*` 403, `border-white/*` 411, `bg-[#hex]` 155 — 114 файлд | `src/**/*.tsx` |
 | Modal | `ui/Modal` 2 газар; **20 файл** гараар `fixed inset-0` overlay (focus trap, `role="dialog"`, Esc байхгүй) | `OrderStatusModal`, `QPayInvoiceModal`, `ProductImportModal` … |
 | Button | 115 файл raw `<button>`, 39 файл `ui/Button` | — |
 | Үхмэл код | `ui/EmptyState` 0 хэрэглэгч, `MetricCard` 0, `dashboard/MobileNav.tsx` (182 мөр) orphan | — |
@@ -158,21 +159,23 @@
 
 ### B.3 Үе шат, ажил, гаралт
 
-#### Үе шат 0 — Шийдвэр (1-2 өдөр)
-- Брэнд өнгийг шийдэх: код бодитоор violet → `--brand-*` токенийг violet болгож `#4A7CE7`/`#FA5D29`/`#4f46e5`-ыг хасах, эсвэл эсрэгээр. **Санал: violet-ийг албан ёсны болгох** (хамгийн бага өөрчлөлт, хэрэглэгчид дассан).
-- Dark-only үү, dark+light үү? **Санал: dark-only-г албан ёсны болгож** light токенуудыг устгах; toggle-ийг backlog-д.
-- Design-loop-ийн **bar** сонгох, `docs/design/bar.md` бичих.
-- Гаралт: `docs/design/DECISIONS.md`.
+#### Үе шат 0 — Шийдвэр ✅ (2026-09-02, дэлгэрэнгүй: `docs/design/DECISIONS.md`)
+- **D-001 Брэнд өнгө = violet** (`#8B5CF6` суурь). `--primary`/`--ring`/`--brand` → violet scale; `#4A7CE7`, `#4f46e5`, `#FA5D29` гурвыг хасна; docs ба brand JSON-ыг `globals.css`-ээс генерацлана.
+- **D-002 Dark + Light хоёулаа.** Default = систем, хэрэглэгч сольж болно, сонголт хадгалагдана. `DashboardLayoutShell`-ийн хүчээр тавьсан `dark` устна.
+- **D-003 Design-loop bar — хүлээгдэж байна.** Санал: Linear / Stripe Dashboard / Shopify Admin (DECISIONS.md-д тайлбартай).
+- Гаралт: `docs/design/DECISIONS.md` ✅, `docs/design/bar.md` (bar сонгосны дараа).
 
-#### Үе шат 1 — Суурь (1 долоо хоног)
-- `globals.css` цэгцлэх: давхардсан `@media (prefers-color-scheme)` блок устгах, semantic токен (`--surface-1/2/3`, `--text-1/2/3`, `--border-1/2`, `--brand`, `--success/warning/danger/info`) тогтоох, spacing/radius/typography scale хатуу тогтоох.
-- `ui/Modal` → `Dialog` (Radix `@radix-ui/react-dialog` эсвэл native `<dialog>`): focus trap, Esc, `aria-labelledby`, mobile-д `BottomSheet` руу автоматаар.
+#### Үе шат 1 — Суурь (1-1.5 долоо хоног)
+- **Theme (D-002):** `next-themes` нэмэх (`attribute="class"`, `defaultTheme="system"`, `enableSystem`), `<html suppressHydrationWarning>`; `DashboardLayoutShell`-ээс `dark` + `bg-[#09090b]` устгах; `ThemeToggle` (Header user menu + Settings → Харагдац); `profiles.theme_preference` багана; landing түр `forcedTheme="dark"`.
+- **Brand (D-001):** `globals.css`-д `--brand-50…950` violet scale, `--primary`/`--ring` → `--brand-500`; `--brand-indigo` legacy alias; dark `--card #0F0B2E` → neutral `#111113`.
+- `globals.css` цэгцлэх: давхардсан `@media (prefers-color-scheme)` блок устгах (next-themes хариуцна), semantic токен (`--surface-1/2/3`, `--text-1/2/3`, `--border-1/2`, `--overlay`) **хоёр горимд** тогтоох, spacing/radius/typography scale хатуу тогтоох.
+- `ui/Modal` → `Dialog` (`@radix-ui/react-dialog` аль хэдийн суусан — `package.json`): focus trap, Esc, `aria-labelledby`, mobile-д `BottomSheet` руу автоматаар.
 - `ui/ConfirmDialog` — 5 `confirm()`-ийг солино.
 - `ui/Button` — `asChild`, loading, icon-only, size xs..lg; ESLint rule `no-restricted-syntax` raw `<button>`-д (ui/ дотор л зөвшөөрнө).
 - `ui/Field` (Label + Input + hint + error, `aria-describedby`) — Auth, Settings, QPay wizard ашиглана.
 - `ui/Select` (keyboard, search) — банкны select, хот/дүүрэгт.
 - Metric card-ыг **нэг** `ui/KPI` болгож 3-ыг устгах; `EmptyState`-ийг бодитоор ашиглах эсвэл устгах; `dashboard/MobileNav.tsx` orphan устгах.
-- Codemod (`scripts/codemod-tokens.ts`, jscodeshift/ts-morph): `text-gray-900→text-foreground`, `text-gray-500→text-muted-foreground`, `border-gray-200→border-border`, `bg-violet-600→bg-brand`, `ring-violet-500→ring-brand` … 2755 → **<400** зорилт.
+- Codemod (`scripts/codemod-tokens.ts`, jscodeshift/ts-morph), хоёр бүлэг: (1) palette → semantic: `text-gray-900→text-foreground`, `text-gray-500→text-muted-foreground`, `border-gray-200→border-border`, `bg-violet-600→bg-brand-600`, `ring-violet-500→ring-brand` … 2755 → **<400**; (2) dark-only alpha → semantic: `text-white/45→text-text-2`, `border-white/[0.06]→border-border-1`, `bg-white/[0.03]→bg-surface-2`, `bg-[#09090b]→bg-background` … 1838 → **0** (light горим ажиллах урьдчилсан нөхцөл).
 - `focus:` → `focus-visible:` codemod.
 - Гаралт: Storybook биш, `src/app/dev/ui/page.tsx` (dev-only) дээр бүх примитивийн 5 төлөвийг харуулах "kitchen sink".
 
@@ -214,6 +217,8 @@
 | Үзүүлэлт | Одоо | Зорилт |
 |---|---|---|
 | Hard-coded palette класс | 2755 | < 400 |
+| Dark-only alpha/hex класс (`white/*`, `bg-[#…]`) | 1838 | 0 |
+| Light горимд ажилладаг dashboard route | 0 | бүгд (screenshot + axe хоёр горимд) |
 | Гар overlay modal | 20 | 0 |
 | Raw `<button>` (ui/ гадна) | 115 файл | < 10 |
 | `loading.tsx`/`error.tsx` | 0 | бүх dashboard route |
@@ -228,7 +233,7 @@
 
 | Долоо хоног | Ажил |
 |---|---|
-| 1 | Үе шат 0 + Үе шат 1 (токен, Dialog, Button, Field, codemod) |
+| 1 | Үе шат 1 (theme provider, violet токен, Dialog, Button, Field, codemod ×2) |
 | 2 | Үе шат 2 (shell) + **Хэсэг A** (QPay person merchant: DB, validation, сервис, API, тест) |
 | 3 | Settings задлалт + QPay wizard UI + Orders |
 | 4 | Inbox + Dashboard нүүр + Products |
@@ -240,13 +245,15 @@
 - **Codemod-ийн регресс** — токенд солиход өнгө өөрчлөгдөнө; screenshot тестийг codemod-оос **өмнө** суулгах.
 - **Settings/AI-settings задлалт** — state хуваалцаж байгаа тул хэсэг бүрийг тусдаа PR-аар, feature flag-гүйгээр шууд солино (dev-д бүрэн туршсаны дараа).
 - **QPay sandbox** — person endpoint-ийн бодит хариуг sandbox дээр эхэлж шалгахгүй бол A.4.3 хоцорно.
+- **Light горим** — 1838 dark-only класс codemod-оор солигдоно; codemod хамрахгүй inline `style`/динамик класс гараар. Light-ийн screenshot тестийг shell дээр эхэлж тавина, хуудас бүр light-д шалгагдаагүй бол "дууссан" гэж тооцохгүй.
 
 ---
 
-## Эхний 5 PR (шууд эхлэх)
+## Эхний 6 PR (шууд эхлэх)
 
 1. `feat(qpay): person merchant — DB баганууд, Zod validation, ensureShopMerchant, тест` (Хэсэг A.4.1-A.4.3, A.4.6)
 2. `feat(qpay): POST/GET /api/shop/qpay-merchant + test-invoice; хуучин хоёр замыг нэгтгэх` (A.4.4)
-3. `feat(ui): токен цэгцлэлт + Dialog/ConfirmDialog/Field/Select примитив + kitchen-sink` (B үе шат 1)
-4. `refactor(ui): codemod — palette → semantic tokens, focus → focus-visible` (B үе шат 1)
-5. `feat(settings): Settings-ийг хэсгүүдэд задалж QPayMerchantWizard оруулах` (A.4.5 + B үе шат 3.1)
+3. `feat(ui): next-themes + ThemeToggle + violet brand scale + semantic light/dark токен` (D-001, D-002)
+4. `feat(ui): Dialog/ConfirmDialog/Field/Select примитив + kitchen-sink` (B үе шат 1)
+5. `refactor(ui): codemod — palette → semantic, dark-only alpha → semantic, focus → focus-visible` (B үе шат 1)
+6. `feat(settings): Settings-ийг хэсгүүдэд задалж QPayMerchantWizard оруулах` (A.4.5 + B үе шат 3.1)
