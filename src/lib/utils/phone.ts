@@ -104,3 +104,17 @@ export function phoneMatchKey(phone: string | null | undefined): string | null {
     if (digits.length < 8) return null;
     return digits.slice(-8);
 }
+
+/**
+ * Normalize a Mongolian phone number to the 8-digit local form QPay expects:
+ * "+976 9988 7766", "(+976) 99887766", "9988-7766" → "99887766".
+ * Returns the bare digits unchanged when they don't add up to a local number —
+ * the caller validates length before sending anywhere.
+ */
+export function normalizeMongolianPhone(raw: string | null | undefined): string {
+    if (!raw) return '';
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('976')) return digits.slice(3);
+    if (digits.length === 13 && digits.startsWith('00976')) return digits.slice(5);
+    return digits;
+}

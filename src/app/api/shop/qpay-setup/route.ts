@@ -1,19 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
-import { registerShopAsMerchant, removeMerchant, BANK_CODES } from '@/lib/payment/qpay-merchant';
+import { BANK_CODES, resolvePersonName, removeMerchant } from '@/lib/payment/qpay-merchant';
+import { ensureShopMerchant, QPayMerchantError } from '@/lib/payment/qpay-merchant-service';
+import { qpayMerchantInputSchema } from '@/lib/validations/qpay';
 import { logger } from '@/lib/utils/logger';
 
 /**
  * POST /api/shop/qpay-setup
- * Register shop owner's bank account for QPay payments
- * 
- * Body: {
- *   bank_code: string,       // e.g. "050000" (Khan bank)
- *   account_number: string,  // e.g. "5012345678"
- *   account_name: string,    // e.g. "Бат-Эрдэнэ"
- *   register_number: string  // Хувь хүний регистр / компанийн TIN (required — QPay-н uniqueness key)
+ * Дэлгүүрийг QPay merchant болгон бүртгэнэ (хувь хүн эсвэл байгууллага).
+ *
+ * Body (хувь хүн):
+ * {
+ *   merchant_type: 'person',
+ *   last_name: string,        // Овог
+ *   first_name: string,       // Нэр
+ *   register_number: string,  // РД: УА12345678
+ *   bank_code: string,        // "050000" (Хаан банк)
+ *   account_number: string,
+ *   account_name: string,
+ *   phone: string,            // 8 орон (улсын кодтой ирвэл normalize хийнэ)
+ *   email?: string,
+ *   city_code?: string, district_code?: string, address?: string, mcc_code?: string
  * }
+ *
+ * Body (байгууллага): merchant_type: 'company', company_name, register_number (7 тоо) + дээрх банк/утас талбарууд.
+ *
+ * Legacy body (merchant_type-гүй, зөвхөн bank_code/account_number/account_name/register_number)
+ * хувь хүн гэж үзэж, овог/нэрийг дансны нэрээс, утсыг дэлгүүрээс авна.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -22,113 +36,75 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { bank_code, account_number, account_name, register_number } = body;
-
-        // Validate required fields
-        if (!bank_code || !account_number || !account_name || !register_number) {
-            return NextResponse.json({
-                error: 'Банкны код, дансны дугаар, данс эзэмшигчийн нэр, регистрийн дугаар заавал шаардлагатай',
-                required: ['bank_code', 'account_number', 'account_name', 'register_number'],
-            }, { status: 400 });
-        }
-
-        // Validate bank code
-        const validBankCodes = Object.values(BANK_CODES);
-        if (!validBankCodes.includes(bank_code as typeof validBankCodes[number])) {
-            return NextResponse.json({
-                error: 'Банкны код буруу байна',
-                valid_codes: BANK_CODES,
-            }, { status: 400 });
-        }
-
+        const raw = (await request.json().catch(() => ({}))) as Record<string, unknown>;
         const supabase = supabaseAdmin();
 
-        // Check if shop already has a QPay merchant
         const { data: shop } = await supabase
             .from('shops')
-            .select('id, name, qpay_merchant_id, qpay_status, email, phone')
+            .select('id, phone, email, owner_last_name, owner_first_name, user_id')
             .eq('id', authShop.id)
-            .single();
-
+            .maybeSingle();
         if (!shop) {
             return NextResponse.json({ error: 'Shop not found' }, { status: 404 });
         }
 
-        if (shop.qpay_merchant_id && shop.qpay_status === 'active') {
-            return NextResponse.json({
-                error: 'Shop аль хэдийнэ QPay-д бүртгэгдсэн байна',
-                merchant_id: shop.qpay_merchant_id,
-                status: 'active',
-            }, { status: 400 });
+        // Legacy/дутуу талбаруудыг дэлгүүрийн мэдээллээр нөхнө
+        const merchantType = raw.merchant_type === 'company' ? 'company' : 'person';
+        const candidate: Record<string, unknown> = {
+            ...raw,
+            merchant_type: merchantType,
+            phone: (raw.phone as string) || shop.phone || '',
+            email: (raw.email as string) || shop.email || undefined,
+        };
+        if (merchantType === 'person' && (!raw.last_name || !raw.first_name)) {
+            const resolved = resolvePersonName({
+                lastName: (raw.last_name as string) || shop.owner_last_name || undefined,
+                firstName: (raw.first_name as string) || shop.owner_first_name || undefined,
+                accountName: String(raw.account_name || ''),
+            });
+            candidate.last_name = resolved.lastName;
+            candidate.first_name = resolved.firstName;
+        }
+        if (merchantType === 'company' && !raw.company_name) {
+            candidate.company_name = raw.account_name;
         }
 
-        // FIX: Block re-registration when pending (prevent duplicate merchants)
-        if (shop.qpay_status === 'pending') {
+        const parsed = qpayMerchantInputSchema.safeParse(candidate);
+        if (!parsed.success) {
+            const details = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
             return NextResponse.json({
-                error: 'QPay бүртгэл боловсруулагдаж байна. Түр хүлээнэ үү.',
-                status: 'pending',
+                error: 'Мэдээлэл дутуу эсвэл буруу байна',
+                details,
+                fields: Object.fromEntries(parsed.error.issues.map((i) => [i.path.join('.'), i.message])),
             }, { status: 400 });
         }
-
-        // Set status to pending
-        await supabase
-            .from('shops')
-            .update({ qpay_status: 'pending' })
-            .eq('id', authShop.id);
 
         try {
-            // Register with QPay
-            const merchant = await registerShopAsMerchant({
-                shopName: shop.name || 'Shop',
-                registerNumber: register_number,
-                bankCode: bank_code,
-                accountNumber: account_number,
-                accountName: account_name,
-                phone: shop.phone || '',
-                email: shop.email || '',
-            });
-
-            // Save merchant info to shop
-            await supabase
-                .from('shops')
-                .update({
-                    qpay_merchant_id: merchant.id,
-                    qpay_bank_code: bank_code,
-                    qpay_account_number: account_number,
-                    qpay_account_name: account_name,
-                    qpay_status: 'active',
-                })
-                .eq('id', authShop.id);
-
-            logger.success('Shop QPay setup complete:', {
-                shop_id: authShop.id,
-                merchant_id: merchant.id,
-            });
-
+            const result = await ensureShopMerchant(authShop.id, parsed.data);
             return NextResponse.json({
                 success: true,
-                merchant_id: merchant.id,
-                status: 'active',
-                message: 'QPay merchant амжилттай бүртгэгдлээ! Таны хэрэглэгчид QPay-р төлбөр хийх боломжтой боллоо.',
+                merchant_id: result.merchantId,
+                status: result.status,
+                reused: result.reused,
+                message: result.message,
             });
-
-        } catch (regError: unknown) {
-            // Mark as failed
-            await supabase
-                .from('shops')
-                .update({ qpay_status: 'failed' })
-                .eq('id', authShop.id);
-
-            const msg = regError instanceof Error ? regError.message : 'Unknown error';
-            logger.error('QPay merchant registration failed:', { shop_id: authShop.id, error: msg });
-
-            return NextResponse.json({
-                error: 'QPay бүртгэл амжилтгүй боллоо. Дахин оролдоно уу.',
-                details: msg,
-            }, { status: 500 });
+        } catch (err) {
+            if (err instanceof QPayMerchantError) {
+                const status =
+                    err.code === 'ALREADY_ACTIVE' ? 400
+                    : err.code === 'PENDING' ? 409
+                    : err.code === 'SHOP_NOT_FOUND' ? 404
+                    : err.code === 'REGISTRATION_FAILED' ? 502
+                    : 500;
+                return NextResponse.json({
+                    error: err.userMessage,
+                    code: err.code,
+                    merchant_id: err.merchantId ?? undefined,
+                    details: err.detail,
+                }, { status });
+            }
+            throw err;
         }
-
     } catch (error: unknown) {
         logger.error('QPay setup error:', { error: error instanceof Error ? error.message : String(error) });
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -215,6 +191,12 @@ export async function DELETE(request: NextRequest) {
                 qpay_bank_code: null,
                 qpay_account_number: null,
                 qpay_account_name: null,
+                qpay_merchant_type: null,
+                qpay_p2p_terminal_id: null,
+                qpay_card_terminal_id: null,
+                qpay_last_error: null,
+                qpay_pending_since: null,
+                qpay_registered_at: null,
                 qpay_status: 'none',
             })
             .eq('id', authShop.id);
@@ -269,7 +251,7 @@ export async function GET() {
 
         const { data: shop } = await supabase
             .from('shops')
-            .select('qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status')
+            .select('qpay_merchant_id, qpay_bank_code, qpay_account_number, qpay_account_name, qpay_status, qpay_merchant_type, qpay_mcc_code, qpay_city_code, qpay_district_code, qpay_p2p_terminal_id, qpay_card_terminal_id, qpay_last_error, qpay_registered_at, owner_last_name, owner_first_name, register_number, phone')
             .eq('id', authShop.id)
             .single();
 
@@ -280,10 +262,24 @@ export async function GET() {
         return NextResponse.json({
             is_setup: shop.qpay_status === 'active',
             merchant_id: shop.qpay_merchant_id,
+            merchant_type: shop.qpay_merchant_type,
             bank_code: shop.qpay_bank_code,
             account_number: shop.qpay_account_number ? `****${shop.qpay_account_number.slice(-4)}` : null,
             account_name: shop.qpay_account_name,
+            owner_last_name: shop.owner_last_name,
+            owner_first_name: shop.owner_first_name,
+            register_number: shop.register_number,
+            phone: shop.phone,
+            mcc_code: shop.qpay_mcc_code,
+            city_code: shop.qpay_city_code,
+            district_code: shop.qpay_district_code,
+            terminals: {
+                p2p: shop.qpay_p2p_terminal_id,
+                card: shop.qpay_card_terminal_id,
+            },
             status: shop.qpay_status || 'none',
+            last_error: shop.qpay_last_error,
+            registered_at: shop.qpay_registered_at,
             available_banks: BANK_CODES,
         });
 

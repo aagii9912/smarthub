@@ -175,3 +175,101 @@ describe('registerShopAsMerchant', () => {
         expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 });
+
+// ─── Person merchant body / updateMerchant endpoint ───────────────────────
+import { resolvePersonName, updateMerchant, mccForBusinessType } from '@/lib/payment/qpay-merchant';
+
+describe('registerShopAsMerchant — person body', () => {
+    beforeEach(() => {
+        fetchMock.mockReset();
+    });
+
+    it('lastName/firstName өгсөн бол last_name/first_name-д шууд илгээнэ', async () => {
+        fetchMock.mockResolvedValueOnce({ ok: true, json: async () => mockMerchant } as Response);
+
+        await registerShopAsMerchant({
+            ...baseParams,
+            accountName: 'Бат-Эрдэнэ',
+            lastName: 'Дорж',
+            firstName: 'Бат-Эрдэнэ',
+            mccCode: '7230',
+            city: '11000',
+            district: '13000',
+        });
+
+        const [, init] = fetchMock.mock.calls[0];
+        const body = JSON.parse((init as RequestInit).body as string);
+        expect(body).toMatchObject({
+            last_name: 'Дорж',
+            first_name: 'Бат-Эрдэнэ',
+            business_name: 'Test Shop',
+            register_number: REGISTER_NUMBER,
+            mcc_code: '7230',
+            city: '11000',
+            district: '13000',
+            phone: '99999999',
+        });
+        expect(body.company_name).toBeUndefined();
+        expect(body.bank_accounts[0]).toMatchObject({ account_bank_code: '050000', is_default: true });
+    });
+
+    it('утас 8 орон биш бол QPay руу хандахгүй шиднэ', async () => {
+        await expect(registerShopAsMerchant({ ...baseParams, phone: '9999' })).rejects.toThrow(/invalid phone/);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('улсын кодтой утсыг normalize хийнэ', async () => {
+        fetchMock.mockResolvedValueOnce({ ok: true, json: async () => mockMerchant } as Response);
+        await registerShopAsMerchant({ ...baseParams, phone: '+976 9999-9999' });
+        const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+        expect(body.phone).toBe('99999999');
+    });
+});
+
+describe('resolvePersonName', () => {
+    it('овог/нэр өгсөн бол хэвээр', () => {
+        expect(resolvePersonName({ lastName: ' Дорж ', firstName: 'Бат', accountName: 'x' }))
+            .toEqual({ lastName: 'Дорж', firstName: 'Бат' });
+    });
+
+    it('legacy: "Овог Нэр" гэсэн дансны нэрийг хуваана', () => {
+        expect(resolvePersonName({ accountName: 'Дорж Бат-Эрдэнэ' }))
+            .toEqual({ lastName: 'Дорж', firstName: 'Бат-Эрдэнэ' });
+    });
+
+    it('legacy: нэг үгтэй нэр дээр овог = нэр (warn)', () => {
+        expect(resolvePersonName({ accountName: 'Бат-Эрдэнэ' }))
+            .toEqual({ lastName: 'Бат-Эрдэнэ', firstName: 'Бат-Эрдэнэ' });
+    });
+});
+
+describe('updateMerchant', () => {
+    beforeEach(() => {
+        fetchMock.mockReset();
+    });
+
+    it('person төрөлд /v2/merchant/person/{id} руу PUT хийнэ', async () => {
+        fetchMock.mockResolvedValueOnce({ ok: true, json: async () => mockMerchant } as Response);
+        await updateMerchant('merchant-uuid-1', { phone: '99999999' }, 'person');
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://qpay.test/v2/merchant/person/merchant-uuid-1',
+            expect.objectContaining({ method: 'PUT' }),
+        );
+    });
+
+    it('default нь company endpoint (хуучин дуудагчид эвдрэхгүй)', async () => {
+        fetchMock.mockResolvedValueOnce({ ok: true, json: async () => mockMerchant } as Response);
+        await updateMerchant('merchant-uuid-1', { phone: '99999999' });
+        expect(fetchMock.mock.calls[0][0]).toBe('https://qpay.test/v2/merchant/company/merchant-uuid-1');
+    });
+});
+
+describe('mccForBusinessType', () => {
+    it('business_type-аас MCC гаргана, танихгүй бол default', () => {
+        expect(mccForBusinessType('beauty')).toBe('7230');
+        expect(mccForBusinessType('restaurant')).toBe('5812');
+        expect(mccForBusinessType('realestate_auto')).toBe('6513');
+        expect(mccForBusinessType(null)).toBe('5999');
+        expect(mccForBusinessType('weird')).toBe('5999');
+    });
+});

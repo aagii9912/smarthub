@@ -8,6 +8,7 @@
 
 import { getAccessToken, QPAY_BASE_URL } from './qpay';
 import { logger } from '@/lib/utils/logger';
+import { normalizeMongolianPhone } from '@/lib/utils/phone';
 
 // ──────────────────────────────────────────────
 // Types
@@ -84,23 +85,25 @@ export const BANK_CODES = {
     M_BANK: '390000',
 } as const;
 
-// Default MCC code for SaaS/software services
-const DEFAULT_MCC_CODE = '7372';
-
 /**
- * Normalize a Mongolian phone number to QPay's expected format: 8 digits, no
- * country code, no separators. Accepts inputs like "+976 9988 7766",
- * "(+976) 99887766", "9988-7766", etc. Returns an empty string if the digits
- * don't add up to a valid local number — the caller should validate before
- * sending to QPay.
+ * Merchant Category Code — QPay/Visa стандарт. Дэлгүүрийн `business_type`-аас
+ * гаргана; урьд нь бүх дэлгүүр '7372' (програм хангамж) гэж бүртгэгдэж байсан.
  */
-function normalizeMongolianPhone(raw: string | undefined): string {
-    if (!raw) return '';
-    const digits = raw.replace(/\D/g, '');
-    // Strip leading country code variants: "976...", "00976...", "+976..."
-    if (digits.length === 11 && digits.startsWith('976')) return digits.slice(3);
-    if (digits.length === 13 && digits.startsWith('00976')) return digits.slice(5);
-    return digits;
+export const MCC_BY_BUSINESS_TYPE: Record<string, string> = {
+    retail: '5999',          // Miscellaneous retail
+    ecommerce: '5999',
+    restaurant: '5812',      // Eating places
+    beauty: '7230',          // Beauty / barber shops
+    service: '7299',         // Miscellaneous personal services
+    healthcare: '8099',      // Medical services
+    education: '8299',       // Schools / educational services
+    realestate_auto: '6513', // Real estate agents / managers
+};
+export const DEFAULT_MCC_CODE = '5999';
+
+export function mccForBusinessType(businessType: string | null | undefined): string {
+    if (!businessType) return DEFAULT_MCC_CODE;
+    return MCC_BY_BUSINESS_TYPE[businessType] ?? DEFAULT_MCC_CODE;
 }
 
 // ──────────────────────────────────────────────
@@ -118,6 +121,10 @@ export async function registerShopAsMerchant(params: {
     bankCode: string;
     accountNumber: string;
     accountName: string;
+    /** Хувь хүний merchant: эзэмшигчийн овог. Өгөгдөөгүй бол accountName-аас хуваана (legacy). */
+    lastName?: string;
+    /** Хувь хүний merchant: эзэмшигчийн нэр. */
+    firstName?: string;
     phone?: string;
     email?: string;
     mccCode?: string;
@@ -160,11 +167,11 @@ export async function registerShopAsMerchant(params: {
             body.register_number = params.registerNumber;
         }
     } else {
-        // Person merchant: use accountName as last/first name
+        // Person merchant: QPay овог/нэрийг тусад нь шаарддаг.
         body.business_name = params.shopName;
-        const nameParts = params.accountName.split(' ');
-        body.last_name = nameParts[0] || params.accountName;
-        body.first_name = nameParts[1] || params.accountName;
+        const { lastName, firstName } = resolvePersonName(params);
+        body.last_name = lastName;
+        body.first_name = firstName;
         if (params.registerNumber) {
             body.register_number = params.registerNumber;
         }
@@ -228,6 +235,32 @@ function isAlreadyRegisteredError(errorText: string): boolean {
 }
 
 /**
+ * Хувь хүний merchant-ийн овог/нэр. Шинэ урсгал `lastName`/`firstName`-ийг
+ * шууд өгнө. Хуучин дуудагчид зөвхөн дансны нэр өгдөг тул зайгаар хувааж
+ * fallback хийнэ — нэг үгтэй нэр дээр овог = нэр болох тул warn бичнэ.
+ */
+export function resolvePersonName(params: {
+    lastName?: string;
+    firstName?: string;
+    accountName: string;
+}): { lastName: string; firstName: string } {
+    const lastName = params.lastName?.trim();
+    const firstName = params.firstName?.trim();
+    if (lastName && firstName) return { lastName, firstName };
+
+    const parts = params.accountName.trim().split(/\s+/).filter(Boolean);
+    const fallback = {
+        lastName: lastName || parts[0] || params.accountName,
+        firstName: firstName || parts[1] || parts[0] || params.accountName,
+    };
+    logger.warn('QPay person merchant: овог/нэр дутуу, дансны нэрээс хуваав', {
+        accountName: params.accountName,
+        resolved: fallback,
+    });
+    return fallback;
+}
+
+/**
  * Find an existing QPay merchant by register_number.
  * Iterates pages of `listMerchants()` until the merchant is found or the list
  * is exhausted. Returns null if no match within MAX_PAGES * PAGE_SIZE merchants.
@@ -262,11 +295,13 @@ export async function findMerchantByRegisterNumber(
  */
 export async function updateMerchant(
     merchantId: string,
-    updates: Partial<MerchantRegistration>
+    updates: Partial<MerchantRegistration> & { last_name?: string; first_name?: string },
+    merchantType: 'person' | 'company' = 'company'
 ): Promise<QPayMerchant> {
     const token = await getAccessToken();
+    const endpoint = merchantType === 'person' ? '/v2/merchant/person' : '/v2/merchant/company';
 
-    const response = await fetch(`${QPAY_BASE_URL}/v2/merchant/company/${merchantId}`, {
+    const response = await fetch(`${QPAY_BASE_URL}${endpoint}/${merchantId}`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${token}`,

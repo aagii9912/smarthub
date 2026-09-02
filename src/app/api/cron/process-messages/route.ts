@@ -14,6 +14,7 @@ import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import { sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { detectIntent } from '@/lib/ai/intent-detector';
 import { logger } from '@/lib/utils/logger';
+import { expireStalePendingMerchants } from '@/lib/payment/qpay-merchant-service';
 import {
     getAIFeatures,
     getChatHistory,
@@ -83,6 +84,11 @@ export async function GET(request: NextRequest) {
 
         const supabase = supabaseAdmin();
         const now = new Date().toISOString();
+
+        // QPay merchant бүртгэл 'pending'-д гацсан дэлгүүрүүдийг failed болгоно
+        // (ensureShopMerchant өөрөө timeout-ыг давдаг; энэ нь UI-д зөв төлөв харуулахад)
+        const expiredQPay = await expireStalePendingMerchants().catch(() => 0);
+        if (expiredQPay > 0) logger.info('Cron: expired stale QPay pending registrations', { count: expiredQPay });
 
         // Get pending messages that are ready to process (process_after has passed)
         const { data: pendingMessages, error: fetchError } = await supabase

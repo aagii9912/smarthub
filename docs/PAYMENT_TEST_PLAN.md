@@ -134,6 +134,54 @@ Browser console error: ___
 
 ---
 
+## 🧪 ТЕСТ #3: Хувь хүний QPay Merchant бүртгэл
+
+### Урьдчилсан нөхцөл
+- Migration `20260902120000_qpay_person_merchant.sql` хэрэгжсэн (`shops.owner_last_name`, `qpay_merchant_type`, `qpay_last_error` … баганууд бий)
+- Дэлгүүр `qpay_status = 'none'` (Settings → Банкны мэдээлэл → "QPay салгах" хийсэн байж болно)
+- `QPAY_USERNAME`, `QPAY_PASSWORD` sandbox эсвэл production vendor эрхтэй
+
+### Алхам 1: Зөв мэдээллээр бүртгэх
+```bash
+curl -X POST https://www.syncly.mn/api/shop/qpay-setup \
+  -H "Cookie: <auth cookie>" -H "x-shop-id: <shop uuid>" -H "Content-Type: application/json" \
+  -d '{
+    "merchant_type": "person",
+    "last_name": "Дорж", "first_name": "Бат-Эрдэнэ",
+    "register_number": "ya12345678",
+    "bank_code": "050000", "account_number": "5012 345 678", "account_name": "Бат-Эрдэнэ",
+    "phone": "+976 9988 7766", "email": "test@example.com"
+  }'
+```
+- [ ] Хариу `{ success: true, merchant_id, status: "active", reused: "none" }`
+- [ ] `shops` мөр: `qpay_merchant_type = 'person'`, `register_number = 'УА12345678'` (латин → кирилл normalize), `qpay_mcc_code` дэлгүүрийн `business_type`-д тохирсон, `qpay_p2p_terminal_id` бөглөгдсөн, `qpay_registered_at` тавигдсан
+- [ ] QPay merchant portal дээр `last_name = Дорж`, `first_name = Бат-Эрдэнэ`
+
+### Алхам 2: Буруу мэдээлэл (validation)
+- [ ] `register_number: "1234567"` → 400, `fields.register_number` = "РД 2 кирилл үсэг + 8 тоо …"
+- [ ] `phone: "9988"` → 400, `fields.phone`
+- [ ] `bank_code: "999999"` → 400
+- [ ] `first_name` хоосон → 400
+
+### Алхам 3: Давхар бүртгэл
+- [ ] Active дэлгүүр дээр дахин POST → 400, `code: "ALREADY_ACTIVE"`, `merchant_id` буцна
+- [ ] Ижил РД-тэй **өөр** дэлгүүр (нэг хэрэглэгч) дээр POST → `reused: "local"`, QPay руу хүсэлт явахгүй (лог: "reused from sibling shop")
+- [ ] `mode=disconnect`-оор салгаад дахин POST → QPay `MERCHANT_ALREADY_REGISTERED` → lookup-and-reuse, `success: true`
+
+### Алхам 4: Timeout / алдаа
+- [ ] `qpay_status='pending'`, `qpay_pending_since = now() - 11 min` гараар тавиад cron `/api/cron/process-messages` дуудах → `failed`, `qpay_last_error` = "…timeout…"
+- [ ] QPay 400 буцаасан тохиолдолд `qpay_status='failed'`, `qpay_last_error`-д QPay-н текст, хариунд монгол `error` мессеж (`Утасны дугаар…` / `Регистр…`)
+- [ ] `GET /api/shop/qpay-setup` → `last_error`, `merchant_type`, `terminals`, `owner_last_name/first_name` талбарууд ирнэ
+
+### Алхам 5: Settings-ээс авто бүртгэл (legacy зам)
+- [ ] Settings → Банкны мэдээлэл → банк, данс, РД, төрөл "Хувь хүн" бөглөж хадгалах → toast "QPay merchant амжилттай…"
+- [ ] Овог/нэр оруулаагүй бол лог дээр "овог/нэр дутуу, дансны нэрээс хуваав" warn гарна (UI wizard ирэх хүртэл fallback)
+
+### Хүлээгдэх үр дүн
+- [ ] `npm run test` — `qpay.test.ts` 17, `qpay-merchant.test.ts` 15, `qpay-merchant-service.test.ts` 12 тест ногоон
+
+---
+
 ## 🔍 Нэмэлт шалгалтууд
 
 ### Edge Cases

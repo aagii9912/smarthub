@@ -251,8 +251,8 @@
 
 ## Эхний 6 PR (шууд эхлэх)
 
-1. `feat(qpay): person merchant — DB баганууд, Zod validation, ensureShopMerchant, тест` (Хэсэг A.4.1-A.4.3, A.4.6)
-2. `feat(qpay): POST/GET /api/shop/qpay-merchant + test-invoice; хуучин хоёр замыг нэгтгэх` (A.4.4)
+1. ✅ `feat(qpay): person merchant — DB баганууд, Zod validation, ensureShopMerchant, тест` (A.4.1-A.4.3, A.4.6; мөн `qpay-setup` POST/GET ба `PATCH /api/shop` авто-бүртгэлийг сервис рүү холбосон, cron timeout цэвэрлэгээ)
+2. `feat(qpay): test-invoice endpoint + хот/дүүрэг locations API; `/api/shop/qpay-setup`-ийг `/api/shop/qpay-merchant` болгон нэрлэх` (A.4.4 үлдэгдэл)
 3. `feat(ui): next-themes + ThemeToggle + violet brand scale + semantic light/dark токен` (D-001, D-002)
 4. `feat(ui): Dialog/ConfirmDialog/Field/Select примитив + kitchen-sink` (B үе шат 1)
 5. `refactor(ui): codemod — palette → semantic, dark-only alpha → semantic, focus → focus-visible` (B үе шат 1)
