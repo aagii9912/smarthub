@@ -1,0 +1,96 @@
+{
+  "itoh": {
+    "measuredAt": "2026-09-21T09:56:48.574Z",
+    "shop": "ИТО Монголиа",
+    "model": "gemini-3.1-flash-lite",
+    "plan": "enterprise",
+    "products": 16,
+    "scope": "Shop snapshot; no customer history, cart or memory. Standard uncached token price estimate, not a billing measurement.",
+    "variants": [
+      {
+        "compact": false,
+        "systemTokens": 18332,
+        "firstRequestTokens": 20664,
+        "cases": [
+          {
+            "label": "greeting",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 20664,
+            "outputTokens": 41,
+            "totalTokens": 20705
+          },
+          {
+            "label": "price",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 20682,
+            "outputTokens": 65,
+            "totalTokens": 20747
+          },
+          {
+            "label": "details",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 20707,
+            "outputTokens": 280,
+            "totalTokens": 20987
+          }
+        ]
+      },
+      {
+        "compact": true,
+        "systemTokens": 10396,
+        "firstRequestTokens": 12848,
+        "cases": [
+          {
+            "label": "greeting",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 12848,
+            "outputTokens": 40,
+            "totalTokens": 12888
+          },
+          {
+            "label": "price",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 13374,
+            "outputTokens": 58,
+            "totalTokens": 13432
+          },
+          {
+            "label": "details",
+            "apiCalls": 1,
+            "tools": [],
+            "inputTokens": 13399,
+            "outputTokens": 300,
+            "totalTokens": 13699
+          }
+        ]
+      }
+    ]
+  },
+  "syncly": {
+    "measuredAt": "2026-09-21T09:58:49.242Z",
+    "shop": "Syncly",
+    "model": "gemini-3.1-flash-lite",
+    "plan": "pro",
+    "products": 0,
+    "scope": "Shop snapshot; no customer history, cart or memory. Standard uncached token price estimate, not a billing measurement.",
+    "variants": [
+      {
+        "compact": false,
+        "systemTokens": 6054,
+        "firstRequestTokens": 8035,
+        "cases": []
+      },
+      {
+        "compact": true,
+        "systemTokens": 6054,
+        "firstRequestTokens": 8035,
+        "cases": []
+      }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import type { ChatContext, ChatMessage, ChatResponse, ImageAction, ChatAction } from '@/types/ai';
 import { buildSystemPrompt } from './services/PromptService';
+import { PRODUCT_DETAILS_TOOL, getProductDetails, needsProductDetails } from './services/ProductContext';
 import { matchQuickReply } from './quickReplies';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
 import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
@@ -181,7 +182,7 @@ function getToolsForPlan(plan: PlanType, override?: ToolName[] | null) {
  * info-agent shop disabling `collect_contact_info`). It can never broaden
  * past the plan/role intersection.
  */
-function getToolsForAgent(args: {
+export function getToolsForAgent(args: {
     plan: PlanType;
     role: AgentRole;
     capabilities: AgentCapability[];
@@ -437,6 +438,7 @@ export async function routeToAI(
         logger.info(`AIRouter: Routing to Gemini [${modelName}] (Backend: ${backendModel})`);
 
         // Build system prompt
+        const productDetailsOnDemand = planConfig.features.toolCalling && needsProductDetails(context.products);
         const systemPrompt = buildSystemPrompt({
             ...context,
             planFeatures: {
@@ -445,7 +447,7 @@ export async function routeToAI(
                 ai_memory: planConfig.features.memory,
                 max_tokens: planConfig.maxTokens,
             },
-        });
+        }, productDetailsOnDemand, message);
 
         // Resolve admin-editable per-plan tool override (plans.enabled_tools).
         // Returns null when the plan row has no override → falls back to PLAN_CONFIGS.
@@ -468,6 +470,10 @@ export async function routeToAI(
                   planOverride: enabledToolsOverride,
               })
             : undefined;
+
+        // Internal context lookup: only exposes descriptions already authorized
+        // for this shop, with no writes or additional plan capabilities.
+        if (productDetailsOnDemand) functionDeclarations?.push(PRODUCT_DETAILS_TOOL);
 
         // Defensive guard: the model occasionally invents a tool name that
         // wasn't in `functionDeclarations`. We cross-check on each invocation.
@@ -500,6 +506,24 @@ export async function routeToAI(
             const chat = model.startChat({
                 history: geminiHistory,
             });
+            let apiCall = 0;
+            const sendMessage = async (input: Parameters<typeof chat.sendMessage>[0]) => {
+                const result = await chat.sendMessage(input);
+                const usage = result.response.usageMetadata;
+                // Production telemetry, unlike development-only logger.info.
+                // Never log prompts, customer messages, tool arguments or keys.
+                console.info(JSON.stringify({
+                    event: 'ai_token_usage',
+                    shopId: context.shopId,
+                    model: backendModel,
+                    apiCall: ++apiCall,
+                    promptTokens: usage?.promptTokenCount ?? null,
+                    outputTokens: usage?.candidatesTokenCount ?? null,
+                    cachedTokens: usage?.cachedContentTokenCount ?? null,
+                    totalTokens: usage?.totalTokenCount ?? null,
+                }));
+                return result;
+            };
 
             // Multi-turn tool-call loop.
             //
@@ -531,7 +555,7 @@ export async function routeToAI(
             };
 
             // Initial turn
-            let currentResult = await chat.sendMessage(message);
+            let currentResult = await sendMessage(message);
             let finalResponseText = extractText(currentResult);
 
             let totalTokensConsumed = currentResult.response.usageMetadata?.totalTokenCount || 0;
@@ -553,6 +577,13 @@ export async function routeToAI(
                 const functionResponseParts: Part[] = [];
 
                 for (const fc of functionCalls) {
+                    if (productDetailsOnDemand && fc.name === PRODUCT_DETAILS_TOOL.name) {
+                        functionResponseParts.push({ functionResponse: {
+                            name: fc.name,
+                            response: getProductDetails(context.products, (fc.args || {}) as Record<string, unknown>),
+                        } });
+                        continue;
+                    }
                     const functionName = fc.name as ToolName;
 
                     if (!isToolEnabledForPlan(functionName, planType, enabledToolsOverride)) {
@@ -617,7 +648,7 @@ export async function routeToAI(
                 // Send tool results back to Gemini — the response may be:
                 //  a) plain text (loop exits)
                 //  b) more function calls (loop continues)
-                currentResult = await chat.sendMessage(functionResponseParts);
+                currentResult = await sendMessage(functionResponseParts);
                 finalResponseText = extractText(currentResult);
                 totalTokensConsumed += currentResult.response.usageMetadata?.totalTokenCount || 0;
             }
@@ -658,7 +689,7 @@ export async function routeToAI(
             if (iteration === 0 && !finalResponseText.trim()) {
                 logger.warn('Gemini returned empty, retrying once...');
 
-                const retryResult = await chat.sendMessage(
+                const retryResult = await sendMessage(
                     message + '\n\n(Хэрэглэгчид заавал хариу бичнэ үү)'
                 );
                 finalResponseText = extractText(retryResult);
