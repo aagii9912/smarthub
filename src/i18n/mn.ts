@@ -259,6 +259,7 @@ export const mn = {
     messages: 'Мессеж',
     aiReport: 'AI Тайлан',
     paymentAudit: 'Төлбөрийн мэдээлэл',
+    automations: 'Автомат туслах',
     requiresUpgrade: 'Энэ боломж дээд төлөвлөгөө шааддаг',
     messaging: 'Мессеж',
     analytics: 'Аналитик',

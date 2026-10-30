@@ -1,14 +1,14 @@
 /**
- * Syncly AI Plan Configuration - Gemini Family
+ * Syncly AI Plan Configuration - OpenAI (GPT-6 Luna)
  *
  * Billing: Credit-based (user-facing) / Token-based (backend accounting)
  *   1 credit = 1000 tokens (see TOKENS_PER_CREDIT)
  *
- * Strategy: Tiered Gemini models per plan
- * - Lite: Gemini 3.1 Flash Lite - ҮНЭГҮЙ - 1,000 credits (Freemium — хэрэглэгч татах)
- * - Starter: Gemini 3.1 Flash Lite - ₮149,000/сар - 8,500 credits
- * - Pro: Gemini 3.1 Flash Lite - ₮379,000/сар - 21,000 credits (better tool calling)
- * - Enterprise: Gemini 3.1 Flash Lite - Тохиролцоно - 100,000 credits
+ * Strategy: All plans run on Anthropic Claude Haiku 5.5 (ANTHROPIC_MODEL env)
+ * - Lite: GPT-6 Luna - ҮНЭГҮЙ - 1,000 credits (Freemium — хэрэглэгч татах)
+ * - Starter: GPT-6 Luna - ₮149,000/сар - 8,500 credits
+ * - Pro: GPT-6 Luna - ₮379,000/сар - 21,000 credits (better tool calling)
+ * - Enterprise: GPT-6 Luna - Тохиролцоно - 100,000 credits
  *
  * Per-customer `customers.message_count` is analytics-only and NOT part of billing.
  */
@@ -28,8 +28,8 @@ export function creditsToTokens(credits: number): number {
 }
 
 export type PlanType = 'lite' | 'starter' | 'pro' | 'enterprise';
-export type AIProvider = 'gemini';
-export type AIModel = 'gemini-3.1-flash-lite';
+export type AIProvider = 'anthropic';
+export type AIModel = 'claude-haiku-5-5';
 
 // Tool names available for each plan
 import type { ToolName } from '../tools/definitions';
@@ -78,8 +78,8 @@ export interface PlanAIConfig {
  */
 export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     lite: {
-        provider: 'gemini',
-        model: 'gemini-3.1-flash-lite',
+        provider: 'anthropic',
+        model: 'claude-haiku-5-5',
         maxTokens: 300,
         tokensPerMonth: 1_000_000,    // ~1M tokens/month ≈ 1,000 credits (free tier)
         maxShops: 1,
@@ -124,8 +124,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     },
 
     starter: {
-        provider: 'gemini',
-        model: 'gemini-3.1-flash-lite',
+        provider: 'anthropic',
+        model: 'claude-haiku-5-5',
         maxTokens: 500,
         tokensPerMonth: 8_500_000,    // ~8.5M tokens/month ≈ 8,500 credits
         maxShops: 1,
@@ -173,8 +173,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     },
 
     pro: {
-        provider: 'gemini',
-        model: 'gemini-3.1-flash-lite',
+        provider: 'anthropic',
+        model: 'claude-haiku-5-5',
         maxTokens: 800,
         tokensPerMonth: 21_000_000,   // ~21M tokens/month ≈ 21,000 credits
         maxShops: 3,
@@ -224,8 +224,8 @@ export const PLAN_CONFIGS: Record<PlanType, PlanAIConfig> = {
     },
 
     enterprise: {
-        provider: 'gemini',
-        model: 'gemini-3.1-flash-lite',
+        provider: 'anthropic',
+        model: 'claude-haiku-5-5',
         maxTokens: 1500,
         tokensPerMonth: 100_000_000,  // ~100M tokens (effectively unlimited) ≈ 100,000 credits
         maxShops: 1000,           // Effectively unlimited
@@ -456,7 +456,7 @@ export function checkShopLimit(
  * Model display names for UI
  */
 export const MODEL_DISPLAY_NAMES: Record<AIModel, string> = {
-    'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
+    'claude-haiku-5-5': 'Claude Haiku 5.5',
 };
 
 /**

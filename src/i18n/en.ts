@@ -261,6 +261,7 @@ export const en: Translations = {
     messages: 'Messages',
     aiReport: 'AI Report',
     paymentAudit: 'Payment Information',
+    automations: 'Automations',
     requiresUpgrade: 'This feature requires a higher plan',
     messaging: 'Messaging',
     analytics: 'Analytics',

@@ -1,6 +1,6 @@
 /**
  * Excel AI Import API
- * Parses .xlsx files and uses Gemini to auto-map columns to product fields
+ * Parses .xlsx files and uses OpenAI to auto-map columns to product fields
  * 
  * POST /api/shop/products/import-excel
  * Body: FormData with 'file' field (.xlsx)
@@ -83,12 +83,12 @@ export async function POST(request: NextRequest) {
         // Extract headers (first row)
         const rawHeaders = (jsonData[0] as (string | number | undefined)[]).map(h => String(h || '').trim());
 
-        // Convert all data to text for Gemini
+        // Convert all data to text for the AI parser
         const csvLikeContent = jsonData
             .map(row => (row as (string | number | undefined)[]).map(cell => String(cell ?? '')).join('\t'))
             .join('\n');
 
-        logger.info('Excel parsed, sending to Gemini', {
+        logger.info('Excel parsed, sending to AI parser', {
             headers: rawHeaders,
             rowCount: jsonData.length - 1,
             contentLength: csvLikeContent.length,

@@ -78,40 +78,17 @@ export async function GET(
                         logger.error('Stock deduction failed (pay page):', { error: String(stockErr) });
                     }
 
-                    // ── Send Messenger confirmation (backup for missed webhooks) ──
+                    // ── Customer confirmation (backup for missed webhooks) ──
                     try {
-                        const { data: orderData } = await supabase
-                            .from('orders')
-                            .select('*, customers(name, facebook_id), shops(name, facebook_page_access_token, address)')
-                            .eq('id', payment.order_id)
-                            .single();
-
-                        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
-                            const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
-                            const amount = Number(payment.amount).toLocaleString();
-                            const deliveryFee = Number(orderData.delivery_fee || 0);
-                            const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
-
-                            let confirmMsg = '';
-                            if (orderData.delivery_method === 'pickup') {
-                                const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
-                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                            } else {
-                                const deliveryAddress = orderData.delivery_address || '';
-                                const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
-                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                            }
-
-                            // Use POST_PURCHASE_UPDATE tag — works even outside 24hr window
-                            await sendTaggedMessage({
-                                recipientId: orderData.customers.facebook_id,
-                                message: confirmMsg,
-                                pageAccessToken: orderData.shops.facebook_page_access_token,
-                                tag: 'POST_PURCHASE_UPDATE',
-                            });
-
-                            logger.success('Messenger confirmation sent via pay page poll (backup)');
-                        }
+                        const { notifyCustomerPaymentConfirmed } = await import('@/lib/services/PaymentConfirmationService');
+                        const result = await notifyCustomerPaymentConfirmed({
+                            orderId: payment.order_id,
+                            amount: Number(payment.amount),
+                        });
+                        logger.info('Customer payment confirmation via pay page poll (backup)', {
+                            order_id: payment.order_id,
+                            status: result?.status ?? 'no_customer',
+                        });
                     } catch (msgErr) {
                         logger.warn('Messenger backup notification failed:', { error: String(msgErr) });
                     }

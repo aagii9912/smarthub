@@ -51,6 +51,10 @@ export interface ZaawarTopic {
     tip?: string;
     href?: string;
     hrefLabel?: string;
+    /** Сэдвийн панель нээгдэхэд зүүн талд тоглуулах видео зааврын зам (public доторх) */
+    video?: string;
+    /** Видеоны эхний кадр (poster) зураг */
+    poster?: string;
 }
 
 const indigo: TopicColor = {
@@ -147,6 +151,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         ],
         href: "/auth/register",
         hrefLabel: "Бүртгүүлэх",
+        video: "/zaawar/videos/burtguuleh.mp4",
+        poster: "/zaawar/videos/burtguuleh.jpg",
     },
     {
         id: "delguur-holboh",
@@ -169,6 +175,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         tip: "Тохиргооны явцыг баруун талын утасны дэлгэц дээр шууд харж болно. Алхам бүрийг «Үргэлжлүүлэх» товчоор урагшлуулна.",
         href: "/setup",
         hrefLabel: "Тохируулга эхлүүлэх",
+        video: "/zaawar/videos/delguur-holboh.mp4",
+        poster: "/zaawar/videos/delguur-holboh.jpg",
     },
     {
         id: "baraa",
@@ -186,6 +194,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         tip: "AI таны бүртгэсэн барааг чат дээр автоматаар санал болгож, үлдэгдлийг бодит цагт шалгана.",
         href: "/dashboard/products",
         hrefLabel: "Бараа хэсэг рүү очих",
+        video: "/zaawar/videos/baraa.mp4",
+        poster: "/zaawar/videos/baraa.jpg",
     },
     {
         id: "ai-tuslakh",
@@ -221,6 +231,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         ],
         href: "/dashboard/inbox",
         hrefLabel: "Inbox руу очих",
+        video: "/zaawar/videos/inbox.mp4",
+        poster: "/zaawar/videos/inbox.jpg",
     },
     {
         id: "zahialga",
@@ -238,6 +250,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         ],
         href: "/dashboard/orders",
         hrefLabel: "Захиалга руу очих",
+        video: "/zaawar/videos/zahialga.mp4",
+        poster: "/zaawar/videos/zahialga.jpg",
     },
     {
         id: "comment",
@@ -271,6 +285,8 @@ export const ZAAWAR_TOPICS: ZaawarTopic[] = [
         ],
         href: "/dashboard/reports",
         hrefLabel: "Тайлан руу очих",
+        video: "/zaawar/videos/tailan.mp4",
+        poster: "/zaawar/videos/tailan.jpg",
     },
     {
         id: "bagts",

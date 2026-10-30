@@ -1,0 +1,681 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`industry pack parity > AI role recommendation per type 1`] = `
+{
+  "beauty": {
+    "defaultCapabilities": [
+      "booking",
+      "information",
+    ],
+    "defaultRole": "booking",
+  },
+  "ecommerce": {
+    "defaultCapabilities": [
+      "sales",
+      "support",
+    ],
+    "defaultRole": "sales",
+  },
+  "education": {
+    "defaultCapabilities": [
+      "information",
+      "lead_capture",
+    ],
+    "defaultRole": "hybrid",
+  },
+  "healthcare": {
+    "defaultCapabilities": [
+      "booking",
+      "information",
+    ],
+    "defaultRole": "hybrid",
+  },
+  "other": {
+    "defaultCapabilities": [
+      "sales",
+    ],
+    "defaultRole": "sales",
+  },
+  "realestate_auto": {
+    "defaultCapabilities": [
+      "lead_capture",
+      "information",
+    ],
+    "defaultRole": "hybrid",
+  },
+  "restaurant": {
+    "defaultCapabilities": [
+      "sales",
+      "booking",
+      "information",
+    ],
+    "defaultRole": "hybrid",
+  },
+  "retail": {
+    "defaultCapabilities": [
+      "sales",
+      "support",
+    ],
+    "defaultRole": "sales",
+  },
+  "service": {
+    "defaultCapabilities": [
+      "booking",
+      "information",
+    ],
+    "defaultRole": "booking",
+  },
+}
+`;
+
+exports[`industry pack parity > business type list and order 1`] = `
+[
+  "retail",
+  "restaurant",
+  "service",
+  "ecommerce",
+  "beauty",
+  "healthcare",
+  "education",
+  "realestate_auto",
+  "other",
+]
+`;
+
+exports[`industry pack parity > business type meta (icon by name) 1`] = `
+{
+  "beauty": {
+    "accentClass": "bg-pink-100 text-pink-600",
+    "aiTemplate": "beauty",
+    "description": "Салон, спа, гоо сайхны үйлчилгээ",
+    "hasOperations": true,
+    "icon": "Sparkles",
+    "label": "Гоо сайхан",
+    "productNoun": "Үйлчилгээ",
+    "productNounSingular": "Үйлчилгээ",
+  },
+  "ecommerce": {
+    "accentClass": "bg-violet-100 text-violet-600",
+    "aiTemplate": "general",
+    "description": "Зөвхөн онлайнаар бараа худалддаг",
+    "hasOperations": true,
+    "icon": "ShoppingBag",
+    "label": "E-commerce",
+    "productNoun": "Бараа",
+    "productNounSingular": "Бараа",
+  },
+  "education": {
+    "accentClass": "bg-indigo-100 text-indigo-600",
+    "aiTemplate": "general",
+    "description": "Сургалт, курс, боловсролын байгууллага",
+    "hasOperations": true,
+    "icon": "GraduationCap",
+    "label": "Боловсрол",
+    "productNoun": "Сургалт",
+    "productNounSingular": "Сургалт",
+  },
+  "healthcare": {
+    "accentClass": "bg-red-100 text-red-600",
+    "aiTemplate": "general",
+    "description": "Эмнэлэг, клиник, эрүүл мэндийн төв",
+    "hasOperations": true,
+    "icon": "HeartPulse",
+    "label": "Эрүүл мэнд",
+    "productNoun": "Үйлчилгээ",
+    "productNounSingular": "Үйлчилгээ",
+  },
+  "other": {
+    "accentClass": "bg-gray-100 text-gray-600",
+    "aiTemplate": "general",
+    "description": "Бусад төрлийн бизнес",
+    "hasOperations": false,
+    "icon": "Ellipsis",
+    "label": "Бусад",
+    "productNoun": "Бараа",
+    "productNounSingular": "Бараа",
+  },
+  "realestate_auto": {
+    "accentClass": "bg-amber-100 text-amber-600",
+    "aiTemplate": "general",
+    "description": "Үл хөдлөх хөрөнгө, автомашин зарах бизнес",
+    "hasOperations": true,
+    "icon": "Building2",
+    "label": "Үл хөдлөх / Авто",
+    "productNoun": "Зар",
+    "productNounSingular": "Зар",
+  },
+  "restaurant": {
+    "accentClass": "bg-orange-100 text-orange-600",
+    "aiTemplate": "restaurant",
+    "description": "Хоол, унд, кафе, fast food",
+    "hasOperations": true,
+    "icon": "UtensilsCrossed",
+    "label": "Ресторан",
+    "productNoun": "Меню",
+    "productNounSingular": "Хоол",
+  },
+  "retail": {
+    "accentClass": "bg-emerald-100 text-emerald-600",
+    "aiTemplate": "general",
+    "description": "Бараа, бүтээгдэхүүн борлуулдаг физик дэлгүүр",
+    "hasOperations": true,
+    "icon": "Store",
+    "label": "Дэлгүүр",
+    "productNoun": "Бараа",
+    "productNounSingular": "Бараа",
+  },
+  "service": {
+    "accentClass": "bg-blue-100 text-blue-600",
+    "aiTemplate": "general",
+    "description": "Цаг захиалгат үйлчилгээ (засвар, сургалт г.м.)",
+    "hasOperations": true,
+    "icon": "Calendar",
+    "label": "Үйлчилгээ",
+    "productNoun": "Үйлчилгээ",
+    "productNounSingular": "Үйлчилгээ",
+  },
+}
+`;
+
+exports[`industry pack parity > catalog rendering (stock vs listing) per type 1`] = `
+{
+  "beauty": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "ecommerce": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "education": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "healthcare": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "other": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "realestate_auto": "- [ЗАР] Тест зүйл: 150,000₮",
+  "restaurant": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "retail": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+  "service": "- [БАРАА] Тест зүйл: 150,000₮ (Дууссан)
+  🚚 Хүргэлт: Үнэгүй",
+}
+`;
+
+exports[`industry pack parity > dashboard archetype, blocks and noun per type 1`] = `
+{
+  "beauty": {
+    "archetype": "booking",
+    "blocks": {
+      "booking": true,
+      "commerce": false,
+      "lead": false,
+    },
+    "noun": "Үйлчилгээ",
+    "resolved": "booking",
+  },
+  "ecommerce": {
+    "archetype": "commerce",
+    "blocks": {
+      "booking": false,
+      "commerce": true,
+      "lead": false,
+    },
+    "noun": "Бараа",
+    "resolved": "commerce",
+  },
+  "education": {
+    "archetype": "lead",
+    "blocks": {
+      "booking": false,
+      "commerce": false,
+      "lead": true,
+    },
+    "noun": "Сургалт",
+    "resolved": "lead",
+  },
+  "healthcare": {
+    "archetype": "booking",
+    "blocks": {
+      "booking": true,
+      "commerce": false,
+      "lead": false,
+    },
+    "noun": "Үйлчилгээ",
+    "resolved": "booking",
+  },
+  "other": {
+    "archetype": "commerce",
+    "blocks": {
+      "booking": false,
+      "commerce": true,
+      "lead": false,
+    },
+    "noun": "Бараа",
+    "resolved": "commerce",
+  },
+  "realestate_auto": {
+    "archetype": "lead",
+    "blocks": {
+      "booking": false,
+      "commerce": false,
+      "lead": true,
+    },
+    "noun": "Зар",
+    "resolved": "lead",
+  },
+  "restaurant": {
+    "archetype": "commerce",
+    "blocks": {
+      "booking": true,
+      "commerce": true,
+      "lead": false,
+    },
+    "noun": "Меню",
+    "resolved": "commerce",
+  },
+  "retail": {
+    "archetype": "commerce",
+    "blocks": {
+      "booking": false,
+      "commerce": true,
+      "lead": false,
+    },
+    "noun": "Бараа",
+    "resolved": "commerce",
+  },
+  "service": {
+    "archetype": "booking",
+    "blocks": {
+      "booking": true,
+      "commerce": false,
+      "lead": false,
+    },
+    "noun": "Үйлчилгээ",
+    "resolved": "booking",
+  },
+}
+`;
+
+exports[`industry pack parity > operations (setup wizard) config 1`] = `
+{
+  "beauty": {
+    "fields": [
+      {
+        "key": "staff_count",
+        "label": "Ажилтан/мэргэжилтэн тоо",
+        "max": 100,
+        "min": 0,
+        "placeholder": "2",
+        "type": "number",
+      },
+      {
+        "key": "salon_address",
+        "label": "Салоны хаяг",
+        "placeholder": "Жишээ: ХУД 11-р хороо...",
+        "type": "text",
+      },
+      {
+        "key": "services_at_home",
+        "label": "Гэрт нь очиж үйлчилдэг үү?",
+        "type": "boolean",
+      },
+      {
+        "key": "default_duration_minutes",
+        "label": "Үйлчилгээний дундаж хугацаа (минут)",
+        "max": 600,
+        "min": 0,
+        "placeholder": "45",
+        "type": "number",
+      },
+    ],
+    "subtitle": "Салоны мэдээлэл (заавал биш)",
+    "title": "Салоны тохиргоо",
+  },
+  "ecommerce": {
+    "fields": [
+      {
+        "helpText": "Таслалаар тусгаарлан бичээрэй",
+        "key": "shipping_zones",
+        "label": "Хүргэлтийн бүс",
+        "placeholder": "УБ, орон нутаг...",
+        "type": "text",
+      },
+      {
+        "key": "payment_methods",
+        "label": "Төлбөрийн арга",
+        "options": [
+          {
+            "label": "Картаар",
+            "value": "card",
+          },
+          {
+            "label": "QPay",
+            "value": "qpay",
+          },
+          {
+            "label": "Банкаар шилжүүлэх",
+            "value": "bank_transfer",
+          },
+          {
+            "label": "Хүлээж авах үед",
+            "value": "cod",
+          },
+        ],
+        "type": "multi-checkbox",
+      },
+      {
+        "key": "inventory_tracking",
+        "label": "Үлдэгдэл хянах уу?",
+        "type": "boolean",
+      },
+    ],
+    "subtitle": "Онлайн дэлгүүрийн мэдээлэл (заавал биш)",
+    "title": "Онлайн худалдааны тохиргоо",
+  },
+  "education": {
+    "fields": [
+      {
+        "helpText": "Таслалаар тусгаарлан бичээрэй",
+        "key": "course_types",
+        "label": "Сургалтын төрлүүд",
+        "placeholder": "Хэлний сургалт, програмчлал...",
+        "type": "text",
+      },
+      {
+        "key": "student_capacity",
+        "label": "Анги дүүргэлтийн дээд хязгаар",
+        "max": 1000,
+        "min": 0,
+        "placeholder": "25",
+        "type": "number",
+      },
+      {
+        "key": "business_hours",
+        "label": "Ажиллах цаг",
+        "placeholder": "Да-Ба: 09:00 - 21:00",
+        "type": "text",
+      },
+    ],
+    "subtitle": "Үйл ажиллагааны мэдээлэл (заавал биш)",
+    "title": "Сургалтын төвийн тохиргоо",
+  },
+  "healthcare": {
+    "fields": [
+      {
+        "key": "doctor_count",
+        "label": "Эмчийн тоо",
+        "max": 1000,
+        "min": 0,
+        "placeholder": "5",
+        "type": "number",
+      },
+      {
+        "helpText": "Таслалаар тусгаарлан бичээрэй",
+        "key": "specialties",
+        "label": "Үндсэн чиглэлүүд",
+        "placeholder": "Шүд, дотрын, хүүхэд...",
+        "type": "text",
+      },
+      {
+        "key": "business_hours",
+        "label": "Ажиллах цаг",
+        "placeholder": "Да-Ба: 09:00 - 18:00",
+        "type": "text",
+      },
+    ],
+    "subtitle": "Үйл ажиллагааны мэдээлэл (заавал биш)",
+    "title": "Эрүүл мэндийн байгууллагын тохиргоо",
+  },
+  "other": null,
+  "realestate_auto": {
+    "fields": [
+      {
+        "key": "category",
+        "label": "Чиглэл",
+        "options": [
+          {
+            "label": "Үл хөдлөх",
+            "value": "realestate",
+          },
+          {
+            "label": "Авто",
+            "value": "auto",
+          },
+          {
+            "label": "Хоёулаа",
+            "value": "both",
+          },
+        ],
+        "type": "radio",
+      },
+      {
+        "key": "agent_count",
+        "label": "Менежерийн тоо",
+        "max": 500,
+        "min": 0,
+        "placeholder": "3",
+        "type": "number",
+      },
+      {
+        "key": "service_areas",
+        "label": "Үйлчилгээний бүс",
+        "placeholder": "УБ, Дархан...",
+        "type": "text",
+      },
+    ],
+    "subtitle": "Үйл ажиллагааны мэдээлэл (заавал биш)",
+    "title": "Үл хөдлөх / Автоны тохиргоо",
+  },
+  "restaurant": {
+    "fields": [
+      {
+        "key": "table_count",
+        "label": "Ширээний тоо",
+        "max": 500,
+        "min": 0,
+        "placeholder": "20",
+        "type": "number",
+      },
+      {
+        "key": "delivery_enabled",
+        "label": "Хүргэлтийн үйлчилгээ үзүүлэх үү?",
+        "type": "boolean",
+      },
+      {
+        "helpText": "Таслалаар тусгаарлан бичээрэй",
+        "key": "delivery_zones",
+        "label": "Хүргэлтийн бүс / дүүрэг",
+        "placeholder": "СБД, ЧД, БГД...",
+        "type": "text",
+      },
+      {
+        "key": "avg_prep_minutes",
+        "label": "Дундаж бэлтгэх хугацаа (минут)",
+        "max": 240,
+        "min": 0,
+        "placeholder": "15",
+        "type": "number",
+      },
+    ],
+    "subtitle": "Үйл ажиллагааны мэдээлэл (заавал биш)",
+    "title": "Ресторан тохиргоо",
+  },
+  "retail": {
+    "fields": [
+      {
+        "key": "inventory_method",
+        "label": "Бараа бүртгэх арга",
+        "options": [
+          {
+            "label": "Гараар бүртгэдэг",
+            "value": "manual",
+          },
+          {
+            "label": "Баркод/POS системтэй",
+            "value": "barcode",
+          },
+        ],
+        "type": "radio",
+      },
+      {
+        "key": "warehouse_address",
+        "label": "Агуулахын хаяг",
+        "placeholder": "Жишээ: СБД 1-р хороо...",
+        "type": "text",
+      },
+      {
+        "key": "tax_registered",
+        "label": "НӨАТ-д бүртгэлтэй юу?",
+        "type": "boolean",
+      },
+    ],
+    "subtitle": "Дэлгүүрийн талаар нэмэлт мэдээлэл (заавал биш)",
+    "title": "Дэлгүүрийн үйл ажиллагаа",
+  },
+  "service": {
+    "fields": [
+      {
+        "key": "staff_count",
+        "label": "Ажилтны тоо",
+        "max": 1000,
+        "min": 0,
+        "placeholder": "3",
+        "type": "number",
+      },
+      {
+        "key": "default_duration_minutes",
+        "label": "Үйлчилгээний дундаж хугацаа (минут)",
+        "max": 600,
+        "min": 0,
+        "placeholder": "60",
+        "type": "number",
+      },
+      {
+        "key": "booking_method",
+        "label": "Захиалга авах хэлбэр",
+        "options": [
+          {
+            "label": "Гараар (мессеж дамжуулан)",
+            "value": "manual",
+          },
+          {
+            "label": "Календар системээр",
+            "value": "calendar",
+          },
+        ],
+        "type": "radio",
+      },
+      {
+        "key": "business_hours",
+        "label": "Ажиллах цаг",
+        "placeholder": "Ня-Ба: 09:00 - 18:00",
+        "type": "text",
+      },
+    ],
+    "subtitle": "Үйл ажиллагааны мэдээлэл (заавал биш)",
+    "title": "Үйлчилгээний тохиргоо",
+  },
+}
+`;
+
+exports[`industry pack parity > prompt business section per type 1`] = `
+{
+  "beauty": "
+=== САЛОНЫ МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Мэргэжилтний тоо: 4
+• Салоны хаяг: ХУД 11-р хороо
+• Гэрт нь очиж үйлчилдэг
+• Үйлчилгээний дундаж үргэлжлэх хугацаа: 45 минут
+• Үйлчилгээний жагсаалт: Үс засах (30мин, 25,000₮)
+• Мэргэжилтнүүд: Сараа - Үсчин
+• Зөвхөн урьдчилсан захиалгаар үйлчилнэ
+• Үйлчилгээний дараах зөвлөгөө: Усанд 24 цаг бүү ор
+",
+  "ecommerce": "
+=== ОНЛАЙН ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Хүргэлтийн бүс: УБ, орон нутаг
+• Төлбөрийн арга: qpay, cod
+• Үлдэгдэл автоматаар хянагдана
+• Захиалгыг 24 цагийн дотор боловсруулна
+• Буцаах хугацаа: 7 хоног
+• Размерийн хүснэгт: https://example.mn/size
+• Брэндийн түүх: Монгол брэнд
+• Урьдчилсан захиалгын бодлого: 50% урьдчилгаа
+",
+  "education": "
+=== СУРГАЛТЫН ТӨВИЙН МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Сургалтын төрлүүд: Англи хэл, Програмчлал
+• Ангийн дээд хязгаар: 25 суралцагч
+• Ажиллах цаг: Да-Ба 09:00-18:00
+• Түвшнүүд: Анхан, Дунд
+• Хичээллэх хэлбэр: Танхим, Онлайн
+• Элсэлтийн огноо: Сар бүрийн 1
+• Сертификат олгодог
+• Туршилтын хичээл боломжтой
+",
+  "healthcare": "
+=== ЭМНЭЛГИЙН МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Эмчийн тоо: 5
+• Чиглэлүүд: Шүд, хүүхэд
+• Ажиллах цаг: Да-Ба 09:00-18:00
+• Хүлээн авдаг даатгал: ЭМД
+• Зөвхөн урьдчилсан цаг авсан үед үйлчилнэ
+• Яаралтай тохиолдол: 103 руу залга
+• ⚠️ ЗААВАЛ ХЭЛЭХ МЭДЭГДЭЛ: Онош тавихгүй
+",
+  "other": "",
+  "realestate_auto": "
+=== ҮЛ ХӨДЛӨХ / АВТО МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Чиглэл: Үл хөдлөх + Автомашин
+• Менежерийн тоо: 3
+• Үйлчилгээний бүс: УБ, Дархан
+• Зарын төрлүүд: Орон сууц, Машин
+• Санхүүгийн түнш: Хаан банк
+• Үзлэгийн бодлого: Ажлын өдөр
+• Lead шалгах асуултууд (хэрэглэгчээс заавал асуу):
+  - Төсөв хэд вэ?
+  - Хэзээ авах вэ?
+",
+  "restaurant": "
+=== РЕСТОРАН/КАФЕНЫ МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Нийт ширээний тоо: 20
+• Хүргэлтийн үйлчилгээтэй
+• Хүргэлтийн бүс: СБД, ЧД
+• Хоол бэлдэх дундаж хугацаа: 15 минут
+• Цэсний ангилал: Үндсэн, Уух
+• Тусгай хоолны сонголт: Веган
+• Ачаалал ихтэй цаг: 12:00-14:00
+• Ширээ захиалгын бодлого: 2 цагийн өмнө
+• Хүргэлтийн доод дүн: 20,000₮
+• Үйлчилгээний хураамж: 10%
+",
+  "retail": "
+=== ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Бараа бүртгэлд баркод/POS систем ашигладаг
+• Агуулахын хаяг: СБД 1-р хороо
+• НӨАТ-д бүртгэлтэй (баримт өгөх боломжтой)
+• Барааны ангилал: Хувцас, Гутал
+• Үндсэн бараа: импортын
+• Баталгаат хугацааны бодлого: 30 хоног
+• Урамшууллын систем: Оноо цуглуулах
+",
+  "service": "
+=== ҮЙЛЧИЛГЭЭНИЙ МЭДЭЭЛЭЛ ===
+Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
+• Ажилтны тоо: 4
+• Үйлчилгээний дундаж үргэлжлэх хугацаа: 45 минут
+• Захиалгыг календар системээр авдаг
+• Ажиллах цаг: Да-Ба 09:00-18:00
+• Үйлчилгээний жагсаалт: Засвар (60мин, 50,000₮)
+• Захиалга цуцлах бодлого: 24 цагийн өмнө
+• Урьдчилан захиалах боломжтой: 14 хоног
+• Захиалга баталгаажуулахад урьдчилгаа төлбөр шаардлагатай
+• Гэрт нь очиж үйлчилдэг
+",
+}
+`;

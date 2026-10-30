@@ -9,6 +9,7 @@ import { Product, ProductVariant, useCreateProduct, useUpdateProduct } from '@/h
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useActiveShopAgent } from '@/hooks/useActiveShopAgent';
+import { isListingCatalog } from '@/lib/industry-packs/registry';
 import {
     LISTING_ATTRIBUTE_FIELDS,
     LISTING_KIND_LABELS,
@@ -101,7 +102,7 @@ export default function ProductForm({ product, onSuccess, onCancel }: ProductFor
     // Үл хөдлөх / авто бол каталог нь ЗАР — нэг байр бол нэг байр. Үлдэгдэл ч,
     // хүргэлт ч утгагүй; AI тал нь аль хэдийн зассан (buildProductsInfo), энд
     // маягтын талбаруудыг нуух ёстой. Үнэ 0 = «Үнэ тохиролцоно».
-    const isListingBusiness = shop?.business_type === 'realestate_auto';
+    const isListingBusiness = isListingCatalog(shop?.business_type);
 
     // ── Зарын бүтэцлэгдсэн шинж чанар (өрөө/м²/дүүрэг · марк/он/гүйлт) ──
     // Хадгалагдсан зар өөрийн `kind`-ыг авчирна; шинэ зар дэлгүүрийн

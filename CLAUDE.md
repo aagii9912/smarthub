@@ -25,7 +25,7 @@
 | Styling | Tailwind CSS | 4.x |
 | Database | Supabase (PostgreSQL + RLS) | — |
 | Auth | Supabase Auth (Email, Google, Facebook OAuth) | 0.8.0 |
-| AI | Google Generative AI (`@google/generative-ai`) | 0.24.1 |
+| AI | Anthropic SDK (`@anthropic-ai/sdk`) — Claude Haiku 5.5 via Messages API | 1.3 |
 | Validation | Zod | 4.x |
 | DB Client | `@supabase/supabase-js` + `postgres` (raw) | 2.89 / 3.4 |
 | Monitoring | Sentry (client + server + edge) | 10.34.0 |
@@ -170,7 +170,7 @@ src/
 2. Meta webhook POSTs to `/api/webhook`
 3. `WebhookService` verifies signature, saves message, loads shop config
 4. `AI Router` gathers context (products, cart, customer memory)
-5. Google Gemini generates response with Function Calling (search products, add to cart, create orders, check stock)
+5. Claude Haiku 5.5 generates response with tool use (search products, add to cart, create orders, check stock). Client + model live in `src/lib/ai/anthropicClient.ts`; Haiku 5.5 rejects `temperature`/`top_p`/`top_k` and assistant prefill; we run thinking off at `low` effort (`AI_REQUEST_DEFAULTS`)
 6. Response is sent back via Meta Graph API
 
 ### Supabase Clients (4 variants)
@@ -314,8 +314,9 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# Google Gemini AI (REQUIRED)
-GEMINI_API_KEY=
+# Anthropic (REQUIRED)
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-haiku-5-5   # optional override
 
 # Facebook/Instagram (REQUIRED for social features)
 FACEBOOK_APP_ID=

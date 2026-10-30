@@ -1,4 +1,4 @@
-import { type FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import type Anthropic from '@anthropic-ai/sdk';
 
 /**
  * Capability tag — must match the AgentCapability union in
@@ -28,40 +28,33 @@ export interface ToolDefinition {
     capabilities?: ToolCapability[];
 }
 
-export function toSchemaType(type: string): SchemaType {
-    switch (type) {
-        case 'string': return SchemaType.STRING;
-        case 'number': return SchemaType.NUMBER;
-        case 'integer': return SchemaType.INTEGER;
-        case 'boolean': return SchemaType.BOOLEAN;
-        case 'array': return SchemaType.ARRAY;
-        case 'object': return SchemaType.OBJECT;
-        default: return SchemaType.STRING;
-    }
-}
-
-export function getGeminiFunctionDeclarations(tools: ToolDefinition[]): FunctionDeclaration[] {
+/**
+ * Convert internal tool definitions to Anthropic Messages API tools.
+ * Only the JSON-schema keys we actually use are forwarded (type, description,
+ * enum, items) so stray metadata never leaks into the API payload.
+ */
+export function getClaudeTools(tools: ToolDefinition[]): Anthropic.Tool[] {
     return tools.map(tool => {
-        const properties: Record<string, any> = {};
+        const properties: Record<string, unknown> = {};
 
         for (const [key, prop] of Object.entries(tool.parameters.properties)) {
             const schemaProp: Record<string, unknown> = {
-                type: toSchemaType(prop.type),
+                type: prop.type,
                 description: prop.description,
             };
             if (prop.enum) schemaProp.enum = prop.enum;
-            if (prop.items) schemaProp.items = { type: toSchemaType(prop.items.type) };
+            if (prop.items) schemaProp.items = { type: prop.items.type };
             properties[key] = schemaProp;
         }
 
         return {
             name: tool.name,
             description: tool.description,
-            parameters: {
-                type: SchemaType.OBJECT,
+            input_schema: {
+                type: 'object',
                 properties,
                 required: tool.parameters.required,
             },
-        } as FunctionDeclaration;
+        };
     });
 }

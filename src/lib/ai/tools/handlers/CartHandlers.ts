@@ -72,7 +72,7 @@ export async function executeAddToCart(
     if (color) variantSpecs.color = color;
     if (size) variantSpecs.size = size;
 
-    // Dedup a Gemini-side duplicate call within the same chat reply. Without
+    // Dedup a model-side duplicate call within the same chat reply. Without
     // this, "Цамц 2 авъя" can land in the cart as 4 if the model re-fires the
     // tool while iterating. The first call wins; the second is acknowledged
     // with the cart total but doesn't double-apply.

@@ -20,6 +20,7 @@ import { logger } from '@/lib/utils/logger';
 import { deductStockForOrder } from '@/lib/services/StockService';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
+import { deliver, type DeliverResult } from '@/lib/operator/deliver';
 
 export interface ConfirmOrderPaymentParams {
     paymentId: string;
@@ -194,7 +195,7 @@ async function sendConfirmationNotifications(params: {
     try {
         const { data: orderData } = await supabase
             .from('orders')
-            .select('*, customers(name, email, facebook_id), shops(name, facebook_page_access_token, address)')
+            .select('*, customers(name, email), shops(name)')
             .eq('id', orderId)
             .single();
 
@@ -219,43 +220,23 @@ async function sendConfirmationNotifications(params: {
             }
         }
 
-        // ── Messenger (respect messenger_notified flag) ──
+        // ── Messenger/IG (respect messenger_notified flag) ──
         const alreadyNotified = Boolean(existingMeta.messenger_notified);
-        if (!alreadyNotified && orderData.customers?.facebook_id && orderData.shops?.facebook_page_access_token) {
+        if (!alreadyNotified) {
             try {
-                const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
-                const amountStr = Number(amount).toLocaleString();
-                const deliveryFee = Number(orderData.delivery_fee || 0);
-                const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
-
-                let confirmMsg: string;
-                if (orderData.delivery_method === 'pickup') {
-                    const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
-                    confirmMsg = `✅ Таны ${amountStr}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                } else {
-                    const deliveryAddress = orderData.delivery_address || '';
-                    const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
-                    confirmMsg = `✅ Таны ${amountStr}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${orderId.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+                const result = await notifyCustomerPaymentConfirmed({ orderId, amount });
+                if (result && result.status !== 'skipped') {
+                    await supabase
+                        .from('payments')
+                        .update({
+                            metadata: {
+                                ...existingMeta,
+                                messenger_notified: true,
+                                messenger_delivery: result.status,
+                            },
+                        })
+                        .eq('id', paymentId);
                 }
-
-                await sendTaggedMessage({
-                    recipientId: orderData.customers.facebook_id,
-                    message: confirmMsg,
-                    pageAccessToken: orderData.shops.facebook_page_access_token,
-                    tag: 'POST_PURCHASE_UPDATE',
-                });
-
-                await supabase
-                    .from('payments')
-                    .update({
-                        metadata: {
-                            ...existingMeta,
-                            messenger_notified: true,
-                        },
-                    })
-                    .eq('id', paymentId);
-
-                logger.success('Payment confirmation sent to customer via Messenger');
             } catch (msgErr) {
                 logger.warn('Messenger confirmation failed (non-critical):', { error: String(msgErr) });
             }
@@ -266,4 +247,78 @@ async function sendConfirmationNotifications(params: {
             error: notifyErr instanceof Error ? notifyErr.message : String(notifyErr),
         });
     }
+}
+
+/** Төлбөр баталгаажсаны дараа үйлчлүүлэгчид илгээх бүрэн текст (24ц цонх дотор). */
+export function buildPaymentConfirmedText(params: {
+    orderId: string;
+    amount: number;
+    deliveryMethod?: string | null;
+    deliveryFee?: number | null;
+    deliveryAddress?: string | null;
+    shopAddress?: string | null;
+}): string {
+    const amountStr = Number(params.amount).toLocaleString();
+    const orderRef = params.orderId.substring(0, 8);
+
+    if (params.deliveryMethod === 'pickup') {
+        const shopAddress = params.shopAddress || 'Дэлгүүрийн хаяг';
+        return `✅ Таны ${amountStr}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${orderRef} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+    }
+
+    const deliveryFee = Number(params.deliveryFee || 0);
+    const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
+    const addressMsg = params.deliveryAddress ? `\n📦 Хүргэх хаяг: ${params.deliveryAddress}` : '';
+    return `✅ Таны ${amountStr}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${orderRef} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
+}
+
+/**
+ * Үйлчлүүлэгчид "төлбөр баталгаажлаа" мэдэгдлийг deliver()-ээр илгээнэ:
+ * 24ц цонх дотор энгийн текст, гадна нь Utility template, аль нь ч
+ * боломжгүй бол эзэнд push. Захиалгад үйлчлүүлэгч холбоогүй бол null.
+ *
+ * QPay webhook / manual check (confirmOrderPayment), check-payments cron,
+ * pay page poll гурвуулаа үүнийг дуудна.
+ */
+export async function notifyCustomerPaymentConfirmed(params: {
+    orderId: string;
+    amount: number;
+}): Promise<DeliverResult | null> {
+    const { orderId, amount } = params;
+    const { data: order } = await supabaseAdmin()
+        .from('orders')
+        .select('id, shop_id, customer_id, delivery_method, delivery_fee, delivery_address, shops(address)')
+        .eq('id', orderId)
+        .single();
+
+    if (!order?.shop_id || !order.customer_id) return null;
+
+    const shop = (Array.isArray(order.shops) ? order.shops[0] : order.shops) as { address?: string | null } | null;
+    const orderRef = orderId.substring(0, 8);
+    const amountStr = Number(amount).toLocaleString();
+
+    return deliver({
+        shopId: order.shop_id,
+        customerId: order.customer_id,
+        operation: 'payment_confirmed',
+        text: buildPaymentConfirmedText({
+            orderId,
+            amount,
+            deliveryMethod: order.delivery_method,
+            deliveryFee: order.delivery_fee,
+            deliveryAddress: order.delivery_address,
+            shopAddress: shop?.address,
+        }),
+        utility: {
+            purpose: 'payment_confirmed',
+            params: { amount: amountStr, order_ref: orderRef },
+        },
+        ownerFallback: {
+            topic: 'payment_received',
+            title: '⚠️ Үйлчлүүлэгчид мэдэгдэл хүрсэнгүй',
+            body: `Захиалга #${orderRef} — ${amountStr}₮ төлбөр орсон ч үйлчлүүлэгчид Messenger-ээр мэдэгдэж чадсангүй (24 цагийн цонх хаагдсан). Үйлчлүүлэгчтэй холбогдоно уу.`,
+            url: '/dashboard/orders',
+            tag: `payment-undelivered-${orderId}`,
+        },
+    });
 }

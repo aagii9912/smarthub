@@ -199,22 +199,25 @@ export async function sendPrivateReplyToComment({
     return response.json();
 }
 
-// Send a message using Message Tags.
-// Standard tags (POST_PURCHASE_UPDATE / CONFIRMED_EVENT_UPDATE / ACCOUNT_UPDATE)
-// only narrow the message intent — they do NOT extend the 24-hour customer-message window.
-// HUMAN_AGENT extends the window to 7 days but requires the `human_agent` feature
-// on the Facebook app and is only valid for genuine human-agent replies.
+// Send a message using a Message Tag.
+// Only HUMAN_AGENT remains: Meta removed POST_PURCHASE_UPDATE /
+// CONFIRMED_EVENT_UPDATE / ACCOUNT_UPDATE on 2026-04-27 (requests now fail with
+// error 100). HUMAN_AGENT extends the window to 7 days but requires the
+// `human_agent` feature on the Facebook app and is only valid for genuine
+// human-agent replies — never use it for automated sends. Automated
+// notifications go through `deliver()` (src/lib/operator/deliver.ts), which
+// uses Utility Message templates outside the 24-hour window.
 export async function sendTaggedMessage({
     recipientId,
     message,
     pageAccessToken,
-    tag = 'POST_PURCHASE_UPDATE',
+    tag,
     authType,
 }: {
     recipientId: string;
     message: string;
     pageAccessToken: string;
-    tag?: 'POST_PURCHASE_UPDATE' | 'CONFIRMED_EVENT_UPDATE' | 'ACCOUNT_UPDATE' | 'HUMAN_AGENT';
+    tag: 'HUMAN_AGENT';
     authType?: IgAuthType;
 }) {
     const response = await fetch(`${graphBaseUrl(authType)}/me/messages?access_token=${pageAccessToken}`, {
@@ -234,6 +237,68 @@ export async function sendTaggedMessage({
         const error = await response.json();
         logger.error('Facebook API error (tagged message):', { error: error });
         throw new Error(`Failed to send tagged message: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.json();
+}
+
+// Utility Message API is newer than the v21.0 host used above; Meta documents
+// it against v25.0.
+const FB_GRAPH_UTILITY_URL = 'https://graph.facebook.com/v25.0';
+
+/**
+ * Send a Messenger Utility Message from a Page-owned UTILITY template.
+ * This is the replacement for the removed POST_PURCHASE_UPDATE /
+ * CONFIRMED_EVENT_UPDATE tags: order/payment status updates and appointment
+ * reminders outside the 24-hour window. Messenger only (Facebook Page) —
+ * requires the `page_utility_messaging` permission and an APPROVED template.
+ * Params are NAMED (`{{order_ref}}`) and must not carry marketing content.
+ *
+ * Throws on API error.
+ */
+export async function sendUtilityMessage({
+    recipientId,
+    pageAccessToken,
+    templateName,
+    language,
+    params,
+}: {
+    recipientId: string;
+    pageAccessToken: string;
+    templateName: string;
+    language: string;
+    params: Record<string, string>;
+}) {
+    const response = await fetch(`${FB_GRAPH_UTILITY_URL}/me/messages?access_token=${pageAccessToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            messaging_type: 'UTILITY',
+            message: {
+                template: {
+                    name: templateName,
+                    language: { code: language },
+                    components: [
+                        {
+                            type: 'body',
+                            parameters: Object.entries(params).map(([name, text]) => ({
+                                type: 'text',
+                                parameter_name: name,
+                                text,
+                            })),
+                        },
+                    ],
+                },
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        const kind = reportMetaError(error, { operation: 'sendUtilityMessage' });
+        logger.error('Facebook API error (utility message):', { error, kind });
+        throw new Error(`Failed to send utility message: ${error.error?.message || 'Unknown error'}`);
     }
 
     return response.json();

@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { parseDate } from '@/lib/utils/date';
+import { UB_TIMEZONE } from '@/lib/operator/time';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
 
 interface AppointmentRow {
@@ -41,9 +43,9 @@ export async function executeListAppointments(
     }
 
     const lines = rows.map(r => {
-        const slot = new Date(r.scheduled_at).toLocaleString('mn-MN', {
+        const slot = parseDate(r.scheduled_at).toLocaleString('mn-MN', {
             year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
+            hour: '2-digit', minute: '2-digit', timeZone: UB_TIMEZONE
         });
         const productName = r.products?.name || 'Үйлчилгээ';
         return `• #${r.id.substring(0, 8)} — ${productName} — ${slot} (${r.duration_minutes} мин)`;

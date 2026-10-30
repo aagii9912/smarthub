@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { formatMemoryForPrompt, type CustomerMemory } from '@/lib/ai/tools/memory';
 import { persistTokenUsage } from '@/lib/ai/tokenUsage';
+import { isAnthropicConfigured, resolveBackendModel, simpleCompletion } from '@/lib/ai/anthropicClient';
 import { logger } from '@/lib/utils/logger';
 
-const SUMMARY_MODEL = 'gemini-3.1-flash-lite';
+const SUMMARY_MODEL = resolveBackendModel();
 const HISTORY_LIMIT = 30;
 const COMPLAINT_LIMIT = 5;
 const RATE_LIMIT_SECONDS = 30;
@@ -102,7 +102,7 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!process.env.GEMINI_API_KEY) {
+        if (!isAnthropicConfigured()) {
             return NextResponse.json(
                 { error: 'AI provider not configured' },
                 { status: 503 }
@@ -173,22 +173,15 @@ export async function POST(
             chatRows,
         });
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-            model: SUMMARY_MODEL,
-            generationConfig: {
-                temperature: 0.3,
-                topP: 0.85,
-                topK: 40,
-                maxOutputTokens: MAX_OUTPUT_TOKENS,
-            },
-        });
-
         let summaryText = '';
         try {
-            const result = await model.generateContent(prompt);
-            summaryText = result.response.text().trim();
-            const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
+            const result = await simpleCompletion({
+                prompt,
+                model: SUMMARY_MODEL,
+                maxTokens: MAX_OUTPUT_TOKENS,
+            });
+            summaryText = result.text.trim();
+            const tokensUsed = result.tokensUsed;
             if (tokensUsed > 0) {
                 persistTokenUsage(shopId, tokensUsed, 'ai_memo', { model: SUMMARY_MODEL }).catch(() => {});
             }

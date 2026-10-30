@@ -21,6 +21,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/cron/agent-scheduler",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/cleanup-orders",
       "schedule": "*/15 * * * *"
     },

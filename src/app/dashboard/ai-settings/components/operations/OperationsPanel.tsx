@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BUSINESS_TYPES, type BusinessType } from '@/lib/constants/business-types';
@@ -21,28 +22,25 @@ interface OperationsPanelProps {
     saving: boolean;
 }
 
+type PanelComponent = (props: { data: Setup; setField: SetField }) => ReactNode;
+
+// Industry Pack бүрийн "Бизнесийн мэдээлэл" panel. Record тул шинэ pack
+// нэмэхэд энд panel (эсвэл null) бүртгэхгүй бол TypeScript алдаа заана.
+const PANELS: Record<BusinessType, PanelComponent | null> = {
+    retail: RetailPanel,
+    restaurant: RestaurantPanel,
+    service: ServicePanel,
+    ecommerce: EcommercePanel,
+    beauty: BeautyPanel,
+    healthcare: HealthcarePanel,
+    education: EducationPanel,
+    realestate_auto: RealestateAutoPanel,
+    other: null,
+};
+
 function panelFor(type: BusinessType, data: Setup, setField: SetField) {
-    switch (type) {
-        case 'retail':
-            return <RetailPanel data={data} setField={setField} />;
-        case 'restaurant':
-            return <RestaurantPanel data={data} setField={setField} />;
-        case 'service':
-            return <ServicePanel data={data} setField={setField} />;
-        case 'ecommerce':
-            return <EcommercePanel data={data} setField={setField} />;
-        case 'beauty':
-            return <BeautyPanel data={data} setField={setField} />;
-        case 'healthcare':
-            return <HealthcarePanel data={data} setField={setField} />;
-        case 'education':
-            return <EducationPanel data={data} setField={setField} />;
-        case 'realestate_auto':
-            return <RealestateAutoPanel data={data} setField={setField} />;
-        case 'other':
-        default:
-            return null;
-    }
+    const Panel = PANELS[type];
+    return Panel ? <Panel data={data} setField={setField} /> : null;
 }
 
 export function OperationsPanel({ businessType, data, setField, onSave, saving }: OperationsPanelProps) {

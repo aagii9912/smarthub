@@ -1,13 +1,15 @@
 /**
- * AI-powered product data parser using Gemini
+ * AI-powered product data parser using Claude
  * Extracts structured product data from file content (xlsx, docx, csv)
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '@/lib/utils/logger';
 import { persistTokenUsage } from '../tokenUsage';
+import { isAnthropicConfigured, resolveBackendModel, simpleCompletion } from '../anthropicClient';
 
-const PARSE_MODEL = 'gemini-2.5-flash-lite';
+const PARSE_MODEL = resolveBackendModel();
+/** Large catalogs produce long JSON; keep room so the array isn't truncated. */
+const PARSE_MAX_OUTPUT_TOKENS = 16384;
 
 export interface AIExtractedProduct {
     name: string;
@@ -22,7 +24,7 @@ export interface AIExtractedProduct {
 }
 
 /**
- * Parse product data from file content using Gemini.
+ * Parse product data from file content using Claude.
  *
  * `shopId` is optional for backward compatibility; when present, vision/parse
  * tokens get billed against the shop's per-feature usage breakdown.
@@ -33,21 +35,12 @@ export async function parseProductDataWithAI(
     shopId?: string
 ): Promise<AIExtractedProduct[]> {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            logger.error('GEMINI_API_KEY not configured for product parsing');
+        if (!isAnthropicConfigured()) {
+            logger.error('ANTHROPIC_API_KEY not configured for product parsing');
             return [];
         }
 
-        logger.info('Parsing product data with Gemini...', { fileName, contentLength: fileContent.length });
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-            model: PARSE_MODEL,
-            generationConfig: {
-                responseMimeType: 'application/json',
-            },
-        });
+        logger.info('Parsing product data with Claude...', { fileName, contentLength: fileContent.length });
 
         const prompt = `You are a data extraction assistant. Extract products and services from the provided file content.
 Filename: "${fileName}"
@@ -83,9 +76,12 @@ Response Format (JSON only):
   ]
 }`;
 
-        const result = await model.generateContent(prompt);
-        const content = result.response.text();
-        const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
+        const { text: content, tokensUsed } = await simpleCompletion({
+            prompt,
+            model: PARSE_MODEL,
+            json: true,
+            maxTokens: PARSE_MAX_OUTPUT_TOKENS,
+        });
 
         if (shopId && tokensUsed > 0) {
             persistTokenUsage(shopId, tokensUsed, 'product_parse', { model: PARSE_MODEL }).catch(() => {});
@@ -94,7 +90,7 @@ Response Format (JSON only):
         const parsed = JSON.parse(content);
 
         if (!Array.isArray(parsed.products)) {
-            logger.warn('Gemini returned invalid format', { parsed });
+            logger.warn('Claude returned invalid format', { parsed });
             return [];
         }
 
@@ -123,7 +119,7 @@ Response Format (JSON only):
         }));
 
     } catch (error: unknown) {
-        logger.error('Gemini Parse Error:', { message: error instanceof Error ? error.message : String(error) });
+        logger.error('Claude Parse Error:', { message: error instanceof Error ? error.message : String(error) });
         return [];
     }
 }

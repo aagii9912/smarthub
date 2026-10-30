@@ -28,6 +28,8 @@ import { z } from 'zod';
 import { resolveApiKey } from '@/lib/api-keys';
 import { supabaseAdmin } from '@/lib/supabase';
 import { routeToAI } from '@/lib/ai/AIRouter';
+import { getUserBilling } from '@/lib/billing/getUserBilling';
+import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import { getAIFeatures, mapShopProductsToAI } from '@/lib/webhook/services/shop.service';
 import {
     checkRateLimit,
@@ -91,13 +93,31 @@ export async function POST(request: NextRequest) {
         }
 
         const s = shopRow as unknown as Record<string, unknown>;
+
+        // Webhook-тэй ижил төлбөрийн gate: эзний pool-ийн snapshot-оор шалгана.
+        // Shop-ийн denormalized багана хоосон үед 'active'/'starter' гэж
+        // таамаглах нь төлбөргүй дэлгүүрт хязгааргүй AI нээж байсан.
+        const ownerId = (s.user_id as string | null) ?? key.userId;
+        const billing = ownerId ? await getUserBilling(ownerId) : null;
+        const shopBilling = {
+            subscription_plan: s.subscription_plan as string | null,
+            subscription_status: s.subscription_status as string | null,
+            trial_ends_at: s.trial_ends_at as string | null,
+        };
+        if (!isAiAuthorized(billing, shopBilling)) {
+            return NextResponse.json(
+                { error: 'No active subscription', limitReached: true },
+                { status: 402 },
+            );
+        }
+
         const aiFeatures = await getAIFeatures(key.shopId);
         const products = mapShopProductsToAI(
             (s as { products?: Parameters<typeof mapShopProductsToAI>[0] }).products,
         );
 
-        // 5) Дуудагчийн түүхийг ChatMessage[] руу хөрвүүлнэ (assistant → assistant,
-        // AIRouter доторх toGeminiHistory нь 'assistant'-г Gemini 'model' болгоно).
+        // 5) Дуудагчийн түүхийг ChatMessage[] руу хөрвүүлнэ (AIRouter доторх
+        // toOpenAIHistory нь OpenAI chat message болгоно).
         const previousHistory: ChatMessage[] = (history ?? []).map((m) => ({
             role: m.role,
             content: m.content,
@@ -108,7 +128,7 @@ export async function POST(request: NextRequest) {
             message,
             {
                 shopId: key.shopId,
-                userId: key.userId,
+                userId: ownerId,
                 customerId: undefined,
                 shopName: (s.name as string) ?? 'Дэлгүүр',
                 shopDescription: (s.description as string | null) ?? undefined,
@@ -128,12 +148,14 @@ export async function POST(request: NextRequest) {
                 slogans: aiFeatures.slogans,
                 customKnowledge: (s.custom_knowledge as Record<string, unknown> | null) ?? undefined,
                 subscription: {
-                    plan: (s.subscription_plan as string | null) ?? 'starter',
-                    status: (s.subscription_status as string | null) ?? 'active',
-                    trialEndsAt: (s.trial_ends_at as string | null) ?? undefined,
+                    plan: billing?.plan || shopBilling.subscription_plan || undefined,
+                    status: billing?.status || shopBilling.subscription_status || undefined,
+                    trialEndsAt: billing?.trialEndsAt || shopBilling.trial_ends_at || undefined,
+                    // DB-authoritative limit so AI enforcement matches the dashboard.
+                    tokensLimit: billing?.tokensLimit ?? null,
                 },
                 messageCount: 0,
-                tokenUsageTotal: (s.token_usage_total as number | undefined) ?? 0,
+                tokenUsageTotal: billing?.tokensUsed ?? ((s.token_usage_total as number | undefined) || 0),
             },
             previousHistory,
         );

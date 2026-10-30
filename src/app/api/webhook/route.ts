@@ -8,7 +8,7 @@ import type { PlanType } from '@/lib/ai/AIRouter';
 import { getUserBilling } from '@/lib/billing/getUserBilling';
 import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import * as Sentry from '@sentry/nextjs';
-import type { ChatMessage, AIEmotion, ChatContext } from '@/types/ai';
+import type { AIEmotion, ChatContext } from '@/types/ai';
 import {
     getShopByPageId,
     getShopByInstagramId,
@@ -31,6 +31,7 @@ import {
 import { getMatchingAutomation, executeAutomation, recordCommentLead, isShopWhitelisted } from '@/lib/services/CommentAutomationService';
 import { extractMongolianPhone } from '@/lib/utils/phone';
 import { getCustomerMemory } from '@/lib/ai/tools/memory';
+import { getActiveCartForAI } from '@/lib/ai/helpers/stockHelpers';
 import { resolveArchetype } from '@/lib/dashboard/archetypes';
 import { getStoryLinkByMediaId, getActiveFbPin, upsertVisionAutoLink } from '@/lib/services/StoryProductLinkService';
 import crypto from 'crypto';
@@ -607,7 +608,11 @@ export async function POST(request: NextRequest) {
                         // Lead shops have no order tool, so the product carousel
                         // must not offer "Захиалах" (see sendImageGallery).
                         const isLeadShop = resolveArchetype(shop.business_type, shop.ai_agent_capabilities) === 'lead';
-                        const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
+                        const [previousHistory, customerMemory, activeCart] = await Promise.all([
+                            getChatHistory(shop.id, customer.id),
+                            getCustomerMemory(customer.id),
+                            getActiveCartForAI(shop.id, customer.id),
+                        ]);
 
                         const response = await routeToAI(
                             userMessage + storyContextNote,
@@ -629,7 +634,10 @@ export async function POST(request: NextRequest) {
                                 // байршил / өрөөний тоо. Үүнийг дамжуулаагүй
                                 // тул AI санаж авсан бүхнээ дараагийн мессежид
                                 // мартаад дахин асуудаг байсан.
-                                customerMemory: (await getCustomerMemory(customer.id)) ?? undefined,
+                                customerMemory: customerMemory ?? undefined,
+                                // Үүнийг дамжуулаагүй үед AI сагсыг үргэлж
+                                // "Хоосон" гэж харж, байгаа барааг дахин нэмдэг байсан.
+                                activeCart,
                                 orderHistory: customer.total_orders || 0,
                                 faqs: aiFeatures.faqs,
                                 quickReplies: aiFeatures.quickReplies,
@@ -994,7 +1002,11 @@ export async function POST(request: NextRequest) {
                         }
                         try {
                             const isLeadShop = resolveArchetype(shop.business_type, shop.ai_agent_capabilities) === 'lead';
-                            const previousHistory: ChatMessage[] = await getChatHistory(shop.id, customer.id);
+                            const [previousHistory, customerMemory, activeCart] = await Promise.all([
+                                getChatHistory(shop.id, customer.id),
+                                getCustomerMemory(customer.id),
+                                getActiveCartForAI(shop.id, customer.id),
+                            ]);
 
                             const billing = pbBilling;
 
@@ -1018,8 +1030,17 @@ export async function POST(request: NextRequest) {
                                 // байршил / өрөөний тоо. Үүнийг дамжуулаагүй
                                 // тул AI санаж авсан бүхнээ дараагийн мессежид
                                 // мартаад дахин асуудаг байсан.
-                                customerMemory: (await getCustomerMemory(customer.id)) ?? undefined,
+                                customerMemory: customerMemory ?? undefined,
+                                    // Текст мессежийн замтай ижил — "Захиалах"
+                                    // зэрэг товч дарахад AI одоогийн сагсыг харна.
+                                    activeCart,
                                     orderHistory: customer.total_orders || 0,
+                                    // Текст мессежийн замтай ижил — эдгээрийг
+                                    // дамжуулаагүй тул товч дарахад FAQ/slogan-гүй
+                                    // хариулж, quick reply огт ажилладаггүй байсан.
+                                    faqs: aiFeatures.faqs,
+                                    quickReplies: aiFeatures.quickReplies,
+                                    slogans: aiFeatures.slogans,
                                     notifySettings: buildNotifySettings(shop),
                                     // AI info-sharing controls (#5b/#5c).
                                     shopPhone: (shop as unknown as { phone?: string }).phone || undefined,

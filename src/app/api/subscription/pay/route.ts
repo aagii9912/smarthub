@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createSubscriptionInvoice } from '@/lib/payment/qpay';
+import { normalizePlanSlug } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 
 /**
@@ -20,7 +21,10 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { plan_slug } = body;
+        // Canonicalize once so the plan lookup AND the persisted payment record
+        // (subscription_plan_slug, used later by activation) both use the slug
+        // that actually exists in `plans` ('starter'/'pro', not 'Starter'/'professional').
+        const plan_slug = normalizePlanSlug(body?.plan_slug) ?? '';
 
         const supabase = supabaseAdmin();
 

@@ -5,6 +5,7 @@ import { getPlanTypeFromSubscription } from '@/lib/ai/AIRouter';
 import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 import { registerShopAsMerchant } from '@/lib/payment/qpay-merchant';
+import { isBusinessType } from '@/lib/industry-packs/registry';
 
 // GET - Get user's shop
 export async function GET(request: NextRequest) {
@@ -50,11 +51,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, owner_name, phone, forceCreate, business_type } = body;
-    const ALLOWED_BUSINESS_TYPES = [
-      'retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other',
-      'healthcare', 'education', 'realestate_auto',
-    ];
-    const sanitizedBusinessType = business_type && ALLOWED_BUSINESS_TYPES.includes(business_type) ? business_type : undefined;
+    const sanitizedBusinessType = isBusinessType(business_type) ? business_type : undefined;
 
     if (!name) {
       return NextResponse.json({ error: 'Shop name required' }, { status: 400 });
@@ -231,10 +228,6 @@ export async function PATCH(request: NextRequest) {
       'delivery_policy',
     ] as const;
 
-    const ALLOWED_BUSINESS_TYPES = [
-      'retail', 'restaurant', 'service', 'ecommerce', 'beauty', 'other',
-      'healthcare', 'education', 'realestate_auto',
-    ];
     const ALLOWED_AGENT_ROLES = [
       'sales', 'booking', 'information', 'support', 'lead_capture', 'hybrid',
     ];
@@ -249,9 +242,9 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Reject business_type values that don't match the CHECK constraint to fail fast (better error)
+    // business_type must be a registered Industry Pack id (the DB only checks the format)
     if (sanitizedUpdate.business_type !== undefined && sanitizedUpdate.business_type !== null) {
-      if (!ALLOWED_BUSINESS_TYPES.includes(String(sanitizedUpdate.business_type))) {
+      if (!isBusinessType(sanitizedUpdate.business_type)) {
         return NextResponse.json({ error: 'Invalid business_type' }, { status: 400 });
       }
     }

@@ -26,7 +26,7 @@ export interface SystemSettings {
         auto_suspend: boolean;
     };
     ai: {
-        default_provider: 'gemini';
+        default_provider: 'openai' | 'gemini';
         default_model: string;
         max_tokens: number;
         temperature: number;
@@ -50,8 +50,8 @@ export const DEFAULT_SETTINGS: SystemSettings = {
         auto_suspend: true,
     },
     ai: {
-        default_provider: 'gemini',
-        default_model: 'gemini-3.1-flash-lite',
+        default_provider: 'openai',
+        default_model: 'claude-haiku-5-5',
         max_tokens: 4096,
         temperature: 0.7,
     },

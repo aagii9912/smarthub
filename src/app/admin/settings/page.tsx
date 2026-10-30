@@ -335,13 +335,13 @@ export default function AdminSettingsPage() {
                                         onChange={(e) => setSettings({ ...settings, ai: { ...settings.ai, default_provider: e.target.value as 'openai' | 'gemini' } })}
                                         className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white cursor-pointer"
                                     >
-                                        <option value="gemini">🚀 Gemini (Хямд, Хурдан)</option>
+                                        <option value="openai">🚀 OpenAI (GPT-6 Luna)</option>
                                     </select>
                                     <div className="mt-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
                                         <p className="text-[11px] font-medium text-gray-600 flex items-center gap-1.5">
-                                            {settings.ai.default_provider === 'gemini'
-                                                ? '💰 ~97% хямд • 1M context • Үнэгүй tier боломжтой'
-                                                : '⭐ Premium чанар • GPT-4o backend ашиглана'}
+                                            {settings.ai.default_provider === 'openai'
+                                                ? '💰 GPT-6 Luna • $0.10 / $0.50 per 1M token • Tool calling'
+                                                : '⚠️ Gemini ашиглахаа больсон — OpenAI сонгоно уу'}
                                         </p>
                                     </div>
                                 </div>
@@ -352,12 +352,12 @@ export default function AdminSettingsPage() {
                                         onChange={(e) => setSettings({ ...settings, ai: { ...settings.ai, default_model: e.target.value } })}
                                         className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all outline-none bg-gray-50 focus:bg-white cursor-pointer"
                                     >
-                                        <option value="gemini-3.1-flash-lite">⚡ Gemini 3.1 Flash Lite (Шинэ, Хурдан)</option>
+                                        <option value="claude-haiku-5-5">⚡ Claude Haiku 5.5 (Хурдан, хямд)</option>
                                     </select>
-                                    {settings.ai.default_provider === 'gemini' && (
+                                    {settings.ai.default_provider === 'openai' && (
                                         <div className="mt-2.5 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
                                             <p className="text-[11px] font-medium text-gray-600">
-                                                {settings.ai.default_model === 'gemini-3.1-flash-lite'
+                                                {settings.ai.default_model === 'claude-haiku-5-5'
                                                     ? '⚡ Хамгийн шинэ, хэмнэлттэй үнэтэй загвар'
                                                     : '🔥 Тогтвортой, батлагдсан загвар'}
                                             </p>

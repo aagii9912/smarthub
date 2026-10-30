@@ -38,6 +38,7 @@ import {
     Crown,
     Sparkles,
     Images,
+    Zap,
     UserCog,
     CalendarClock,
 } from 'lucide-react';
@@ -82,6 +83,8 @@ const WORKSPACE: NavLink[] = [
 const INSIGHTS: NavLink[] = [
     { nameKey: 'reports', href: '/dashboard/reports', icon: LineChart, feature: 'crm_analytics' },
     { nameKey: 'aiSettings', href: '/dashboard/ai-settings', icon: Bot, minRole: 'admin' },
+    // Industry Pack бүрийн идэвхтэй туслах (сануулга, дагалт, тойм).
+    { nameKey: 'automations', href: '/dashboard/automations', icon: Zap },
     { nameKey: 'commentMgmt', href: '/dashboard/comment-automation', icon: MessageSquareMore, minRole: 'admin' },
     { nameKey: 'storyLinks', href: '/dashboard/story-product-links', icon: Images },
     { nameKey: 'cart', href: '/dashboard/cart', icon: ShoppingCart, feature: 'cart_system', archetypes: ['commerce'] },

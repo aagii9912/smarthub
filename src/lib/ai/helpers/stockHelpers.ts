@@ -6,6 +6,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 import { pickOne, type SupabaseRelation } from '@/types/supabase-helpers';
+import type { ActiveCart } from '@/types/ai';
 
 interface CartItemDbRow {
     id: string;
@@ -221,6 +222,25 @@ export async function getCartFromDB(shopId: string, customerId: string): Promise
     const total = mappedItems.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0);
 
     return { id: cart.id, items: mappedItems, total_amount: total };
+}
+
+/**
+ * Load the customer's active cart for ChatContext.activeCart, using the same
+ * query the cart tools use so the prompt and view_cart/checkout agree. Never
+ * throws: a failed lookup degrades to "no cart" instead of blocking the reply.
+ */
+export async function getActiveCartForAI(
+    shopId: string,
+    customerId: string
+): Promise<ActiveCart | undefined> {
+    try {
+        const cart = await getCartFromDB(shopId, customerId);
+        if (!cart) return undefined;
+        return { id: cart.id, items: cart.items, total_amount: cart.total_amount };
+    } catch (error) {
+        logger.warn('Failed to load active cart for AI context', { shopId, customerId, error: String(error) });
+        return undefined;
+    }
 }
 
 /**

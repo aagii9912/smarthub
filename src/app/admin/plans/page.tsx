@@ -58,7 +58,7 @@ export default function PlansPage() {
             messages_per_month: 100,
             shops_limit: 1,
             ai_enabled: true,
-            ai_model: 'gemini-3.1-flash-lite',
+            ai_model: 'claude-haiku-5-5',
             sales_intelligence: false,
             ai_memory: false,
             cart_system: 'none',
@@ -113,7 +113,7 @@ export default function PlansPage() {
                 messages_per_month: 100,
                 shops_limit: 1,
                 ai_enabled: true,
-                ai_model: 'gemini-3.1-flash-lite',
+                ai_model: 'claude-haiku-5-5',
                 sales_intelligence: false,
                 ai_memory: false,
                 cart_system: 'none',
@@ -544,14 +544,14 @@ export default function PlansPage() {
                                         <div className="flex items-center gap-3 p-2 rounded-lg border border-gray-100 bg-gray-50">
                                             <span className="text-sm font-medium text-gray-700 pl-1">AI Model:</span>
                                             <select
-                                                value={formData.features.ai_model || 'gemini-3.1-flash-lite'}
+                                                value={formData.features.ai_model || 'claude-haiku-5-5'}
                                                 onChange={(e) => setFormData({
                                                     ...formData,
                                                     features: { ...formData.features, ai_model: e.target.value }
                                                 })}
                                                 className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-violet-500/20 outline-none bg-white flex-1"
                                             >
-                                                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                                                <option value="claude-haiku-5-5">Claude Haiku 5.5</option>
                                             </select>
                                         </div>
                                     </div>

@@ -28,7 +28,7 @@ export async function GET() {
             api: true,
             environment: !!(
                 process.env.NEXT_PUBLIC_SUPABASE_URL &&
-                process.env.GEMINI_API_KEY
+                process.env.ANTHROPIC_API_KEY
             ),
         },
     };

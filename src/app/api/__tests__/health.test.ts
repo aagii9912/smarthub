@@ -21,7 +21,7 @@ import { GET } from '@/app/api/health/route';
 describe('Health API', () => {
     beforeEach(() => {
         vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co');
-        vi.stubEnv('GEMINI_API_KEY', 'test-gemini-key');
+        vi.stubEnv('ANTHROPIC_API_KEY', 'test-anthropic-key');
     });
 
     it('returns healthy status when all checks pass', async () => {
@@ -38,7 +38,7 @@ describe('Health API', () => {
     });
 
     it('returns degraded status when environment check fails', async () => {
-        vi.stubEnv('GEMINI_API_KEY', '');
+        vi.stubEnv('ANTHROPIC_API_KEY', '');
 
         const response = await GET();
         const data = await response.json();

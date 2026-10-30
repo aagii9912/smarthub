@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { sendPushNotification } from '@/lib/notifications';
 import { isNotificationEnabled } from '@/lib/notifications-prefs';
 import { upsertUserSubscription } from '@/lib/billing/subscriptionUpsert';
+import { normalizePlanSlug } from '@/lib/ai/config/plans';
 
 /**
  * Verify QPay webhook signature.
@@ -219,7 +220,10 @@ async function handleSubscriptionPayment(
     payment: Record<string, unknown>
 ): Promise<ActivationResult> {
     const userId = payment.subscription_user_id as string;
-    const planSlug = payment.subscription_plan_slug as string;
+    // Canonicalize so the plan lookup + the shop's denormalized subscription_plan
+    // both resolve the slug that exists in `plans` ('pro'/'starter', not the
+    // legacy 'professional'/'Starter' a stale payment row may still carry).
+    const planSlug = normalizePlanSlug(payment.subscription_plan_slug as string) ?? '';
     const shopId = payment.shop_id as string;
 
     if (!planSlug) {

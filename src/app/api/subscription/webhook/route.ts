@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
+import { normalizePlanSlug } from '@/lib/ai/config/plans';
 
 export async function POST(request: NextRequest) {
     try {
@@ -161,8 +162,10 @@ async function activateSubscriptionForShop(
         })
         .eq('shop_id', shopId);
 
-    // Update shop's plan — retry once on failure (mirrors /api/payment/webhook)
-    const planSlug = planSlugOverride || (subscription as { plans?: { slug?: string } }).plans?.slug || 'professional';
+    // Update shop's plan — retry once on failure (mirrors /api/payment/webhook).
+    // Canonicalize and default to 'pro' (not the legacy 'professional', which no
+    // longer exists as a slug after 20260620140000).
+    const planSlug = normalizePlanSlug(planSlugOverride || (subscription as { plans?: { slug?: string } }).plans?.slug) ?? 'pro';
     const shopUpdatePayload = {
         plan_id: subscription.plan_id,
         subscription_plan: planSlug,

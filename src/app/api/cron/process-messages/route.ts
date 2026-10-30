@@ -13,6 +13,7 @@ import { getUserBilling } from '@/lib/billing/getUserBilling';
 import { isAiAuthorized } from '@/lib/billing/isAiAuthorized';
 import { sendTextMessage, sendSenderAction } from '@/lib/facebook/messenger';
 import { detectIntent } from '@/lib/ai/intent-detector';
+import { getActiveCartForAI } from '@/lib/ai/helpers/stockHelpers';
 import { logger } from '@/lib/utils/logger';
 import {
     getAIFeatures,
@@ -23,7 +24,7 @@ import {
     generateFallbackResponse,
     processAIResponse,
 } from '@/lib/webhook/WebhookService';
-import type { ChatMessage, AIEmotion, AIProduct } from '@/types/ai';
+import type { AIEmotion, AIProduct } from '@/types/ai';
 
 // Verify cron secret (Vercel sets this)
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -303,7 +304,10 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
         // If there's text message, process with AI
         if (combinedText.trim()) {
             const intent = detectIntent(combinedText);
-            const previousHistory: ChatMessage[] = await getChatHistory(shopId, customerId);
+            const [previousHistory, activeCart] = await Promise.all([
+                getChatHistory(shopId, customerId),
+                getActiveCartForAI(shopId, customerId),
+            ]);
 
             const response = await routeToAI(
                 combinedText,
@@ -334,6 +338,7 @@ async function processMessageBatch(supabase: ReturnType<typeof supabaseAdmin>, m
                     },
                     products: mappedProducts,
                     customerName: customer.name || undefined,
+                    activeCart,
                     orderHistory: customer.total_orders || 0,
                     faqs: aiFeatures.faqs,
                     quickReplies: aiFeatures.quickReplies,

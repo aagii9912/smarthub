@@ -24,8 +24,10 @@ import { formatMemoryForPrompt } from '../tools/memory';
 import { buildRolePromptRules, getRoleTitle, getRoleGoalLine } from '../agents/registry';
 import type { AgentRole, AgentCapability } from '../agents/types';
 import type { BusinessType } from '@/lib/constants/business-types';
+import { getPack, isListingCatalog } from '@/lib/industry-packs/registry';
+import type { SetupData } from '@/lib/industry-packs/types';
 import { formatListingAttributes } from '@/lib/constants/listing-attributes';
-import { productDescription } from './ProductContext';
+import { buildMentionedProductDetails, productDescription } from './ProductContext';
 
 /**
  * Emotion prompts for AI personality - Enhanced for natural feel
@@ -148,17 +150,6 @@ const HUMAN_LIKE_PATTERNS = `
 `;
 
 /**
- * Business types whose catalog holds *listings* (үл хөдлөх байр, автомашин),
- * not stocked goods. A listing has no inventory count and no delivery: one flat
- * is one flat. Describing it with commerce语 made the agent announce every
- * apartment as "(Дууссан)" — stock is null → availableStock 0 → sold out — and
- * promise "🚚 Хүргэлт: Үнэгүй" on a house.
- */
-function isListingCatalog(businessType?: BusinessType): boolean {
-    return businessType === 'realestate_auto';
-}
-
-/**
  * Build product information string for prompt.
  *
  * `businessType` switches the vocabulary between a stocked catalog and a
@@ -168,7 +159,6 @@ export function buildProductsInfo(
     products: ChatContext['products'],
     businessType?: BusinessType,
     productDetailsOnDemand = false,
-    message = '',
 ): string {
     const listingMode = isListingCatalog(businessType);
     const emptyLabel = listingMode
@@ -266,7 +256,7 @@ export function buildProductsInfo(
             : '';
 
         // Include description for AI context
-        const desc = p.description ? `\n  Тайлбар: ${productDescription(p, productDetailsOnDemand, message)}` : '';
+        const desc = p.description ? `\n  Тайлбар: ${productDescription(p, productDetailsOnDemand)}` : '';
 
         // Delivery info. A listing is never delivered, so the whole clause is
         // dropped for listing catalogs rather than defaulting to "free".
@@ -662,285 +652,6 @@ export function buildSLASection(sla?: FulfillmentSLA): string {
 ${lines.join('\n')}\n`;
 }
 
-// ── Per-business-type renderers ────────────────────────────────────
-// Each renderer pulls only the keys it understands and skips silently
-// when the value is missing. Keys mirror BUSINESS_SETUP_DATA shape in
-// `lib/constants/business-types.ts`.
-
-type Setup = Record<string, unknown>;
-
-function pickString(data: Setup, key: string): string | null {
-    const v = data[key];
-    if (typeof v !== 'string') return null;
-    const trimmed = v.trim();
-    return trimmed.length > 0 ? trimmed : null;
-}
-
-function pickNumber(data: Setup, key: string): number | null {
-    const v = data[key];
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
-    if (typeof v === 'string' && v.trim().length > 0) {
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
-    }
-    return null;
-}
-
-function pickBoolean(data: Setup, key: string): boolean | null {
-    const v = data[key];
-    if (typeof v === 'boolean') return v;
-    return null;
-}
-
-function pickArray(data: Setup, key: string): string[] {
-    const v = data[key];
-    if (Array.isArray(v)) {
-        return v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
-    }
-    if (typeof v === 'string' && v.trim().length > 0) {
-        return v.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    }
-    return [];
-}
-
-function renderRetail(data: Setup): string[] {
-    const lines: string[] = [];
-    const inv = pickString(data, 'inventory_method');
-    if (inv === 'manual') lines.push('• Бараа бүртгэлийг гараар хийдэг');
-    else if (inv === 'barcode') lines.push('• Бараа бүртгэлд баркод/POS систем ашигладаг');
-    const warehouse = pickString(data, 'warehouse_address');
-    if (warehouse) lines.push(`• Агуулахын хаяг: ${warehouse}`);
-    const tax = pickBoolean(data, 'tax_registered');
-    if (tax === true) lines.push('• НӨАТ-д бүртгэлтэй (баримт өгөх боломжтой)');
-    else if (tax === false) lines.push('• НӨАТ-д бүртгэлгүй');
-    const categories = pickArray(data, 'product_categories');
-    if (categories.length > 0) lines.push(`• Барааны ангилал: ${categories.join(', ')}`);
-    const origin = pickString(data, 'brand_origin');
-    if (origin === 'local') lines.push('• Үндсэн бараа: дотоодын');
-    else if (origin === 'imported') lines.push('• Үндсэн бараа: импортын');
-    const warranty = pickString(data, 'warranty_policy');
-    if (warranty) lines.push(`• Баталгаат хугацааны бодлого: ${warranty}`);
-    const loyalty = pickString(data, 'loyalty_program');
-    if (loyalty) lines.push(`• Урамшууллын систем: ${loyalty}`);
-    return lines;
-}
-
-function renderRestaurant(data: Setup): string[] {
-    const lines: string[] = [];
-    const tables = pickNumber(data, 'table_count');
-    if (tables !== null && tables > 0) lines.push(`• Нийт ширээний тоо: ${tables}`);
-    const delivery = pickBoolean(data, 'delivery_enabled');
-    if (delivery === true) lines.push('• Хүргэлтийн үйлчилгээтэй');
-    else if (delivery === false) lines.push('• Хүргэлтгүй (зөвхөн дотроо үйлчилнэ)');
-    const zones = pickArray(data, 'delivery_zones');
-    if (zones.length > 0) lines.push(`• Хүргэлтийн бүс: ${zones.join(', ')}`);
-    const prep = pickNumber(data, 'avg_prep_minutes');
-    if (prep !== null && prep > 0) lines.push(`• Хоол бэлдэх дундаж хугацаа: ${prep} минут`);
-    const categories = pickArray(data, 'menu_categories');
-    if (categories.length > 0) lines.push(`• Цэсний ангилал: ${categories.join(', ')}`);
-    const dietary = pickArray(data, 'dietary_options');
-    if (dietary.length > 0) lines.push(`• Тусгай хоолны сонголт: ${dietary.join(', ')}`);
-    const peak = pickString(data, 'peak_hours');
-    if (peak) lines.push(`• Ачаалал ихтэй цаг: ${peak}`);
-    const reservation = pickString(data, 'reservation_policy');
-    if (reservation) lines.push(`• Ширээ захиалгын бодлого: ${reservation}`);
-    const minOrder = pickNumber(data, 'min_order_value');
-    if (minOrder !== null && minOrder > 0) lines.push(`• Хүргэлтийн доод дүн: ${minOrder.toLocaleString()}₮`);
-    const fee = pickNumber(data, 'service_fee_percent');
-    if (fee !== null && fee > 0) lines.push(`• Үйлчилгээний хураамж: ${fee}%`);
-    return lines;
-}
-
-function renderService(data: Setup): string[] {
-    const lines: string[] = [];
-    const staff = pickNumber(data, 'staff_count');
-    if (staff !== null && staff > 0) lines.push(`• Ажилтны тоо: ${staff}`);
-    const duration = pickNumber(data, 'default_duration_minutes');
-    if (duration !== null && duration > 0) lines.push(`• Үйлчилгээний дундаж үргэлжлэх хугацаа: ${duration} минут`);
-    const booking = pickString(data, 'booking_method');
-    if (booking === 'manual') lines.push('• Захиалгыг мессежээр гараар авдаг');
-    else if (booking === 'calendar') lines.push('• Захиалгыг календар системээр авдаг');
-    const hours = pickString(data, 'business_hours');
-    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
-    const catalog = data['service_catalog'];
-    if (Array.isArray(catalog) && catalog.length > 0) {
-        const items = catalog
-            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
-            .map(s => {
-                const name = typeof s.name === 'string' ? s.name : '';
-                const dur = typeof s.duration === 'number' ? `${s.duration}мин` : '';
-                const price = typeof s.price === 'number' ? `${s.price.toLocaleString()}₮` : '';
-                return `${name} (${[dur, price].filter(Boolean).join(', ')})`;
-            })
-            .filter(Boolean);
-        if (items.length > 0) lines.push(`• Үйлчилгээний жагсаалт: ${items.join('; ')}`);
-    }
-    const cancel = pickString(data, 'cancellation_policy');
-    if (cancel) lines.push(`• Захиалга цуцлах бодлого: ${cancel}`);
-    const advance = pickNumber(data, 'advance_booking_days');
-    if (advance !== null && advance > 0) lines.push(`• Урьдчилан захиалах боломжтой: ${advance} хоног`);
-    const deposit = pickBoolean(data, 'requires_deposit');
-    if (deposit === true) lines.push('• Захиалга баталгаажуулахад урьдчилгаа төлбөр шаардлагатай');
-    const home = pickBoolean(data, 'home_visit_enabled');
-    if (home === true) lines.push('• Гэрт нь очиж үйлчилдэг');
-    return lines;
-}
-
-function renderEcommerce(data: Setup): string[] {
-    const lines: string[] = [];
-    const zones = pickArray(data, 'shipping_zones');
-    if (zones.length > 0) lines.push(`• Хүргэлтийн бүс: ${zones.join(', ')}`);
-    const methods = pickArray(data, 'payment_methods');
-    if (methods.length > 0) lines.push(`• Төлбөрийн арга: ${methods.join(', ')}`);
-    const tracking = pickBoolean(data, 'inventory_tracking');
-    if (tracking === true) lines.push('• Үлдэгдэл автоматаар хянагдана');
-    const dispatch = pickNumber(data, 'dispatch_sla_hours');
-    if (dispatch !== null && dispatch > 0) lines.push(`• Захиалгыг ${dispatch} цагийн дотор боловсруулна`);
-    const returnWindow = pickNumber(data, 'return_window_days');
-    if (returnWindow !== null && returnWindow > 0) lines.push(`• Буцаах хугацаа: ${returnWindow} хоног`);
-    const sizeChart = pickString(data, 'size_chart_url');
-    if (sizeChart) lines.push(`• Размерийн хүснэгт: ${sizeChart}`);
-    const story = pickString(data, 'brand_story');
-    if (story) lines.push(`• Брэндийн түүх: ${story}`);
-    const preOrder = pickString(data, 'pre_order_policy');
-    if (preOrder) lines.push(`• Урьдчилсан захиалгын бодлого: ${preOrder}`);
-    return lines;
-}
-
-function renderBeauty(data: Setup): string[] {
-    const lines: string[] = [];
-    const staff = pickNumber(data, 'staff_count');
-    if (staff !== null && staff > 0) lines.push(`• Мэргэжилтний тоо: ${staff}`);
-    const address = pickString(data, 'salon_address');
-    if (address) lines.push(`• Салоны хаяг: ${address}`);
-    const home = pickBoolean(data, 'services_at_home');
-    if (home === true) lines.push('• Гэрт нь очиж үйлчилдэг');
-    const duration = pickNumber(data, 'default_duration_minutes');
-    if (duration !== null && duration > 0) lines.push(`• Үйлчилгээний дундаж үргэлжлэх хугацаа: ${duration} минут`);
-    const menu = data['service_menu'];
-    if (Array.isArray(menu) && menu.length > 0) {
-        const items = menu
-            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
-            .map(s => {
-                const name = typeof s.name === 'string' ? s.name : '';
-                const dur = typeof s.duration === 'number' ? `${s.duration}мин` : '';
-                const price = typeof s.price === 'number' ? `${s.price.toLocaleString()}₮` : '';
-                return `${name} (${[dur, price].filter(Boolean).join(', ')})`;
-            })
-            .filter(Boolean);
-        if (items.length > 0) lines.push(`• Үйлчилгээний жагсаалт: ${items.join('; ')}`);
-    }
-    const specialists = data['specialist_list'];
-    if (Array.isArray(specialists) && specialists.length > 0) {
-        const items = specialists
-            .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
-            .map(s => {
-                const name = typeof s.name === 'string' ? s.name : '';
-                const specialty = typeof s.specialty === 'string' ? s.specialty : '';
-                return name && specialty ? `${name} - ${specialty}` : name;
-            })
-            .filter(Boolean);
-        if (items.length > 0) lines.push(`• Мэргэжилтнүүд: ${items.join(', ')}`);
-    }
-    const walkIn = pickBoolean(data, 'walk_in_accepted');
-    if (walkIn === true) lines.push('• Урьдчилсан захиалгагүй ирж болно');
-    else if (walkIn === false) lines.push('• Зөвхөн урьдчилсан захиалгаар үйлчилнэ');
-    const aftercare = pickString(data, 'aftercare_instructions');
-    if (aftercare) lines.push(`• Үйлчилгээний дараах зөвлөгөө: ${aftercare}`);
-    return lines;
-}
-
-function renderHealthcare(data: Setup): string[] {
-    const lines: string[] = [];
-    const doctors = pickNumber(data, 'doctor_count');
-    if (doctors !== null && doctors > 0) lines.push(`• Эмчийн тоо: ${doctors}`);
-    const specialties = pickArray(data, 'specialties');
-    if (specialties.length > 0) lines.push(`• Чиглэлүүд: ${specialties.join(', ')}`);
-    const hours = pickString(data, 'business_hours');
-    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
-    const insurance = pickArray(data, 'insurance_accepted');
-    if (insurance.length > 0) lines.push(`• Хүлээн авдаг даатгал: ${insurance.join(', ')}`);
-    const appointmentReq = pickBoolean(data, 'appointment_required');
-    if (appointmentReq === true) lines.push('• Зөвхөн урьдчилсан цаг авсан үед үйлчилнэ');
-    const emergency = pickString(data, 'emergency_handling');
-    if (emergency) lines.push(`• Яаралтай тохиолдол: ${emergency}`);
-    const disclaimer = pickString(data, 'triage_disclaimer');
-    if (disclaimer) {
-        lines.push(`• ⚠️ ЗААВАЛ ХЭЛЭХ МЭДЭГДЭЛ: ${disclaimer}`);
-    }
-    return lines;
-}
-
-function renderEducation(data: Setup): string[] {
-    const lines: string[] = [];
-    const types = pickArray(data, 'course_types');
-    if (types.length > 0) lines.push(`• Сургалтын төрлүүд: ${types.join(', ')}`);
-    const capacity = pickNumber(data, 'student_capacity');
-    if (capacity !== null && capacity > 0) lines.push(`• Ангийн дээд хязгаар: ${capacity} суралцагч`);
-    const hours = pickString(data, 'business_hours');
-    if (hours) lines.push(`• Ажиллах цаг: ${hours}`);
-    const levels = pickArray(data, 'levels_offered');
-    if (levels.length > 0) lines.push(`• Түвшнүүд: ${levels.join(', ')}`);
-    const formats = pickArray(data, 'class_format');
-    if (formats.length > 0) lines.push(`• Хичээллэх хэлбэр: ${formats.join(', ')}`);
-    const intake = pickString(data, 'intake_dates');
-    if (intake) lines.push(`• Элсэлтийн огноо: ${intake}`);
-    const cert = pickBoolean(data, 'certification_offered');
-    if (cert === true) lines.push('• Сертификат олгодог');
-    const trial = pickBoolean(data, 'trial_class_available');
-    if (trial === true) lines.push('• Туршилтын хичээл боломжтой');
-    return lines;
-}
-
-function renderRealestateAuto(data: Setup): string[] {
-    const lines: string[] = [];
-    const category = pickString(data, 'category');
-    if (category === 'realestate') lines.push('• Чиглэл: Үл хөдлөх хөрөнгө');
-    else if (category === 'auto') lines.push('• Чиглэл: Автомашин');
-    else if (category === 'both') lines.push('• Чиглэл: Үл хөдлөх + Автомашин');
-    const agents = pickNumber(data, 'agent_count');
-    if (agents !== null && agents > 0) lines.push(`• Менежерийн тоо: ${agents}`);
-    const areas = pickArray(data, 'service_areas');
-    if (areas.length > 0) lines.push(`• Үйлчилгээний бүс: ${areas.join(', ')}`);
-    const types = pickArray(data, 'listing_types');
-    if (types.length > 0) lines.push(`• Зарын төрлүүд: ${types.join(', ')}`);
-    const financing = pickString(data, 'financing_partners');
-    if (financing) lines.push(`• Санхүүгийн түнш: ${financing}`);
-    const inspection = pickString(data, 'inspection_policy');
-    if (inspection) lines.push(`• Үзлэгийн бодлого: ${inspection}`);
-    const questions = pickArray(data, 'lead_qualification_questions');
-    if (questions.length > 0) {
-        lines.push('• Lead шалгах асуултууд (хэрэглэгчээс заавал асуу):');
-        for (const q of questions) {
-            lines.push(`  - ${q}`);
-        }
-    }
-    return lines;
-}
-
-const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
-    retail: 'ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ',
-    restaurant: 'РЕСТОРАН/КАФЕНЫ МЭДЭЭЛЭЛ',
-    service: 'ҮЙЛЧИЛГЭЭНИЙ МЭДЭЭЛЭЛ',
-    ecommerce: 'ОНЛАЙН ДЭЛГҮҮРИЙН МЭДЭЭЛЭЛ',
-    beauty: 'САЛОНЫ МЭДЭЭЛЭЛ',
-    healthcare: 'ЭМНЭЛГИЙН МЭДЭЭЛЭЛ',
-    education: 'СУРГАЛТЫН ТӨВИЙН МЭДЭЭЛЭЛ',
-    realestate_auto: 'ҮЛ ХӨДЛӨХ / АВТО МЭДЭЭЛЭЛ',
-    other: 'БИЗНЕСИЙН МЭДЭЭЛЭЛ',
-};
-
-const BUSINESS_RENDERERS: Partial<Record<BusinessType, (data: Setup) => string[]>> = {
-    retail: renderRetail,
-    restaurant: renderRestaurant,
-    service: renderService,
-    ecommerce: renderEcommerce,
-    beauty: renderBeauty,
-    healthcare: renderHealthcare,
-    education: renderEducation,
-    realestate_auto: renderRealestateAuto,
-};
-
 /**
  * Render the business-type-specific section of the system prompt. Each
  * business type has its own field set under `shops.business_setup_data`;
@@ -948,15 +659,16 @@ const BUSINESS_RENDERERS: Partial<Record<BusinessType, (data: Setup) => string[]
  */
 export function buildBusinessTypeSection(
     businessType?: BusinessType,
-    data?: Setup,
+    data?: SetupData,
 ): string {
     if (!businessType || !data || Object.keys(data).length === 0) return '';
-    const renderer = BUSINESS_RENDERERS[businessType];
-    if (!renderer) return '';
+    const pack = getPack(businessType);
+    const renderer = pack?.prompt.renderSetup;
+    if (!pack || !renderer) return '';
     const lines = renderer(data);
     if (lines.length === 0) return '';
 
-    const label = BUSINESS_TYPE_LABELS[businessType];
+    const label = pack.prompt.sectionLabel;
     return `\n=== ${label} ===
 Доорх мэдээллийг л хариулахдаа ашигла. Хэрэглэгч холбогдох асуулт асуувал зохиохгүй яг утгыг хэл.
 ${lines.join('\n')}\n`;
@@ -985,7 +697,7 @@ ${parts.join('\n')}\n`;
 
 export function buildSystemPrompt(context: ChatContext, productDetailsOnDemand = false, message = ''): string {
     const emotionStyle = EMOTION_PROMPTS[context.aiEmotion || 'friendly'];
-    const productsInfo = buildProductsInfo(context.products, context.businessType, productDetailsOnDemand, message);
+    const productsInfo = buildProductsInfo(context.products, context.businessType, productDetailsOnDemand);
     // Description sharing now respects the owner's per-field toggle.
     const allowDescription = context.aiShareFlags?.description ?? true;
     const shopInfo = allowDescription && context.shopDescription
@@ -1053,6 +765,13 @@ export function buildSystemPrompt(context: ChatContext, productDetailsOnDemand =
         ? `Чи бол "${context.shopName}"-ийн ${roleTitle}. Нэр чинь "${context.aiAgentName}".`
         : `Чи бол "${context.shopName}" дэлгүүрийн ${roleTitle}.`;
 
+    // Provider-ууд prompt-ийн өөрчлөгдөөгүй ЭХЛЭЛИЙГ cache-лдаг. Дэлгүүрийн
+    // түвшний бүх зүйл (дүрэм, каталог) эхэнд байж тухайн дэлгүүрийн бүх
+    // харилцагчид ижил байна; харилцагч/мессеж бүрээр өөрчлөгдөх хэсгийг
+    // зөвхөн ТӨГСГӨЛД нэм — дунд нь орвол түүнээс хойших каталог cache-ээс гарна.
+    const mentionedProducts = buildMentionedProductDetails(context.products, productDetailsOnDemand, message);
+    const conversationContext = `\n\n=== ЭНЭ ХАРИЛЦАГЧ / ЭНЭ ЯРИА ===${customerGreeting}${cartContext}${customerMemory}${mentionedProducts}`;
+
     return `${personaIntro}
 ${roleGoal}
 
@@ -1062,7 +781,7 @@ ${roleGoal}
 ${emotionStyle}${brandVoiceSection}
 
 ${HUMAN_LIKE_PATTERNS}
-${responseStyleSection}${shopInfo}${sharedInfo}${workingHoursSection}${businessTypeSection}${paymentMethodsInfo}${deliveryPolicyInfo}${slaSection}${customInstructions}${dynamicKnowledge}${policiesInfo}${cartContext}${customerMemory}${faqSection}${sloganSection}${promotionsSection}${escalationSection}${customerGreeting}
+${responseStyleSection}${shopInfo}${sharedInfo}${workingHoursSection}${businessTypeSection}${paymentMethodsInfo}${deliveryPolicyInfo}${slaSection}${customInstructions}${dynamicKnowledge}${policiesInfo}${faqSection}${sloganSection}${promotionsSection}${escalationSection}
 
 ${rolePromptRules}
 
@@ -1080,7 +799,7 @@ AI IDENTITY (Брэнд дүр):
 - Дэлгүүрээс өөр сэдвийн талаар дэлгэрэнгүй ярих
 - Хэт урт, нуршуу хариулт (гол зүйлээ эхэнд нь хэл)
 - "OpenAI", "GPT", "ChatGPT", "Claude" гэх мэт model нэр дурдах
-- Робот шиг формал хэл хэрэглэх${prohibitedTopicsSection}`;
+- Робот шиг формал хэл хэрэглэх${prohibitedTopicsSection}${conversationContext}`;
 }
 
 // ==============================

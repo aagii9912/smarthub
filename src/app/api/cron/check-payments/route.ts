@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted, getTransactionId } from '@/lib/payment/qpay';
 import { logger } from '@/lib/utils/logger';
@@ -19,7 +19,16 @@ import { isNotificationEnabled } from '@/lib/notifications-prefs';
  * - If paid: updates status, confirms order, sends Messenger notification
  * - Prevents duplicate notifications via messenger_notified flag
  */
-export async function GET() {
+const CRON_SECRET = process.env.CRON_SECRET;
+
+export async function GET(request: NextRequest) {
+    if (process.env.NODE_ENV === 'production' && CRON_SECRET) {
+        const authHeader = request.headers.get('authorization');
+        if (authHeader !== `Bearer ${CRON_SECRET}`) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+    }
+
     const startTime = Date.now();
     const supabase = supabaseAdmin();
 
@@ -104,39 +113,16 @@ export async function GET() {
                         logger.error('Stock deduction failed (cron):', { error: String(stockErr) });
                     }
 
-                    // ── Send Messenger confirmation ──
+                    // ── Customer confirmation (24h text / Utility template / owner push) ──
                     try {
-                        const { data: orderData } = await supabase
-                            .from('orders')
-                            .select('*, customers(name, facebook_id), shops(name, facebook_page_access_token, address)')
-                            .eq('id', payment.order_id)
-                            .single();
-
-                        if (orderData?.customers?.facebook_id && orderData?.shops?.facebook_page_access_token) {
-                            const { sendTaggedMessage } = await import('@/lib/facebook/messenger');
-                            const amount = Number(payment.amount).toLocaleString();
-                            const deliveryFee = Number(orderData.delivery_fee || 0);
-                            const deliveryFeeMsg = deliveryFee > 0 ? `\n🚚 Хүргэлт: ${deliveryFee.toLocaleString()}₮` : '';
-
-                            let confirmMsg = '';
-                            if (orderData.delivery_method === 'pickup') {
-                                const shopAddress = orderData.shops?.address || 'Дэлгүүрийн хаяг';
-                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!\n\n📍 Очиж авах газар: ${shopAddress}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                            } else {
-                                const deliveryAddress = orderData.delivery_address || '';
-                                const addressMsg = deliveryAddress ? `\n📦 Хүргэх хаяг: ${deliveryAddress}` : '';
-                                confirmMsg = `✅ Таны ${amount}₮ төлбөр амжилттай баталгаажлаа!${deliveryFeeMsg}${addressMsg}\n\nЗахиалга #${payment.order_id.substring(0, 8)} — бэлтгэж эхэлнэ. Баярлалаа! 🙏`;
-                            }
-
-                            await sendTaggedMessage({
-                                recipientId: orderData.customers.facebook_id,
-                                message: confirmMsg,
-                                pageAccessToken: orderData.shops.facebook_page_access_token,
-                                tag: 'POST_PURCHASE_UPDATE',
-                            });
-
+                        const { notifyCustomerPaymentConfirmed } = await import('@/lib/services/PaymentConfirmationService');
+                        const result = await notifyCustomerPaymentConfirmed({
+                            orderId: payment.order_id,
+                            amount: Number(payment.amount),
+                        });
+                        if (result?.status === 'sent') {
                             messaged++;
-                            logger.success('Messenger confirmation sent via cron:', { order_id: payment.order_id });
+                            logger.success('Customer payment confirmation sent via cron:', { order_id: payment.order_id });
                         }
                     } catch (msgErr) {
                         logger.warn('Cron Messenger notification failed:', { error: String(msgErr) });

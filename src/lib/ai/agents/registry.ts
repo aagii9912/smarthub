@@ -2,6 +2,7 @@ import type { AgentRole, AgentRoleDefinition, AgentCapability, BusinessRoleRecom
 import type { BusinessType } from '@/lib/constants/business-types';
 import type { ToolName } from '@/lib/ai/tools/definitions';
 import type { ChatContext } from '@/types/ai';
+import { mapPacks } from '@/lib/industry-packs/registry';
 
 import { salesRole } from './roles/sales';
 import { bookingRole } from './roles/booking';
@@ -47,30 +48,11 @@ export function isAgentCapability(value: unknown): value is AgentCapability {
 /**
  * Recommended default role + capabilities for each business type.
  * Used by setup wizard, smart defaults, and migration logic.
+ * Defined per Industry Pack (`pack.ai`).
  */
-export const BUSINESS_ROLE_RECOMMENDATIONS: Record<BusinessType, BusinessRoleRecommendation> = {
-    retail: { defaultRole: 'sales', defaultCapabilities: ['sales', 'support'] },
-    ecommerce: { defaultRole: 'sales', defaultCapabilities: ['sales', 'support'] },
-    restaurant: {
-        defaultRole: 'hybrid',
-        defaultCapabilities: ['sales', 'booking', 'information'],
-    },
-    service: { defaultRole: 'booking', defaultCapabilities: ['booking', 'information'] },
-    beauty: { defaultRole: 'booking', defaultCapabilities: ['booking', 'information'] },
-    healthcare: {
-        defaultRole: 'hybrid',
-        defaultCapabilities: ['booking', 'information'],
-    },
-    education: {
-        defaultRole: 'hybrid',
-        defaultCapabilities: ['information', 'lead_capture'],
-    },
-    realestate_auto: {
-        defaultRole: 'hybrid',
-        defaultCapabilities: ['lead_capture', 'information'],
-    },
-    other: { defaultRole: 'sales', defaultCapabilities: ['sales'] },
-};
+export const BUSINESS_ROLE_RECOMMENDATIONS: Record<BusinessType, BusinessRoleRecommendation> = mapPacks(
+    (pack) => ({ defaultRole: pack.ai.defaultRole, defaultCapabilities: [...pack.ai.defaultCapabilities] }),
+);
 
 /**
  * Get the recommended role + capabilities for a business type.

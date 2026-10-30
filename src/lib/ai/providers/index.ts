@@ -1,45 +1,46 @@
 /**
- * AI Provider Factory - Gemini only
+ * AI Provider Factory - Anthropic only
  */
 
 import type { AIProviderInterface } from './AIProvider';
-import { GeminiProvider } from './GeminiProvider';
+import { AnthropicProvider } from './AnthropicProvider';
+import { isAnthropicConfigured, resolveBackendModel } from '../anthropicClient';
 import type { AIModel } from '../config/plans';
 import { logger } from '@/lib/utils/logger';
 
 // Singleton instance
-let geminiProvider: GeminiProvider | null = null;
+let anthropicProvider: AnthropicProvider | null = null;
 
 /**
- * Get Gemini provider instance
+ * Get Anthropic provider instance
  */
 export function getProvider(
     _providerType?: string,
     model?: AIModel
 ): AIProviderInterface {
-    if (!process.env.GEMINI_API_KEY) {
-        logger.error('GEMINI_API_KEY not configured');
-        throw new Error('GEMINI_API_KEY is required');
+    if (!isAnthropicConfigured()) {
+        logger.error('ANTHROPIC_API_KEY not configured');
+        throw new Error('ANTHROPIC_API_KEY is required');
     }
 
-    const modelName = model || 'gemini-3.1-flash-lite';
+    const modelName = resolveBackendModel(model);
 
-    if (!geminiProvider || geminiProvider.model !== modelName) {
-        geminiProvider = new GeminiProvider(modelName);
+    if (!anthropicProvider || anthropicProvider.model !== modelName) {
+        anthropicProvider = new AnthropicProvider(modelName);
     }
-    return geminiProvider;
+    return anthropicProvider;
 }
 
 /**
- * Get the best available provider (always Gemini)
+ * Get the best available provider (always Anthropic)
  */
 export function getBestAvailableProvider(
     _preferred?: string,
     model?: AIModel
 ): AIProviderInterface {
-    return getProvider('gemini', model);
+    return getProvider('anthropic', model);
 }
 
 // Re-exports
 export type { AIProviderInterface, VisionResult, ChatOptions } from './AIProvider';
-export { GeminiProvider } from './GeminiProvider';
+export { AnthropicProvider } from './AnthropicProvider';

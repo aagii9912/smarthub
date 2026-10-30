@@ -2,6 +2,8 @@
  * Database Types - Matches actual Supabase schema (all migrations applied)
  */
 
+import type { BusinessType } from '@/lib/industry-packs/registry';
+
 // ============================================
 // SHOPS
 // ============================================
@@ -24,18 +26,8 @@ export interface Shop {
     // Setup & Status
     setup_completed?: boolean;
     is_active?: boolean;
-    // Business Type (drives setup wizard flow + dashboard customization)
-    business_type?:
-        | 'retail'
-        | 'restaurant'
-        | 'service'
-        | 'ecommerce'
-        | 'beauty'
-        | 'other'
-        | 'healthcare'
-        | 'education'
-        | 'realestate_auto'
-        | null;
+    // Business Type = Industry Pack id (drives setup wizard flow + dashboard customization)
+    business_type?: BusinessType | null;
     business_setup_data?: Record<string, unknown> | null;
     // Bank Information
     bank_name?: string | null;

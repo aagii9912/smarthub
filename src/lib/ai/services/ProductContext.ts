@@ -1,4 +1,4 @@
-import { SchemaType, type FunctionDeclaration } from '@google/generative-ai';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { AIProduct } from '@/types/ai';
 
 // Keep short descriptions inline. Long descriptions remain available verbatim,
@@ -7,14 +7,14 @@ const INLINE_DESCRIPTION_CHARS = 500;
 const PREVIEW_CHARS = 160;
 const DETAIL_PAGE_CHARS = 4000;
 
-export const PRODUCT_DETAILS_TOOL: FunctionDeclaration = {
+export const PRODUCT_DETAILS_TOOL: Anthropic.Tool = {
     name: 'get_product_details',
     description: 'Read a product description from this shop. Use before answering details absent from the catalog preview. Read every page before advice about ingredients, dosage, safety or contraindications. Never infer omitted facts.',
-    parameters: {
-        type: SchemaType.OBJECT,
+    input_schema: {
+        type: 'object',
         properties: {
-            product_id: { type: SchemaType.STRING, description: 'Exact ID from the catalog preview.' },
-            offset: { type: SchemaType.INTEGER, description: 'Character offset; start at 0, then use next_offset.' },
+            product_id: { type: 'string', description: 'Exact ID from the catalog preview.' },
+            offset: { type: 'integer', description: 'Character offset; start at 0, then use next_offset.' },
         },
         required: ['product_id'],
     },
@@ -25,16 +25,39 @@ export function needsProductDetails(products: AIProduct[]): boolean {
         && (p.description?.length || 0) > INLINE_DESCRIPTION_CHARS);
 }
 
-export function productDescription(product: AIProduct, onDemand: boolean, message = ''): string {
+/**
+ * Catalog text for one product. Must not depend on the customer's message:
+ * the catalog sits in the cached prompt prefix shared by every customer of
+ * the shop, so per-message text here would invalidate it on every turn.
+ */
+export function productDescription(product: AIProduct, onDemand: boolean): string {
     const description = product.description || '';
     if (!onDemand || !product.id || description.length <= INLINE_DESCRIPTION_CHARS) return description;
-    // A named product can be supplied immediately, avoiding a second API call.
-    // Ambiguous references and very long descriptions use the bounded lookup.
-    const normalize = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-    const name = normalize(product.name);
-    if (name && description.length <= DETAIL_PAGE_CHARS
-        && ` ${normalize(message)} `.includes(` ${name} `)) return description;
     return `${description.slice(0, PREVIEW_CHARS)}… [ТОВЧ ТАЙЛБАР; дэлгэрэнгүй: get_product_details(product_id="${product.id}"). Дутуу мэдээллийг бүү таамагла.]`;
+}
+
+const normalizeForMatch = (text: string) =>
+    text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/**
+ * Full descriptions of products the customer named explicitly, so the reply
+ * needs no second API call. Ambiguous references and very long descriptions
+ * still use the bounded lookup. Goes in the per-conversation prompt tail,
+ * never in the catalog (see productDescription).
+ */
+export function buildMentionedProductDetails(products: AIProduct[], onDemand: boolean, message: string): string {
+    if (!onDemand || !message) return '';
+    const text = ` ${normalizeForMatch(message)} `;
+    const named = products.filter(p => {
+        const description = p.description || '';
+        const name = normalizeForMatch(p.name);
+        return p.id && p.status !== 'draft' && p.status !== 'discontinued'
+            && description.length > INLINE_DESCRIPTION_CHARS && description.length <= DETAIL_PAGE_CHARS
+            && name && text.includes(` ${name} `);
+    });
+    if (named.length === 0) return '';
+    const details = named.map(p => `- ${p.name} (product_id="${p.id}"):\n${p.description}`).join('\n');
+    return `\nХЭРЭГЛЭГЧИЙН ДУРДСАН БАРААНЫ БҮТЭН ТАЙЛБАР (get_product_details дуудах шаардлагагүй):\n${details}\n`;
 }
 
 /** Read only the already-authorized shop context; never query by model-supplied ID. */

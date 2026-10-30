@@ -110,7 +110,7 @@ export interface ToolExecutionContext {
     /**
      * Set of `${productId}|${sortedVariantSpecsJSON}` keys that already had
      * an `add_to_cart` succeed during this AIRouter reply. Lets the cart
-     * handler ignore an immediate duplicate call (Gemini occasionally re-fires
+     * handler ignore an immediate duplicate call (the model occasionally re-fires
      * the same tool inside its multi-iteration loop, which would otherwise
      * double the cart quantity).
      */

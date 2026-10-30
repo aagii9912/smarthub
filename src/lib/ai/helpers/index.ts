@@ -8,6 +8,7 @@ export {
     getProductFromDB,
     addItemToCart,
     getCartFromDB,
+    getActiveCartForAI,
     reserveStock,
     restoreStock,
     getOrCreateCart,

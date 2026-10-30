@@ -13,6 +13,7 @@ import { getAuthUser } from '@/lib/auth/auth';
 import { headers } from 'next/headers';
 import { logger } from '@/lib/utils/logger';
 import { getUserBilling } from '@/lib/billing/getUserBilling';
+import { normalizePlanSlug } from '@/lib/ai/config/plans';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,7 +82,7 @@ export async function GET() {
             const { data } = await supabase
                 .from('plans')
                 .select('id, slug, name, features, limits')
-                .eq('slug', profile.subscription_plan)
+                .eq('slug', normalizePlanSlug(profile.subscription_plan)!)
                 .maybeSingle();
             if (data) planData = data as PlanData;
         }
@@ -108,7 +109,7 @@ export async function GET() {
             return NextResponse.json({
                 features: {
                     ai_enabled: false,
-                    ai_model: 'gemini-3.1-flash-lite',
+                    ai_model: 'claude-haiku-5-5',
                     sales_intelligence: false,
                     ai_memory: false,
                     cart_system: 'none',

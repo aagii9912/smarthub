@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '@/lib/utils/logger';
+import { simpleCompletion } from '@/lib/ai/anthropicClient';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: NextRequest) {
     try {
@@ -24,8 +22,6 @@ export async function POST(request: NextRequest) {
         // Generate AI response
         let aiResponse = '';
         try {
-            const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
-            
             const prompt = `Чи Syncly компанийн найрсаг менежер шүү! 😊
 
 Одоо ${name}${company ? ` (${company}-с)` : ''} Odoo ERP-ийн талаар сонирхож байна. Түүнд ээлтэй, хүн шиг хариулт өг.
@@ -44,8 +40,9 @@ ${message ? `Түүний хэлсэн зүйл: "${message}"` : 'Ерөнхий
 
 Хариулт:`;
 
-            const result = await model.generateContent(prompt);
-            aiResponse = result.response.text();
+            const result = await simpleCompletion({ prompt, maxTokens: 300 });
+            aiResponse = result.text;
+            if (!aiResponse.trim()) throw new Error('Empty AI response');
         } catch (aiError) {
             logger.error('AI response error:', { error: aiError });
             aiResponse = `Сайн байна уу ${name}! 😊

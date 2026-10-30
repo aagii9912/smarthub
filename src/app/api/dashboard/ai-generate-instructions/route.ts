@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
 import { persistTokenUsage } from '@/lib/ai/tokenUsage';
+import { isAnthropicConfigured, resolveBackendModel, simpleCompletion } from '@/lib/ai/anthropicClient';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const PROMPT_GEN_MODEL = 'gemini-3.1-flash-lite';
+const PROMPT_GEN_MODEL = resolveBackendModel();
 
 /**
  * POST /api/dashboard/ai-generate-instructions
- * Generate or improve AI agent system instructions using Gemini
+ * Generate or improve AI agent system instructions using Claude
  */
 export async function POST(request: NextRequest) {
     try {
@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
 
         const shopId = shop.id;
 
-        if (!GEMINI_API_KEY) {
-            return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
+        if (!isAnthropicConfigured()) {
+            return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 });
         }
 
         const { mode, currentInstructions, shopName, shopDescription, emotion } = await request.json();
@@ -74,31 +74,19 @@ ${currentInstructions}
             return NextResponse.json({ error: 'Invalid mode. Use "generate" or "improve"' }, { status: 400 });
         }
 
-        // Call Gemini API
-        const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${PROMPT_GEN_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 1024,
-                    },
-                }),
-            }
-        );
-
-        if (!geminiRes.ok) {
-            const errBody = await geminiRes.text();
-            logger.error('Gemini API error:', { status: geminiRes.status, body: errBody });
+        let generatedText = '';
+        let tokensUsed = 0;
+        try {
+            const result = await simpleCompletion({ prompt, model: PROMPT_GEN_MODEL, maxTokens: 1024 });
+            generatedText = result.text;
+            tokensUsed = result.tokensUsed;
+        } catch (aiError: unknown) {
+            logger.error('Anthropic API error:', {
+                status: (aiError as { status?: number })?.status,
+                message: aiError instanceof Error ? aiError.message : String(aiError),
+            });
             return NextResponse.json({ error: 'AI service error' }, { status: 502 });
         }
-
-        const geminiData = await geminiRes.json();
-        const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const tokensUsed: number = geminiData.usageMetadata?.totalTokenCount ?? 0;
 
         if (!generatedText.trim()) {
             return NextResponse.json({ error: 'AI returned empty result' }, { status: 500 });

@@ -1,6 +1,6 @@
 # Syncly AI context cost audit
 
-Measured: 2026-09-21. Model: `gemini-3.1-flash-lite`. Measurements were taken before deployment; production savings must be measured after rollout.
+Measured: 2026-09-21. Model: `gemini-3.1-flash-lite`. Changes are local; production has not been deployed.
 
 ## Measured results
 

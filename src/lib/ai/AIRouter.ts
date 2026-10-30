@@ -1,16 +1,15 @@
 /**
- * AIRouter - Routes AI requests to Gemini models
+ * AIRouter - Routes AI requests to Anthropic Claude models (Haiku 5.5 by default)
  *
  * Billing: Credit-based user-facing / Token-based backend accounting (1 credit = 1000 tokens).
  * Per-customer `messageCount` is analytics-only and never enforced.
  * Strategy:
- * - All plans use Gemini models
- * - Plan determines the specific model (flash-lite, flash)
- * - Function calling via Gemini SDK's functionDeclarations
+ * - All plans use the Claude model from `resolveBackendModel` (ANTHROPIC_MODEL env)
+ * - Function calling via Messages API `tools` (thinking off, effort 'low')
  * - Token usage tracked per-shop and persisted to Supabase
  */
 
-import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
+import type Anthropic from '@anthropic-ai/sdk';
 import * as Sentry from '@sentry/nextjs';
 import { logger } from '@/lib/utils/logger';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -22,7 +21,15 @@ import { buildSystemPrompt } from './services/PromptService';
 import { PRODUCT_DETAILS_TOOL, getProductDetails, needsProductDetails } from './services/ProductContext';
 import { matchQuickReply } from './quickReplies';
 import { executeTool, ToolExecutionContext, ToolExecutionResult } from './services/ToolExecutor';
-import { TOOL_DEFINITIONS, ToolName, getGeminiFunctionDeclarations } from './tools/definitions';
+import { TOOL_DEFINITIONS, ToolName, getClaudeTools } from './tools/definitions';
+import {
+    AI_REQUEST_DEFAULTS,
+    extractText,
+    getAnthropic,
+    isAnthropicConfigured,
+    resolveBackendModel,
+    totalTokens,
+} from './anthropicClient';
 import { persistTokenUsage } from './tokenUsage';
 import { getAllowedToolsForRole } from './agents/registry';
 import type { AgentRole, AgentCapability } from './agents/types';
@@ -37,21 +44,11 @@ import {
     tokensToCredits,
     getCreditsPerMonth,
     TOKENS_PER_CREDIT,
-    AIModel,
 } from './config/plans';
 
-// Initialize Gemini client
-if (!process.env.GEMINI_API_KEY) {
-    logger.warn('GEMINI_API_KEY environment variable is not set — AI features will not work');
+if (!isAnthropicConfigured()) {
+    logger.warn('ANTHROPIC_API_KEY environment variable is not set — AI features will not work');
 }
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-/**
- * Model mapping - Gemini models
- */
-const MODEL_MAPPING: Record<AIModel, string> = {
-    'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite',
-};
 
 /**
  * Extended ChatContext with plan information
@@ -105,61 +102,24 @@ export interface RouterResponse extends ChatResponse {
 }
 
 /**
- * Retry operation with exponential backoff
+ * Convert ChatMessage history to Claude messages.
+ * Empty messages are dropped — they add tokens without context. The API
+ * merges consecutive same-role turns, but the first turn must be `user`, so
+ * leading assistant messages are dropped. Retries for 429/5xx are handled
+ * per-request by the Anthropic SDK (maxRetries), which also avoids re-running
+ * already-executed tools on a retry.
  */
-async function retryOperation<T>(
-    operation: () => Promise<T>,
-    retries = 3,
-    delay = 1000
-): Promise<T> {
-    try {
-        return await operation();
-    } catch (error: unknown) {
-        const errMsg = error instanceof Error ? error.message : '';
-        if (retries > 0 && (errMsg.includes('503') || errMsg.includes('overloaded') || errMsg.includes('429'))) {
-            logger.warn(`API rate limited/overloaded, retrying in ${delay}ms... (${retries} retries left)`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return retryOperation(operation, retries - 1, delay * 2);
-        }
-        throw error;
-    }
+function toClaudeHistory(messages: ChatMessage[]): Anthropic.MessageParam[] {
+    const history = messages
+        .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    const firstUser = history.findIndex(m => m.role === 'user');
+    return firstUser === -1 ? [] : history.slice(firstUser);
 }
 
-/**
- * Convert ChatMessage history to Gemini Content format
- * Filters out empty messages that can cause Gemini to return empty responses
- * Ensures: 1) First message is 'user' role, 2) Roles alternate (merges consecutive same-role)
- */
-function toGeminiHistory(messages: ChatMessage[]): Content[] {
-    const filtered = messages
-        .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
-        .map(m => ({
-            role: m.role === 'assistant' ? 'model' as const : 'user' as const,
-            parts: [{ text: m.content }] as Part[],
-        }));
-
-    // Drop leading 'model' messages — Gemini requires first content to be 'user'
-    let startIndex = 0;
-    while (startIndex < filtered.length && filtered[startIndex].role === 'model') {
-        startIndex++;
-    }
-    const trimmed = filtered.slice(startIndex);
-
-    // Merge consecutive messages with the same role (Gemini requires alternating roles)
-    const merged: Content[] = [];
-    for (const msg of trimmed) {
-        const last = merged[merged.length - 1];
-        if (last && last.role === msg.role) {
-            // Merge text into previous message
-            const prevText = (last.parts[0] as { text: string }).text;
-            const newText = (msg.parts[0] as { text: string }).text;
-            last.parts = [{ text: prevText + '\n' + newText }];
-        } else {
-            merged.push({ ...msg });
-        }
-    }
-
-    return merged;
+/** Normalize tool input defensively — never trust the model's shape. */
+function toToolArgs(input: unknown): Record<string, unknown> {
+    return input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
 }
 
 /**
@@ -171,7 +131,7 @@ function getToolsForPlan(plan: PlanType, override?: ToolName[] | null) {
     const filtered = TOOL_DEFINITIONS.filter(tool =>
         enabledTools.includes(tool.name as ToolName)
     );
-    return getGeminiFunctionDeclarations(filtered);
+    return getClaudeTools(filtered);
 }
 
 /**
@@ -212,7 +172,7 @@ export function getToolsForAgent(args: {
         intersection = intersection.filter((t) => userSet.has(t.name as ToolName));
     }
 
-    return getGeminiFunctionDeclarations(intersection);
+    return getClaudeTools(intersection);
 }
 
 /**
@@ -240,7 +200,7 @@ async function loadPlanEnabledToolsOverride(slug: string | undefined | null): Pr
 }
 
 /**
- * Main AI Router - generates response based on plan configuration using Gemini SDK
+ * Main AI Router - generates response based on plan configuration using the Anthropic SDK
  */
 export async function routeToAI(
     message: string,
@@ -431,11 +391,10 @@ export async function routeToAI(
     let actions: ChatAction[] | undefined;
 
     try {
-        // Get actual model
         const modelName = planConfig.model;
-        const backendModel = MODEL_MAPPING[modelName] || 'gemini-3.1-flash-lite';
+        const backendModel = resolveBackendModel(modelName);
 
-        logger.info(`AIRouter: Routing to Gemini [${modelName}] (Backend: ${backendModel})`);
+        logger.info(`AIRouter: Routing to Claude [${backendModel}]`);
 
         // Build system prompt
         const productDetailsOnDemand = planConfig.features.toolCalling && needsProductDetails(context.products);
@@ -461,8 +420,8 @@ export async function routeToAI(
                 ? context.aiAgentCapabilities
                 : ['sales'];
 
-        // Get function declarations enabled for this plan + role/capabilities.
-        const functionDeclarations = planConfig.features.toolCalling
+        // Get function tools enabled for this plan + role/capabilities.
+        const tools = planConfig.features.toolCalling
             ? getToolsForAgent({
                   plan: planType,
                   role: agentRole,
@@ -473,276 +432,256 @@ export async function routeToAI(
 
         // Internal context lookup: only exposes descriptions already authorized
         // for this shop, with no writes or additional plan capabilities.
-        if (productDetailsOnDemand) functionDeclarations?.push(PRODUCT_DETAILS_TOOL);
+        if (productDetailsOnDemand) tools?.push(PRODUCT_DETAILS_TOOL);
 
         // Defensive guard: the model occasionally invents a tool name that
-        // wasn't in `functionDeclarations`. We cross-check on each invocation.
+        // wasn't in `tools`. We cross-check on each invocation.
         const allowedToolNames = new Set(
-            (functionDeclarations || []).map((d) => d.name as ToolName),
+            (tools || []).map((t) => t.name as ToolName),
         );
 
-        // Convert history to Gemini format
-        const geminiHistory = toGeminiHistory(previousHistory);
+        const messages: Anthropic.MessageParam[] = [
+            ...toClaudeHistory(previousHistory),
+            { role: 'user', content: message },
+        ];
 
-        return await retryOperation(async () => {
-            logger.info(`Sending to Gemini ${backendModel}...`);
+        // Same shop → same prompt prefix (rules + catalog); the cache
+        // breakpoint on the system block lets tools + system be reused
+        // across that shop's requests.
+        const system: Anthropic.TextBlockParam[] = [
+            { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
+        ];
 
-            // Create model with system instruction and tools
-            const model = genAI.getGenerativeModel({
+        const anthropic = getAnthropic();
+        let apiCall = 0;
+        const complete = async (msgs: Anthropic.MessageParam[]): Promise<Anthropic.Message> => {
+            const result = await anthropic.messages.create({
                 model: backendModel,
-                systemInstruction: systemPrompt,
-                generationConfig: {
-                    temperature: 0.7,
-                    topP: 0.8,
-                    topK: 40,
-                    maxOutputTokens: planConfig.maxTokens,
-                },
-                tools: functionDeclarations && functionDeclarations.length > 0
-                    ? [{ functionDeclarations }]
-                    : undefined,
+                max_tokens: planConfig.maxTokens,
+                // Haiku 5.5: sampling params and prefill are rejected;
+                // thinking off + low effort keeps replies fast and cheap.
+                ...AI_REQUEST_DEFAULTS,
+                system,
+                messages: msgs,
+                ...(tools && tools.length > 0 ? { tools } : {}),
+            });
+            const usage = result.usage;
+            // Production telemetry, unlike development-only logger.info.
+            // Never log prompts, customer messages, tool arguments or keys.
+            console.info(JSON.stringify({
+                event: 'ai_token_usage',
+                shopId: context.shopId,
+                model: backendModel,
+                apiCall: ++apiCall,
+                promptTokens: usage?.input_tokens ?? null,
+                outputTokens: usage?.output_tokens ?? null,
+                cachedTokens: usage?.cache_read_input_tokens ?? null,
+                cacheWriteTokens: usage?.cache_creation_input_tokens ?? null,
+                totalTokens: totalTokens(usage),
+            }));
+            return result;
+        };
+
+        const getToolUses = (res: Anthropic.Message): Anthropic.ToolUseBlock[] =>
+            res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+
+        // Multi-turn tool-call loop.
+        //
+        // Model олон шатлалт tool call хийж болно (жишээ нь:
+        // search_products → add_to_cart → create_order). Тиймээс нэг сонгон
+        // авалтанд хязгаарлахгүй — max iteration-оор аюулгүй болго.
+        const MAX_TOOL_ITERATIONS = 5;
+
+        const toolContext: ToolExecutionContext = {
+            shopId: context.shopId,
+            customerId: context.customerId,
+            customerName: context.customerName,
+            products: context.products,
+            notifySettings: context.notifySettings,
+            // Lets shared handlers branch on the shop's archetype instead of
+            // assuming commerce (see ToolExecutionContext.capabilities).
+            capabilities: agentCapabilities,
+            // Per-reply set so the cart handler can ignore model-side
+            // duplicate add_to_cart firings within one chat turn.
+            addToCartKeys: new Set<string>(),
+        };
+
+        const runToolCall = async (fc: Anthropic.ToolUseBlock): Promise<Record<string, unknown>> => {
+            const args = toToolArgs(fc.input);
+
+            if (productDetailsOnDemand && fc.name === PRODUCT_DETAILS_TOOL.name) {
+                return getProductDetails(context.products, args) as Record<string, unknown>;
+            }
+
+            const functionName = fc.name as ToolName;
+
+            if (!isToolEnabledForPlan(functionName, planType, enabledToolsOverride)) {
+                logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
+                return {
+                    error: `Энэ боломж (${functionName}) одоогийн ${planType} багцад идэвхгүй байна. Pro багц руу шилжвэл захиалга, төлбөр төлөх, дэлгэрэнгүй тайлан зэрэг бүх боломж нээгдэнэ! 🚀`,
+                };
+            }
+
+            if (allowedToolNames.size > 0 && !allowedToolNames.has(functionName)) {
+                logger.warn(`Tool ${functionName} not allowed for agent role ${agentRole}`);
+                return {
+                    error: `Энэ AI agent (${agentRole}) тус үүргэд "${functionName}" tool ашиглах боломжгүй. AI Settings-ээс үүрэг тохируулна уу.`,
+                };
+            }
+
+            logger.info(`Executing tool: ${functionName}`, { data: args });
+
+            const toolResult: ToolExecutionResult = await executeTool(functionName, args, toolContext);
+
+            if (toolResult.imageAction) {
+                imageAction = toolResult.imageAction;
+            }
+            if (toolResult.quickReplies && toolResult.quickReplies.length > 0) {
+                quickReplies = toolResult.quickReplies;
+            }
+            if (toolResult.actions && toolResult.actions.length > 0) {
+                actions = [...(actions || []), ...toolResult.actions];
+            }
+
+            return toolResult.success
+                ? { success: true, message: toolResult.message, ...toolResult.data }
+                : { error: toolResult.error };
+        };
+
+        // Initial turn
+        let currentResult = await complete(messages);
+        let finalResponseText = extractText(currentResult);
+
+        let totalTokensConsumed = totalTokens(currentResult.usage);
+        let lastToolResponses: Array<Record<string, unknown>> = [];
+        let iteration = 0;
+
+        // Tool-call loop — continues as long as the model keeps requesting tools
+        while (iteration < MAX_TOOL_ITERATIONS) {
+            const functionCalls = getToolUses(currentResult);
+            if (functionCalls.length === 0) break;
+            if (!planConfig.features.toolCalling) break;
+
+            iteration++;
+            logger.info(`Claude tool-call iteration ${iteration}:`, {
+                count: functionCalls.length,
+                names: functionCalls.map(fc => fc.name),
             });
 
-            // Start chat with history
-            const chat = model.startChat({
-                history: geminiHistory,
-            });
-            let apiCall = 0;
-            const sendMessage = async (input: Parameters<typeof chat.sendMessage>[0]) => {
-                const result = await chat.sendMessage(input);
-                const usage = result.response.usageMetadata;
-                // Production telemetry, unlike development-only logger.info.
-                // Never log prompts, customer messages, tool arguments or keys.
-                console.info(JSON.stringify({
-                    event: 'ai_token_usage',
-                    shopId: context.shopId,
-                    model: backendModel,
-                    apiCall: ++apiCall,
-                    promptTokens: usage?.promptTokenCount ?? null,
-                    outputTokens: usage?.candidatesTokenCount ?? null,
-                    cachedTokens: usage?.cachedContentTokenCount ?? null,
-                    totalTokens: usage?.totalTokenCount ?? null,
-                }));
-                return result;
-            };
+            // Echo the full assistant content (text + tool_use blocks) back
+            // unchanged, then answer every tool_use id exactly once — all
+            // results in a single user turn.
+            messages.push({ role: 'assistant', content: currentResult.content });
 
-            // Multi-turn tool-call loop.
-            //
-            // Gemini-д олон шатлалт tool call хийж болно (жишээ нь:
-            // search_products → add_to_cart → create_order). Тиймээс нэг сонгон
-            // авалтанд хязгаарлахгүй — max iteration-оор аюулгүй болго.
-            const MAX_TOOL_ITERATIONS = 5;
+            const toolResponses: Array<Record<string, unknown>> = [];
+            const toolResults: Anthropic.ToolResultBlockParam[] = [];
+            for (const fc of functionCalls) {
+                const response = await runToolCall(fc);
+                toolResponses.push(response);
+                toolResults.push({
+                    type: 'tool_result',
+                    tool_use_id: fc.id,
+                    content: JSON.stringify(response),
+                    ...('error' in response ? { is_error: true } : {}),
+                });
+            }
+            messages.push({ role: 'user', content: toolResults });
+            lastToolResponses = toolResponses;
 
-            const toolContext: ToolExecutionContext = {
+            // Send tool results back — the response may be:
+            //  a) plain text (loop exits)
+            //  b) more tool calls (loop continues)
+            currentResult = await complete(messages);
+            finalResponseText = extractText(currentResult);
+            totalTokensConsumed += totalTokens(currentResult.usage);
+        }
+
+        if (iteration === MAX_TOOL_ITERATIONS && getToolUses(currentResult).length > 0) {
+            logger.warn('AIRouter hit MAX_TOOL_ITERATIONS — using last partial result', {
                 shopId: context.shopId,
                 customerId: context.customerId,
-                customerName: context.customerName,
-                products: context.products,
-                notifySettings: context.notifySettings,
-                // Lets shared handlers branch on the shop's archetype instead of
-                // assuming commerce (see ToolExecutionContext.capabilities).
-                capabilities: agentCapabilities,
-                // Per-reply set so the cart handler can ignore Gemini-side
-                // duplicate add_to_cart firings within one chat turn.
-                addToCartKeys: new Set<string>(),
-            };
+            });
+        }
 
-            const extractText = (res: Awaited<ReturnType<typeof chat.sendMessage>>): string => {
-                try {
-                    return res.response.text?.() || '';
-                } catch {
-                    return '';
-                }
-            };
+        // Empty-text fallback after tool loop
+        if (iteration > 0 && !finalResponseText.trim()) {
+            logger.warn('Claude returned empty after tool call loop', {
+                iterations: iteration,
+                stopReason: currentResult.stop_reason,
+                refusal: currentResult.stop_reason === 'refusal',
+            });
 
-            // Initial turn
-            let currentResult = await sendMessage(message);
-            let finalResponseText = extractText(currentResult);
+            const lastToolMessage = lastToolResponses
+                .map(r => r.message)
+                .filter((m): m is string => typeof m === 'string' && m.length > 0)
+                .pop();
 
-            let totalTokensConsumed = currentResult.response.usageMetadata?.totalTokenCount || 0;
-            let lastFunctionResponseParts: Part[] = [];
-            let iteration = 0;
+            if (lastToolMessage) {
+                logger.info('Using tool message as fallback');
+                finalResponseText = lastToolMessage;
+            }
+        }
 
-            // Tool-call loop — continues as long as Gemini keeps requesting tools
-            while (iteration < MAX_TOOL_ITERATIONS) {
-                const functionCalls = currentResult.response.functionCalls?.();
-                if (!functionCalls || functionCalls.length === 0) break;
-                if (!planConfig.features.toolCalling) break;
+        // No-tool-calls empty-response retry (original behavior)
+        if (iteration === 0 && !finalResponseText.trim()) {
+            logger.warn('Claude returned empty, retrying once...', {
+                stopReason: currentResult.stop_reason,
+            });
 
-                iteration++;
-                logger.info(`Gemini tool-call iteration ${iteration}:`, {
-                    count: functionCalls.length,
-                    names: functionCalls.map(fc => fc.name),
+            const retryResult = await complete([
+                ...messages.slice(0, -1),
+                { role: 'user', content: message + '\n\n(Хэрэглэгчид заавал хариу бичнэ үү)' },
+            ]);
+            finalResponseText = extractText(retryResult);
+            totalTokensConsumed += totalTokens(retryResult.usage);
+
+            if (!finalResponseText.trim()) {
+                logger.warn('Claude still empty after retry', {
+                    historyLength: messages.length,
                 });
-
-                const functionResponseParts: Part[] = [];
-
-                for (const fc of functionCalls) {
-                    if (productDetailsOnDemand && fc.name === PRODUCT_DETAILS_TOOL.name) {
-                        functionResponseParts.push({ functionResponse: {
-                            name: fc.name,
-                            response: getProductDetails(context.products, (fc.args || {}) as Record<string, unknown>),
-                        } });
-                        continue;
-                    }
-                    const functionName = fc.name as ToolName;
-
-                    if (!isToolEnabledForPlan(functionName, planType, enabledToolsOverride)) {
-                        logger.warn(`Tool ${functionName} not enabled for ${planType} plan`);
-                        functionResponseParts.push({
-                            functionResponse: {
-                                name: fc.name,
-                                response: {
-                                    error: `Энэ боломж (${functionName}) одоогийн ${planType} багцад идэвхгүй байна. Pro багц руу шилжвэл захиалга, төлбөр төлөх, дэлгэрэнгүй тайлан зэрэг бүх боломж нээгдэнэ! 🚀`
-                                }
-                            }
-                        });
-                        continue;
-                    }
-
-                    if (allowedToolNames.size > 0 && !allowedToolNames.has(functionName)) {
-                        logger.warn(`Tool ${functionName} not allowed for agent role ${agentRole}`);
-                        functionResponseParts.push({
-                            functionResponse: {
-                                name: fc.name,
-                                response: {
-                                    error: `Энэ AI agent (${agentRole}) тус үүргэд "${functionName}" tool ашиглах боломжгүй. AI Settings-ээс үүрэг тохируулна уу.`
-                                }
-                            }
-                        });
-                        continue;
-                    }
-
-                    const args = (fc.args || {}) as Record<string, unknown>;
-                    logger.info(`Executing tool: ${functionName}`, { data: args as Record<string, unknown> });
-
-                    const toolResult: ToolExecutionResult = await executeTool(
-                        functionName,
-                        args,
-                        toolContext
-                    );
-
-                    if (toolResult.imageAction) {
-                        imageAction = toolResult.imageAction;
-                    }
-
-                    if (toolResult.quickReplies && toolResult.quickReplies.length > 0) {
-                        quickReplies = toolResult.quickReplies;
-                    }
-
-                    if (toolResult.actions && toolResult.actions.length > 0) {
-                        actions = [...(actions || []), ...toolResult.actions];
-                    }
-
-                    functionResponseParts.push({
-                        functionResponse: {
-                            name: fc.name,
-                            response: toolResult.success
-                                ? { success: true, message: toolResult.message, ...toolResult.data }
-                                : { error: toolResult.error }
-                        }
-                    });
-                }
-
-                lastFunctionResponseParts = functionResponseParts;
-
-                // Send tool results back to Gemini — the response may be:
-                //  a) plain text (loop exits)
-                //  b) more function calls (loop continues)
-                currentResult = await sendMessage(functionResponseParts);
-                finalResponseText = extractText(currentResult);
-                totalTokensConsumed += currentResult.response.usageMetadata?.totalTokenCount || 0;
-            }
-
-            if (iteration === MAX_TOOL_ITERATIONS) {
-                const stillCalling = (currentResult.response.functionCalls?.() ?? []).length > 0;
-                if (stillCalling) {
-                    logger.warn('AIRouter hit MAX_TOOL_ITERATIONS — using last partial result', {
-                        shopId: context.shopId,
-                        customerId: context.customerId,
-                    });
-                }
-            }
-
-            // Empty-text fallback after tool loop
-            if (iteration > 0 && !finalResponseText.trim()) {
-                const candidates = currentResult.response.candidates;
-                logger.warn('Gemini returned empty after tool call loop', {
-                    iterations: iteration,
-                    candidateCount: candidates?.length,
-                    finishReason: candidates?.[0]?.finishReason,
-                    safetyRatings: candidates?.[0]?.safetyRatings?.map(r => ({ category: r.category, probability: r.probability })),
-                    partTypes: candidates?.[0]?.content?.parts?.map(p => Object.keys(p)),
-                });
-
-                const lastToolMessage = lastFunctionResponseParts
-                    .map(p => (p.functionResponse?.response as Record<string, unknown>)?.message)
-                    .filter(Boolean)
-                    .pop() as string | undefined;
-
-                if (lastToolMessage) {
-                    logger.info('Using tool message as fallback');
-                    finalResponseText = lastToolMessage;
-                }
-            }
-
-            // No-tool-calls empty-response retry (original behavior)
-            if (iteration === 0 && !finalResponseText.trim()) {
-                logger.warn('Gemini returned empty, retrying once...');
-
-                const retryResult = await sendMessage(
-                    message + '\n\n(Хэрэглэгчид заавал хариу бичнэ үү)'
-                );
-                finalResponseText = extractText(retryResult);
-                totalTokensConsumed += retryResult.response.usageMetadata?.totalTokenCount || 0;
-
-                if (!finalResponseText.trim()) {
-                    logger.warn('Gemini still empty after retry', {
-                        historyLength: geminiHistory.length,
-                    });
-                } else {
-                    logger.info('Gemini retry succeeded');
-                }
-            }
-
-            if (totalTokensConsumed > 0) {
-                logger.info('Token usage (total across all calls):', {
-                    toolIterations: iteration,
-                    totalTokens: totalTokensConsumed,
-                });
-            }
-
-            // Persist token usage to user pool + shop analytics (non-blocking).
-            if (context.userId) {
-                persistTokenUsage(context.userId, context.shopId, totalTokensConsumed, 'chat_reply', {
-                    model: planConfig.model,
-                }).catch(() => {});
             } else {
-                persistTokenUsage(context.shopId, totalTokensConsumed, 'chat_reply', {
-                    model: planConfig.model,
-                }).catch(() => {});
+                logger.info('Claude retry succeeded');
             }
+        }
 
-            logger.success(`AIRouter response received (${planType}/${planConfig.model}, ${totalTokensConsumed} tokens)`);
+        if (totalTokensConsumed > 0) {
+            logger.info('Token usage (total across all calls):', {
+                toolIterations: iteration,
+                totalTokens: totalTokensConsumed,
+            });
+        }
 
-            const tokensRemaining = Math.max(0, tokenLimitCheck.remaining - totalTokensConsumed);
-            return {
-                text: finalResponseText,
-                imageAction,
-                quickReplies,
-                actions,
-                usage: {
-                    plan: planType,
-                    model: planConfig.model,
-                    messagesUsed: messageCount + 1,
-                    tokensUsed: totalTokensConsumed,
-                    tokensRemaining,
-                    tokenUsagePercent: tokenLimitCheck.usagePercent,
-                    creditsUsed: tokensToCredits(currentTokenUsage + totalTokensConsumed),
-                    creditsRemaining: Math.floor(tokensRemaining / 1000),
-                    creditsLimit,
-                },
-            };
-        });
+        // Persist token usage to user pool + shop analytics (non-blocking).
+        if (context.userId) {
+            persistTokenUsage(context.userId, context.shopId, totalTokensConsumed, 'chat_reply', {
+                model: backendModel,
+            }).catch(() => {});
+        } else {
+            persistTokenUsage(context.shopId, totalTokensConsumed, 'chat_reply', {
+                model: backendModel,
+            }).catch(() => {});
+        }
+
+        logger.success(`AIRouter response received (${planType}/${backendModel}, ${totalTokensConsumed} tokens)`);
+
+        const tokensRemaining = Math.max(0, tokenLimitCheck.remaining - totalTokensConsumed);
+        return {
+            text: finalResponseText,
+            imageAction,
+            quickReplies,
+            actions,
+            usage: {
+                plan: planType,
+                model: planConfig.model,
+                messagesUsed: messageCount + 1,
+                tokensUsed: totalTokensConsumed,
+                tokensRemaining,
+                tokenUsagePercent: tokenLimitCheck.usagePercent,
+                creditsUsed: tokensToCredits(currentTokenUsage + totalTokensConsumed),
+                creditsRemaining: Math.floor(tokensRemaining / 1000),
+                creditsLimit,
+            },
+        };
 
     } catch (error: unknown) {
         const err = error as { message?: string; stack?: string; name?: string; status?: number };
@@ -769,7 +708,7 @@ export async function routeToAI(
 
 /**
  * Analyze product image using vision (plan-dependent)
- * Uses gemini-3.1-flash-lite for vision analysis
+ * Uses the Claude model (Haiku 5.5) for vision analysis
  *
  * `shopId` is optional for backward compatibility, but callers should pass it
  * so vision tokens get attributed to the right shop in the breakdown.
@@ -799,13 +738,12 @@ export async function analyzeProductImageWithPlan(
     }
 
     try {
-        // Use GeminiProvider for vision
-        const { GeminiProvider } = await import('./providers/GeminiProvider');
-        const visionModel = 'gemini-3.1-flash-lite';
-        const geminiVision = new GeminiProvider(visionModel);
+        const { AnthropicProvider } = await import('./providers/AnthropicProvider');
+        const visionModel = resolveBackendModel(planConfig.model);
+        const visionProvider = new AnthropicProvider(visionModel);
 
-        if (!geminiVision.isAvailable()) {
-            logger.warn('Gemini not available for vision');
+        if (!visionProvider.isAvailable()) {
+            logger.warn('Anthropic not available for vision');
             return { matchedProduct: null, matchedProductId: null, confidence: 0, description: 'Vision API тохируулагдаагүй байна.' };
         }
 
@@ -813,13 +751,13 @@ export async function analyzeProductImageWithPlan(
         // analyzeImage image-to-image тааруулалт хийдэг тул бараа бүрийн
         // image_url/images-ийг дамжуулна (байгаа бол). Зураггүй бараа нэрээр
         // танигдана.
-        const result = await geminiVision.analyzeImage(imageUrl, products as unknown as import('@/types/ai').AIProduct[]);
+        const result = await visionProvider.analyzeImage(imageUrl, products as unknown as import('@/types/ai').AIProduct[]);
 
         if (shopId && result.tokensUsed && result.tokensUsed > 0) {
             persistTokenUsage(shopId, result.tokensUsed, 'vision', { model: visionModel }).catch(() => {});
         }
 
-        logger.success('Gemini Vision analysis complete', {
+        logger.success('Vision analysis complete', {
             matched: result.matchedProduct,
             confidence: result.confidence,
             tokensUsed: result.tokensUsed,

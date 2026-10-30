@@ -13,7 +13,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import type { TokenFeature } from './tokenFeatures';
 
 export interface TokenUsageMeta {
-    /** Model identifier (e.g. 'gemini-3.1-flash-lite'). Reserved for future per-model breakdowns. */
+    /** Model identifier (e.g. 'claude-haiku-5-5'). Reserved for future per-model breakdowns. */
     model?: string;
     /** Optional request id for log correlation. */
     requestId?: string;

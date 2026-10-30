@@ -1,54 +1,54 @@
 /**
- * Gemini Provider Implementation
+ * Anthropic Provider Implementation (Claude Haiku 5.5 by default)
  */
 
-import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
+import type Anthropic from '@anthropic-ai/sdk';
 import { logger } from '@/lib/utils/logger';
 import type { ChatContext, ChatMessage, ChatResponse, AIProduct } from '@/types/ai';
 import type { AIProviderInterface, VisionResult, ChatOptions } from './AIProvider';
 import { buildSystemPrompt } from '../services/PromptService';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import {
+    AI_REQUEST_DEFAULTS,
+    extractText,
+    getAnthropic,
+    isAnthropicConfigured,
+    resolveBackendModel,
+    totalTokens,
+} from '../anthropicClient';
 
 /**
  * Vision image-to-image тааруулалтын inline-зургийн хязгаарлалтууд.
- * generateContent inline body нь ~20MB-аар хязгаарлагдсан тул нэг зураг болон
- * нийт хэмжээг хязгаарлаж, prompt-д зай үлдээнэ.
+ * Зургийг base64 data URL-ээр шууд дамжуулдаг тул нэг зураг болон нийт
+ * хэмжээг хязгаарлаж, request body-г боломжийн хэмжээнд барина.
  */
 const MAX_VISION_CANDIDATES = 8;
 const MAX_INLINE_IMAGE_BYTES = 4 * 1024 * 1024;   // нэг зураг (base64-ийн өмнө)
-const MAX_TOTAL_INLINE_BYTES = 15 * 1024 * 1024;  // нийт base64 урт (~20MB cap-аас доош)
+const MAX_TOTAL_INLINE_BYTES = 15 * 1024 * 1024;  // нийт base64 урт
+
+/** Image formats the Messages API accepts as base64 image blocks. */
+type SupportedImageType = Anthropic.Base64ImageSource['media_type'];
+const SUPPORTED_IMAGE_TYPES: ReadonlySet<string> = new Set<SupportedImageType>([
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+]);
+
+const toImageBlock = (img: { mimeType: string; data: string }): Anthropic.ImageBlockParam => ({
+    type: 'image',
+    source: { type: 'base64', media_type: img.mimeType as SupportedImageType, data: img.data },
+});
 
 /**
- * Retry with exponential backoff
+ * Anthropic AI Provider
  */
-async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
-    try {
-        return await operation();
-    } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : '';
-        if (retries > 0 && (errorMessage.includes('503') || errorMessage.includes('overloaded'))) {
-            logger.warn(`Gemini overloaded, retrying in ${delay}ms... (${retries} retries left)`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return retryOperation(operation, retries - 1, delay * 2);
-        }
-        throw error;
-    }
-}
-
-/**
- * Gemini AI Provider
- */
-export class GeminiProvider implements AIProviderInterface {
-    readonly name = 'gemini';
+export class AnthropicProvider implements AIProviderInterface {
+    readonly name = 'anthropic';
     readonly model: string;
 
-    constructor(model: string = 'gemini-3.1-flash-lite') {
-        this.model = model;
+    constructor(model?: string) {
+        this.model = resolveBackendModel(model);
     }
 
     isAvailable(): boolean {
-        return !!process.env.GEMINI_API_KEY;
+        return isAnthropicConfigured();
     }
 
     async generateChatResponse(
@@ -59,40 +59,37 @@ export class GeminiProvider implements AIProviderInterface {
     ): Promise<ChatResponse> {
         const systemPrompt = buildSystemPrompt(context);
 
-        // Convert ChatMessage to Gemini Content format
-        const geminiHistory: Content[] = history.map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-        }));
+        const turns = history
+            .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
+            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+        // The first turn must be `user`.
+        const firstUser = turns.findIndex(m => m.role === 'user');
+        const messages: Anthropic.MessageParam[] = [
+            ...(firstUser === -1 ? [] : turns.slice(firstUser)),
+            { role: 'user', content: message },
+        ];
 
-        logger.info(`Gemini Provider: Sending to ${this.model}...`);
+        logger.info(`Anthropic Provider: Sending to ${this.model}...`);
 
-        return await retryOperation(async () => {
-            const chatModel = genAI.getGenerativeModel({
-                model: this.model,
-                systemInstruction: systemPrompt,
-                generationConfig: {
-                    temperature: options?.temperature || 0.7,
-                    topP: 0.8,
-                    topK: 40,
-                    maxOutputTokens: options?.maxTokens || 1024,
-                },
-            });
-
-            const chat = chatModel.startChat({ history: geminiHistory });
-            const result = await chat.sendMessage(message);
-            const responseText = result.response.text();
-
-            logger.success('Gemini response received', { length: responseText.length });
-
-            return { text: responseText };
+        // Haiku 5.5 rejects sampling params, so options.temperature is ignored.
+        const result = await getAnthropic().messages.create({
+            model: this.model,
+            max_tokens: options?.maxTokens || 1024,
+            ...AI_REQUEST_DEFAULTS,
+            system: systemPrompt,
+            messages,
         });
+        const responseText = extractText(result);
+
+        logger.success('Anthropic response received', { length: responseText.length });
+
+        return { text: responseText };
     }
 
     /**
-     * Зургийн URL-г татаж Gemini inlineData болгоно. CDN линк хүчингүй (хугацаа
-     * дууссан / устсан) эсвэл зураг биш бол `null` буцаана — ингэснээр алдааны
-     * HTML body base64 болж Gemini руу орохоос сэргийлнэ (token дэмий зарцуулах,
+     * Зургийн URL-г татаж base64 болгоно (image block-д ашиглана). CDN линк хүчингүй
+     * (хугацаа дууссан / устсан) эсвэл зураг биш бол `null` буцаана — ингэснээр
+     * алдааны HTML body base64 болж model руу орохоос сэргийлнэ (token дэмий зарцуулах,
      * худал match гаргахаас хамгаална). AbortController-аар timeout тавина.
      * IG story / customer-upload CDN линкүүд богино хугацаатай тул чухал.
      */
@@ -109,10 +106,10 @@ export class GeminiProvider implements AIProviderInterface {
                 return null;
             }
             // content-type-ийн параметрийг (ж: "image/jpeg; charset=utf-8")
-            // хасаж зөвхөн bare MIME-г үлдээнэ — Gemini inlineData нь IANA bare
-            // type шаарддаг тул параметртэй утга INVALID_ARGUMENT өгдөг.
+            // хасаж зөвхөн bare MIME-г үлдээнэ — data URL-д параметртэй утга
+            // орвол зураг буруу танигдана.
             const mimeType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-            if (!mimeType.startsWith('image/')) {
+            if (!SUPPORTED_IMAGE_TYPES.has(mimeType)) {
                 logger.warn('fetchInlineImage: non-image content-type', { mimeType, url: url.substring(0, 80) });
                 return null;
             }
@@ -138,14 +135,7 @@ export class GeminiProvider implements AIProviderInterface {
         products: AIProduct[]
     ): Promise<VisionResult> {
         try {
-            logger.info('Gemini Vision: Analyzing image...', { imageUrl: imageUrl.substring(0, 80) });
-
-            const visionModel = genAI.getGenerativeModel({
-                model: this.model,
-                // Pure JSON хариу — model stray brace гаргаснаас болж parse
-                // алдахаас сэргийлнэ.
-                generationConfig: { responseMimeType: 'application/json' },
-            });
+            logger.info('Anthropic Vision: Analyzing image...', { imageUrl: imageUrl.substring(0, 80) });
 
             // Барааны эхний ХҮЧИНТЭЙ зургийн URL (хоосон мөр/undefined алгасна).
             const pickUrl = (p: AIProduct): string | undefined =>
@@ -168,7 +158,7 @@ export class GeminiProvider implements AIProviderInterface {
 
             // Татах эх зураг (хэрэглэгчийн / story зураг) хүчингүй бол шууд буцна.
             if (!mainImage) {
-                logger.warn('Gemini Vision: source image unavailable (expired/non-image)', {
+                logger.warn('Anthropic Vision: source image unavailable (expired/non-image)', {
                     imageUrl: imageUrl.substring(0, 80),
                 });
                 return {
@@ -179,7 +169,7 @@ export class GeminiProvider implements AIProviderInterface {
                 };
             }
 
-            // Нийт inline хэмжээний төсөв (generateContent ~20MB cap). base64
+            // Нийт inline хэмжээний төсөв. base64
             // урт ≈ raw bytes × 1.33 тул бага зэрэг хэт тооцох нь аюулгүй талдаа.
             let inlineBudgetLeft = MAX_TOTAL_INLINE_BYTES - mainImage.data.length;
             let droppedForSize = 0;
@@ -194,7 +184,7 @@ export class GeminiProvider implements AIProviderInterface {
             });
 
             if (droppedForCount > 0 || droppedForSize > 0) {
-                logger.info('Gemini Vision: candidate product images capped', {
+                logger.info('Anthropic Vision: candidate product images capped', {
                     withImages: withImages.length,
                     sent: candidateImages.length,
                     droppedForCount,
@@ -226,28 +216,35 @@ ${productList}
   "description": "Хэрэглэгчийн зураг дээр юу харагдаж байгааг товч монголоор тайлбарла"
 }`;
 
-            const parts: Part[] = [
-                { text: prompt },
-                { text: 'ХЭРЭГЛЭГЧийн зураг:' },
-                { inlineData: mainImage },
+            const parts: Anthropic.ContentBlockParam[] = [
+                { type: 'text', text: prompt },
+                { type: 'text', text: 'ХЭРЭГЛЭГЧийн зураг:' },
+                toImageBlock(mainImage),
             ];
             for (const c of candidateImages) {
-                parts.push({ text: `PRODUCT_ID=${c.id} | ${c.name}` });
-                parts.push({ inlineData: c.part });
+                parts.push({ type: 'text', text: `PRODUCT_ID=${c.id} | ${c.name}` });
+                parts.push(toImageBlock(c.part));
             }
 
-            const result = await visionModel.generateContent(parts);
+            const result = await getAnthropic().messages.create({
+                model: this.model,
+                max_tokens: 512,
+                ...AI_REQUEST_DEFAULTS,
+                // Pure JSON хариу — доорх regex parse stray текстийг тэсвэрлэнэ.
+                system: 'Respond with a single valid JSON object only — no code fences, no prose.',
+                messages: [{ role: 'user', content: parts }],
+            });
 
-            const responseText = result.response.text();
-            const tokensUsed = result.response.usageMetadata?.totalTokenCount ?? 0;
-            logger.success('Gemini Vision response received', { tokensUsed, candidateImages: candidateImages.length });
+            const responseText = extractText(result);
+            const tokensUsed = totalTokens(result.usage);
+            logger.success('Anthropic Vision response received', { tokensUsed, candidateImages: candidateImages.length });
 
             let parsed: VisionResult;
             try {
                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                 parsed = JSON.parse(jsonMatch ? jsonMatch[0] : responseText) as VisionResult;
             } catch (parseErr) {
-                logger.warn('Gemini Vision: response not parseable as JSON', {
+                logger.warn('Anthropic Vision: response not parseable as JSON', {
                     error: String(parseErr),
                     sample: responseText.slice(0, 120),
                 });
@@ -263,7 +260,7 @@ ${productList}
             const matchedProductId = normNull(parsed.matchedProductId);
             const matchedProduct = normNull(parsed.matchedProduct);
             const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
-            logger.success('Gemini Vision analysis complete', {
+            logger.success('Anthropic Vision analysis complete', {
                 matched: matchedProduct,
                 matchedId: matchedProductId,
                 confidence,
@@ -271,7 +268,7 @@ ${productList}
             return { ...parsed, matchedProduct, matchedProductId, confidence, tokensUsed };
         } catch (error: unknown) {
             const err = error as Error;
-            logger.error('Gemini Vision Error:', { message: err.message });
+            logger.error('Anthropic Vision Error:', { message: err.message });
             return { matchedProduct: null, matchedProductId: null, confidence: 0, description: 'Зураг боловсруулахад алдаа гарлаа.' };
         }
     }

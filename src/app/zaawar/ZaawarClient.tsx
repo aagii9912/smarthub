@@ -10,6 +10,7 @@ import {
     Check,
     ChevronRight,
     ExternalLink,
+    Film,
     Lightbulb,
     Play,
     X,
@@ -433,6 +434,51 @@ export default function ZaawarClient() {
                             onClick={() => setActiveId(null)}
                             className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
                         />
+
+                        {/* ───── Зүүн талын видео тайз (зөвхөн desktop) ───── */}
+                        <motion.div
+                            key={`stage-${active.id}`}
+                            initial={{ opacity: 0, scale: 0.97 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.97 }}
+                            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                            className="hidden md:flex fixed left-0 top-0 bottom-0 right-[440px] z-[45] items-center justify-center p-8 lg:p-14 pointer-events-none"
+                        >
+                            {active.video ? (
+                                <div className="pointer-events-auto w-full max-w-3xl">
+                                    <div className="flex items-center gap-2 mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/55">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${active.color.badge}`} />
+                                        Видео заавар
+                                    </div>
+                                    <div className="relative rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl shadow-black/60 bg-black">
+                                        <video
+                                            key={active.video}
+                                            src={active.video}
+                                            poster={active.poster}
+                                            controls
+                                            autoPlay
+                                            muted
+                                            loop
+                                            playsInline
+                                            className="block w-full h-auto"
+                                        />
+                                    </div>
+                                    <p className="mt-3 text-xs text-white/40">
+                                        {active.title} — бодит дэлгэцийн бичлэг
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="pointer-events-auto w-full max-w-md text-center">
+                                    <div className="rounded-2xl ring-1 ring-white/10 bg-white/[0.03] px-8 py-16">
+                                        <Film className={`w-10 h-10 mx-auto mb-4 ${active.color.text}`} />
+                                        <p className="text-sm text-white/55">
+                                            Энэ сэдвийн видео удахгүй нэмэгдэнэ.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+
                         <motion.div
                             key={active.id}
                             ref={panelRef}
@@ -472,6 +518,21 @@ export default function ZaawarClient() {
 
                             {/* Алхамууд */}
                             <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+                                {active.video && (
+                                    <div className="md:hidden mb-5 rounded-xl overflow-hidden ring-1 ring-white/10 bg-black">
+                                        <video
+                                            key={`m-${active.video}`}
+                                            src={active.video}
+                                            poster={active.poster}
+                                            controls
+                                            autoPlay
+                                            muted
+                                            loop
+                                            playsInline
+                                            className="block w-full"
+                                        />
+                                    </div>
+                                )}
                                 <p className="text-sm text-white/55 mb-6">{active.short}</p>
                                 <div className="relative">
                                     <span className="absolute left-[13px] top-2 bottom-2 w-px bg-white/[0.08]" aria-hidden />

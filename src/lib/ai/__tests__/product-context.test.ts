@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildProductsInfo, buildSystemPrompt } from '../services/PromptService';
-import { getProductDetails, productDescription, needsProductDetails } from '../services/ProductContext';
+import {
+    buildMentionedProductDetails, getProductDetails, productDescription, needsProductDetails,
+} from '../services/ProductContext';
 import type { AIProduct } from '@/types/ai';
 
 const product: AIProduct = {
@@ -29,12 +31,32 @@ describe('on-demand product context', () => {
 
     it('prefetches an explicitly named product but never a partial name or oversized text', () => {
         const named = { ...product, description: 'Дэлгэрэнгүй. '.repeat(70) };
-        expect(productDescription(named, true, 'ТЕСТ БАРАА хэд вэ?')).toBe(named.description);
-        expect(productDescription(named, true, 'Тест бараанууд байна уу?')).not.toBe(named.description);
-        expect(productDescription(product, true, 'Тест бараа')).not.toBe(product.description);
+        expect(buildMentionedProductDetails([named], true, 'ТЕСТ БАРАА хэд вэ?')).toContain(named.description);
+        expect(buildMentionedProductDetails([named], true, 'Тест бараанууд байна уу?')).toBe('');
+        expect(buildMentionedProductDetails([product], true, 'Тест бараа')).toBe('');
+        expect(buildMentionedProductDetails([named], false, 'Тест бараа')).toBe('');
+        expect(buildMentionedProductDetails([{ ...named, status: 'draft' }], true, 'Тест бараа')).toBe('');
         expect(needsProductDetails([{ ...product, description: 'Богино' }])).toBe(false);
         expect(needsProductDetails([{ ...product, status: 'draft' }])).toBe(false);
         expect(needsProductDetails([product])).toBe(true);
+    });
+
+    it('keeps the shop-level prefix identical across customers and messages', () => {
+        const named = { ...product, description: 'Дэлгэрэнгүй. '.repeat(70) };
+        const base = { shopId: 'shop', shopName: 'Shop', products: [named] };
+        const a = buildSystemPrompt({ ...base, customerName: 'Бат',
+            activeCart: { id: 'c1', total_amount: 50000, items: [{ id: 'i1', product_id: 'visible',
+                name: 'Тест бараа', variant_specs: {}, quantity: 1, unit_price: 50000 }] } },
+            true, 'Тест бараа хэд вэ?');
+        const b = buildSystemPrompt({ ...base, customerName: 'Дорж' }, true, 'Сайн байна уу');
+        const marker = '=== ЭНЭ ХАРИЛЦАГЧ / ЭНЭ ЯРИА ===';
+        const prefixA = a.slice(0, a.indexOf(marker));
+        expect(prefixA).toBe(b.slice(0, b.indexOf(marker)));
+        expect(prefixA).toContain('БҮТЭЭГДЭХҮҮН/ҮЙЛЧИЛГЭЭ');
+        for (const perCustomer of ['Бат', 'САГСАНД', named.description]) {
+            expect(prefixA).not.toContain(perCustomer);
+            expect(a.slice(a.indexOf(marker))).toContain(perCustomer);
+        }
     });
 
     it('retrieves every character in bounded pages without losing the tail', () => {

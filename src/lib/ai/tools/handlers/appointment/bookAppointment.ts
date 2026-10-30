@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { UB_TIMEZONE, parseUbDateTime, ubDayStart, ubHour, ubWeekday } from '@/lib/operator/time';
 import type { BookAppointmentArgs } from '../../definitions';
 import type { ToolExecutionResult, ToolExecutionContext } from '../../../services/ToolExecutor';
 
@@ -29,7 +30,8 @@ function isWithinWorkingHours(scheduled: Date, start: string | null, end: string
     const s = parseTimeOfDay(start);
     const e = parseTimeOfDay(end);
     if (!s || !e) return true;
-    const minutes = scheduled.getHours() * 60 + scheduled.getMinutes();
+    // UB offset бүхэл цаг тул UTC минут == UB минут.
+    const minutes = ubHour(scheduled) * 60 + scheduled.getUTCMinutes();
     return minutes >= s.h * 60 + s.m && minutes < e.h * 60 + e.m;
 }
 
@@ -82,8 +84,9 @@ export async function executeBookAppointment(
         };
     }
 
-    // Validate the timestamp
-    const scheduled = new Date(scheduled_at);
+    // Validate the timestamp. Offset-less input is customer wall-clock time
+    // in Ulaanbaatar, not the server's UTC.
+    const scheduled = parseUbDateTime(scheduled_at);
     if (Number.isNaN(scheduled.getTime())) {
         return { success: false, error: `Огноо буруу форматтай байна (ISO 8601 шаардана).` };
     }
@@ -93,7 +96,7 @@ export async function executeBookAppointment(
 
     // Day-of-week check
     if (product.available_days && product.available_days.length > 0) {
-        const dayName = WEEKDAYS_MN[scheduled.getDay()];
+        const dayName = WEEKDAYS_MN[ubWeekday(scheduled)];
         if (!product.available_days.includes(dayName)) {
             return {
                 success: false,
@@ -112,10 +115,8 @@ export async function executeBookAppointment(
 
     // Per-day capacity check
     if (product.max_bookings_per_day && product.max_bookings_per_day > 0) {
-        const dayStart = new Date(scheduled);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(dayStart);
-        dayEnd.setDate(dayEnd.getDate() + 1);
+        const dayStart = ubDayStart(scheduled);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
         const { count } = await supabase
             .from('appointments')
@@ -173,7 +174,7 @@ export async function executeBookAppointment(
 
     const slotLabel = scheduled.toLocaleString('mn-MN', {
         year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit', timeZone: UB_TIMEZONE
     });
 
     return {

@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Features {
     ai_enabled: boolean;
-    /** Gemini model id, e.g. 'gemini-3.1-flash-lite' (see lib/ai/config/plans.ts) */
+    /** AI model id, e.g. 'claude-haiku-5-5' (see lib/ai/config/plans.ts) */
     ai_model: string;
     sales_intelligence: boolean;
     ai_memory: boolean;

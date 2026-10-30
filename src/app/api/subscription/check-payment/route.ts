@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserShop, getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { checkPaymentStatus, isPaymentCompleted } from '@/lib/payment/qpay';
+import { normalizePlanSlug } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 import { upsertUserSubscription } from '@/lib/billing/subscriptionUpsert';
 
@@ -214,6 +215,11 @@ export async function POST(request: NextRequest) {
                 const candidates = ['professional', 'enterprise', 'starter', 'pro', 'lite'];
                 resolvedSlug = candidates.find((slug) => desc.includes(slug)) ?? null;
             }
+
+            // Canonicalize ('professional' -> 'pro', 'Starter' -> 'starter') so the
+            // plan lookup below and every downstream write use the slug that
+            // actually exists in `plans`.
+            resolvedSlug = normalizePlanSlug(resolvedSlug);
 
             if (!resolvedSlug) {
                 logger.error('Cannot resolve plan slug for activation', {

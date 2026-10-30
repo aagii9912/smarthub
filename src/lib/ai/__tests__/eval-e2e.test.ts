@@ -1,14 +1,17 @@
+// @vitest-environment node
 /**
  * End-to-End AI Eval Tests
- * Tests real Gemini API responses (only runs when GEMINI_API_KEY is set)
+ * Tests real Claude API responses. Opt-in only: src/test/setup.ts stubs
+ * ANTHROPIC_API_KEY with a fake value and mocks fetch, so this suite must not
+ * run in the normal unit-test pass.
  *
- * Run: GEMINI_API_KEY=xxx npx vitest run src/lib/ai/__tests__/eval-e2e.test.ts
+ * Run: RUN_AI_E2E=1 npx vitest run src/lib/ai/__tests__/eval-e2e.test.ts
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { assertMongolian } from './eval-scorer';
 
-const HAS_API_KEY = !!process.env.GEMINI_API_KEY;
+const HAS_API_KEY = process.env.RUN_AI_E2E === '1';
 
 // Conditional describe — skip all tests if no API key
 const describeE2E = HAS_API_KEY ? describe : describe.skip;

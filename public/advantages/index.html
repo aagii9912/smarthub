@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Syncly — Давуу талууд</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Syncly brand palette */
+    --c-bg-0: #06060f;
+    --c-bg-1: #0b0b18;
+    --c-bg-2: #12122a;
+    --c-indigo: #818cf8;
+    --c-indigo-600: #6366f1;
+    --c-violet: #a78bfa;
+    --c-violet-600: #8b5cf6;
+    --c-cyan: #22d3ee;
+    --c-blue: #60a5fa;
+    --c-emerald: #34d399;
+    --c-amber: #fbbf24;
+    --c-sky: #38bdf8;
+    --c-fuchsia: #e879f9;
+    --c-rose: #fb7185;
+    --c-text: #f5f4ff;
+    --c-text-dim: #a8a5c8;
+    --c-text-faint: #6b6890;
+    --c-line: rgba(255,255,255,0.08);
+    --c-card: rgba(255,255,255,0.04);
+    --font: 'Inter', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --accent: var(--c-indigo);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#000; overflow:hidden; font-family:var(--font); }
+
+  #viewport {
+    position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(1200px 700px at 50% -10%, rgba(99,102,241,0.18), transparent 60%),
+      radial-gradient(800px 600px at 110% 40%, rgba(139,92,246,0.10), transparent 60%),
+      radial-gradient(700px 600px at -10% 80%, rgba(34,211,238,0.06), transparent 60%),
+      var(--c-bg-0);
+  }
+  #stage {
+    position:absolute; left:50%; top:50%;
+    width:1920px; height:1080px;
+    transform: translate(-50%,-50%) scale(var(--scale, 1));
+    transform-origin:center center;
+    border-radius: 28px;
+    overflow:hidden;
+    background:
+      radial-gradient(1000px 600px at 50% -8%, rgba(129,140,248,0.16), transparent 55%),
+      linear-gradient(180deg, #0a0a16 0%, #06060f 70%);
+    box-shadow: 0 60px 160px -40px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  /* faint grid texture shared across all scenes */
+  #stage::before {
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:0.5;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+  #stage-inner { position:absolute; inset:0; }
+
+  /* Each scene mounts here; scenes design at 1920x1080 absolute coords */
+  .scene { position:absolute; inset:0; }
+
+  /* ---- top brand bar (always visible during core scenes) ---- */
+  #chrome {
+    position:absolute; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 38px 56px; pointer-events:none;
+    opacity:0; transition: opacity .5s ease;
+  }
+  #chrome.show { opacity:1; }
+  #chrome .brand { display:flex; align-items:center; gap:14px; }
+  #chrome .logo {
+    width:40px; height:40px; border-radius:11px;
+    background: linear-gradient(135deg, var(--c-indigo-600), var(--c-violet-600));
+    display:grid; place-items:center; color:#fff; font-weight:900; font-size:22px;
+    box-shadow: 0 8px 24px -6px rgba(99,102,241,0.6);
+  }
+  #chrome .brand span { color:var(--c-text); font-weight:700; font-size:24px; letter-spacing:-0.02em; }
+  #chrome .tag { color:var(--c-text-faint); font-weight:600; font-size:18px; letter-spacing:0.18em; text-transform:uppercase; }
+
+  /* ---- progress bar ---- */
+  #progress {
+    position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+    z-index:30; display:flex; gap:8px;
+  }
+  #progress .seg { width:64px; height:5px; border-radius:99px; background:rgba(255,255,255,0.14); overflow:hidden; }
+  #progress .seg .fill { display:block; height:100%; width:0%; background:var(--accent); border-radius:99px; }
+  #progress .seg.done .fill { width:100%; }
+
+  /* ---- controls (hidden during render) ---- */
+  #controls {
+    position:absolute; bottom:26px; right:34px; z-index:40;
+    display:flex; gap:10px; opacity:0; transition:opacity .25s;
+  }
+  #viewport:hover #controls { opacity:1; }
+  #controls button {
+    width:46px; height:46px; border-radius:50%; border:1px solid var(--c-line);
+    background:rgba(255,255,255,0.06); color:var(--c-text); font-size:18px;
+    cursor:pointer; backdrop-filter:blur(8px); transition:background .2s;
+  }
+  #controls button:hover { background:rgba(255,255,255,0.14); }
+
+  /* ===== shared scene helpers (scenes may use these) ===== */
+  .s-kicker {
+    display:inline-flex; align-items:center; gap:12px;
+    font-size:22px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .s-kicker .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 18px var(--accent); }
+  .s-title { font-size:78px; font-weight:800; line-height:1.05; letter-spacing:-0.03em; color:var(--c-text); }
+  .s-sub { font-size:30px; font-weight:500; line-height:1.45; color:var(--c-text-dim); }
+
+  @keyframes sk-up { from { opacity:0; transform:translateY(40px);} to {opacity:1; transform:translateY(0);} }
+  @keyframes sk-in { from { opacity:0; transform:scale(.94);} to {opacity:1; transform:scale(1);} }
+  @keyframes sk-float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);} }
+
+  @media (prefers-reduced-motion: reduce) { * { animation-duration:0.001ms !important; } }
+</style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="stage">
+      <div id="chrome">
+        <div class="brand"><div class="logo">S</div><span>Syncly</span></div>
+        <div class="tag" id="chrome-tag">Давуу талууд</div>
+      </div>
+      <div id="stage-inner"></div>
+      <div id="progress"></div>
+      <div id="controls">
+        <button id="btn-prev" title="Өмнөх">‹</button>
+        <button id="btn-play" title="Тоглуулах/Зогсоох">⏸</button>
+        <button id="btn-next" title="Дараах">›</button>
+        <button id="btn-replay" title="Эхнээс">↺</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Intro & Outro scenes (built-in) ===== -->
+  <script>
+  window.SYNCLY_SCENES = window.SYNCLY_SCENES || [];
+  // INTRO (id 0)
+  (function(){
+    const CSS = `
+    #scIntro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0;}
+    #scIntro .logo{width:128px;height:128px;border-radius:34px;background:linear-gradient(135deg,var(--c-indigo-600),var(--c-violet-600));display:grid;place-items:center;color:#fff;font-weight:900;font-size:66px;box-shadow:0 30px 80px -20px rgba(99,102,241,0.7);animation:scIntro-pop .9s cubic-bezier(.16,1,.3,1) both;}
+    #scIntro h1{margin-top:42px;font-size:120px;font-weight:900;letter-spacing:-0.04em;color:var(--c-text);animation:sk-up .8s cubic-bezier(.16,1,.3,1) .25s both;}
+    #scIntro .grad{background:linear-gradient(90deg,var(--c-indigo),var(--c-violet),var(--c-cyan));-webkit-background-clip:text;background-clip:text;color:transparent;}
+    #scIntro p{margin-top:18px;font-size:38px;font-weight:500;color:var(--c-text-dim);animation:sk-up .8s cubic-bezier(.16,1,.3,1) .45s both;}
+    #scIntro .pill{margin-top:40px;padding:16px 34px;border-radius:99px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-text);font-size:26px;font-weight:700;letter-spacing:.02em;animation:sk-up .8s cubic-bezier(.16,1,.3,1) .65s both;}
+    @keyframes scIntro-pop{0%{opacity:0;transform:scale(.6) rotate(-8deg);}60%{transform:scale(1.08) rotate(2deg);}100%{opacity:1;transform:scale(1) rotate(0);}}
+    `;
+    function mount(root){
+      if(!document.getElementById('scIntro-style')){const s=document.createElement('style');s.id='scIntro-style';s.textContent=CSS;document.head.appendChild(s);}
+      root.innerHTML = `<div id="scIntro">
+        <div class="logo">S</div>
+        <h1>Syncly-н <span class="grad">давуу талууд</span></h1>
+        <p>Таны бизнесийн 24/7 AI борлуулагч ба удирдлагын систем</p>
+        <div class="pill">6 шалтгаан — нэг дор</div>
+      </div>`;
+    }
+    window.SYNCLY_SCENES.push({id:0,key:'intro',title:'Танилцуулга',durationMs:4500,accent:'var(--c-indigo)',chrome:false,mount});
+  })();
+  // OUTRO (id 999)
+  (function(){
+    const CSS = `
+    #scOutro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+    #scOutro .glow{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(52,211,153,0.18),transparent 60%);animation:sk-in 1s ease both;}
+    #scOutro h2{position:relative;font-size:104px;font-weight:900;letter-spacing:-0.04em;color:var(--c-text);animation:sk-up .8s cubic-bezier(.16,1,.3,1) both;}
+    #scOutro p{position:relative;margin-top:20px;font-size:36px;color:var(--c-text-dim);animation:sk-up .8s cubic-bezier(.16,1,.3,1) .2s both;}
+    #scOutro .cta{position:relative;margin-top:54px;display:flex;align-items:center;gap:16px;padding:26px 56px;border-radius:99px;background:linear-gradient(135deg,var(--c-indigo-600),var(--c-violet-600));color:#fff;font-size:40px;font-weight:800;box-shadow:0 30px 80px -20px rgba(99,102,241,0.7);animation:sk-up .8s cubic-bezier(.16,1,.3,1) .4s both;}
+    #scOutro .url{position:relative;margin-top:34px;font-size:28px;font-weight:600;color:var(--c-text-faint);letter-spacing:.04em;animation:sk-up .8s ease .6s both;}
+    `;
+    function mount(root){
+      if(!document.getElementById('scOutro-style')){const s=document.createElement('style');s.id='scOutro-style';s.textContent=CSS;document.head.appendChild(s);}
+      root.innerHTML = `<div id="scOutro">
+        <div class="glow"></div>
+        <h2>Бэлэн үү?</h2>
+        <p>Ердөө 5 минутад дэлгүүрээ нээ.</p>
+        <div class="cta">Үнэгүй эхлүүлэх →</div>
+        <div class="url">syncly.mn</div>
+      </div>`;
+    }
+    window.SYNCLY_SCENES.push({id:999,key:'outro',title:'Төгсгөл',durationMs:5000,accent:'var(--c-emerald)',chrome:false,mount});
+  })();
+  </script>
+
+  <!-- ===== Core advantage scenes (built by workflow agents) ===== -->
+  <script src="scenes/scene1.js"></script>
+  <script src="scenes/scene2.js"></script>
+  <script src="scenes/scene3.js"></script>
+  <script src="scenes/scene4.js"></script>
+  <script src="scenes/scene5.js"></script>
+  <script src="scenes/scene6.js"></script>
+
+  <!-- ===== Controller ===== -->
+  <script>
+  (function(){
+    const stage = document.getElementById('stage');
+    const inner = document.getElementById('stage-inner');
+    const progressEl = document.getElementById('progress');
+    const chrome = document.getElementById('chrome');
+    const chromeTag = document.getElementById('chrome-tag');
+    const root = document.documentElement;
+
+    function fit(){
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const scale = Math.min(vw/1920, vh/1080) * 0.96;
+      root.style.setProperty('--scale', scale);
+    }
+    window.addEventListener('resize', fit); fit();
+
+    const scenes = (window.SYNCLY_SCENES||[]).slice().sort((a,b)=>a.id-b.id);
+    // build progress segments
+    scenes.forEach(()=>{ const seg=document.createElement('div'); seg.className='seg'; seg.innerHTML='<span class="fill"></span>'; progressEl.appendChild(seg); });
+    const segs = [...progressEl.children];
+
+    let i = 0, playing = true, timer = null, rafId = null;
+
+    function clearTimers(){ if(timer){clearTimeout(timer);timer=null;} if(rafId){cancelAnimationFrame(rafId);rafId=null;} }
+
+    function setProgress(idx, t){ // t 0..1 for current
+      segs.forEach((s,k)=>{ const f=s.querySelector('.fill'); if(k<idx){s.classList.add('done');f.style.width='100%';} else if(k===idx){s.classList.remove('done');f.style.width=(t*100)+'%';} else {s.classList.remove('done');f.style.width='0%';} });
+    }
+
+    function show(idx){
+      clearTimers();
+      i = (idx + scenes.length) % scenes.length;
+      const sc = scenes[i];
+      root.style.setProperty('--accent', sc.accent || 'var(--c-indigo)');
+      // chrome visible for core scenes (not intro/outro)
+      if(sc.chrome === false){ chrome.classList.remove('show'); } else { chrome.classList.add('show'); chromeTag.textContent = sc.title || 'Давуу талууд'; }
+      inner.innerHTML = '';
+      const host = document.createElement('div');
+      host.className = 'scene';
+      inner.appendChild(host);
+      try { sc.mount(host); } catch(e){ console.error('scene '+sc.id+' mount failed', e); host.innerHTML = '<div style="position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:40px;">'+(sc.title||'')+'</div>'; }
+      // progress animation
+      const dur = sc.durationMs || 7000;
+      const start = performance.now();
+      function step(now){
+        const t = Math.min(1, (now-start)/dur);
+        setProgress(i, t);
+        if(t<1 && playing){ rafId = requestAnimationFrame(step); }
+      }
+      if(playing){ rafId = requestAnimationFrame(step); timer = setTimeout(()=>{ next(); }, dur); }
+      else { setProgress(i, 0); }
+    }
+    function next(){ show(i+1); }
+    function prev(){ show(i-1); }
+    function play(){ playing=true; document.getElementById('btn-play').textContent='⏸'; show(i); }
+    function pause(){ playing=false; clearTimers(); document.getElementById('btn-play').textContent='▶'; }
+
+    document.getElementById('btn-next').onclick = ()=>{ playing?show(i+1):(pause(),show(i+1)); };
+    document.getElementById('btn-prev').onclick = ()=>{ playing?show(i-1):(pause(),show(i-1)); };
+    document.getElementById('btn-replay').onclick = ()=>{ playing=true; document.getElementById('btn-play').textContent='⏸'; show(0); };
+    document.getElementById('btn-play').onclick = ()=>{ playing?pause():play(); };
+    segs.forEach((s,k)=>{ s.style.cursor='pointer'; s.onclick=()=>{ show(k); }; });
+    window.addEventListener('keydown',(e)=>{ if(e.key==='ArrowRight')document.getElementById('btn-next').click(); if(e.key==='ArrowLeft')document.getElementById('btn-prev').click(); if(e.key===' '){e.preventDefault();document.getElementById('btn-play').click();} });
+
+    // expose for video render tooling
+    window.SYNCLY_PLAYER = { show, next, prev, get index(){return i;}, scenes, pause, play };
+
+    if(scenes.length) show(0);
+    else inner.innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:42px;">Дүр зураг ачаалагдсангүй</div>';
+  })();
+  </script>
+</body>
+</html>
