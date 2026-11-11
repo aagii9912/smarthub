@@ -6,6 +6,8 @@ import { checkShopLimit } from '@/lib/ai/config/plans';
 import { logger } from '@/lib/utils/logger';
 import { registerShopAsMerchant } from '@/lib/payment/qpay-merchant';
 import { isBusinessType } from '@/lib/industry-packs/registry';
+import { notifyChannelClaimed, withChannelContext, type ChannelPlatform } from '@/lib/shop/channelEvents';
+import { verifyFacebookPageToken, verifyInstagramAccountToken } from '@/lib/facebook/verifyChannelToken';
 
 // GET - Get user's shop
 export async function GET(request: NextRequest) {
@@ -181,11 +183,89 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const CHANNEL_TOKEN_ERRORS = {
+  facebook: {
+    missing_token: 'Facebook page холбохын тулд page access token шаардлагатай.',
+    graph_error: 'Facebook page-ийн token хүчингүй байна. Page-ээ дахин холбоно уу.',
+    id_mismatch: 'Token нь сонгосон Facebook page-д хамаарахгүй байна.',
+  },
+  instagram: {
+    missing_token: 'Instagram холбохын тулд page access token шаардлагатай.',
+    graph_error: 'Instagram-ийн token хүчингүй байна. Instagram-аа дахин холбоно уу.',
+    id_mismatch: 'Token нь сонгосон Instagram бүртгэлд хамаарахгүй байна.',
+  },
+} as const;
+
+function nonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+/**
+ * `update` дахь facebook_page_id / instagram_business_account_id-г token-оор нь
+ * Graph API дээр шалгана. Зөвшөөрөгдвөл `update`-ийг шууд засна ('' → null,
+ * Graph-ын нэр/username), татгалзвал 400 хариу буцаана.
+ */
+async function verifyClientChannelFields(
+  update: Record<string, unknown>,
+  shopId: string
+): Promise<NextResponse | null> {
+  const reject = (platform: ChannelPlatform, reason: 'missing_token' | 'graph_error' | 'id_mismatch') =>
+    NextResponse.json({ error: CHANNEL_TOKEN_ERRORS[platform][reason] }, { status: 400 });
+
+  if (update.facebook_page_id !== undefined) {
+    const pageId = nonEmptyString(update.facebook_page_id);
+    if (update.facebook_page_id === null || (typeof update.facebook_page_id === 'string' && !pageId)) {
+      update.facebook_page_id = null;
+    } else if (!pageId) {
+      return NextResponse.json({ error: 'facebook_page_id буруу байна.' }, { status: 400 });
+    } else {
+      const token = nonEmptyString(update.facebook_page_access_token);
+      if (!token) return reject('facebook', 'missing_token');
+
+      const check = await verifyFacebookPageToken(pageId, token);
+      if (!check.ok) {
+        logger.warn('Rejected Facebook page claim: token verification failed', {
+          shopId, pageId, reason: check.reason, detail: check.detail,
+        });
+        return reject('facebook', check.reason);
+      }
+      update.facebook_page_id = pageId;
+      update.facebook_page_access_token = token;
+      if (check.name) update.facebook_page_name = check.name;
+    }
+  }
+
+  if (update.instagram_business_account_id !== undefined) {
+    const igId = nonEmptyString(update.instagram_business_account_id);
+    if (update.instagram_business_account_id === null || (typeof update.instagram_business_account_id === 'string' && !igId)) {
+      update.instagram_business_account_id = null;
+    } else if (!igId) {
+      return NextResponse.json({ error: 'instagram_business_account_id буруу байна.' }, { status: 400 });
+    } else {
+      const token = nonEmptyString(update.instagram_access_token);
+      if (!token) return reject('instagram', 'missing_token');
+
+      const check = await verifyInstagramAccountToken(igId, token);
+      if (!check.ok) {
+        logger.warn('Rejected Instagram claim: token verification failed', {
+          shopId, igAccountId: igId, reason: check.reason, detail: check.detail,
+        });
+        return reject('instagram', check.reason);
+      }
+      update.instagram_business_account_id = igId;
+      update.instagram_access_token = token;
+      if (check.username) update.instagram_username = check.username;
+    }
+  }
+
+  return null;
+}
+
 // PATCH - Update shop
 export async function PATCH(request: NextRequest) {
   try {
     // RBAC: дэлгүүрийн тохиргоо засах эрх (owner / admin). Staff хориглоно.
-    const { shop: accessShop } = await requirePermission('settings:write');
+    const { shop: accessShop, userId: actorUserId } = await requirePermission('settings:write');
 
     const body = await request.json();
     const supabase = supabaseAdmin();
@@ -334,31 +414,87 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
+    // ── Page / IG холболтыг Graph API-аар баталгаажуулах ──
+    // Клиентээс ирсэн page/IG ID-д итгэж болохгүй: доорх global release нь тэр
+    // page-ийг бусад дэлгүүрээс салгадаг тул өөр дэлгүүрийн page ID + хог token
+    // илгээгээд page-ийг нь булааж, webhook-ийг өөр рүүгээ чиглүүлж болно.
+    // Тиймээс ID-г зөвхөн тухайн page-ийн жинхэнэ token-той хамт хадгална,
+    // нэр/username-ийг Graph-аас авна. Салгах (null / '') нь token шаардахгүй.
+    const channelError = await verifyClientChannelFields(sanitizedUpdate, shop.id);
+    if (channelError) return channelError;
+
     // Clear unique fields from ANY shop that already holds this FB page / IG account.
     // A Facebook page or Instagram account can only be connected to one shop at a time
     // across all users, so we must release it globally before claiming it here.
+    // Released shops are logged by the DB trigger (shop_channel_events) and, when
+    // they belong to another user, their owner + Syncly admins are alerted.
+    const releases: Array<{
+      platform: ChannelPlatform;
+      accountId: string;
+      idColumn: 'facebook_page_id' | 'instagram_business_account_id';
+      nameColumn: 'facebook_page_name' | 'instagram_username';
+      clear: Record<string, null>;
+    }> = [];
     if (sanitizedUpdate.facebook_page_id) {
-      await supabase
-        .from('shops')
-        .update({ facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null })
-        .eq('facebook_page_id', sanitizedUpdate.facebook_page_id as string)
-        .neq('id', shop.id);
+      releases.push({
+        platform: 'facebook',
+        accountId: sanitizedUpdate.facebook_page_id as string,
+        idColumn: 'facebook_page_id',
+        nameColumn: 'facebook_page_name',
+        clear: { facebook_page_id: null, facebook_page_name: null, facebook_page_access_token: null },
+      });
     }
     if (sanitizedUpdate.instagram_business_account_id) {
-      await supabase
-        .from('shops')
-        .update({ instagram_business_account_id: null, instagram_access_token: null, instagram_username: null })
-        .eq('instagram_business_account_id', sanitizedUpdate.instagram_business_account_id as string)
-        .neq('id', shop.id);
+      releases.push({
+        platform: 'instagram',
+        accountId: sanitizedUpdate.instagram_business_account_id as string,
+        idColumn: 'instagram_business_account_id',
+        nameColumn: 'instagram_username',
+        clear: { instagram_business_account_id: null, instagram_access_token: null, instagram_username: null },
+      });
     }
 
+    for (const release of releases) {
+      const { data: holders } = await supabase
+        .from('shops')
+        .select(`id, name, user_id, ${release.nameColumn}`)
+        .eq(release.idColumn, release.accountId)
+        .neq('id', shop.id);
+      const victims = (holders ?? []) as unknown as Array<Record<string, string | null> & { id: string }>;
+      if (victims.length === 0) continue;
+
+      const { error: releaseError } = await withChannelContext(
+        { source: 'claimed_by_other_shop', actor_user_id: actorUserId, related_shop_id: shop.id },
+        (extra) => supabase.from('shops').update({ ...release.clear, ...extra }).in('id', victims.map((v) => v.id))
+      );
+      if (releaseError) {
+        logger.error('Failed to release channel from other shops', { error: releaseError.message, platform: release.platform });
+        continue;
+      }
+
+      for (const victim of victims) {
+        await notifyChannelClaimed({
+          victim: { id: victim.id, name: victim.name, user_id: victim.user_id, accountName: victim[release.nameColumn] ?? null },
+          claimingShop: { id: shop.id, user_id: shop.user_id },
+          platform: release.platform,
+          accountId: release.accountId,
+        });
+      }
+    }
+
+    const touchesChannel =
+      sanitizedUpdate.facebook_page_id !== undefined || sanitizedUpdate.instagram_business_account_id !== undefined;
+
     // Update shop with sanitized data
-    const { data: updatedShop, error } = await supabase
-      .from('shops')
-      .update(sanitizedUpdate)
-      .eq('id', shop.id)
-      .select()
-      .single();
+    const { data: updatedShop, error } = await withChannelContext(
+      touchesChannel ? { source: 'settings_update', actor_user_id: actorUserId } : null,
+      (extra) => supabase
+        .from('shops')
+        .update({ ...sanitizedUpdate, ...extra })
+        .eq('id', shop.id)
+        .select()
+        .single()
+    );
 
     if (error) {
       const dbErrMsg = typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : JSON.stringify(error);

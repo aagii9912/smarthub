@@ -176,3 +176,71 @@ export async function sendLowStockEmail(params: {
 
     return sendEmail(to, `⚠️ ${products.length} бараа нөөц бага — ${shopName}`, html);
 }
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * Facebook page / Instagram холболт алдагдсан тухай анхааруулга
+ * (эзэмшигч болон Syncly admin-д). `lines` нь энгийн текст — энд escape хийнэ.
+ */
+export async function sendChannelAlertEmail(params: {
+    to: string;
+    subject: string;
+    heading: string;
+    shopName: string;
+    lines: string[];
+    actionUrl: string;
+    actionLabel: string;
+}): Promise<boolean> {
+    const { to, subject, heading, shopName, lines, actionUrl, actionLabel } = params;
+
+    const paragraphs = lines
+        .map((line) => `<p style="color: #374151; font-size: 14px; margin: 0 0 12px;">${escapeHtml(line)}</p>`)
+        .join('');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4f5f7; }
+        .container { max-width: 560px; margin: 30px auto; }
+        .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #F59E0B, #D97706); color: white; padding: 24px 28px; }
+        .header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+        .header p { margin: 6px 0 0; opacity: 0.9; font-size: 13px; }
+        .content { padding: 28px; }
+        .button { display: inline-block; background: #4F46E5; color: white !important; padding: 11px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin-top: 8px; }
+        .footer { text-align: center; padding: 16px 28px; color: #9ca3af; font-size: 11px; border-top: 1px solid #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>${escapeHtml(heading)}</h1>
+                <p>${escapeHtml(shopName)} — ${new Date().toLocaleString('mn-MN')}</p>
+            </div>
+            <div class="content">
+                ${paragraphs}
+                <a href="${escapeHtml(actionUrl)}" class="button">${escapeHtml(actionLabel)} →</a>
+            </div>
+            <div class="footer">
+                Энэ мэдэгдэл Syncly системээс автоматаар илгээгдсэн
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    return sendEmail(to, subject, html);
+}

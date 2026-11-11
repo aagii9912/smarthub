@@ -434,7 +434,10 @@ function SetupContent() {
       })
     });
 
-    if (!res.ok) throw new Error('Хадгалахад алдаа гарлаа');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Хадгалахад алдаа гарлаа');
+    }
 
     await refreshShop();
     goToStepKey('instagram');
@@ -454,7 +457,10 @@ function SetupContent() {
       })
     });
 
-    if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Instagram хадгалахад алдаа гарлаа');
+    }
 
     await refreshShop();
     goToStepKey('products');
@@ -474,7 +480,10 @@ function SetupContent() {
       })
     });
 
-    if (!res.ok) throw new Error('Instagram хадгалахад алдаа гарлаа');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Instagram хадгалахад алдаа гарлаа');
+    }
 
     setIgAccounts([]);
     await refreshShop();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth/auth';
 import { logger } from '@/lib/utils/logger';
+import { verifyInstagramAccountToken } from '@/lib/facebook/verifyChannelToken';
 
 /**
  * POST /api/dashboard/connect-instagram
@@ -65,9 +66,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const igAccountId = pickedId;
-        const igUsername = pickedUsername || '';
-        const pageAccessToken = pickedToken;
+        // Клиентээс ирсэн IG ID-д итгэхгүй: token нь тэр IG бүртгэлтэй холбогдсон
+        // page-ийн page token мөн эсэхийг Graph API-аар шалгана.
+        const check = await verifyInstagramAccountToken(String(pickedId), String(pickedToken));
+        if (!check.ok) {
+            logger.warn('connect-instagram: rejected IG claim, token verification failed', {
+                shopId, igAccountId: pickedId, reason: check.reason, detail: check.detail,
+            });
+            return NextResponse.json(
+                {
+                    error: check.reason === 'id_mismatch'
+                        ? 'Token нь сонгосон Instagram бүртгэлд хамаарахгүй байна.'
+                        : 'Instagram-ийн token хүчингүй байна. Instagram-аа дахин холбоно уу.',
+                },
+                { status: 400 }
+            );
+        }
+
+        const igAccountId = check.id;
+        const igUsername = check.username || pickedUsername || '';
+        const pageAccessToken = String(pickedToken);
 
         // Sanity: refuse to connect an IG account already in use by another
         // shop owned by THIS user. Cross-user collisions are blocked by the

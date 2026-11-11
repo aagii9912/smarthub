@@ -34,6 +34,7 @@ import { getCustomerMemory } from '@/lib/ai/tools/memory';
 import { getActiveCartForAI } from '@/lib/ai/helpers/stockHelpers';
 import { resolveArchetype } from '@/lib/dashboard/archetypes';
 import { getStoryLinkByMediaId, getActiveFbPin, upsertVisionAutoLink } from '@/lib/services/StoryProductLinkService';
+import { alertIfOrphanedChannel } from '@/lib/shop/channelEvents';
 import crypto from 'crypto';
 
 const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN;
@@ -337,6 +338,9 @@ export async function POST(request: NextRequest) {
 
             if (!shop) {
                 logger.warn(`No active shop found for ${platform} account ${accountId}`);
+                // Хэрэв энэ page/IG өмнө нь дэлгүүрт холбогдож байгаад салгагдсан бол
+                // эзэмшигч + admin-д мэдэгдэнэ (24 цагт 1, нийт 3 хүртэл). Throw хийхгүй.
+                await alertIfOrphanedChannel(accountId);
                 continue;
             }
 

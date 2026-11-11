@@ -51,6 +51,24 @@ vi.mock('@/lib/utils/logger', () => ({
     },
 }));
 
+// Page/IG token-ийн Graph шалгалт — fetch биш helper-ийг mock хийнэ.
+const mockVerifyFacebookPageToken = vi.fn();
+const mockVerifyInstagramAccountToken = vi.fn();
+vi.mock('@/lib/facebook/verifyChannelToken', () => ({
+    verifyFacebookPageToken: (...args: unknown[]) => mockVerifyFacebookPageToken(...args),
+    verifyInstagramAccountToken: (...args: unknown[]) => mockVerifyInstagramAccountToken(...args),
+}));
+
+// Release-ийн дараах push/и-мэйл анхааруулгыг илгээхгүй; withChannelContext жинхэнэ хэвээр.
+const mockNotifyChannelClaimed = vi.fn();
+vi.mock('@/lib/shop/channelEvents', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/shop/channelEvents')>('@/lib/shop/channelEvents');
+    return {
+        ...actual,
+        notifyChannelClaimed: (...args: unknown[]) => mockNotifyChannelClaimed(...args),
+    };
+});
+
 // Mock NextResponse
 vi.mock('next/server', async () => {
     const actual = await vi.importActual('next/server');
@@ -96,6 +114,35 @@ function createMockChain(data: unknown = null, error: unknown = null) {
     chain.single = vi.fn().mockResolvedValue({ data, error });
     chain.maybeSingle = vi.fn().mockResolvedValue({ data, error });
     return chain;
+}
+
+// `select().eq().neq()` — page/IG-г эзэмшиж буй бусад дэлгүүрийг хайх query.
+function createHoldersChain(holders: unknown[]) {
+    const chain: Record<string, unknown> = {};
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.neq = vi.fn().mockResolvedValue({ data: holders, error: null });
+    return chain;
+}
+
+// `update().in()` — бусад дэлгүүрээс page/IG-г салгах (release).
+function createReleaseChain() {
+    const chain: Record<string, unknown> = {};
+    chain.update = vi.fn().mockReturnValue(chain);
+    chain.in = vi.fn().mockResolvedValue({ error: null });
+    return chain;
+}
+
+// supabase.from()-г дарааллаар нь хариулна; илүү дуудалт гарвал тест унана.
+function mockDbSequence(chains: Record<string, unknown>[]) {
+    const queue = [...chains];
+    const from = vi.fn((table: string) => {
+        const next = queue.shift();
+        if (!next) throw new Error(`unexpected supabase.from('${table}')`);
+        return next;
+    });
+    mockSupabaseAdmin.mockReturnValue({ from });
+    return from;
 }
 
 describe('Shop API', () => {
@@ -267,6 +314,141 @@ describe('Shop API', () => {
             expect(response.status).toBe(200);
             // The update chain should only include "name", not user_id or subscription_plan
             expect(updateChain.update).toHaveBeenCalledWith({ name: 'Updated' });
+        });
+
+        describe('Facebook page / Instagram claim verification', () => {
+            const shop = { id: 'shop-1', user_id: 'user-123', name: 'My Shop' };
+            const victim = { id: 'shop-victim', name: 'Victim Shop', user_id: 'user-victim', facebook_page_name: 'Victim Page', instagram_username: 'victim_ig' };
+
+            beforeEach(() => {
+                mockRequirePermission.mockResolvedValue(ownerAccess);
+            });
+
+            it('rejects a page ID whose token belongs to another page — 400, nothing released or saved', async () => {
+                mockVerifyFacebookPageToken.mockResolvedValue({ ok: false, reason: 'id_mismatch', detail: 'token belongs to attacker-page' });
+                const from = mockDbSequence([createMockChain(shop), createHoldersChain([victim]), createReleaseChain(), createMockChain(shop)]);
+
+                const response = await PATCH(createRequest('PATCH', {
+                    facebook_page_id: 'victim-page',
+                    facebook_page_name: 'Victim Page',
+                    facebook_page_access_token: 'junk-token',
+                }));
+
+                expect(response.status).toBe(400);
+                expect((await response.json()).error).toBe('Token нь сонгосон Facebook page-д хамаарахгүй байна.');
+                expect(mockVerifyFacebookPageToken).toHaveBeenCalledWith('victim-page', 'junk-token');
+                // Зөвхөн өөрийн дэлгүүрийг уншсан — holders query, release, update хийгдээгүй.
+                expect(from).toHaveBeenCalledTimes(1);
+                expect(mockNotifyChannelClaimed).not.toHaveBeenCalled();
+            });
+
+            it('rejects a page ID when Graph rejects the token — 400', async () => {
+                mockVerifyFacebookPageToken.mockResolvedValue({ ok: false, reason: 'graph_error', detail: '190 Invalid OAuth access token' });
+                const from = mockDbSequence([createMockChain(shop)]);
+
+                const response = await PATCH(createRequest('PATCH', {
+                    facebook_page_id: 'victim-page',
+                    facebook_page_access_token: 'expired-token',
+                }));
+
+                expect(response.status).toBe(400);
+                expect((await response.json()).error).toBe('Facebook page-ийн token хүчингүй байна. Page-ээ дахин холбоно уу.');
+                expect(from).toHaveBeenCalledTimes(1);
+            });
+
+            it('rejects a page ID sent without a token — 400, Graph not called', async () => {
+                const from = mockDbSequence([createMockChain(shop)]);
+
+                const response = await PATCH(createRequest('PATCH', { facebook_page_id: 'victim-page', facebook_page_name: 'Victim Page' }));
+
+                expect(response.status).toBe(400);
+                expect((await response.json()).error).toBe('Facebook page холбохын тулд page access token шаардлагатай.');
+                expect(mockVerifyFacebookPageToken).not.toHaveBeenCalled();
+                expect(from).toHaveBeenCalledTimes(1);
+            });
+
+            it('saves the page when the token matches, using the Graph page name, and releases other holders', async () => {
+                mockVerifyFacebookPageToken.mockResolvedValue({ ok: true, id: 'page-1', name: 'Real Page Name' });
+                const holdersChain = createHoldersChain([victim]);
+                const releaseChain = createReleaseChain();
+                const updateChain = createMockChain({ ...shop, facebook_page_id: 'page-1' });
+                mockDbSequence([createMockChain(shop), holdersChain, releaseChain, updateChain]);
+
+                const response = await PATCH(createRequest('PATCH', {
+                    facebook_page_id: 'page-1',
+                    facebook_page_name: 'Client Supplied Name',
+                    facebook_page_access_token: 'good-token',
+                }));
+
+                expect(response.status).toBe(200);
+                expect(holdersChain.eq).toHaveBeenCalledWith('facebook_page_id', 'page-1');
+                expect(releaseChain.in).toHaveBeenCalledWith('id', ['shop-victim']);
+                expect(mockNotifyChannelClaimed).toHaveBeenCalledWith(expect.objectContaining({ platform: 'facebook', accountId: 'page-1' }));
+                expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({
+                    facebook_page_id: 'page-1',
+                    facebook_page_name: 'Real Page Name',
+                    facebook_page_access_token: 'good-token',
+                }));
+            });
+
+            it('allows clearing the page with null and no token', async () => {
+                const updateChain = createMockChain({ ...shop, facebook_page_id: null });
+                const from = mockDbSequence([createMockChain(shop), updateChain]);
+
+                const response = await PATCH(createRequest('PATCH', { facebook_page_id: null }));
+
+                expect(response.status).toBe(200);
+                expect(mockVerifyFacebookPageToken).not.toHaveBeenCalled();
+                expect(from).toHaveBeenCalledTimes(2); // release алгассан
+                expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({ facebook_page_id: null }));
+            });
+
+            it("treats an empty-string page ID as clearing (stored as null, not '')", async () => {
+                const updateChain = createMockChain({ ...shop, facebook_page_id: null });
+                mockDbSequence([createMockChain(shop), updateChain]);
+
+                const response = await PATCH(createRequest('PATCH', { facebook_page_id: '' }));
+
+                expect(response.status).toBe(200);
+                expect(mockVerifyFacebookPageToken).not.toHaveBeenCalled();
+                expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({ facebook_page_id: null }));
+            });
+
+            it("rejects an Instagram account the token's page isn't linked to — 400, nothing released or saved", async () => {
+                mockVerifyInstagramAccountToken.mockResolvedValue({ ok: false, reason: 'id_mismatch', detail: "page's IG account is none" });
+                const from = mockDbSequence([createMockChain(shop), createHoldersChain([victim]), createReleaseChain(), createMockChain(shop)]);
+
+                const response = await PATCH(createRequest('PATCH', {
+                    instagram_business_account_id: 'victim-ig',
+                    instagram_username: 'victim_ig',
+                    instagram_access_token: 'junk-token',
+                }));
+
+                expect(response.status).toBe(400);
+                expect((await response.json()).error).toBe('Token нь сонгосон Instagram бүртгэлд хамаарахгүй байна.');
+                expect(mockVerifyInstagramAccountToken).toHaveBeenCalledWith('victim-ig', 'junk-token');
+                expect(from).toHaveBeenCalledTimes(1);
+                expect(mockNotifyChannelClaimed).not.toHaveBeenCalled();
+            });
+
+            it('saves the Instagram account when the token matches, using the Graph username', async () => {
+                mockVerifyInstagramAccountToken.mockResolvedValue({ ok: true, id: 'ig-1', username: 'real_ig', pageId: 'page-1' });
+                const updateChain = createMockChain({ ...shop, instagram_business_account_id: 'ig-1' });
+                mockDbSequence([createMockChain(shop), createHoldersChain([]), updateChain]);
+
+                const response = await PATCH(createRequest('PATCH', {
+                    instagram_business_account_id: 'ig-1',
+                    instagram_username: 'client_supplied',
+                    instagram_access_token: 'good-token',
+                }));
+
+                expect(response.status).toBe(200);
+                expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({
+                    instagram_business_account_id: 'ig-1',
+                    instagram_username: 'real_ig',
+                    instagram_access_token: 'good-token',
+                }));
+            });
         });
     });
 });

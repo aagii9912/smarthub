@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
+import { withChannelContext } from '@/lib/shop/channelEvents';
 
 /**
  * POST /api/shop/disconnect
@@ -73,10 +74,11 @@ export async function POST(request: NextRequest) {
             };
         }
 
-        const { error: updateError } = await supabase
-            .from('shops')
-            .update(updateData)
-            .eq('id', shop.id);
+        // DB trigger shop_channel_events-д бичнэ; context нь "эзэмшигч өөрөө салгасан"-ыг тэмдэглэнэ.
+        const { error: updateError } = await withChannelContext(
+            { source: 'owner_disconnect', actor_user_id: userId },
+            (extra) => supabase.from('shops').update({ ...updateData, ...extra }).eq('id', shop.id)
+        );
 
         if (updateError) {
             logger.error('Disconnect error:', { error: updateError, shopId: shop.id, platform });
