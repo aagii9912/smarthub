@@ -17,7 +17,7 @@ interface Subscription {
     current_period_start: string;
     current_period_end: string;
     created_at: string;
-    shops: { id: string; name: string; email: string };
+    shops: { id: string; name: string };
     plans: { id: string; name: string; price_monthly: number; price_yearly: number };
 }
 
@@ -168,7 +168,6 @@ export default function AdminSubscriptionsPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
                                                     <Link href="/admin/shops" className="text-sm font-semibold text-gray-900 hover:text-violet-600 transition-colors">{sub.shops?.name}</Link>
-                                                    <span className="text-xs text-gray-500 mt-0.5">{sub.shops?.email}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">

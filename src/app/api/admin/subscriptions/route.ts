@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
             .from('subscriptions')
             .select(`
                 *,
-                shops(id, name, email),
+                shops(id, name),
                 plans(id, name, price_monthly, price_yearly)
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
@@ -88,7 +88,7 @@ export async function PUT(request: NextRequest) {
             .eq('id', subscription_id)
             .select(`
                 *,
-                shops(id, name, email),
+                shops(id, name),
                 plans(id, name)
             `)
             .single();

@@ -8,6 +8,29 @@ import { getAdminUser } from '@/lib/admin/auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logger } from '@/lib/utils/logger';
 
+type ShopRef = { id: string; name: string };
+
+/**
+ * Invoice мөрүүдэд `shops: { id, name }`-ийг тусдаа query-ээр залгана.
+ *
+ * Production DB-д `invoices.shop_id` → `shops.id` foreign key байхгүй тул
+ * PostgREST-ийн `shops(...)` embed нь "Could not find a relationship between
+ * 'invoices' and 'shops'" (PGRST200) гэж бүх query-г унагадаг.
+ */
+async function attachShops<T extends { shop_id?: string | null }>(
+    supabase: ReturnType<typeof supabaseAdmin>,
+    rows: T[]
+): Promise<(T & { shops: ShopRef | null })[]> {
+    const shopIds = [...new Set(rows.map(r => r.shop_id).filter((id): id is string => !!id))];
+    const shopsById = new Map<string, ShopRef>();
+    if (shopIds.length > 0) {
+        const { data: shops, error } = await supabase.from('shops').select('id, name').in('id', shopIds);
+        if (error) throw error;
+        for (const shop of shops ?? []) shopsById.set(shop.id, shop);
+    }
+    return rows.map(r => ({ ...r, shops: (r.shop_id && shopsById.get(r.shop_id)) || null }));
+}
+
 // GET - List all invoices
 export async function GET(request: NextRequest) {
     try {
@@ -29,7 +52,6 @@ export async function GET(request: NextRequest) {
             .from('invoices')
             .select(`
                 *,
-                shops(id, name, email),
                 subscriptions(id, status, plans(name))
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
@@ -46,6 +68,8 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
+        const invoices = await attachShops(supabase, data ?? []);
+
         // Calculate totals
         const { data: stats } = await supabase
             .from('invoices')
@@ -59,7 +83,7 @@ export async function GET(request: NextRequest) {
         };
 
         return NextResponse.json({
-            invoices: data,
+            invoices,
             totals,
             total: count,
             page,
@@ -100,15 +124,14 @@ export async function POST(request: NextRequest) {
                 status: 'pending',
                 created_at: new Date().toISOString()
             })
-            .select(`
-                *,
-                shops(id, name, email)
-            `)
+            .select('*')
             .single();
 
         if (error) throw error;
 
-        return NextResponse.json({ invoice: data });
+        const [invoice] = await attachShops(supabase, [data]);
+
+        return NextResponse.json({ invoice });
     } catch (error: unknown) {
         logger.error('Invoice create error:', { error: error });
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
@@ -132,7 +155,8 @@ export async function PUT(request: NextRequest) {
 
         const supabase = supabaseAdmin();
 
-        const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        // `invoices` хүснэгтэд updated_at багана байхгүй — оруулбал update бүхэлдээ унана.
+        const updateData: Record<string, unknown> = {};
         if (status) {
             updateData.status = status;
             if (status === 'paid' && !paid_at) {
@@ -142,19 +166,22 @@ export async function PUT(request: NextRequest) {
         if (paid_at) updateData.paid_at = paid_at;
         if (notes !== undefined) updateData.notes = notes;
 
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+        }
+
         const { data, error } = await supabase
             .from('invoices')
             .update(updateData)
             .eq('id', invoice_id)
-            .select(`
-                *,
-                shops(id, name, email)
-            `)
+            .select('*')
             .single();
 
         if (error) throw error;
 
-        return NextResponse.json({ invoice: data });
+        const [invoice] = await attachShops(supabase, [data]);
+
+        return NextResponse.json({ invoice });
     } catch (error: unknown) {
         logger.error('Invoice update error:', { error: error });
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
