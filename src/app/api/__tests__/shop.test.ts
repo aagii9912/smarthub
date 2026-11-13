@@ -367,8 +367,8 @@ describe('Shop API', () => {
                 expect(from).toHaveBeenCalledTimes(1);
             });
 
-            it('saves the page when the token matches, using the Graph page name, and releases other holders', async () => {
-                mockVerifyFacebookPageToken.mockResolvedValue({ ok: true, id: 'page-1', name: 'Real Page Name' });
+            it('saves the page when the token matches and releases other holders', async () => {
+                mockVerifyFacebookPageToken.mockResolvedValue({ ok: true, id: 'page-1' });
                 const holdersChain = createHoldersChain([victim]);
                 const releaseChain = createReleaseChain();
                 const updateChain = createMockChain({ ...shop, facebook_page_id: 'page-1' });
@@ -386,7 +386,7 @@ describe('Shop API', () => {
                 expect(mockNotifyChannelClaimed).toHaveBeenCalledWith(expect.objectContaining({ platform: 'facebook', accountId: 'page-1' }));
                 expect(updateChain.update).toHaveBeenCalledWith(expect.objectContaining({
                     facebook_page_id: 'page-1',
-                    facebook_page_name: 'Real Page Name',
+                    facebook_page_name: 'Client Supplied Name',
                     facebook_page_access_token: 'good-token',
                 }));
             });

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = supabaseAdmin();
-    const shopName = nonEmptyString(body.name) ?? check.name ?? 'Аагий Shop';
+    const shopName = nonEmptyString(body.name) ?? 'Аагий Shop';
 
     // Check if shop exists
     const { data: existingShop } = await supabase
@@ -115,7 +115,6 @@ export async function POST(request: NextRequest) {
         .insert({
             name: shopName,
             facebook_page_id: pageId,
-            facebook_page_name: check.name,
             facebook_page_access_token: accessToken,
             user_id: userId
         })

@@ -203,7 +203,7 @@ function nonEmptyString(value: unknown): string | null {
 /**
  * `update` дахь facebook_page_id / instagram_business_account_id-г token-оор нь
  * Graph API дээр шалгана. Зөвшөөрөгдвөл `update`-ийг шууд засна ('' → null,
- * Graph-ын нэр/username), татгалзвал 400 хариу буцаана.
+ * Graph-ын IG username), татгалзвал 400 хариу буцаана.
  */
 async function verifyClientChannelFields(
   update: Record<string, unknown>,
@@ -231,7 +231,6 @@ async function verifyClientChannelFields(
       }
       update.facebook_page_id = pageId;
       update.facebook_page_access_token = token;
-      if (check.name) update.facebook_page_name = check.name;
     }
   }
 
